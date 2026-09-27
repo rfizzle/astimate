@@ -321,7 +321,7 @@ Known gap: a single new function with very high complexity in a package whose 90
 Two sources, chosen by flag:
 
 - `--base <ref>` (default): the merge-base of `HEAD` and `<ref>` (default `origin/master`, then `master`, `origin/main`, `main`). The base tree is checked out into a temporary `git worktree`, analyzed, and removed. Packages are matched by import path.
-- `--baseline <file>`: a committed `.astimate/baseline.json` written by `astimate baseline write`. For repositories that prefer explicit, reviewable baselines or that run outside git.
+- `--baseline <file>`: a committed `.astimate/baseline.json` written by `astimate baseline write`. For repositories that prefer explicit, reviewable baselines or that run outside git. The file records the tokenizer used to write it; `check` warns when its own tokenizer differs, since token counts from different tokenizers are not comparable.
 
 ### 8.4 Changed-package detection
 
@@ -338,7 +338,7 @@ Two sources, chosen by flag:
 
 ```
 astimate check    [<module-root>] [--base ref | --baseline file] [--all] [--config|--thresholds file] [--format text|json|hook|github] [--tokenizer=est|o200k]
-astimate baseline write [<module-root>] [--out .astimate/baseline.json]
+astimate baseline write [<module-root>] [--out .astimate/baseline.json] [--tokenizer=est|o200k]
 astimate assess   <package-dir> [--json] [--config astimate.yaml] [--tokenizer=est|o200k] [--coverage]
 astimate rank     [<module-root>] [--json] [--top N] [--sort passes|days|fan_in|tokens|duplication] [--config astimate.yaml] [--tokenizer=est|o200k]
 astimate serve    [--config astimate.yaml] [--allow-any-path]
