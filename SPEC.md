@@ -160,11 +160,22 @@ Test files are excluded from every metric except `tokens_est_with_tests`, `test_
 
 ### 6.3 Duplication
 
-Tokens are taken from `go/scanner` over non-test files. Identifiers, literals and comments are normalized (identifier to `ID`, string and numeric literals to `LIT`) so renamed copies still match. A duplicate block is a maximal token sequence of length at least `dup_min_tokens` that occurs at least twice, found with a suffix array or rolling hash over the normalized stream. `dup_blocks` counts distinct sequences; `duplication_pct` is the share of SLOC covered by any occurrence. Generated files are excluded. The threshold and normalization rules are config values.
+Tokens are taken from `go/scanner` over non-test files. Identifiers, literals and comments are normalized (identifier to `ID`, string and numeric literals to `LIT`) so renamed copies still match. The automatic semicolons that `go/scanner` inserts at line ends are dropped from the stream, so a repeat never extends onto a neighbouring declaration's line. A duplicate block is a maximal token sequence of length at least `dup_min_tokens` that occurs at least twice, found with a suffix array or rolling hash over the normalized stream. Nested and overlapping repeats are merged: a shorter repeat wholly inside a longer one's occurrences is not counted separately, and occurrences that overlap are unioned before coverage is computed. `dup_blocks` counts distinct maximal sequences after merging; `duplication_pct` is covered SLOC divided by package SLOC times 100, rounded to one decimal. Generated files are excluded. The threshold and normalization rules are config values.
 
 ### 6.4 Untested exports
 
 An exported function or method counts as untested when no identifier in any test file of the package (internal or external test package) resolves, via `types.Info.Uses`, to that function or to a method with the same name on the same receiver type. Exported types, vars and consts are not counted; the metric targets behavior, not declarations. Reported as a count and, in the gate, primarily as a delta so new untested behavior fails while legacy gaps are only reported.
+
+### 6.5 Counting rules
+
+Rules that the section 6 table leaves implicit, fixed here so goldens and implementations agree (`testdata/go/fixture/golden/COUNTING.md` shows each applied):
+
+- `globals` counts names, not specs or blocks: `var a, b = 1, 2` is 2; `_` is excluded.
+- `func_count`, `cognitive_total` and `cognitive_p90` include `init()` functions.
+- `cognitive_p90` is the nearest-rank 90th percentile over per-function values; a package with no functions reports 0.
+- `tokens_est` sums bytes across files first, then divides by `chars_per_token` and truncates.
+- `fan_in_tests` counts other packages whose test files import this package; a package's own external test package importing it does not count.
+- `sloc` counts a line with code and a trailing comment as code.
 
 ## 7. Rebuild estimate
 
@@ -416,7 +427,7 @@ Each bullet is intended to become one story.
 
 *Accepts when:* `metricstest.TestExtractor` passes for the Go extractor on the fixture; `errors` reports `globals=2`, `internal_imports=0`.
 
-### M2: Scorer, thresholds and CLI
+### M2: Estimate, thresholds and CLI
 
 - Unified config (rebuild parameters and thresholds) loader and validation.
 - Rebuild estimate, tiers, drivers, suggestions.

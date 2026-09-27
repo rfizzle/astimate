@@ -4,7 +4,7 @@ Guidance for any coding agent or human working in this repository. Read `SPEC.md
 
 ## What this project is
 
-Astimate is a Go static-analysis tool used as a quality gate on LLM-written changes. It extracts package metrics, compares them against a baseline and thresholds, and fails when a package got worse. It also scores and ranks packages. It runs as a CLI, a CI step, a Claude Code hook and a Model Context Protocol (MCP) server. The gate and scorer are language-agnostic; extractors are per-language. Go is the first language. See `SPEC.md` for metrics, gate semantics, interfaces and milestones.
+Astimate is a Go static-analysis tool used as a quality gate on LLM-written changes. It extracts package metrics, compares them against a baseline and thresholds, and fails when a package got worse. It also estimates rebuild effort and ranks packages. It runs as a CLI, a CI step, a Claude Code hook and a Model Context Protocol (MCP) server. The gate and the rebuild estimate are language-agnostic; extractors are per-language. Go is the first language. See `SPEC.md` for metrics, gate semantics, interfaces and milestones.
 
 ## Workflow
 
@@ -94,7 +94,7 @@ A story is done when all of these are true:
 
 ## Do not
 
-- Do not add scoring weights or thresholds that are not in `SPEC.md` section 7 without updating the spec.
+- Do not add rebuild parameters or thresholds that are not in `SPEC.md` sections 7 and 8 without updating the spec.
 - Do not print anything to stdout in `serve` mode except protocol output.
 - Do not reintroduce hard caps in normalization; use the saturating curve.
 - Do not count test files toward any metric except the test metrics and `tokens_est_with_tests`.
