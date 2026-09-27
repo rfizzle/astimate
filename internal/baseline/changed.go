@@ -82,14 +82,22 @@ func ChangedPackages(ctx context.Context, root, mergeBase string, sc metrics.Sou
 	nested := make(map[string]bool)
 	files := sourceFiles(paths, filepath.ToSlash(rel), sc)
 	for _, f := range files.module {
-		if !inNestedModule(root, path.Dir(f), sc, nested) {
+		in, err := inNestedModule(root, path.Dir(f), sc, nested)
+		if err != nil {
+			return Change{}, err
+		}
+		if !in {
 			c.All = true
 			break
 		}
 	}
 	isPkg := make(map[string]bool, len(files.dirs))
 	for _, d := range files.dirs {
-		if inNestedModule(root, d.dir, sc, nested) {
+		in, err := inNestedModule(root, d.dir, sc, nested)
+		if err != nil {
+			return Change{}, err
+		}
+		if in {
 			continue
 		}
 		has, ok := isPkg[d.pkg]
@@ -229,33 +237,45 @@ func sourceFiles(paths []string, prefix string, sc metrics.SourceClassifier) cha
 // inNestedModule reports whether the module-relative, slash-separated dir
 // lies in a module nested below root: whether dir or one of its ancestors
 // below root holds a regular file sc reports as a module marker in the
-// working tree. Answers are memoized in seen by directory.
-func inNestedModule(root, dir string, sc metrics.SourceClassifier, seen map[string]bool) bool {
+// working tree. Answers are memoized in seen by directory. It returns an
+// error when a directory on the path exists but cannot be read.
+func inNestedModule(root, dir string, sc metrics.SourceClassifier, seen map[string]bool) (bool, error) {
 	if dir == "." {
-		return false
+		return false, nil
 	}
 	if v, ok := seen[dir]; ok {
-		return v
+		return v, nil
 	}
-	v := hasMarker(filepath.Join(root, filepath.FromSlash(dir)), sc) ||
-		inNestedModule(root, path.Dir(dir), sc, seen)
+	v, err := hasMarker(filepath.Join(root, filepath.FromSlash(dir)), sc)
+	if err != nil {
+		return false, err
+	}
+	if !v {
+		if v, err = inNestedModule(root, path.Dir(dir), sc, seen); err != nil {
+			return false, err
+		}
+	}
 	seen[dir] = v
-	return v
+	return v, nil
 }
 
 // hasMarker reports whether dir directly holds a regular file sc reports
-// as a module marker. A directory that cannot be read holds none.
-func hasMarker(dir string, sc metrics.SourceClassifier) bool {
+// as a module marker. A directory that does not exist, or a path that is
+// not a directory, holds none; any other read error is returned.
+func hasMarker(dir string, sc metrics.SourceClassifier) (bool, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return false
+		if errors.Is(err, fs.ErrNotExist) || errors.Is(err, syscall.ENOTDIR) {
+			return false, nil
+		}
+		return false, fmt.Errorf("checking %s for a module marker: %w", dir, err)
 	}
 	for _, e := range entries {
 		if e.Type().IsRegular() && sc.IsModuleMarker(e.Name()) {
-			return true
+			return true, nil
 		}
 	}
-	return false
+	return false, nil
 }
 
 // hasPackageFiles reports whether the module-relative directory pkg of the

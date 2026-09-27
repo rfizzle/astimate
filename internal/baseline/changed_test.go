@@ -2,9 +2,13 @@ package baseline
 
 import (
 	"context"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/lang/golang"
@@ -199,6 +203,43 @@ func TestChangedPackagesErrors(t *testing.T) {
 	}
 	if _, err := ChangedPackages(context.Background(), t.TempDir(), "HEAD", golang.New(), Head{}); err == nil {
 		t.Error("ChangedPackages outside a repository: want error")
+	}
+}
+
+func TestChangedPackagesUnreadableDirectory(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS == "windows" {
+		t.Skip("directory permission bits do not deny reads on Windows")
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("root reads a mode 000 directory")
+	}
+	r, base := newChangeRepo(t)
+	r.write("a/sub/s.go", "package sub\n")
+	r.git("add", "a/sub/s.go")
+	dir := filepath.Join(r.dir, "a", "sub")
+	if err := os.Chmod(dir, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chmod(dir, 0o755); err != nil {
+			t.Errorf("restoring mode of %s: %v", dir, err)
+		}
+	})
+
+	// Staged compares the index, so git never reads the unreadable
+	// directory and the error comes from the nested-module check.
+	_, err := ChangedPackages(context.Background(), r.dir, base, golang.New(), Head{Staged: true})
+	if err == nil {
+		t.Fatal("ChangedPackages with an unreadable changed directory: want error")
+	}
+	if !errors.Is(err, fs.ErrPermission) {
+		t.Errorf("error = %v, want one wrapping fs.ErrPermission", err)
+	}
+	// The package check would also fail on this directory; the message
+	// shows the nested-module check failed first rather than passing it.
+	if msg := err.Error(); !strings.Contains(msg, dir) || !strings.Contains(msg, "module marker") {
+		t.Errorf("error = %v, want the module-marker check on %s", err, dir)
 	}
 }
 
