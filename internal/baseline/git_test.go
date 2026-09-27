@@ -390,3 +390,93 @@ func TestDefaultRefOutsideRepository(t *testing.T) {
 		t.Errorf("DefaultRef outside a repository = %v, want a git error", err)
 	}
 }
+
+// rootRecorder wraps an extractor and records the root Packages was given.
+// It does not implement metrics.Forgetter, so FromGit cannot release its
+// loads.
+type rootRecorder struct {
+	metrics.Extractor
+	root string
+}
+
+func (r *rootRecorder) Packages(root string) ([]string, error) {
+	r.root = root
+	return r.Extractor.Packages(root)
+}
+
+// forgettingRecorder is a rootRecorder that forwards Forget to the wrapped
+// Go extractor and records each root it was given.
+type forgettingRecorder struct {
+	rootRecorder
+	forgot []string
+}
+
+func (f *forgettingRecorder) Forget(root string) {
+	f.forgot = append(f.forgot, root)
+	if g, ok := f.Extractor.(metrics.Forgetter); ok {
+		g.Forget(root)
+	}
+}
+
+// twoCommitRepo returns a repository with a two-package Go module committed
+// twice, and the first commit's hash.
+func twoCommitRepo(t *testing.T) (r *testRepo, first string) {
+	t.Helper()
+	r = newRepo(t, "master")
+	r.write("go.mod", "module example.com/m\n\ngo 1.27\n")
+	r.write("a/a.go", "package a\n\nimport \"fmt\"\n\nfunc A() string { return fmt.Sprint(1) }\n")
+	r.write("b/b.go", "package b\n\nvar B = 1\n")
+	first = r.commit("first")
+	r.write("a/a.go", "package a\n\nvar x = 2\n\nfunc A() int { return x }\n")
+	r.commit("second")
+	return r, first
+}
+
+func TestFromGitForgetsWorktreeLoad(t *testing.T) {
+	if testing.Short() {
+		t.Skip("integration test: loads Go packages")
+	}
+	t.Parallel()
+
+	r, first := twoCommitRepo(t)
+	ext := &forgettingRecorder{rootRecorder: rootRecorder{Extractor: golang.New()}}
+	if _, err := FromGit(context.Background(), r.dir, first, ext, "example.com/m", "est"); err != nil {
+		t.Fatalf("FromGit: %v", err)
+	}
+	if len(ext.forgot) != 1 || ext.forgot[0] != ext.root {
+		t.Fatalf("Forget called with %q, want once with the worktree root %q", ext.forgot, ext.root)
+	}
+	assertCleanedUp(t, r, ext.root)
+	// With the load forgotten, listing the deleted worktree must load it
+	// again and fail; a cached load would still answer.
+	if pkgs, err := ext.Extractor.Packages(ext.root); err == nil {
+		t.Errorf("Packages on the removed worktree = %v, want a load error (load still cached)", pkgs)
+	}
+}
+
+// TestFromGitForgetHeap measures the heap a baseline's load holds when
+// FromGit's extractor cannot release it, by forgetting it afterwards. The
+// figure is informational; run with -v to see it.
+func TestFromGitForgetHeap(t *testing.T) {
+	if testing.Short() {
+		t.Skip("integration test: loads Go packages")
+	}
+	// Not parallel, so other tests' allocations blur the figure less.
+	r, first := twoCommitRepo(t)
+	gox := golang.New()
+	ext := &rootRecorder{Extractor: gox}
+	if _, err := FromGit(context.Background(), r.dir, first, ext, "example.com/m", "est"); err != nil {
+		t.Fatalf("FromGit: %v", err)
+	}
+	var held, released runtime.MemStats
+	runtime.GC()
+	runtime.ReadMemStats(&held)
+	gox.Forget(ext.root)
+	runtime.GC()
+	runtime.ReadMemStats(&released)
+	t.Logf("HeapAlloc with the baseline load held %d B, after Forget %d B, delta %d B",
+		held.HeapAlloc, released.HeapAlloc, int64(held.HeapAlloc)-int64(released.HeapAlloc))
+	if _, err := gox.Packages(ext.root); err == nil {
+		t.Error("Packages on the removed worktree succeeded after Forget, want a reload that fails")
+	}
+}

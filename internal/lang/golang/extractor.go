@@ -199,6 +199,37 @@ func (e *Extractor) cached(ctx context.Context, mod *metrics.ModuleContext) (*lo
 	return l, nil
 }
 
+// Forget drops the cached load of the module at root, spelled in any form
+// that resolves to the same absolute path, together with the per-package
+// debug details that load recorded, so the memory can be reclaimed once no
+// ModuleContext still holds it. A later Packages or Extract for root, through
+// a ModuleContext whose Cache is empty, loads the module again. Forget does
+// not wait for or disturb a load of root still in flight: it leaves that
+// entry and returns. Forget of a root never loaded does nothing.
+func (e *Extractor) Forget(root string) {
+	abs, err := filepath.Abs(root)
+	if err != nil {
+		return
+	}
+	e.mu.Lock()
+	m, ok := e.modules[abs]
+	if ok {
+		select {
+		case <-m.done:
+			delete(e.modules, abs)
+		default:
+			ok = false
+		}
+	}
+	e.mu.Unlock()
+	if !ok || m.l == nil {
+		return
+	}
+	m.l.detailsMu.Lock()
+	m.l.details = nil
+	m.l.detailsMu.Unlock()
+}
+
 // logSkipped logs each module directory l skipped at info level, when e has
 // a logger.
 func (e *Extractor) logSkipped(l *loaded) {
