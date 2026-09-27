@@ -1,0 +1,511 @@
+package golang
+
+// Duplication (SPEC.md section 6.3).
+//
+// Stream. Every non-test file of the package is scanned with go/scanner,
+// comments off, except generated files: those ast.IsGenerated reports, which
+// carry a "// Code generated ... DO NOT EDIT." comment before the package
+// clause, as Go's generated-file convention specifies. Each token becomes one
+// int32 code:
+//
+//   - an identifier is token.IDENT, a string, char, int, float or imaginary
+//     literal is token.INT (the single LIT code), so renamed copies match;
+//   - with a normalization toggle off, identifiers (or literals) are instead
+//     interned by text to codes from dupInternBase up, distinct per text;
+//   - a keyword or operator keeps its token.Token value;
+//   - an automatic semicolon (token.SEMICOLON with literal "\n") is dropped,
+//     so a repeat never reaches onto the neighbouring declaration's line; an
+//     explicit ";" is kept.
+//
+// The files are concatenated with one separator code after each file,
+// dupSeparatorBase plus the file's index. Separators are unique in the
+// stream and above every token and interned code, so no common prefix of two
+// suffixes can run across a file boundary. Because every token is exactly one
+// int32, a match can never start or end inside a token.
+//
+// Finder. A suffix array over the int32 stream is built by prefix doubling
+// with counting sorts (O(n log n)), then the LCP array by Kasai's algorithm.
+// index/suffixarray was considered and not used: it indexes bytes and only
+// answers lookups, it does not expose the sorted suffixes or their common
+// prefix lengths that maximal-repeat enumeration needs. A rolling hash would
+// need verification and a separate maximality pass; the suffix array gives
+// both exactly.
+//
+// A maximal repeat is a sequence occurring at least twice that cannot be
+// extended left or right with all occurrences agreeing; in the suffix array
+// it is an LCP interval whose occurrences are not all preceded by the same
+// code. SPEC.md merging drops a maximal repeat each of whose occurrences lies
+// inside an occurrence of a longer repeat (nested repeats, and the shorter
+// periods of a tandem run); the survivors are the duplicate blocks.
+//
+// Enumerating every maximal repeat and testing containment occurrence by
+// occurrence is quadratic on long periodic runs such as literal tables, so
+// the survivors are found directly. Let L(q) be the longest repeat starting
+// at stream position q (the larger LCP with q's two suffix-array
+// neighbours). An occurrence [q, q+l) lies inside a longer repeat exactly
+// when l < L(q) or some q' < q has q'+L(q') >= q+l, since any repeated
+// segment extends to an occurrence of a maximal repeat at least as long. So,
+// sweeping q upwards with reach = max(q'+L(q')) over q' < q, a position with
+// L(q) >= minTokens and q+L(q) > reach starts an occurrence of a surviving
+// block: the sequence of length L(q) at q, which is then left-maximal too
+// (otherwise q-1 would reach as far). Its LCP interval, found from previous
+// and next smaller LCP values, gives all its occurrences; blocks are the
+// distinct intervals. Everything after the suffix array is linear. The
+// occurrences of the blocks, overlapping or not, are unioned for coverage;
+// every shorter repeat lies inside them, so the union is the same as over
+// all repeats.
+//
+// Coverage. A line is covered when it holds a code byte of a token in any
+// occurrence of any block, and counts only if it is a source line by the
+// same rule size uses: at least one non-space byte outside comments.
+// duplication_pct is covered lines over the package SLOC from size (which
+// includes generated files), times 100, rounded to one decimal.
+
+import (
+	"bytes"
+	"cmp"
+	"fmt"
+	"go/ast"
+	"go/scanner"
+	"go/token"
+	"math"
+	"os"
+	"slices"
+	"strings"
+
+	"golang.org/x/tools/go/packages"
+)
+
+const (
+	// dupIdentCode is the normalized code of every identifier (ID).
+	dupIdentCode = int32(token.IDENT)
+	// dupLitCode is the normalized code of every basic literal (LIT).
+	dupLitCode = int32(token.INT)
+	// dupInternBase is the first code given to an interned identifier or
+	// literal text when its normalization is off. It is above every
+	// token.Token value.
+	dupInternBase = int32(1 << 12)
+	// dupSeparatorBase is the code of the separator after the first file;
+	// the separator after file i is dupSeparatorBase + i.
+	dupSeparatorBase = int32(1 << 30)
+)
+
+// dupOptions configures duplication. Extract does not call duplication yet;
+// wiring it in and exposing these values as extractor Options and config
+// keys (dup_min_tokens and the normalization rules) belongs to the assembly
+// of the extractor.
+type dupOptions struct {
+	// minTokens is dup_min_tokens: the shortest normalized token sequence
+	// that counts as a duplicate block.
+	minTokens int
+	// normalizeIdents maps every identifier to one code.
+	normalizeIdents bool
+	// normalizeLiterals maps every string, char and numeric literal to one
+	// code.
+	normalizeLiterals bool
+}
+
+// defaultDupOptions returns the SPEC.md defaults: 40 tokens, identifiers and
+// literals normalized.
+func defaultDupOptions() dupOptions {
+	return dupOptions{minTokens: 40, normalizeIdents: true, normalizeLiterals: true}
+}
+
+// dupCounts holds the duplication metrics of one package.
+type dupCounts struct {
+	// blocks is dup_blocks: distinct maximal repeated sequences after
+	// merging.
+	blocks int
+	// pct is duplication_pct: covered SLOC over package SLOC times 100,
+	// rounded to one decimal.
+	pct float64
+	// locations lists every occurrence of every block, block by block in
+	// order of first occurrence, for suggestions and debugging.
+	locations []dupLocation
+}
+
+// dupLocation is one occurrence of a duplicate block: the absolute filename
+// and the first and last lines holding its tokens.
+type dupLocation struct {
+	file               string
+	startLine, endLine int
+}
+
+// dupFile is one scanned file of the stream.
+type dupFile struct {
+	name string
+	// code reports, per 1-based line, whether the line holds a non-space
+	// byte of some token, which is the SLOC rule size applies.
+	code []bool
+}
+
+// dupStream is the normalized token stream of a package: codes, and for each
+// token its file index and first and last line. Separators have file -1.
+type dupStream struct {
+	codes      []int32
+	file       []int32
+	line, last []int32
+	files      []dupFile
+	// intern maps identifier or literal text to its code when a
+	// normalization toggle is off.
+	intern map[string]int32
+}
+
+// dupRepeat is one maximal repeat: its occurrences are sa[lb..rb] and its
+// length is n tokens.
+type dupRepeat struct {
+	lb, rb, n int32
+}
+
+// duplication computes dup_blocks and duplication_pct for p from its
+// non-test, non-generated files, with sz the size metrics of p (its sloc is
+// the denominator of the percentage). See the file comment for the
+// algorithm.
+func duplication(l *loaded, p *packages.Package, sz sizeCounts, opts dupOptions) (dupCounts, error) {
+	if opts.minTokens < 1 {
+		return dupCounts{}, fmt.Errorf("detecting duplication in %s: minimum of %d tokens is not positive", p.PkgPath, opts.minTokens)
+	}
+	s := &dupStream{intern: make(map[string]int32)}
+	fs := token.NewFileSet()
+	for _, f := range p.Syntax {
+		if ast.IsGenerated(f) {
+			continue
+		}
+		tf := l.fset.File(f.FileStart)
+		if tf == nil {
+			return dupCounts{}, fmt.Errorf("detecting duplication in %s: file not in file set", p.PkgPath)
+		}
+		src, err := os.ReadFile(tf.Name())
+		if err != nil {
+			return dupCounts{}, fmt.Errorf("detecting duplication in %s: %w", p.PkgPath, err)
+		}
+		if err := s.scan(fs, tf.Name(), src, opts); err != nil {
+			return dupCounts{}, fmt.Errorf("detecting duplication in %s: %w", p.PkgPath, err)
+		}
+	}
+	sa, reps := dupFind(s.codes, opts.minTokens)
+	return s.count(sa, reps, sz.sloc), nil
+}
+
+// scan appends the normalized tokens of one file, then its separator.
+func (s *dupStream) scan(fs *token.FileSet, name string, src []byte, opts dupOptions) error {
+	tf := fs.AddFile(name, -1, len(src))
+	var sc scanner.Scanner
+	var scanErr error
+	sc.Init(tf, src, func(pos token.Position, msg string) {
+		if scanErr == nil {
+			scanErr = fmt.Errorf("scanning %s: %s", pos, msg)
+		}
+	}, 0)
+	fi := int32(len(s.files))
+	df := dupFile{name: name, code: make([]bool, bytes.Count(src, []byte{'\n'})+2)}
+	for {
+		pos, tok, lit := sc.Scan()
+		if tok == token.EOF {
+			break
+		}
+		if tok == token.SEMICOLON && lit == "\n" {
+			continue
+		}
+		line := int32(tf.Line(pos))
+		last := line
+		df.code[line] = true
+		if tok == token.STRING && strings.IndexByte(lit, '\n') >= 0 {
+			last = markRawLines(df.code, line, lit)
+		}
+		s.codes = append(s.codes, s.code(tok, lit, opts))
+		s.file = append(s.file, fi)
+		s.line = append(s.line, line)
+		s.last = append(s.last, last)
+	}
+	if scanErr != nil {
+		return scanErr
+	}
+	s.files = append(s.files, df)
+	s.codes = append(s.codes, dupSeparatorBase+fi)
+	s.file = append(s.file, -1)
+	s.line = append(s.line, 0)
+	s.last = append(s.last, 0)
+	return nil
+}
+
+// markRawLines marks the lines after line that the multi-line raw string lit
+// holds a non-space byte on, and returns the literal's last line.
+func markRawLines(code []bool, line int32, lit string) int32 {
+	for i := 0; i < len(lit); i++ {
+		switch b := lit[i]; {
+		case b == '\n':
+			line++
+		case !isSpace(b):
+			code[line] = true
+		}
+	}
+	return line
+}
+
+// code returns the stream code of one token under opts.
+func (s *dupStream) code(tok token.Token, lit string, opts dupOptions) int32 {
+	switch {
+	case tok == token.IDENT:
+		if opts.normalizeIdents {
+			return dupIdentCode
+		}
+		return s.interned("i" + lit)
+	case tok.IsLiteral():
+		if opts.normalizeLiterals {
+			return dupLitCode
+		}
+		return s.interned("l" + lit)
+	default:
+		return int32(tok)
+	}
+}
+
+// interned returns the code of key, assigning the next free one on first
+// use.
+func (s *dupStream) interned(key string) int32 {
+	c, ok := s.intern[key]
+	if !ok {
+		c = dupInternBase + int32(len(s.intern))
+		s.intern[key] = c
+	}
+	return c
+}
+
+// count turns the repeats found in the stream, as intervals of its suffix
+// array sa, into block count, coverage percentage over sloc, and occurrence
+// locations.
+func (s *dupStream) count(sa []int32, reps []dupRepeat, sloc int) dupCounts {
+	if len(reps) == 0 {
+		return dupCounts{}
+	}
+	// Blocks in order of first occurrence, occurrences in stream order.
+	type block struct {
+		n   int32
+		pos []int32
+	}
+	blocks := make([]block, 0, len(reps))
+	for _, r := range reps {
+		pos := slices.Clone(sa[r.lb : r.rb+1])
+		slices.Sort(pos)
+		blocks = append(blocks, block{n: r.n, pos: pos})
+	}
+	slices.SortFunc(blocks, func(a, b block) int {
+		return cmp.Or(cmp.Compare(a.pos[0], b.pos[0]), cmp.Compare(a.n, b.n))
+	})
+
+	diff := make([]int32, len(s.codes)+1)
+	c := dupCounts{blocks: len(blocks)}
+	for _, b := range blocks {
+		for _, p := range b.pos {
+			diff[p]++
+			diff[p+b.n]--
+			end := p + b.n - 1
+			c.locations = append(c.locations, dupLocation{
+				file:      s.files[s.file[p]].name,
+				startLine: int(s.line[p]),
+				endLine:   int(s.last[end]),
+			})
+		}
+	}
+
+	covered := make([][]bool, len(s.files))
+	for i, f := range s.files {
+		covered[i] = make([]bool, len(f.code))
+	}
+	depth := int32(0)
+	for t := range s.codes {
+		depth += diff[t]
+		if depth == 0 || s.file[t] < 0 {
+			continue
+		}
+		cf := covered[s.file[t]]
+		for ln := s.line[t]; ln <= s.last[t]; ln++ {
+			cf[ln] = true
+		}
+	}
+	lines := 0
+	for i, f := range s.files {
+		for ln, ok := range covered[i] {
+			if ok && f.code[ln] {
+				lines++
+			}
+		}
+	}
+	c.pct = dupPercent(lines, sloc)
+	return c
+}
+
+// dupPercent returns covered / sloc * 100 rounded to one decimal, or 0 when
+// sloc is 0.
+func dupPercent(covered, sloc int) float64 {
+	if sloc <= 0 {
+		return 0
+	}
+	return math.Round(float64(covered)/float64(sloc)*1000) / 10
+}
+
+// dupFind returns the suffix array of s and the maximal repeats of at least
+// minTokens codes in s that survive merging, as intervals of that suffix
+// array. s must end with a code that occurs nowhere else in it.
+func dupFind(s []int32, minTokens int) (sa []int32, reps []dupRepeat) {
+	n := len(s)
+	if n < 2 {
+		return nil, nil
+	}
+	sa, rank := dupSuffixArray(s)
+	lcp := dupLCP(s, sa, rank)
+	prevLess, nextLess := dupSmallerNeighbours(lcp)
+	lcpAt := func(k int32) int32 {
+		if int(k) < n {
+			return lcp[k]
+		}
+		return 0
+	}
+	type key struct{ lb, n int32 }
+	seen := make(map[key]bool)
+	reach := int32(0)
+	for q := range int32(n) {
+		r := rank[q]
+		longest := max(lcp[r], lcpAt(r+1))
+		if int(longest) >= minTokens && q+longest > reach {
+			lb, rb := r, r
+			if lcp[r] == longest {
+				lb = prevLess[r]
+			}
+			if lcpAt(r+1) == longest {
+				rb = nextLess[r+1] - 1
+			}
+			if k := (key{lb, longest}); !seen[k] {
+				seen[k] = true
+				reps = append(reps, dupRepeat{lb: lb, rb: rb, n: longest})
+			}
+		}
+		reach = max(reach, q+longest)
+	}
+	return sa, reps
+}
+
+// dupSmallerNeighbours returns, for each index k of lcp, the largest j < k
+// and the smallest j > k with lcp[j] < lcp[k]; -1 and len(lcp) when there is
+// none.
+func dupSmallerNeighbours(lcp []int32) (prevLess, nextLess []int32) {
+	n := len(lcp)
+	prevLess = make([]int32, n)
+	nextLess = make([]int32, n)
+	stack := make([]int32, 0, 64)
+	for k := range int32(n) {
+		for len(stack) > 0 && lcp[stack[len(stack)-1]] >= lcp[k] {
+			stack = stack[:len(stack)-1]
+		}
+		prevLess[k] = -1
+		if len(stack) > 0 {
+			prevLess[k] = stack[len(stack)-1]
+		}
+		stack = append(stack, k)
+	}
+	stack = stack[:0]
+	for k := int32(n) - 1; k >= 0; k-- {
+		for len(stack) > 0 && lcp[stack[len(stack)-1]] >= lcp[k] {
+			stack = stack[:len(stack)-1]
+		}
+		nextLess[k] = int32(n)
+		if len(stack) > 0 {
+			nextLess[k] = stack[len(stack)-1]
+		}
+		stack = append(stack, k)
+	}
+	return prevLess, nextLess
+}
+
+// dupSuffixArray returns the suffix array of s and its inverse, built by
+// prefix doubling with counting sorts. s must end with a unique code.
+func dupSuffixArray(s []int32) (sa, rank []int32) {
+	n := len(s)
+	sa = make([]int32, n)
+	rank = make([]int32, n)
+	for i := range sa {
+		sa[i] = int32(i)
+	}
+	slices.SortFunc(sa, func(a, b int32) int { return cmp.Compare(s[a], s[b]) })
+	for i := 1; i < n; i++ {
+		rank[sa[i]] = rank[sa[i-1]]
+		if s[sa[i]] != s[sa[i-1]] {
+			rank[sa[i]]++
+		}
+	}
+	if n == 0 || int(rank[sa[n-1]]) == n-1 {
+		return sa, rank
+	}
+	tmp := make([]int32, n)
+	by2 := make([]int32, n)
+	cnt := make([]int32, n+1)
+	for k := 1; ; k <<= 1 {
+		// Order by second key: suffixes with no second half first.
+		j := 0
+		for i := n - k; i < n; i++ {
+			by2[j] = int32(i)
+			j++
+		}
+		for _, v := range sa {
+			if int(v) >= k {
+				by2[j] = v - int32(k)
+				j++
+			}
+		}
+		// Stable counting sort by first key.
+		clear(cnt)
+		for _, r := range rank {
+			cnt[r+1]++
+		}
+		for i := 1; i <= n; i++ {
+			cnt[i] += cnt[i-1]
+		}
+		for _, v := range by2 {
+			sa[cnt[rank[v]]] = v
+			cnt[rank[v]]++
+		}
+		second := func(i int32) int32 {
+			if int(i)+k < n {
+				return rank[int(i)+k]
+			}
+			return -1
+		}
+		tmp[sa[0]] = 0
+		for i := 1; i < n; i++ {
+			a, b := sa[i-1], sa[i]
+			tmp[b] = tmp[a]
+			if rank[a] != rank[b] || second(a) != second(b) {
+				tmp[b]++
+			}
+		}
+		rank, tmp = tmp, rank
+		if int(rank[sa[n-1]]) == n-1 {
+			return sa, rank
+		}
+	}
+}
+
+// dupLCP returns lcp where lcp[i] is the length of the longest common prefix
+// of the suffixes sa[i-1] and sa[i], and lcp[0] is 0 (Kasai et al.).
+func dupLCP(s, sa, rank []int32) []int32 {
+	n := len(s)
+	lcp := make([]int32, n)
+	h := 0
+	for i := range n {
+		r := rank[i]
+		if r == 0 {
+			h = 0
+			continue
+		}
+		j := int(sa[r-1])
+		for i+h < n && j+h < n && s[i+h] == s[j+h] {
+			h++
+		}
+		lcp[r] = int32(h)
+		if h > 0 {
+			h--
+		}
+	}
+	return lcp
+}
