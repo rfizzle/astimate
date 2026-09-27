@@ -1,0 +1,20 @@
+{
+  "date": "2026-09-27",
+  "go_version": "go1.27.1",
+  "goos": "darwin",
+  "goarch": "arm64",
+  "cpus": 14,
+  "astimate_version": "(devel)",
+  "astimate_commit": "8a6c0fefd446020567258280ec9d134558b1f5ec",
+  "config_version": "default-uncalibrated-1",
+  "tokenizer": "est",
+  "corpus": "calibration/corpus.yaml",
+  "packages": 358,
+  "modules": [
+    {
+      "module": "std",
+      "commit": "go1.27.1",
+      "packages": 358
+    }
+  ]
+}
