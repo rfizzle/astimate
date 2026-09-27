@@ -22,7 +22,7 @@ Format: `<type>(<scope>): <subject>`
 - Types: `feat`, `fix`, `refactor`, `perf`, `test`, `docs`, `build`, `ci`, `chore`.
 - Scopes match the story tags: `metrics`, `lang/go`, `lang/ts`, `score`, `gate`, `baseline`, `cli`, `mcp`, `report`, `integrations`, `calibration`, `testdata`, `infra`, `docs`.
 - Subject: imperative mood, lower case, no trailing period, at most 72 characters.
-- Body: explain why, not what. Reference the story as `Story: S-NNN`.
+- Body: explain why, not what. Do not reference backlog story ids; the backlog is a local file and the ids mean nothing in git history.
 - Breaking changes to the report schema or CLI flags get a `BREAKING CHANGE:` footer.
 - One logical change per commit. Never use `--no-verify`.
 
@@ -33,8 +33,6 @@ feat(lang/go): compute fan-in from module-wide reverse import graph
 
 Fan-in is the blast-radius signal with the strongest evidence in SPEC.md
 section 4. Built once per module load and cached, not per package.
-
-Story: S-007
 ```
 
 ## Go standards
