@@ -151,7 +151,7 @@ Every field is reported in output. *(v0)* fields are required for the first rele
 | `uses_reflect` | bool | Imports `reflect` or `unsafe` | v1 |
 | `generated_files` | int | Files with a `Code generated ... DO NOT EDIT` header | v1 |
 | `coverage_pct` | float | Statement coverage from `go test -cover`, only with `--coverage` | v1 |
-| `changed_func_cognitive_max` | int | Highest cognitive complexity among functions added or modified since baseline; null without a baseline diff | v1 |
+| `changed_func_cognitive_max` | int | Highest cognitive complexity among functions added or modified since baseline (matched per 6.5); 0 when none changed; null without a function-level baseline diff, as in `assess`, against a baseline file written without function records, or for an extractor that cannot list functions | v1 |
 
 ### 6.1 Token estimation
 
@@ -181,6 +181,7 @@ Rules that the section 6 table leaves implicit, fixed here so goldens and implem
 - `func_count`, `cognitive_total` and `cognitive_p90` include `init()` functions.
 - `cognitive_p90` is the nearest-rank 90th percentile over per-function values; a package with no functions reports 0.
 - `uses_cgo`, `uses_reflect` and `generated_files` are read from the source files' import specs and headers, never from files cgo generates; blank and renamed imports of `reflect` or `unsafe` count.
+- `changed_func_cognitive_max` diffs functions, never the package: a head function is matched to a baseline function of the same package by receiver base type (pointer, type parameters and parentheses stripped; empty for a plain function) and name, as a multiset so repeated names such as `init` pair up. A matched function is modified when its fingerprint differs. The fingerprint is a hash of the body's syntax tree with identifiers normalized to `ID` and literals to `LIT` as in 6.3; comments and positions are not in it, so comment, layout and gofmt edits, variable renames and literal values do not mark a function changed, while any change to operators or control flow does. A direct call to the function's own name is kept distinct, since cognitive complexity scores recursion. A renamed function or a method moved to another receiver is new; a deleted function is not changed; every function of a package new at head is changed. `init` functions count.
 - `tokens_est` sums bytes across files first, then divides by `chars_per_token` and truncates.
 - `fan_in_tests` counts other packages whose test files import this package; a package's own external test package importing it does not count.
 - `sloc` counts a line with code and a trailing comment as code.
@@ -271,7 +272,7 @@ All parameters live in the `rebuild:` section of the config and are labelled unc
 
 `astimate check` evaluates every changed package (or all packages with `--all`) against a thresholds config. Thresholds fall into two kinds, and the distinction is what separates "got worse" from "got more features".
 
-**Density rules** measure how the code is written, independent of how much there is. Adding features should never raise them, so they are gated on the change itself with `max_delta`: the largest permitted increase from baseline to head, usually 0. A feature written without copy-paste adds no duplicate blocks; ten new exports with tests leave `untested_exports` unchanged. Negative values require improvement. A density rule may also carry a `max`, but it is a ceiling on what a change may introduce, not a retroactive judgment: it is evaluated for a package with no baseline, and for a package whose value rose from baseline to head. An unchanged or improved legacy value above the `max` passes, so a package that was already at 80% duplication before a change is not failed for that history; a change that pushes it higher is.
+**Density rules** measure how the code is written, independent of how much there is. Adding features should never raise them, so they are gated on the change itself with `max_delta`: the largest permitted increase from baseline to head, usually 0. A feature written without copy-paste adds no duplicate blocks; ten new exports with tests leave `untested_exports` unchanged. Negative values require improvement. A density rule may also carry a `max`, but it is a ceiling on what a change may introduce, not a retroactive judgment: it is evaluated for a package with no baseline, and for a package whose value rose from baseline to head. An unchanged or improved legacy value above the `max` passes, so a package that was already at 80% duplication before a change is not failed for that history; a change that pushes it higher is. A density rule may carry `max` alone when its metric is already a change against the baseline (`changed_func_cognitive_max`); it is evaluated whenever the metric is non-null at head. `ratchet_from_zero` requires `max_delta`.
 
 **Capacity rules** measure how much code there is. They are supposed to grow with features, so they carry no delta. They have an absolute `max` that answers a different question: has the package outgrown what one agent can hold in context? The fix for a capacity breach is a split, not a smaller feature. Like a density `max`, the ceiling is a violation for a new package or when the value rose; a legacy package already over the ceiling whose value is unchanged or fell gets a warning saying so, not a violation, so identical head and baseline trees never fail the gate. Each capacity rule also has a `warn_at` fraction (default 0.75) above which `check` emits a non-failing warning naming the headroom, so a split can be planned before a hard failure lands mid-feature.
 
@@ -300,6 +301,7 @@ Density rules (ratchet on the change):
 | `init_funcs` | +0 | none | `ratchet_from_zero` |
 | `max_nesting` | +0 | 5 | Never deeper than today |
 | `cognitive_p90` | +3 | 25 | Small drift allowed since p90 moves with function count; the `max` is what a new package is judged by |
+| `changed_func_cognitive_max` | none | 30 | One added or modified function past this is split-worthy even when the package p90 is low; the metric is itself a diff, so it has no delta |
 
 Capacity rules (absolute ceiling with a warning band):
 
@@ -317,14 +319,14 @@ Requirements:
 | --- | --- |
 | `has_tests` | `require: true` when `sloc > 100` |
 
-Known gap: a single new function with very high complexity in a package whose 90th percentile stays low is not caught by either kind. Function-level metrics on changed functions only are planned as a v1 metric (`changed_func_cognitive_max`, section 6) and gated as a density rule when available.
+A single very complex new function in a package whose 90th percentile stays low is caught by `changed_func_cognitive_max` (section 6), gated as a density rule with `max` alone.
 
 ### 8.3 Baselines
 
 Two sources, chosen by flag:
 
 - `--base <ref>` (default): the merge-base of `HEAD` and `<ref>` (default `origin/master`, then `master`, `origin/main`, `main`). The base tree is checked out into a temporary `git worktree`, analyzed, and removed. Packages are matched by import path.
-- `--baseline <file>`: a committed `.astimate/baseline.json` written by `astimate baseline write`. For repositories that prefer explicit, reviewable baselines or that run outside git. The file records the tokenizer used to write it; `check` warns when its own tokenizer differs, since token counts from different tokenizers are not comparable.
+- `--baseline <file>`: a committed `.astimate/baseline.json` written by `astimate baseline write`. For repositories that prefer explicit, reviewable baselines or that run outside git. The file records the tokenizer used to write it; `check` warns when its own tokenizer differs, since token counts from different tokenizers are not comparable. A baseline file also records each package's functions (receiver, name, a 16-hex-digit fingerprint and cognitive complexity) under a top-level `functions` key, so a check against it can compute `changed_func_cognitive_max`; a file without the key still loads, leaves that metric null and says so once on stderr. Git baselines carry the same records in memory.
 
 ### 8.4 Changed-package detection
 
@@ -398,7 +400,7 @@ Results return `content` (text) and `structuredContent` (JSON), with `isError: t
 }
 ```
 
-`check --format json` lists the module row first as an ordinary report whose `package_path` is `module`: v0 metrics are 0 and v1 metrics are null except the module-wide ones, and its rebuild block is zero.
+`check --format json` lists the module row first as an ordinary report whose `package_path` is `module`: v0 metrics are 0 and v1 metrics are null except the module-wide ones, and its rebuild block is zero. `metrics.changed_func_cognitive_max` is filled only by `check` (null in `assess`), `baseline.metrics` never carries it, and its violation shows no base value; the text format renders it `head (changed since baseline)`.
 
 `package_path` is the package directory relative to the module root (`.` for the root package); the full import path is `module_path` joined with it. `agent_passes` and `human_days` are rounded to one decimal; `rebuild_tokens` and driver `tokens` are integers. `passed`, `baseline`, `violations` and `warnings` are present whenever a gate ran, with `violations` and `warnings` as empty arrays rather than omitted; all four are absent from `assess` output.
 
