@@ -97,7 +97,7 @@ install_release() {
 }
 
 # install_source builds ./cmd/astimate from the repository that contains
-# this action, with the build metadata `make build` injects.
+# this action, with the build tags and metadata `make build` uses.
 install_source() {
 	local dest=$1 root version commit date
 	command -v go >/dev/null 2>&1 || fail "version: source needs Go on PATH; add actions/setup-go before this action"
@@ -108,6 +108,7 @@ install_source() {
 	mkdir -p "$dest"
 	echo "building astimate $version from $root"
 	(cd "$root" && go build \
+		-tags 'grammar_subset grammar_subset_typescript grammar_subset_tsx' \
 		-ldflags "-X main.buildVersion=$version -X main.buildCommit=$commit -X main.buildDate=$date" \
 		-o "$dest/astimate" ./cmd/astimate)
 }

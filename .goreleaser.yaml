@@ -20,6 +20,12 @@ builds:
       - arm64
     flags:
       - -trimpath
+    # Embed only the TypeScript and TSX grammars; same list as BUILD_TAGS
+    # in the Makefile.
+    tags:
+      - grammar_subset
+      - grammar_subset_typescript
+      - grammar_subset_tsx
     # Same variables as the Makefile's LDFLAGS. .Version has no leading v,
     # so it is added back to match `git describe` in `make build`.
     ldflags:

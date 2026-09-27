@@ -66,6 +66,12 @@ jobs:
       - name: go test
         run: go test -race ./...
 
+      # The release build embeds only the grammars named by BUILD_TAGS in
+      # the Makefile. A tag that drifts from gotreesitter's names still
+      # compiles but drops the grammar, so the TypeScript tests fail here.
+      - name: go test (grammar subset tags)
+        run: make test-subset
+
   # gate runs this repository's own action on pull requests, built from
   # source until a release exists. fetch-depth 0 gives the full history so
   # the merge-base of the pull request's merge commit and the base branch

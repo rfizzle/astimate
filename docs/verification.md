@@ -54,3 +54,16 @@ Install the snippet in a scratch repository, have the agent add an untested expo
 | Check | Status |
 | --- | --- |
 | `check` job on an unchanged tree finishes in under two minutes with a warm cache | _pending the next push_ |
+
+## Grammar subset build tags
+
+2026-09-27: `gotreesitter` v0.55.1 embeds every grammar it ships unless built with `grammar_subset`, and then only those named by a `grammar_subset_<name>` tag (the names come from the `//go:build` lines in its `grammars` package). `make build`, `.goreleaser.yaml` and `action/install.sh` (the action's `version: source` path) build with `-tags 'grammar_subset grammar_subset_typescript grammar_subset_tsx'`; `make check` and `go build ./...` stay untagged. Sizes of `./cmd/astimate` with Go 1.27.1 on darwin/arm64, from `ls -l`, not stripped unless stated:
+
+| Build | Size (bytes) |
+| --- | --- |
+| `go build`, no tags | 53,890,850 |
+| `go build -tags '<subset tags>'` (`make build`) | 34,105,298 |
+| `go build -trimpath -ldflags '-s -w'`, no tags (release flags) | 44,014,002 |
+| `goreleaser build --snapshot --clean --single-target` (release flags plus the tags) | 25,397,154 |
+
+`go version -m` on the goreleaser binary reports `-tags=grammar_subset,grammar_subset_typescript,grammar_subset_tsx`, and `astimate rank testdata/ts/fixture` from the tagged `make build` binary ranks the fixture's packages. A misspelled tag still compiles but leaves that grammar out: `go test -tags 'grammar_subset grammar_subset_typescrpt grammar_subset_tsx' ./internal/lang/typescript/...` fails in the conformance suite, and `make test-subset`, run by the `check` job in `ci.yml`, passes with the correct tags.

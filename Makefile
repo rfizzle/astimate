@@ -1,4 +1,4 @@
-.PHONY: check actionlint tidy fmt vet lint test build
+.PHONY: check actionlint tidy fmt vet lint test build test-subset
 .NOTPARALLEL:
 
 # Build metadata linked into the binary by `make build`. Each is overridable
@@ -7,6 +7,13 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 COMMIT ?= $(shell git rev-parse HEAD 2>/dev/null || echo unknown)
 DATE ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS := -X main.buildVersion=$(VERSION) -X main.buildCommit=$(COMMIT) -X main.buildDate=$(DATE)
+
+# BUILD_TAGS makes gotreesitter embed only the grammars the TypeScript
+# extractor uses instead of all of them. The names are the grammar_subset
+# tags in gotreesitter's grammars package; a misspelled one still compiles
+# but leaves the grammar out, which test-subset catches. .goreleaser.yaml,
+# action/install.sh and the check job in ci.yml repeat this list.
+BUILD_TAGS := grammar_subset grammar_subset_typescript grammar_subset_tsx
 
 # check is the full gate: workflow lint, module tidiness, format, vet, lint,
 # test, in that order, stopping on the first failure. CI runs the same six
@@ -36,4 +43,10 @@ test:
 	go test -race ./...
 
 build:
-	go build -ldflags "$(LDFLAGS)" -o astimate ./cmd/astimate
+	go build -tags '$(BUILD_TAGS)' -ldflags "$(LDFLAGS)" -o astimate ./cmd/astimate
+
+# test-subset runs the TypeScript extractor's tests under BUILD_TAGS, so a
+# tag name that drifts from gotreesitter's fails here. Not part of check,
+# which stays untagged.
+test-subset:
+	go test -tags '$(BUILD_TAGS)' ./internal/lang/typescript/...
