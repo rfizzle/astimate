@@ -2,7 +2,8 @@
 
 Each `<pkg>.json` in this directory holds every v0 field from `SPEC.md`
 section 6 for one package of the `example.com/fixture` module, plus each v1
-field the extractor computes that is non-null for that package. The values
+field the extractor computes that is non-null for that package. `module.json`
+holds the module-level row (`SPEC.md` section 8.1); see "module" at the end. The values
 were counted by hand from the source, then re-derived independently: a
 throwaway `go/ast` + `go/scanner` script for sizes, imports, declarations and
 duplication, `wc -c` for bytes, and golangci-lint's `gocognit` (min complexity
@@ -308,3 +309,15 @@ are fixed in section 6.5.
 All other packages have no repeated 40-token sequence: `dup_blocks=0`,
 `duplication_pct=0`. `hub`'s generated file would not count even if it
 repeated.
+
+## module
+
+`module.json` is the module-level row the extractor reports under the id
+`module`, not a package. Every v0 field is 0 and every v1 field is null
+except the module-wide `dup_blocks_cross_pkg`, which is the number of
+distinct cross-package blocks: 1, the `Checksum`/`Digest` block described
+under "Cross-package duplication". The conformance suite requires the sum
+of `dup_blocks_cross_pkg` over packages to be at least twice the row, since
+a block counts once in each of the two or more packages it touches; here
+the sum is `a` 1 + `b` 1 = 2, exactly twice the row, because the one block
+touches exactly two packages.

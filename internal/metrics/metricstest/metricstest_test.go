@@ -23,15 +23,21 @@ const (
 	caseInvariant    = "invariant-violation"
 	caseDetails      = "details-mismatch"
 	caseRatio        = "ratio-noise"
+	caseModuleShape  = "module-shape"
+	caseModuleSum    = "module-sum"
+	caseModuleValid  = "module-invalid"
 	fakeRoot         = "/fake/module"
 	thisPackage      = "github.com/rfizzle/astimate/internal/metrics"
 	metricstestPkgID = thisPackage + "/metricstest"
 )
 
 // syntheticPackages returns a three-package module: alpha imports beta and
-// gamma, beta imports gamma. Fan-out sums to 3 and so does fan-in.
+// gamma, beta imports gamma. Fan-out sums to 3 and so does fan-in. One
+// duplicate block is shared by alpha and beta, so each counts one
+// cross-package block; gamma leaves the count null.
 func syntheticPackages() map[string]metrics.RawMetrics {
 	coverage := 71.5
+	oneCross := 1
 	noCgo := false
 	// beta's coupling ratios: fan_in 1 and internal_imports 1 give
 	// instability 0.5, and |0.5 + 0.5 - 1| is 0.
@@ -42,7 +48,8 @@ func syntheticPackages() map[string]metrics.RawMetrics {
 			InternalImports: 2, ExternalImports: 1, StdlibImports: 3,
 			ExportedSymbols: 5, MaxNesting: 3, CognitiveTotal: 14, CognitiveP90: 6, FuncCount: 7,
 			TestFiles: 1, TestFuncs: 4, HasTests: true, UntestedExports: 1,
-			CoveragePct: &coverage, // computed but absent from the golden, so not compared
+			CoveragePct:       &coverage, // computed but absent from the golden, so not compared
+			DupBlocksCrossPkg: &oneCross,
 		},
 		"beta": {
 			Files: 1, SLOC: 40, LargestFileSLOC: 40, TokensEst: 300, TokensEstWithTests: 300,
@@ -50,6 +57,7 @@ func syntheticPackages() map[string]metrics.RawMetrics {
 			ExportedSymbols: 2, Globals: 1, MaxNesting: 1, CognitiveTotal: 2, CognitiveP90: 1, FuncCount: 2,
 			DupBlocks: 1, DuplicationPct: 45.5, UntestedExports: 2,
 			Instability: &half, Abstractness: &half, MainSequenceDistance: &zero,
+			DupBlocksCrossPkg: &oneCross,
 		},
 		"gamma": {
 			Files: 1, SLOC: 10, LargestFileSLOC: 10, TokensEst: 70, TokensEstWithTests: 150,
@@ -191,6 +199,103 @@ func TestSuitePassesOnFakeWithDetails(t *testing.T) {
 	metricstest.TestExtractor(t, ext, syntheticFixture(dir))
 }
 
+// syntheticModuleRow is the module row of syntheticPackages: the one block
+// alpha and beta share.
+func syntheticModuleRow() metrics.RawMetrics {
+	blocks := 1
+	return metrics.RawMetrics{DupBlocksCrossPkg: &blocks}
+}
+
+// syntheticModuleGolden is the hand-written golden of syntheticModuleRow, in
+// the layout the suite writes on update.
+const syntheticModuleGolden = `{
+  "files": 0,
+  "sloc": 0,
+  "largest_file_sloc": 0,
+  "tokens_est": 0,
+  "tokens_est_with_tests": 0,
+  "internal_imports": 0,
+  "external_imports": 0,
+  "stdlib_imports": 0,
+  "fan_in": 0,
+  "fan_in_tests": 0,
+  "exported_symbols": 0,
+  "globals": 0,
+  "init_funcs": 0,
+  "max_nesting": 0,
+  "cognitive_total": 0,
+  "cognitive_p90": 0,
+  "func_count": 0,
+  "dup_blocks": 0,
+  "duplication_pct": 0,
+  "test_files": 0,
+  "test_funcs": 0,
+  "has_tests": false,
+  "untested_exports": 0,
+  "dup_blocks_cross_pkg": 1
+}
+`
+
+// syntheticGoldensWithModule adds the module row's golden to
+// syntheticGoldens.
+func syntheticGoldensWithModule() map[string]string {
+	goldens := syntheticGoldens()
+	goldens[metrics.ModuleRowID] = syntheticModuleGolden
+	return goldens
+}
+
+func TestSuitePassesOnFakeWithModuleRow(t *testing.T) {
+	for name, opts := range map[string][]metricstest.FakeOption{
+		"row only":         {metricstest.WithModuleRow(syntheticModuleRow())},
+		"row and details":  {metricstest.WithModuleRow(syntheticModuleRow()), metricstest.WithDetails(syntheticDetails())},
+		"details then row": {metricstest.WithDetails(syntheticDetails()), metricstest.WithModuleRow(syntheticModuleRow())},
+	} {
+		t.Run(name, func(t *testing.T) {
+			dir := writeGoldens(t, syntheticGoldensWithModule())
+			ext := metricstest.NewFake("fake", fakeRoot, syntheticPackages(), opts...)
+			if _, ok := ext.(metrics.ModuleMetrics); !ok {
+				t.Fatal("NewFake with WithModuleRow does not implement metrics.ModuleMetrics")
+			}
+			if _, ok := ext.(metrics.Detailer); ok != (len(opts) == 2) {
+				t.Errorf("NewFake implements metrics.Detailer = %v with %d options", ok, len(opts))
+			}
+			metricstest.TestExtractor(t, ext, syntheticFixture(dir))
+		})
+	}
+}
+
+func TestFakeWithoutModuleRowIsNotModuleMetrics(t *testing.T) {
+	for name, ext := range map[string]metrics.Extractor{
+		"plain":        metricstest.NewFake("fake", fakeRoot, syntheticPackages()),
+		"details only": metricstest.NewFake("fake", fakeRoot, syntheticPackages(), metricstest.WithDetails(nil)),
+	} {
+		if _, ok := ext.(metrics.ModuleMetrics); ok {
+			t.Errorf("%s: NewFake without WithModuleRow implements metrics.ModuleMetrics", name)
+		}
+	}
+}
+
+// TestUpdateRewritesModuleGolden checks that update mode writes module.json
+// in the hand-written layout, and that compare mode then accepts it.
+func TestUpdateRewritesModuleGolden(t *testing.T) {
+	dir := t.TempDir()
+	ext := metricstest.NewFake("fake", fakeRoot, syntheticPackages(), metricstest.WithModuleRow(syntheticModuleRow()))
+	fx := syntheticFixture(dir)
+	fx.Update = true
+	metricstest.TestExtractor(t, ext, fx)
+
+	fx.Update = false
+	metricstest.TestExtractor(t, ext, fx)
+
+	got, err := os.ReadFile(filepath.Join(dir, metrics.ModuleRowID+".json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != syntheticModuleGolden {
+		t.Errorf("rewritten module golden differs from the hand-written layout:\ngot:\n%s\nwant:\n%s", got, syntheticModuleGolden)
+	}
+}
+
 func TestFakeWithoutDetailsIsNotDetailer(t *testing.T) {
 	if _, ok := metricstest.NewFake("fake", fakeRoot, syntheticPackages()).(metrics.Detailer); ok {
 		t.Error("NewFake without WithDetails implements metrics.Detailer; callers could not test their fallback")
@@ -202,6 +307,8 @@ func TestFakeWithoutDetailsIsNotDetailer(t *testing.T) {
 func TestSuiteSubprocess(t *testing.T) {
 	pkgs := syntheticPackages()
 	goldens := syntheticGoldens()
+	fx := syntheticFixture("")
+	var opts []metricstest.FakeOption
 	switch os.Getenv(caseEnv) {
 	case "":
 		return
@@ -229,11 +336,33 @@ func TestSuiteSubprocess(t *testing.T) {
 		ext := metricstest.NewFake("fake", fakeRoot, pkgs, metricstest.WithDetails(details))
 		metricstest.TestExtractor(t, ext, syntheticFixture(dir))
 		return
+	case caseModuleShape:
+		// The row reports a v0 field, a v1 field that is not module-wide,
+		// and no dup_blocks_cross_pkg.
+		half := 0.5
+		opts = append(opts, metricstest.WithModuleRow(metrics.RawMetrics{SLOC: 5, LargestFileSLOC: 5, Instability: &half}))
+		goldens = syntheticGoldensWithModule()
+	case caseModuleSum:
+		// Two distinct blocks cannot be shared by packages whose counts
+		// sum to 2.
+		two := 2
+		opts = append(opts, metricstest.WithModuleRow(metrics.RawMetrics{DupBlocksCrossPkg: &two}))
+		goldens = syntheticGoldensWithModule()
+	case caseModuleValid:
+		// A negative row fails Validate, and "module" as a package collides
+		// with the row: gamma is renamed to it.
+		neg := -1
+		opts = append(opts, metricstest.WithModuleRow(metrics.RawMetrics{DupBlocksCrossPkg: &neg}))
+		pkgs[metrics.ModuleRowID] = pkgs["gamma"]
+		delete(pkgs, "gamma")
+		goldens[metrics.ModuleRowID] = goldens["gamma"]
+		delete(goldens, "gamma")
+		fx.Packages = []string{"alpha", "beta", metrics.ModuleRowID}
 	default:
 		t.Fatalf("unknown %s %q", caseEnv, os.Getenv(caseEnv))
 	}
-	dir := writeGoldens(t, goldens)
-	metricstest.TestExtractor(t, metricstest.NewFake("fake", fakeRoot, pkgs), syntheticFixture(dir))
+	fx.GoldenDir = writeGoldens(t, goldens)
+	metricstest.TestExtractor(t, metricstest.NewFake("fake", fakeRoot, pkgs, opts...), fx)
 }
 
 // runSubprocess runs TestSuiteSubprocess for name, requires it to fail, and
@@ -293,6 +422,36 @@ func TestSuiteDetectsRatioViolation(t *testing.T) {
 		"--- FAIL: TestSuiteSubprocess/Invariants",
 		"alpha: instability 0.9999999999999999 is not rounded to 3 decimals",
 		"beta: main_sequence_distance 0.25, want |abstractness 0.5 + instability 0.5 - 1|",
+	)
+}
+
+func TestSuiteDetectsModuleShape(t *testing.T) {
+	out := runSubprocess(t, caseModuleShape)
+	requireContains(t, out,
+		"--- FAIL: TestSuiteSubprocess/ModuleRow/Shape",
+		"module: sloc is 5, want 0 on the module row",
+		"module: instability is 0.5, want null: it is not module-wide",
+		"module: dup_blocks_cross_pkg is null, want the module-wide value",
+	)
+}
+
+func TestSuiteDetectsModuleSumViolation(t *testing.T) {
+	out := runSubprocess(t, caseModuleSum)
+	requireContains(t, out,
+		"--- FAIL: TestSuiteSubprocess/ModuleRow/Invariants",
+		"sum(dup_blocks_cross_pkg) 2 < 2 * module row 2",
+		"--- FAIL: TestSuiteSubprocess/Goldens",
+		"module: dup_blocks_cross_pkg: golden 1, got 2 (check ",
+	)
+}
+
+func TestSuiteDetectsInvalidModuleRow(t *testing.T) {
+	out := runSubprocess(t, caseModuleValid)
+	requireContains(t, out,
+		"--- FAIL: TestSuiteSubprocess/ModuleRow/Validate",
+		"module: invalid metrics: dup_blocks_cross_pkg is negative (-1)",
+		`package module collides with the module row "module"`,
+		"sum(dup_blocks_cross_pkg) 2 > module row -1 * 3 packages",
 	)
 }
 

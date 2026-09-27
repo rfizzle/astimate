@@ -21,7 +21,8 @@ import (
 // the caller do not affect the fake.
 //
 // With WithDetails the fake also implements metrics.Detailer; without it, it
-// does not, so callers exercise their fallback to counts alone.
+// does not, so callers exercise their fallback to counts alone. Likewise,
+// WithModuleRow makes it implement metrics.ModuleMetrics.
 func NewFake(lang, root string, pkgs map[string]metrics.RawMetrics, opts ...FakeOption) metrics.Extractor {
 	f := &fake{
 		lang: lang,
@@ -31,8 +32,13 @@ func NewFake(lang, root string, pkgs map[string]metrics.RawMetrics, opts ...Fake
 	for _, opt := range opts {
 		opt(f)
 	}
-	if f.details != nil {
+	switch {
+	case f.details != nil && f.row != nil:
+		return &detailModuleFake{fake: f}
+	case f.details != nil:
 		return &detailFake{fake: f}
+	case f.row != nil:
+		return &moduleFake{fake: f}
 	}
 	return f
 }
@@ -53,11 +59,18 @@ func WithDetails(details map[string]metrics.Details) FakeOption {
 	}
 }
 
+// WithModuleRow makes the fake implement metrics.ModuleMetrics, serving row
+// as the module row. ModuleRow returns ctx.Err() when the context is done.
+func WithModuleRow(row metrics.RawMetrics) FakeOption {
+	return func(f *fake) { f.row = &row }
+}
+
 type fake struct {
 	lang    string
 	root    string
 	pkgs    map[string]metrics.RawMetrics
 	details map[string]metrics.Details
+	row     *metrics.RawMetrics
 }
 
 // detailFake is a fake that also implements metrics.Detailer.
@@ -65,7 +78,41 @@ type detailFake struct {
 	*fake
 }
 
-func (f *detailFake) Details(ctx context.Context, _ *metrics.ModuleContext, pkg string) (metrics.Details, error) {
+func (f *detailFake) Details(ctx context.Context, mod *metrics.ModuleContext, pkg string) (metrics.Details, error) {
+	return f.detailsOf(ctx, mod, pkg)
+}
+
+// moduleFake is a fake that also implements metrics.ModuleMetrics.
+type moduleFake struct {
+	*fake
+}
+
+func (f *moduleFake) ModuleRow(ctx context.Context, mod *metrics.ModuleContext) (metrics.RawMetrics, error) {
+	return f.moduleRow(ctx, mod)
+}
+
+// detailModuleFake is a fake that implements both metrics.Detailer and
+// metrics.ModuleMetrics.
+type detailModuleFake struct {
+	*fake
+}
+
+func (f *detailModuleFake) Details(ctx context.Context, mod *metrics.ModuleContext, pkg string) (metrics.Details, error) {
+	return f.detailsOf(ctx, mod, pkg)
+}
+
+func (f *detailModuleFake) ModuleRow(ctx context.Context, mod *metrics.ModuleContext) (metrics.RawMetrics, error) {
+	return f.moduleRow(ctx, mod)
+}
+
+func (f *fake) moduleRow(ctx context.Context, _ *metrics.ModuleContext) (metrics.RawMetrics, error) {
+	if err := ctx.Err(); err != nil {
+		return metrics.RawMetrics{}, fmt.Errorf("fake %s extractor: extracting %s: %w", f.lang, metrics.ModuleRowID, err)
+	}
+	return *f.row, nil
+}
+
+func (f *fake) detailsOf(ctx context.Context, _ *metrics.ModuleContext, pkg string) (metrics.Details, error) {
 	if err := ctx.Err(); err != nil {
 		return metrics.Details{}, fmt.Errorf("fake %s extractor: details of %s: %w", f.lang, pkg, err)
 	}

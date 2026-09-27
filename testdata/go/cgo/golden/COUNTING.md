@@ -2,7 +2,10 @@
 
 `native.json` and `user.json` hold every v0 field from `SPEC.md` section 6,
 plus the non-null v1 fields `instability`, `dup_blocks_cross_pkg`,
-`uses_cgo`, `uses_reflect` and `generated_files`, for the two packages of the `example.com/cgo` module. They are counted by
+`uses_cgo`, `uses_reflect` and `generated_files`, for the two packages of the `example.com/cgo` module. `module.json` holds the
+module-level row: every v0 field 0, every v1 field null except
+`dup_blocks_cross_pkg` 0, since no block of `native` repeats in `user`; the
+per-package counts sum to 0, twice the row. They are counted by
 hand from `native/native.go`, `native/native_test.go` and `user/user.go`
 with the rules in `../../fixture/golden/COUNTING.md`, and describe the source
 files only. With a working C compiler, go/packages hands the extractor the

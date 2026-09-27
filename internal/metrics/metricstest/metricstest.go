@@ -41,7 +41,10 @@ type Fixture struct {
 	// the identifier, each remaining "/" is a subdirectory, and ".json" is
 	// appended, so "example.com/m/nested/pkg" with ModulePath "example.com/m"
 	// is nested/pkg.json. The identifier equal to ModulePath, the module's
-	// root package, is root.json. An empty ModulePath trims nothing.
+	// root package, is root.json. An empty ModulePath trims nothing. When
+	// the extractor implements metrics.ModuleMetrics, the directory also
+	// holds module.json, the golden of the module row, so no package's
+	// golden may be named module.
 	GoldenDir string
 	// Update makes the golden subtest rewrite every golden from the
 	// extractor's output instead of comparing against the files on disk. Set
@@ -59,7 +62,14 @@ type Fixture struct {
 // context, module-wide invariants, and every golden in fx.GoldenDir. When ext
 // also implements the optional metrics.Detailer, it checks that Details
 // succeeds for every package after Extract and names as many untested
-// exports as untested_exports counts.
+// exports as untested_exports counts. When ext also implements the optional
+// metrics.ModuleMetrics, it checks the module row: it validates, no package
+// collides with metrics.ModuleRowID, its v0 fields are zero and its v1
+// fields null except the module-wide dup_blocks_cross_pkg, it is
+// deterministic and fails on a cancelled context, the sum of
+// dup_blocks_cross_pkg over packages lies between twice the row's value and
+// the row's value times the number of packages, and it matches module.json
+// in fx.GoldenDir. An extractor without ModuleMetrics skips those checks.
 //
 // Implementations must check ctx.Err() at least once on every Extract call,
 // including calls served from ModuleContext.Cache, so that a cancelled
@@ -139,7 +149,22 @@ func TestExtractor(t *testing.T, ext metrics.Extractor, fx Fixture) {
 		t.Run("Details", func(t *testing.T) { checkDetails(t, d, mod, fx.Packages, got) })
 	}
 
-	t.Run("Goldens", func(t *testing.T) { checkGoldens(t, fx, got) })
+	// The module row is optional: an extractor without ModuleMetrics, such
+	// as the TypeScript one, has none and skips its clauses and golden.
+	var row *metrics.RawMetrics
+	mm, hasRow := ext.(metrics.ModuleMetrics)
+	if hasRow {
+		row = checkModuleRow(t, mm, mod, fx, got)
+	} else {
+		t.Logf("metricstest: %s extractor does not implement metrics.ModuleMetrics; skipping the module row", ext.Language())
+	}
+
+	t.Run("Goldens", func(t *testing.T) {
+		checkGoldens(t, fx, got)
+		if row != nil {
+			checkGolden(t, fx, metrics.ModuleRowID, moduleGolden, *row)
+		}
+	})
 }
 
 func checkPackages(t *testing.T, ext metrics.Extractor, fx Fixture) {
@@ -284,25 +309,30 @@ func checkDetails(t *testing.T, d metrics.Detailer, mod *metrics.ModuleContext, 
 
 func checkGoldens(t *testing.T, fx Fixture, got map[string]metrics.RawMetrics) {
 	t.Helper()
-	counting := filepath.Join(fx.GoldenDir, "COUNTING.md")
 	for _, pkg := range fx.Packages {
-		m := got[pkg]
-		name := goldenName(fx.ModulePath, pkg)
-		if fx.Update {
-			if err := writeGolden(fx.GoldenDir, name, m); err != nil {
-				t.Errorf("%s: %v", pkg, err)
-			}
-			continue
+		checkGolden(t, fx, pkg, goldenName(fx.ModulePath, pkg), got[pkg])
+	}
+}
+
+// checkGolden compares m, the metrics of the row id, against the golden
+// named name in fx.GoldenDir, or rewrites that golden when fx.Update is set.
+func checkGolden(t *testing.T, fx Fixture, id, name string, m metrics.RawMetrics) {
+	t.Helper()
+	if fx.Update {
+		if err := writeGolden(fx.GoldenDir, name, m); err != nil {
+			t.Errorf("%s: %v", id, err)
 		}
-		want, err := LoadGolden(fx.GoldenDir, name)
-		if err != nil {
-			t.Errorf("%s: %v", pkg, err)
-			continue
-		}
-		for _, d := range diff(&want, &m) {
-			t.Errorf("%s: %s: golden %s, got %s (check %s before regenerating)",
-				pkg, d.field, d.golden, d.got, counting)
-		}
+		return
+	}
+	want, err := LoadGolden(fx.GoldenDir, name)
+	if err != nil {
+		t.Errorf("%s: %v", id, err)
+		return
+	}
+	counting := filepath.Join(fx.GoldenDir, "COUNTING.md")
+	for _, d := range diff(&want, &m) {
+		t.Errorf("%s: %s: golden %s, got %s (check %s before regenerating)",
+			id, d.field, d.golden, d.got, counting)
 	}
 }
 
