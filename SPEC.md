@@ -272,7 +272,7 @@ All parameters live in the `rebuild:` section of the config and are labelled unc
 
 Boolean metrics use `require: true` with an optional `when` guard (for example `has_tests` when `sloc > 100`).
 
-Packages that are new at head have no baseline. They face the capacity ceilings and the density rules evaluated against zero: a new package with three untested exports fails, a new package with forty tested exports under the ceiling passes.
+Packages that are new at head have no baseline. They face the capacity ceilings and the absolute `max` of every density rule. Delta rules are evaluated against zero only for rules marked `ratchet_from_zero: true`, which are the count-of-things-added metrics (`dup_blocks`, `untested_exports`, `globals`, `init_funcs`): a new package with three untested exports fails, a new package with forty tested exports under the ceiling passes. Intensive metrics such as `max_nesting`, `cognitive_p90` and `duplication_pct` are not ratcheted from zero, since every real package has some nesting; for a new package only their `max` applies.
 
 The rebuild estimate is not gated directly. It mixes size and density terms, so a large well-written feature raises it; it stays a ranking and summary signal. The capacity ceilings below are its gate-side expression: they are set so that a package under every ceiling is rebuildable in one pass.
 
@@ -286,13 +286,13 @@ Density rules (ratchet on the change):
 
 | Metric | `max_delta` | `max` | Rationale |
 | --- | --- | --- | --- |
-| `dup_blocks` | +0 | none | No new duplicate blocks; copy-paste is the primary target |
+| `dup_blocks` | +0 | none | No new duplicate blocks; copy-paste is the primary target. `ratchet_from_zero` |
 | `duplication_pct` | +0.5 | 5.0 | Guards against a large duplicated feature that adds one block |
-| `untested_exports` | +0 | none | New exported behavior needs a test; legacy gaps are reported, not failed |
-| `globals` | +0 | none | No new package state |
-| `init_funcs` | +0 | none | |
+| `untested_exports` | +0 | none | New exported behavior needs a test; legacy gaps are reported, not failed. `ratchet_from_zero` |
+| `globals` | +0 | none | No new package state. `ratchet_from_zero` |
+| `init_funcs` | +0 | none | `ratchet_from_zero` |
 | `max_nesting` | +0 | 5 | Never deeper than today |
-| `cognitive_p90` | +3 | none | Small drift allowed since p90 moves with function count |
+| `cognitive_p90` | +3 | 25 | Small drift allowed since p90 moves with function count; the `max` is what a new package is judged by |
 
 Capacity rules (absolute ceiling with a warning band):
 
