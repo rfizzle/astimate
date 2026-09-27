@@ -244,7 +244,7 @@ const syntheticModuleGolden = `{
 // syntheticGoldens.
 func syntheticGoldensWithModule() map[string]string {
 	goldens := syntheticGoldens()
-	goldens[metrics.ModuleRowID] = syntheticModuleGolden
+	goldens["module"] = syntheticModuleGolden
 	return goldens
 }
 
@@ -352,7 +352,7 @@ func TestUpdateRewritesModuleGolden(t *testing.T) {
 	fx.Update = false
 	metricstest.TestExtractor(t, ext, fx)
 
-	got, err := os.ReadFile(filepath.Join(dir, metrics.ModuleRowID+".json"))
+	got, err := os.ReadFile(filepath.Join(dir, "module.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -470,7 +470,7 @@ func TestSuiteSubprocess(t *testing.T) {
 		opts = append(opts, metricstest.WithModuleRow(metrics.RawMetrics{DupBlocksCrossPkg: &two}))
 		goldens = syntheticGoldensWithModule()
 	case caseModuleValid:
-		// A negative row fails Validate, and "module" as a package collides
+		// A negative row fails Validate, and "<module>" as a package collides
 		// with the row: gamma is renamed to it.
 		neg := -1
 		opts = append(opts, metricstest.WithModuleRow(metrics.RawMetrics{DupBlocksCrossPkg: &neg}))
@@ -564,8 +564,8 @@ func TestSuiteDetectsModuleCrossMismatch(t *testing.T) {
 	out := runSubprocess(t, caseModuleCross)
 	requireContains(t, out,
 		"--- FAIL: TestSuiteSubprocess/ModuleRow/Details",
-		"module: ModuleDetails names 2 cross-package blocks, want dup_blocks_cross_pkg 1",
-		"module: cross-package block 0 touches beta, but Details(beta) does not list it",
+		"<module>: ModuleDetails names 2 cross-package blocks, want dup_blocks_cross_pkg 1",
+		"<module>: cross-package block 0 touches beta, but Details(beta) does not list it",
 	)
 	if strings.Contains(out, "--- FAIL: TestSuiteSubprocess/Details") {
 		t.Errorf("nil CrossBlocks in beta's details must pass the package check:\n%s", out)
@@ -593,9 +593,9 @@ func TestSuiteDetectsModuleShape(t *testing.T) {
 	out := runSubprocess(t, caseModuleShape)
 	requireContains(t, out,
 		"--- FAIL: TestSuiteSubprocess/ModuleRow/Shape",
-		"module: sloc is 5, want 0 on the module row",
-		"module: instability is 0.5, want null: it is not module-wide",
-		"module: dup_blocks_cross_pkg is null, want the module-wide value",
+		"<module>: sloc is 5, want 0 on the module row",
+		"<module>: instability is 0.5, want null: it is not module-wide",
+		"<module>: dup_blocks_cross_pkg is null, want the module-wide value",
 	)
 }
 
@@ -605,7 +605,7 @@ func TestSuiteDetectsModuleSumViolation(t *testing.T) {
 		"--- FAIL: TestSuiteSubprocess/ModuleRow/Invariants",
 		"sum(dup_blocks_cross_pkg) 2 < 2 * module row 2",
 		"--- FAIL: TestSuiteSubprocess/Goldens",
-		"module: dup_blocks_cross_pkg: golden 1, got 2 (check ",
+		"<module>: dup_blocks_cross_pkg: golden 1, got 2 (check ",
 	)
 }
 
@@ -613,8 +613,8 @@ func TestSuiteDetectsInvalidModuleRow(t *testing.T) {
 	out := runSubprocess(t, caseModuleValid)
 	requireContains(t, out,
 		"--- FAIL: TestSuiteSubprocess/ModuleRow/Validate",
-		"module: invalid metrics: dup_blocks_cross_pkg is negative (-1)",
-		`package module collides with the module row "module"`,
+		"<module>: invalid metrics: dup_blocks_cross_pkg is negative (-1)",
+		`package <module> collides with the module row "<module>" in a baseline`,
 		"sum(dup_blocks_cross_pkg) 2 > module row -1 * 3 packages",
 	)
 }

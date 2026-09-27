@@ -36,13 +36,13 @@ func TestCheckModuleRow(t *testing.T) {
 			t.Fatal(err)
 		}
 		want := "violations:\n" +
-			"  module\n" +
+			"  <module>\n" +
 			"    dup_blocks_cross_pkg: 1 -> 2, max_delta +0. Extract them.\n" +
 			"  internal/billing\n"
 		if !strings.HasPrefix(buf.String(), want) {
 			t.Errorf("text =\n%s\nwant it to start with\n%s", buf.String(), want)
 		}
-		summary := "\nmodule: dup_blocks_cross_pkg 2, 1 violation, 0 warnings\ninternal/billing: "
+		summary := "\n<module>: dup_blocks_cross_pkg 2, 1 violation, 0 warnings\ninternal/billing: "
 		if !strings.Contains(buf.String(), summary) {
 			t.Errorf("text =\n%s\nwant the module summary line before the packages'", buf.String())
 		}
@@ -55,7 +55,7 @@ func TestCheckModuleRow(t *testing.T) {
 		if err := WriteCheckText(&buf, c); err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(buf.String(), "\nmodule: dup_blocks_cross_pkg 2, 1 violation, 0 warnings, new since baseline\n") {
+		if !strings.Contains(buf.String(), "\n<module>: dup_blocks_cross_pkg 2, 1 violation, 0 warnings, new since baseline\n") {
 			t.Errorf("text =\n%s\nwant the module row marked new since baseline", buf.String())
 		}
 	})
@@ -69,8 +69,12 @@ func TestCheckModuleRow(t *testing.T) {
 		if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
 			t.Fatal(err)
 		}
-		if len(got) != 3 || got[0].PackagePath != "module" || got[1].PackagePath != "internal/billing" {
+		if len(got) != 3 || got[0].PackagePath != metrics.ModuleRowID || got[1].PackagePath != "internal/billing" {
 			t.Fatalf("json has %d reports starting %+v, want the module row first of 3", len(got), got)
+		}
+		// The id is written as is, not HTML-escaped to \u003cmodule\u003e.
+		if !strings.Contains(buf.String(), `"package_path": "<module>"`) {
+			t.Errorf("json does not carry the module row's package_path unescaped:\n%s", buf.String())
 		}
 		if got[0].Passed == nil || *got[0].Passed || len(got[0].Violations) != 1 {
 			t.Errorf("module entry = passed %v violations %+v, want failed with one", got[0].Passed, got[0].Violations)
@@ -125,7 +129,7 @@ func TestCheckModuleRow(t *testing.T) {
 		if err := WriteHook(&out, &warn, c); err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(out.String(), `"decision":"block"`) || !strings.Contains(out.String(), "dup_blocks_cross_pkg: 1 -\\u003e 2") {
+		if !strings.Contains(out.String(), `"decision":"block"`) || !strings.Contains(out.String(), `\n  <module>\n    dup_blocks_cross_pkg: 1 -> 2`) {
 			t.Errorf("hook = %s, want a block naming the module row's violation", out.String())
 		}
 	})

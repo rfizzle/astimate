@@ -72,7 +72,7 @@ func TestExplainCrossPackageAndOpacityNotGated(t *testing.T) {
 			t.Errorf("Explain(%q) = gated %v, evidence %q; want not gated, saying %q", name, e.Gated, e.Evidence, want)
 		}
 	}
-	if e, _ := Explain("dup_blocks_cross_pkg"); !strings.Contains(e.Definition, `"module"`) {
+	if e, _ := Explain("dup_blocks_cross_pkg"); !strings.Contains(e.Definition, `"`+ModuleRowID+`"`) {
 		t.Errorf("dup_blocks_cross_pkg definition does not name the module row: %s", e.Definition)
 	}
 	if e, _ := Explain("dup_blocks_cross_pkg"); !strings.Contains(e.Definition, "gated on the module row only") {

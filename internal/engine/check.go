@@ -322,7 +322,7 @@ type baselineSource struct {
 // through opts.Baselines.
 func resolveBaselineSource(ctx context.Context, t *Target, opts CheckOptions) (baselineSource, error) {
 	if opts.BaselineFile != "" {
-		b, err := fileBaseline(opts.BaselineFile, opts.Baselines)
+		b, err := fileBaseline(opts.BaselineFile, opts.Baselines, t.logger())
 		if err != nil {
 			return baselineSource{}, err
 		}
@@ -341,7 +341,7 @@ func resolveBaselineSource(ctx context.Context, t *Target, opts CheckOptions) (b
 		return baselineSource{}, &noBaselineError{err: refErr}
 	}
 	t.logger().Warn("no default baseline ref; using the baseline file", "path", path, "err", refErr)
-	b, err := fileBaseline(path, opts.Baselines)
+	b, err := fileBaseline(path, opts.Baselines, t.logger())
 	if err != nil {
 		return baselineSource{}, err
 	}
@@ -350,8 +350,17 @@ func resolveBaselineSource(ctx context.Context, t *Target, opts CheckOptions) (b
 
 // fileBaseline reads the baseline file at path through cache, keyed by the
 // file's absolute path, size and modification time; a nil cache reads it.
-func fileBaseline(path string, cache *BaselineCache) (baseline.Baseline, error) {
-	load := func() (baseline.Baseline, error) { return baseline.FromFile(path) }
+// Reading a file that stores the module row under its old key, "module",
+// logs one warning to logger saying so, once per read of the file.
+func fileBaseline(path string, cache *BaselineCache, logger *slog.Logger) (baseline.Baseline, error) {
+	load := func() (baseline.Baseline, error) {
+		b, err := baseline.FromFile(path)
+		if err == nil && baseline.MigratedModuleRow(b) {
+			logger.Warn("baseline file stores the module row under the old key \"module\"; "+
+				"run `astimate baseline write` to rewrite it", "path", path, "row", metrics.ModuleRowID)
+		}
+		return b, err
+	}
 	if cache == nil {
 		return load()
 	}

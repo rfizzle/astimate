@@ -287,7 +287,7 @@ func checkDegradedResult(t *testing.T, res callResult) {
 	if p := res.StructuredContent.Passed; p == nil || *p {
 		t.Errorf("check_package structuredContent.passed = %v, want false", p)
 	}
-	if m := res.StructuredContent.Module; m == nil || m.PackagePath != "module" || m.Passed == nil {
+	if m := res.StructuredContent.Module; m == nil || m.PackagePath != "<module>" || m.Passed == nil {
 		t.Errorf("check_package structuredContent.module = %+v, want the gated module row", m)
 	}
 	for _, v := range res.StructuredContent.Violations {

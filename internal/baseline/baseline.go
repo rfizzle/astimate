@@ -48,6 +48,9 @@ type snapshot struct {
 	// whether they were recorded at all.
 	cross      []metrics.CrossBlock
 	crossKnown bool
+	// migrated says a file stored the module row under the key used
+	// before metrics.ModuleRowID was reserved.
+	migrated bool
 }
 
 // CrossBlocks implements Baseline.

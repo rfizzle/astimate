@@ -154,11 +154,11 @@ func TestBaselineCacheFile(t *testing.T) {
 
 	path := writeFakeBaseline(t)
 	cache := NewBaselineCache()
-	first, err := fileBaseline(path, cache)
+	first, err := fileBaseline(path, cache, slog.New(slog.DiscardHandler))
 	if err != nil {
 		t.Fatal(err)
 	}
-	again, err := fileBaseline(path, cache)
+	again, err := fileBaseline(path, cache, slog.New(slog.DiscardHandler))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,7 +170,7 @@ func TestBaselineCacheFile(t *testing.T) {
 	if err := os.Chtimes(path, later, later); err != nil {
 		t.Fatal(err)
 	}
-	edited, err := fileBaseline(path, cache)
+	edited, err := fileBaseline(path, cache, slog.New(slog.DiscardHandler))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -179,7 +179,7 @@ func TestBaselineCacheFile(t *testing.T) {
 	}
 
 	var none *BaselineCache
-	if _, err := fileBaseline(path, none); err != nil {
+	if _, err := fileBaseline(path, none, slog.New(slog.DiscardHandler)); err != nil {
 		t.Errorf("reading without a cache: %v", err)
 	}
 }

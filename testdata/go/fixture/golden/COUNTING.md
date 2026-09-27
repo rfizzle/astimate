@@ -104,7 +104,7 @@ are the same on every checkout.
   and whose occurrences lie in two or more packages; each counts once in
   every package it touches. See "Cross-package duplication" below: `a` and
   `b` are 1, every other package 0. The module-level row that `check`
-  reports under `module` counts the distinct blocks, so it is 1 too.
+  reports under `<module>` counts the distinct blocks, so it is 1 too.
 - **uses_cgo** (v1): a non-test file imports `"C"`. False everywhere in the
   fixture; `testdata/go/cgo` covers true.
 - **uses_reflect** (v1): a non-test file imports `reflect` or `unsafe`.
@@ -313,7 +313,7 @@ repeated.
 ## module
 
 `module.json` is the module-level row the extractor reports under the id
-`module`, not a package. Every v0 field is 0 and every v1 field is null
+`<module>`, not a package. Every v0 field is 0 and every v1 field is null
 except the module-wide `dup_blocks_cross_pkg`, which is the number of
 distinct cross-package blocks: 1, the `Checksum`/`Digest` block described
 under "Cross-package duplication". The conformance suite requires the sum

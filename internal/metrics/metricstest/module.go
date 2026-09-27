@@ -8,9 +8,10 @@ import (
 	"github.com/rfizzle/astimate/internal/metrics"
 )
 
-// moduleGolden names the golden of the module row: the row's identifier,
-// metrics.ModuleRowID, so it is module.json in Fixture.GoldenDir.
-const moduleGolden = metrics.ModuleRowID
+// moduleGolden names the golden of the module row, module.json in
+// Fixture.GoldenDir. It is not the row's identifier, metrics.ModuleRowID,
+// whose angle brackets make a poor file name.
+const moduleGolden = "module"
 
 // isModuleWide reports whether the v1 metric name is one the module row
 // carries (SPEC.md sections 6 and 8.1). Every other v1 field of the row is
@@ -47,9 +48,12 @@ func checkModuleRow(t *testing.T, mm metrics.ModuleMetrics, mod *metrics.ModuleC
 			t.Errorf("%s: %v", metrics.ModuleRowID, err)
 		}
 		for _, pkg := range fx.Packages {
-			if pkg == metrics.ModuleRowID || goldenName(fx.ModulePath, pkg) == moduleGolden {
-				t.Errorf("package %s collides with the module row %q in a baseline or among the goldens",
-					pkg, metrics.ModuleRowID)
+			if pkg == metrics.ModuleRowID {
+				t.Errorf("package %s collides with the module row %q in a baseline", pkg, metrics.ModuleRowID)
+			}
+			if goldenName(fx.ModulePath, pkg) == moduleGolden {
+				t.Errorf("package %s collides with the module row among the goldens: both are %s.json",
+					pkg, moduleGolden)
 			}
 		}
 	})
@@ -129,11 +133,11 @@ func checkModuleSums(t *testing.T, row *metrics.RawMetrics, pkgs []string, got m
 		}
 	}
 	if sum < 2*blocks {
-		t.Errorf("module-wide sum(dup_blocks_cross_pkg) %d < 2 * %s row %d; each block counts in at least two packages",
-			sum, metrics.ModuleRowID, blocks)
+		t.Errorf("module-wide sum(dup_blocks_cross_pkg) %d < 2 * module row %d; each block counts in at least two packages",
+			sum, blocks)
 	}
 	if sum > blocks*len(pkgs) {
-		t.Errorf("module-wide sum(dup_blocks_cross_pkg) %d > %s row %d * %d packages; each block counts at most once per package",
-			sum, metrics.ModuleRowID, blocks, len(pkgs))
+		t.Errorf("module-wide sum(dup_blocks_cross_pkg) %d > module row %d * %d packages; each block counts at most once per package",
+			sum, blocks, len(pkgs))
 	}
 }

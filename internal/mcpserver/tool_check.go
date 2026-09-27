@@ -57,7 +57,7 @@ type CheckResult struct {
 	// the whole call.
 	report.Report
 	// Module is the module row's report (SPEC.md 8.1), package path
-	// "module", with its own violations, warnings and passed; absent when
+	// "<module>", with its own violations, warnings and passed; absent when
 	// the extractor has no module row. A cross-package copy made in the
 	// checked package is a violation here, not in the package's report; a
 	// copy between two other packages is counted in its metrics but is not
@@ -192,7 +192,7 @@ func checkResult(c *report.Check) *CheckResult {
 
 // checkText renders the one-package check c for the agent: a verdict line
 // saying what to do next, then the check's text report, which lists the
-// module row's findings under "module" as the CLI's text format does.
+// module row's findings under "<module>" as the CLI's text format does.
 func checkText(c *report.Check) (string, error) {
 	r := &c.Packages[0].Report
 	var b strings.Builder

@@ -130,9 +130,10 @@ func findings(vs []gate.Violation) []Finding {
 
 // WriteCheckText writes c for a human reader: the violations, then the
 // warnings, each grouped under its package (the module row's first, under
-// a "module" heading), then one summary line for the module row and one per
-// package with its agent passes, tier, finding counts and the change in
-// agent passes from the baseline, and a final line naming deleted packages.
+// its id, metrics.ModuleRowID), then one summary line for the module row
+// and one per package with its agent passes, tier, finding counts and the
+// change in agent passes from the baseline, and a final line naming deleted
+// packages.
 func WriteCheckText(w io.Writer, c *Check) error {
 	bw := bufio.NewWriter(w)
 	writeFindings(bw, c)
@@ -155,8 +156,8 @@ func WriteCheckText(w io.Writer, c *Check) error {
 }
 
 // writeFindings writes the violations section, then the warnings section,
-// the module row's findings under "module" and then each package's under
-// its directory; an empty section is left out.
+// the module row's findings under metrics.ModuleRowID and then each
+// package's under its directory; an empty section is left out.
 func writeFindings(w *bufio.Writer, c *Check) {
 	sections := []struct {
 		title string
@@ -286,7 +287,8 @@ func plural(n int, one, many string) string {
 
 // WriteCheckJSON writes the reports of the module row, when there is one,
 // and the packages as an indented JSON array followed by a newline; the
-// module row is an ordinary entry whose package_path is "module". No rows
+// module row is an ordinary entry whose package_path is
+// metrics.ModuleRowID, "<module>", written without HTML escaping. No rows
 // yields "[]".
 func WriteCheckJSON(w io.Writer, c *Check) error {
 	rows := c.rows()
@@ -295,6 +297,7 @@ func WriteCheckJSON(w io.Writer, c *Check) error {
 		reports = append(reports, p.Report)
 	}
 	enc := json.NewEncoder(w)
+	enc.SetEscapeHTML(false)
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(reports); err != nil {
 		return fmt.Errorf("writing json check report: %w", err)
@@ -336,16 +339,20 @@ func WriteHook(w, warnings io.Writer, c *Check) error {
 		}
 		return nil
 	}
-	data, err := json.Marshal(hookBlock{Decision: "block", Reason: text.String()})
-	if err != nil {
-		return fmt.Errorf("writing hook output: %w", err)
-	}
-	data = append(data, '\n')
-	if _, err := w.Write(data); err != nil {
+	// Without SetEscapeHTML(false) the module row's heading, "<module>",
+	// would reach the reason as "\u003cmodule\u003e".
+	enc := json.NewEncoder(w)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(hookBlock{Decision: "block", Reason: text.String()}); err != nil {
 		return fmt.Errorf("writing hook output: %w", err)
 	}
 	return nil
 }
+
+// githubModuleLead leads the message of each of the module row's GitHub
+// annotations. It names the row in words rather than by metrics.ModuleRowID:
+// an annotation is read by a person, and carries no package path to match.
+const githubModuleLead = "module: "
 
 // WriteGitHub writes GitHub Actions workflow commands (SPEC.md 8.5): one
 // "::error" annotation per violation and one "::warning" per warning,
@@ -369,7 +376,7 @@ func WriteGitHub(w io.Writer, c *Check) error {
 		r := &p.Report
 		prop, lead := " file="+escapeProperty(c.repoPath(r.PackagePath)), ""
 		if p == c.Module {
-			prop, lead = "", r.PackagePath+": "
+			prop, lead = "", githubModuleLead
 		}
 		for j := range r.Violations {
 			f := &r.Violations[j]

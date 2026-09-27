@@ -150,7 +150,7 @@ func TestCheckPackageTool(t *testing.T) {
 			}
 			cr := decodeCheck(t, res)
 			r := cr.Report
-			if cr.Module == nil || cr.Module.PackagePath != "module" || cr.Module.Passed == nil {
+			if cr.Module == nil || cr.Module.PackagePath != metrics.ModuleRowID || cr.Module.Passed == nil {
 				t.Errorf("module block = %+v, want the gated module row", cr.Module)
 			}
 			if r.Passed == nil || *r.Passed != tt.wantPassed {
@@ -394,8 +394,8 @@ func TestCheckPackageModuleRow(t *testing.T) {
 			if !strings.HasPrefix(text, wantText) {
 				t.Errorf("text = %q, want it to start with %q", text, wantText)
 			}
-			if copied && !strings.Contains(text, "\n  module\n    dup_blocks_cross_pkg: 1 -> ") {
-				t.Errorf("text does not list the module violation under module:\n%s", text)
+			if copied && !strings.Contains(text, "\n  "+metrics.ModuleRowID+"\n    dup_blocks_cross_pkg: 1 -> ") {
+				t.Errorf("text does not list the module violation under %s:\n%s", metrics.ModuleRowID, text)
 			}
 		})
 	}

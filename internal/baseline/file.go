@@ -1,6 +1,7 @@
 package baseline
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -19,6 +20,12 @@ const DefaultPath = ".astimate/baseline.json"
 // DefaultTokenizer is the tokenizer FromFile reports for a file that
 // records none, as files written before the field existed do.
 const DefaultTokenizer = "est"
+
+// legacyModuleKey is the key files written before metrics.ModuleRowID was
+// reserved stored the module row under. It is also the import path of the
+// root package of a module named "module", so FromFile reads it as the
+// module row only when the row it keys has the module row's shape.
+const legacyModuleKey = "module"
 
 // fileFormat is the JSON layout of a baseline file (SPEC.md 8.3).
 type fileFormat struct {
@@ -65,7 +72,12 @@ type Contents struct {
 // FromFile reads a baseline file written by Write or WriteContents. Its Ref
 // and Tokenizer are the ones recorded in the file; a file that records no
 // tokenizer reports DefaultTokenizer, and one that records no functions
-// reports none from Functions.
+// reports none from Functions. A file written before metrics.ModuleRowID
+// was reserved stores the module row under "module"; FromFile serves that
+// row under metrics.ModuleRowID when the file has no row under the new key
+// and every v0 field of the row is zero, as on the module row and on no
+// package, and MigratedModuleRow then reports true. A row under "module"
+// with any v0 field set is the package of that import path.
 func FromFile(path string) (Baseline, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -85,7 +97,52 @@ func FromFile(path string) (Baseline, error) {
 	if err != nil {
 		return nil, fmt.Errorf("decoding baseline %s: %w", path, err)
 	}
-	return &snapshot{ref: f.Ref, tokenizer: f.Tokenizer, pkgs: f.Packages, funcs: funcs}, nil
+	migrated := migrateModuleRow(f.Packages)
+	return &snapshot{ref: f.Ref, tokenizer: f.Tokenizer, pkgs: f.Packages, funcs: funcs, migrated: migrated}, nil
+}
+
+// MigratedModuleRow reports whether b was read by FromFile from a file that
+// stores the module row under the key "module", the key used before
+// metrics.ModuleRowID was reserved. b serves the row under
+// metrics.ModuleRowID either way; rewriting the file with WriteContents
+// stores it under that key.
+func MigratedModuleRow(b Baseline) bool {
+	s, ok := b.(*snapshot)
+	return ok && s.migrated
+}
+
+// migrateModuleRow moves the module row of a file written before
+// metrics.ModuleRowID was reserved from legacyModuleKey to
+// metrics.ModuleRowID in pkgs, and reports whether it did. It leaves pkgs
+// alone when it already has a row under metrics.ModuleRowID, has none
+// under legacyModuleKey, or has a package there: a row with a v0 field
+// set, which the module row never has.
+func migrateModuleRow(pkgs map[string]metrics.RawMetrics) bool {
+	if _, ok := pkgs[metrics.ModuleRowID]; ok {
+		return false
+	}
+	m, ok := pkgs[legacyModuleKey]
+	if !ok || !zeroV0(&m) {
+		return false
+	}
+	delete(pkgs, legacyModuleKey)
+	pkgs[metrics.ModuleRowID] = m
+	return true
+}
+
+// zeroV0 reports whether every v0 field of m is zero: the v0 fields are the
+// ones a zero RawMetrics reports a value for.
+func zeroV0(m *metrics.RawMetrics) bool {
+	var zero metrics.RawMetrics
+	for _, name := range metrics.MetricNames() {
+		if _, v0 := zero.Value(name); !v0 {
+			continue
+		}
+		if v, _ := m.Value(name); v != 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // decodeFunctions converts the file's function records, parsing each
@@ -147,18 +204,24 @@ func WriteContents(path string, c Contents) (err error) {
 	if tokenizer == "" {
 		tokenizer = DefaultTokenizer
 	}
-	data, err := json.MarshalIndent(fileFormat{
+	// Without SetEscapeHTML(false) metrics.ModuleRowID would be stored as
+	// "\u003cmodule\u003e".
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+	err = enc.Encode(fileFormat{
 		Ref:         c.Ref,
 		GeneratedAt: time.Now().UTC().Truncate(time.Second),
 		ModulePath:  c.ModulePath,
 		Tokenizer:   tokenizer,
 		Packages:    pkgs,
 		Functions:   encodeFunctions(c.Functions),
-	}, "", "  ")
+	})
 	if err != nil {
 		return fmt.Errorf("encoding baseline: %w", err)
 	}
-	data = append(data, '\n')
+	data := buf.Bytes()
 
 	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".*.tmp")
 	if err != nil {

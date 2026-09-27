@@ -184,10 +184,10 @@ func TestCheckFixtures(t *testing.T) {
 				}
 				// The module row comes first; a and b share one block in
 				// every fixture copy, so it passes against the baseline.
-				if want := append([]string{"module"}, fixturePackages()...); !slices.Equal(paths, want) {
+				if want := append([]string{metrics.ModuleRowID}, fixturePackages()...); !slices.Equal(paths, want) {
 					t.Errorf("reports = %q, want the module row and every fixture package %q", paths, want)
 				}
-				if m := reports[0]; m.PackagePath == "module" {
+				if m := reports[0]; m.PackagePath == metrics.ModuleRowID {
 					if m.Passed == nil || !*m.Passed || m.Metrics.DupBlocksCrossPkg == nil || *m.Metrics.DupBlocksCrossPkg != 1 {
 						t.Errorf("module row passed %v with dup_blocks_cross_pkg %v, want a pass at 1", m.Passed, m.Metrics.DupBlocksCrossPkg)
 					}
@@ -202,7 +202,7 @@ func TestCheckFixtures(t *testing.T) {
 				for i := range reports {
 					r := &reports[i]
 					// Only the module row has no function-level diff.
-					if got := r.Metrics.ChangedFuncCognitiveMax; (got == nil) != (r.PackagePath == "module") {
+					if got := r.Metrics.ChangedFuncCognitiveMax; (got == nil) != (r.PackagePath == metrics.ModuleRowID) {
 						t.Errorf("%s: changed_func_cognitive_max = %v, want null only on the module row", r.PackagePath, got)
 					}
 					if r.PackagePath != "tested" {
@@ -241,7 +241,7 @@ func TestCheckFixtures(t *testing.T) {
 				t.Parallel()
 
 				out, _ := check(t, formatText)
-				if !strings.Contains("\n"+out, "\nmodule: dup_blocks_cross_pkg 1, 0 violations, 0 warnings\n") {
+				if !strings.Contains("\n"+out, "\n<module>: dup_blocks_cross_pkg 1, 0 violations, 0 warnings\n") {
 					t.Errorf("text has no module summary line:\n%s", out)
 				}
 				for _, pkg := range fixturePackages() {
@@ -551,7 +551,7 @@ func TestCheckGitRef(t *testing.T) {
 	}
 
 	reports := decodeReports(t, stdout.Bytes())
-	if len(reports) != 2 || reports[0].PackagePath != "module" || reports[1].PackagePath != "tested" {
+	if len(reports) != 2 || reports[0].PackagePath != metrics.ModuleRowID || reports[1].PackagePath != "tested" {
 		paths := make([]string, 0, len(reports))
 		for i := range reports {
 			paths = append(paths, reports[i].PackagePath)

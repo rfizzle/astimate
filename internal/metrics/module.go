@@ -4,8 +4,11 @@ import "context"
 
 // ModuleRowID is the package identifier of the module-level row: the key
 // its metrics are stored under in a baseline, and the package path it is
-// reported under by check.
-const ModuleRowID = "module"
+// reported under by check. Angle brackets are valid in neither a Go import
+// path nor a TypeScript package directory, so no package can share it: a
+// module whose path is literally "module" keeps its root package apart
+// from the row.
+const ModuleRowID = "<module>"
 
 // ModuleWide reports whether the metric named by its JSON field name is
 // module-wide: carried by the module row as a whole-module value, so that a
