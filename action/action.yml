@@ -1,0 +1,51 @@
+name: astimate
+description: Fail a pull request that makes a Go package worse than its base branch, with inline annotations.
+author: rfizzle
+
+inputs:
+  version:
+    description: >-
+      astimate to install: "latest", a release tag such as "v0.3.0", or
+      "source" to build the repository that contains this action with the
+      Go toolchain already on PATH (add actions/setup-go first).
+    required: false
+    default: latest
+  base:
+    description: >-
+      Git ref whose merge-base with HEAD is the baseline. It must exist in
+      the checkout: use actions/checkout with fetch-depth 0. Empty uses
+      astimate's default (origin/master, then master, origin/main, main).
+    required: false
+    default: origin/master
+  config:
+    description: Path to astimate.yaml. Empty uses ./astimate.yaml, then the embedded default.
+    required: false
+    default: ""
+  all:
+    description: '"true" checks every package instead of only the packages changed since the merge-base.'
+    required: false
+    default: "false"
+  format:
+    description: Output format passed to astimate check; github emits ::error and ::warning annotations.
+    required: false
+    default: github
+
+runs:
+  using: composite
+  steps:
+    - name: Install astimate
+      shell: bash
+      env:
+        ASTIMATE_VERSION: ${{ inputs.version }}
+        ACTION_DIR: ${{ github.action_path }}
+      run: '"$ACTION_DIR/install.sh"'
+
+    - name: Run astimate check
+      shell: bash
+      env:
+        ASTIMATE_BASE: ${{ inputs.base }}
+        ASTIMATE_CONFIG: ${{ inputs.config }}
+        ASTIMATE_ALL: ${{ inputs.all }}
+        ASTIMATE_FORMAT: ${{ inputs.format }}
+        ACTION_DIR: ${{ github.action_path }}
+      run: '"$ACTION_DIR/run.sh"'

@@ -54,6 +54,38 @@ The default thresholds are placeholders until they are calibrated against a corp
 - [Pre-commit](docs/pre-commit.md): a git hook script and a pre-commit framework entry that refuse a commit that makes a package worse, and their limitations.
 - [Reading violations](docs/reading-violations.md): how to read `check` output and which metrics to fix first; worth pointing an agent at.
 
+### GitHub Action
+
+The composite action in [`action/`](action/action.yml) installs astimate and runs `astimate check --format github`. Violations become `::error` annotations and warnings `::warning` annotations, each on the package directory. Exit 3 (gate failed) and exit 2 (analysis failed) both fail the job.
+
+```yaml
+on: pull_request
+
+jobs:
+  astimate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0   # the merge-base with the base branch must be in the clone
+      - uses: rfizzle/astimate/action@master
+        with:
+          version: v0.3.0
+          base: origin/${{ github.base_ref }}
+```
+
+| Input | Default | Meaning |
+| --- | --- | --- |
+| `version` | `latest` | A release tag such as `v0.3.0`, `latest`, or `source` to build the repository containing the action with the Go on `PATH` (add `actions/setup-go` first). |
+| `base` | `origin/master` | Ref whose merge-base with `HEAD` is the baseline. Empty uses astimate's default ref. |
+| `config` | empty | Path to `astimate.yaml`; empty uses `./astimate.yaml`, then the embedded default. |
+| `all` | `false` | `true` checks every package, not only those changed since the merge-base. |
+| `format` | `github` | `check --format` value. |
+
+`fetch-depth: 0` is required: with the default shallow clone the merge-base does not exist and the action stops with exit 2 (`base ref ... not found`) or warns that the clone is shallow. For a `pull_request` event the checkout is the merge commit, so the packages checked are those the pull request changes. If `origin/<base>` might be missing, fetch it first with `git fetch --no-tags origin "+refs/heads/<base>:refs/remotes/origin/<base>"`, as this repository's `gate` job in [`ci.yml`](.github/workflows/ci.yml) does.
+
+A release install downloads `astimate_<version>_<os>_<arch>.tar.gz` (`<version>` without the leading `v`, `<os>` `linux` or `darwin`, `<arch>` `amd64` or `arm64`) and `checksums.txt` from the GitHub release and refuses to install when the archive's SHA-256 does not match its line in `checksums.txt`. Linux and macOS runners are supported. No release has been published yet, so `version: latest` fails until one is; this repository's CI uses `version: source`.
+
 ## Layout
 
 ```
