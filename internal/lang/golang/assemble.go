@@ -3,6 +3,7 @@ package golang
 import (
 	"context"
 	"fmt"
+	"math"
 
 	"github.com/rfizzle/astimate/internal/metrics"
 	"golang.org/x/tools/go/packages"
@@ -33,8 +34,9 @@ type details struct {
 
 // assemble computes every v0 metric of p in l and maps it into RawMetrics by
 // its SPEC.md section 6 name, with the v1 fields instability, abstractness
-// and main_sequence_distance derived from them (nil when undefined), the
-// opacity flags uses_cgo, uses_reflect and generated_files, and
+// and main_sequence_distance derived from them (nil when undefined, else
+// rounded to three decimal places), the opacity flags uses_cgo,
+// uses_reflect and generated_files, and
 // dup_blocks_cross_pkg (nil for the standard-library loads, which are not
 // modules); coverage_pct and changed_func_cognitive_max are left nil. It
 // records the debug details of p in l. size runs before duplication, which
@@ -91,9 +93,13 @@ func assemble(ctx context.Context, l *loaded, p *packages.Package, opts assemble
 
 	// Martin's package metrics, from the fan-in, import and size results
 	// above: Ca = fan_in and Ce = internal_imports, both module-internal
-	// edges only. Reported, not gated.
+	// edges only. Reported, not gated. Each ratio is rounded to three decimal places, the distance computed
+	// from the unrounded ratios, so none carries float noise.
 	instability := metrics.Instability(fi.fanIn, imp.internal)
 	abstractness := metrics.Abstractness(sz.exports.interfaceTypes, sz.exports.types)
+	distance := roundRatio(metrics.MainSequenceDistance(abstractness, instability))
+	instability = roundRatio(instability)
+	abstractness = roundRatio(abstractness)
 
 	l.setDetails(p.PkgPath, details{
 		untestedNames:    un.names,
@@ -131,12 +137,27 @@ func assemble(ctx context.Context, l *loaded, p *packages.Package, opts assemble
 
 		Instability:          instability,
 		Abstractness:         abstractness,
-		MainSequenceDistance: metrics.MainSequenceDistance(abstractness, instability),
+		MainSequenceDistance: distance,
 		DupBlocksCrossPkg:    crossPkg,
 		UsesCgo:              &op.cgo,
 		UsesReflect:          &op.reflect,
 		GeneratedFiles:       &op.generated,
 	}, nil
+}
+
+// ratioScale is 10 to the number of decimal places instability, abstractness
+// and main_sequence_distance are rounded to.
+const ratioScale = 1e3
+
+// roundRatio returns v rounded half away from zero to three decimal places,
+// or nil for a nil v, so a ratio reports 0.2, not 0.19999999999999996, and
+// 0, not 1.1e-16.
+func roundRatio(v *float64) *float64 {
+	if v == nil {
+		return nil
+	}
+	r := math.Round(*v*ratioScale) / ratioScale
+	return &r
 }
 
 // setDetails records d as the most recent details of the package at

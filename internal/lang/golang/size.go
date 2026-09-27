@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"go/types"
 
 	"golang.org/x/tools/go/packages"
 )
@@ -26,11 +27,16 @@ type sizeCounts struct {
 // from its non-test files, with the exported type counts behind
 // abstractness, read through src to count source lines. It iterates
 // sourceSyntax, the trees of p.GoFiles, so for a cgo package too perFile has
-// one entry per counted file.
+// one entry per counted file. Interface types are recognized through p's
+// package scope when p has type information (see exportedInSpec).
 func size(l *loaded, p *packages.Package, src fileSource) (sizeCounts, error) {
 	c := sizeCounts{
 		files:   len(p.GoFiles),
 		perFile: make(map[string]int, len(p.GoFiles)),
+	}
+	var scope *types.Scope
+	if p.Types != nil {
+		scope = p.Types.Scope()
 	}
 	for _, f := range sourceSyntax(l, p) {
 		tf := l.fset.File(f.FileStart)
@@ -45,7 +51,7 @@ func size(l *loaded, p *packages.Package, src fileSource) (sizeCounts, error) {
 		c.perFile[tf.Name()] = n
 		c.sloc += n
 		c.largestFileSLOC = max(c.largestFileSLOC, n)
-		c.exports.add(exportedSymbols(f))
+		c.exports.add(exportedSymbols(f, scope))
 	}
 	return c, nil
 }
@@ -102,8 +108,8 @@ type exportCounts struct {
 	symbols int
 	// types counts exported type specs, aliases included.
 	types int
-	// interfaceTypes counts the exported type specs whose type expression
-	// is an interface literal.
+	// interfaceTypes counts the exported type specs whose type is an
+	// interface; see exportedInSpec.
 	interfaceTypes int
 }
 
@@ -117,8 +123,10 @@ func (c *exportCounts) add(o exportCounts) {
 // exportedSymbols counts the exported top-level funcs, types, var and const
 // names, and exported methods on any receiver, exported or not, declared in
 // f, with the exported types among them and the interface types among those.
-// Struct fields and interface methods are not counted.
-func exportedSymbols(f *ast.File) exportCounts {
+// Struct fields and interface methods are not counted. scope is the package
+// scope interface types are resolved in, or nil to test syntactically; see
+// exportedInSpec.
+func exportedSymbols(f *ast.File, scope *types.Scope) exportCounts {
 	var c exportCounts
 	for _, d := range f.Decls {
 		switch d := d.(type) {
@@ -128,7 +136,7 @@ func exportedSymbols(f *ast.File) exportCounts {
 			}
 		case *ast.GenDecl:
 			for _, s := range d.Specs {
-				c.add(exportedInSpec(s))
+				c.add(exportedInSpec(s, scope))
 			}
 		}
 	}
@@ -138,20 +146,23 @@ func exportedSymbols(f *ast.File) exportCounts {
 // exportedInSpec counts the exported names a type, var or const spec
 // declares. Import specs declare none.
 //
-// An exported type spec is an interface type when its type expression is an
-// interface literal, generic and constraint interfaces included. The test is
-// syntactic, so an alias of an interface literal (type I = interface{ M() })
-// counts, while an alias or definition naming another type, such as
-// type R = io.Reader or type R io.Reader, does not, even when that type is an
-// interface: resolving it would need type information for one ratio's input.
-func exportedInSpec(s ast.Spec) exportCounts {
+// An exported type spec is an interface type when the type it declares has
+// an interface as its underlying type, generic and constraint interfaces
+// included, so a definition or alias naming an interface, such as
+// type R io.Reader or type R = io.Reader, counts as well as an interface
+// literal. The type is looked up by name in scope, the package scope, which
+// holds the same declarations whether f is the tree go/packages
+// type-checked or a cgo package's reparsed source. With a nil scope, or a
+// name the scope lacks, the test falls back to syntax: the type expression
+// is an interface literal.
+func exportedInSpec(s ast.Spec, scope *types.Scope) exportCounts {
 	var c exportCounts
 	switch s := s.(type) {
 	case *ast.TypeSpec:
 		if s.Name.IsExported() {
 			c.symbols++
 			c.types++
-			if _, ok := s.Type.(*ast.InterfaceType); ok {
+			if isInterfaceSpec(s, scope) {
 				c.interfaceTypes++
 			}
 		}
@@ -163,4 +174,18 @@ func exportedInSpec(s ast.Spec) exportCounts {
 		}
 	}
 	return c
+}
+
+// isInterfaceSpec reports whether the type s declares is an interface: its
+// underlying type in scope is one, or, when scope is nil or has no type of
+// that name, its type expression is an interface literal.
+func isInterfaceSpec(s *ast.TypeSpec, scope *types.Scope) bool {
+	if scope != nil {
+		if tn, ok := scope.Lookup(s.Name.Name).(*types.TypeName); ok {
+			_, iface := tn.Type().Underlying().(*types.Interface)
+			return iface
+		}
+	}
+	_, ok := s.Type.(*ast.InterfaceType)
+	return ok
 }

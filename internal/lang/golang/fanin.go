@@ -1,7 +1,9 @@
 package golang
 
 import (
+	"go/ast"
 	"slices"
+	"strings"
 	"sync"
 
 	"golang.org/x/tools/go/packages"
@@ -28,7 +30,9 @@ type reverseGraph struct {
 // fanIn returns the number of distinct module packages that import p from
 // non-test files, and the number that import it from test files only. Main
 // packages count as importers like any other. A package's own external test
-// package importing it is not an edge (SPEC.md section 6.5).
+// package importing it is not an edge (SPEC.md section 6.5). An edge is what
+// importedPackages lists, classified internal by classifyImport, exactly the
+// edges internal_imports counts from the other end.
 func fanIn(l *loaded, p *packages.Package) fanInCounts {
 	buildReverse(l)
 	return fanInCounts{
@@ -39,25 +43,29 @@ func fanIn(l *loaded, p *packages.Package) fanInCounts {
 
 // buildReverse fills l.reverse and l.fanIn.tests from every module package
 // on its first call for l and does nothing afterwards, so the graphs are
-// built once per load however many packages are measured.
+// built once per load however many packages are measured. The non-test
+// edges come from the source files of each package (sourceSyntax), and the
+// test-only edges from the _test.go files of its test variants, so neither
+// sees an import that only cgo-generated files hold.
 func buildReverse(l *loaded) {
 	l.fanIn.once.Do(func() {
 		reverse := make(map[string][]string, len(l.pkgs))
 		tests := make(map[string][]string)
 		for from, q := range l.pkgs {
-			for path := range q.Imports {
-				if isInternal(l, path) {
-					reverse[path] = append(reverse[path], from)
+			direct := make(map[string]bool, len(q.Imports))
+			for _, imp := range importedPackages(q, sourceSyntax(l, q)) {
+				direct[imp.PkgPath] = true
+				if classifyImport(l, imp) == importInternal {
+					reverse[imp.PkgPath] = append(reverse[imp.PkgPath], from)
 				}
 			}
 			for _, tp := range testPackagesFor(l, q) {
-				for path := range tp.Imports {
-					if path == from || !isInternal(l, path) {
+				for _, imp := range importedPackages(tp, testFiles(l, tp)) {
+					path := imp.PkgPath
+					if path == from || direct[path] || classifyImport(l, imp) != importInternal {
 						continue
 					}
-					if _, direct := q.Imports[path]; !direct {
-						tests[path] = append(tests[path], from)
-					}
+					tests[path] = append(tests[path], from)
 				}
 			}
 		}
@@ -67,6 +75,19 @@ func buildReverse(l *loaded) {
 		l.fanIn.tests = tests
 		l.fanIn.builds++
 	})
+}
+
+// testFiles returns the syntax trees of the _test.go files of tp, a test
+// variant, leaving out the non-test files an in-package test variant also
+// holds.
+func testFiles(l *loaded, tp *packages.Package) []*ast.File {
+	out := make([]*ast.File, 0, len(tp.Syntax))
+	for _, f := range tp.Syntax {
+		if strings.HasSuffix(l.fset.Position(f.Package).Filename, "_test.go") {
+			out = append(out, f)
+		}
+	}
+	return out
 }
 
 // sortDedupe sorts each importer list of g and removes repeats, which arise

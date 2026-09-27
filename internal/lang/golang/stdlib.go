@@ -20,8 +20,8 @@ const stdModulePath = "std"
 // library by ExtractStdlibAll. No go.mod can declare it, so it never
 // collides with a real module. Under it every standard-library package is
 // internal, for internal_imports and fan_in alike (see isInternal and
-// classifyImport), so the two count the same import edges, apart from the
-// differences ExtractStdlibAll lists. The single-package load of ExtractStdlib keeps stdModulePath, under which
+// classifyImport), so the two count the same import edges. The
+// single-package load of ExtractStdlib keeps stdModulePath, under which
 // standard-library imports stay stdlib_imports.
 const stdAllModulePath = "std/..."
 
@@ -31,10 +31,13 @@ const stdAllModulePath = "std/..."
 // standard-library package that belongs to no module a caller could load
 // with Extract. The package is loaded on its own, so fan_in and
 // fan_in_tests are 0, since no other standard-library package is in the
-// load; ExtractStdlibAll measures those. It returns an error when the load
-// fails, which is how a toolchain without usable GOROOT sources shows, and
-// one wrapping metrics.ErrUnknownPackage when the load yields no package at
-// importPath.
+// load; ExtractStdlibAll measures those. Like ExtractStdlibAll it parses
+// the source files of a package whose syntax is not its source
+// (parseSources), so a cgo package such as net, and unsafe, which
+// go/packages gives no syntax, are measured from their source files. It
+// returns an error when the load fails, which is how a toolchain without
+// usable GOROOT sources shows, and one wrapping metrics.ErrUnknownPackage
+// when the load yields no package at importPath.
 func ExtractStdlib(ctx context.Context, importPath string, opts ...Option) (metrics.RawMetrics, error) {
 	e := New(opts...)
 	counter, err := e.counter()
@@ -58,6 +61,9 @@ func ExtractStdlib(ctx context.Context, importPath string, opts ...Option) (metr
 	}
 	l.modulePath = stdModulePath
 	l.fset = cfg.Fset
+	if err := parseSources(l); err != nil {
+		return metrics.RawMetrics{}, fmt.Errorf("loading %s: %w", importPath, err)
+	}
 	return assemble(ctx, l, p, assembleOptions{counter: counter, dup: e.dup})
 }
 
@@ -68,11 +74,9 @@ func ExtractStdlib(ctx context.Context, importPath string, opts ...Option) (metr
 // import graph, across every package, which makes fan_in and fan_in_tests
 // count the standard-library packages importing each one. Every
 // standard-library import is internal to that load, so internal_imports
-// counts them and stdlib_imports is 0. The two metrics keep the rules they
-// have in any module, so their sums over the result differ by the edges
-// only one side counts: fan_in also counts blank, dot and cgo-generated
-// imports, and misses imports of the vendored golang.org/x packages, whose
-// import path is not their package path. It is intended for calibration,
+// counts them and stdlib_imports is 0. Both metrics count the edges
+// importedPackages lists, keyed by package path, so their sums over the
+// result are equal. It is intended for calibration,
 // which pools standard-library rows with module rows.
 //
 // It returns the metrics by import path and, separately, the packages that

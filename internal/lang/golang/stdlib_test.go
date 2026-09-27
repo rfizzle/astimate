@@ -3,13 +3,11 @@ package golang
 import (
 	"context"
 	"errors"
-	"strconv"
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/score"
-	"golang.org/x/tools/go/packages"
 )
 
 // extractStdlibOrSkip extracts the standard-library package at importPath,
@@ -35,6 +33,17 @@ func TestExtractStdlib(t *testing.T) {
 	if got.TokensEstWithTests <= got.TokensEst || got.ExportedSymbols == 0 {
 		t.Errorf("tokens_est=%d tokens_est_with_tests=%d exported_symbols=%d, want test tokens and exports",
 			got.TokensEst, got.TokensEstWithTests, got.ExportedSymbols)
+	}
+}
+
+// TestExtractStdlibUnsafe checks that the single-package path parses source
+// files the way ExtractStdlibAll does: go/packages gives unsafe no syntax,
+// so without that it would report no lines, exports or functions.
+func TestExtractStdlibUnsafe(t *testing.T) {
+	got := extractStdlibOrSkip(t, "unsafe")
+	if got.Files != 1 || got.SLOC == 0 || got.ExportedSymbols == 0 || got.FuncCount == 0 {
+		t.Errorf("files=%d sloc=%d exported_symbols=%d func_count=%d, want 1 file with lines, exports and functions",
+			got.Files, got.SLOC, got.ExportedSymbols, got.FuncCount)
 	}
 }
 
@@ -122,18 +131,35 @@ func TestExtractStdlibAllFanIn(t *testing.T) {
 		fanIn += m.FanIn
 		fanOut += m.InternalImports
 	}
-	l, _, err := loadStdlib(t.Context(), packages.Load)
-	if err != nil {
-		t.Fatal(err)
+	// Every edge counts once on each side, blank, dot and vendored imports
+	// included and cgo-generated ones on neither.
+	if fanIn == 0 || fanIn != fanOut {
+		t.Errorf("sum(fan_in) %d != sum(internal_imports) %d", fanIn, fanOut)
 	}
-	fanOnly, countOnly := oneSidedEdges(l)
-	// Every edge both metrics count must count once on each side.
-	if fanIn == 0 || fanIn-fanOnly != fanOut-countOnly {
-		t.Errorf("sum(fan_in) %d less %d fan_in-only edges != sum(internal_imports) %d less %d internal_imports-only edges",
-			fanIn, fanOnly, fanOut, countOnly)
+	t.Logf("sum(fan_in) %d, sum(internal_imports) %d", fanIn, fanOut)
+
+	// The single-package path measures source the same way: a cgo package
+	// and unsafe, which has no syntax from go/packages, agree on every
+	// metric the rest of the library cannot change.
+	for _, path := range []string{"unsafe", "net", "runtime/cgo"} {
+		one, err := ExtractStdlib(t.Context(), path,
+			WithCharsPerToken(cfg.CharsPerToken),
+			WithDupMinTokens(cfg.Duplication.MinTokens),
+			WithDupIgnoreLiteralOnly(cfg.Duplication.IgnoreLiteralOnly),
+			WithDupFoldSigns(cfg.Duplication.FoldSigns))
+		if err != nil {
+			t.Errorf("ExtractStdlib(%s): %v", path, err)
+			continue
+		}
+		all := got[path]
+		if one.Files != all.Files || one.SLOC != all.SLOC || one.FuncCount != all.FuncCount ||
+			one.CognitiveTotal != all.CognitiveTotal || one.ExportedSymbols != all.ExportedSymbols ||
+			one.TokensEst != all.TokensEst || one.DupBlocks != all.DupBlocks {
+			t.Errorf("%s: ExtractStdlib files/sloc/funcs/cognitive/exports/tokens/dups = %d/%d/%d/%d/%d/%d/%d, ExtractStdlibAll %d/%d/%d/%d/%d/%d/%d",
+				path, one.Files, one.SLOC, one.FuncCount, one.CognitiveTotal, one.ExportedSymbols, one.TokensEst, one.DupBlocks,
+				all.Files, all.SLOC, all.FuncCount, all.CognitiveTotal, all.ExportedSymbols, all.TokensEst, all.DupBlocks)
+		}
 	}
-	t.Logf("sum(fan_in) %d (%d edges fan_in alone counts), sum(internal_imports) %d (%d edges internal_imports alone counts)",
-		fanIn, fanOnly, fanOut, countOnly)
 
 	http, ok := got["net/http"]
 	if !ok {
@@ -146,41 +172,6 @@ func TestExtractStdlibAllFanIn(t *testing.T) {
 	}
 	t.Logf("%d packages; fan_in errors %d, fmt %d, io %d; net/http fan_in %d agent_passes %.2f; sum(fan_in) %d",
 		len(got), got["errors"].FanIn, got["fmt"].FanIn, got["io"].FanIn, http.FanIn, est.AgentPasses, fanIn)
-}
-
-// oneSidedEdges counts, over the packages of l, the import edges fan_in
-// counts and internal_imports does not, and the reverse. fan_in takes every
-// key of Imports with a standard-library path, which includes blank, dot
-// and cgo-generated imports; internal_imports takes the plain imports of
-// the source files, which includes the vendored golang.org/x packages under
-// their unvendored import path.
-func oneSidedEdges(l *loaded) (fanOnly, countOnly int) {
-	for _, path := range l.paths {
-		p := l.pkgs[path]
-		counted := make(map[string]bool)
-		for _, f := range sourceSyntax(l, p) {
-			for _, spec := range f.Imports {
-				ip, err := strconv.Unquote(spec.Path.Value)
-				if err != nil || spec.Name != nil && (spec.Name.Name == "_" || spec.Name.Name == ".") {
-					continue
-				}
-				if imp, ok := p.Imports[ip]; ok && classifyImport(l, imp) == importInternal {
-					counted[ip] = true
-				}
-			}
-		}
-		for ip := range p.Imports {
-			if isInternal(l, ip) && !counted[ip] {
-				fanOnly++
-			}
-		}
-		for ip := range counted {
-			if !isInternal(l, ip) {
-				countOnly++
-			}
-		}
-	}
-	return fanOnly, countOnly
 }
 
 func TestExtractStdlibAllFailures(t *testing.T) {

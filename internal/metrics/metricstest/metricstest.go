@@ -8,6 +8,7 @@ package metricstest
 import (
 	"context"
 	"encoding/json"
+	"math"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -187,7 +188,8 @@ func checkDeterministic(t *testing.T, ext metrics.Extractor, fx Fixture, got map
 
 // checkInvariants checks relations that hold for any correct extractor and
 // need no golden. Fan-in and fan-out are two views of the same internal
-// import edges, so their module-wide sums agree.
+// import edges, so their module-wide sums agree, and the coupling ratios
+// are consistent and free of float noise (see checkRatios).
 func checkInvariants(t *testing.T, pkgs []string, got map[string]metrics.RawMetrics) {
 	t.Helper()
 	var fanIn, fanOut int
@@ -204,10 +206,60 @@ func checkInvariants(t *testing.T, pkgs []string, got map[string]metrics.RawMetr
 		if m.TokensEstWithTests < m.TokensEst {
 			t.Errorf("%s: tokens_est_with_tests %d is below tokens_est %d", pkg, m.TokensEstWithTests, m.TokensEst)
 		}
+		checkRatios(t, pkg, m)
 	}
 	if fanIn != fanOut {
 		t.Errorf("module-wide sum(fan_in) %d != sum(internal_imports) %d; each internal import edge must count once on each side",
 			fanIn, fanOut)
+	}
+}
+
+// ratioDecimals is the number of decimal places the coupling ratios
+// instability, abstractness and main_sequence_distance are reported to.
+const ratioDecimals = 3
+
+// ratioTolerance bounds how far a reported ratio may sit from the value
+// recomputed from its unrounded inputs: half a unit in the last place for
+// the ratio itself and for each of the two ratios main_sequence_distance is
+// computed from.
+const ratioTolerance = 1.5e-3 + 1e-9
+
+// checkRatios checks the coupling ratios of m that are reported (non-nil):
+// each is rounded to ratioDecimals places, so an exact 0 or 1 carries no
+// float noise; instability agrees with fan_in and internal_imports, which
+// must not both be 0; and main_sequence_distance agrees with the other two,
+// which must be reported with it.
+func checkRatios(t *testing.T, pkg string, m metrics.RawMetrics) {
+	t.Helper()
+	scale := math.Pow10(ratioDecimals)
+	for _, r := range []struct {
+		name string
+		v    *float64
+	}{
+		{"instability", m.Instability},
+		{"abstractness", m.Abstractness},
+		{"main_sequence_distance", m.MainSequenceDistance},
+	} {
+		if r.v != nil && math.Round(*r.v*scale)/scale != *r.v {
+			t.Errorf("%s: %s %v is not rounded to %d decimals", pkg, r.name, *r.v, ratioDecimals)
+		}
+	}
+	if m.Instability != nil {
+		edges := m.FanIn + m.InternalImports
+		if edges == 0 {
+			t.Errorf("%s: instability %v is reported with fan_in and internal_imports both 0", pkg, *m.Instability)
+		} else if want := float64(m.InternalImports) / float64(edges); math.Abs(*m.Instability-want) > ratioTolerance {
+			t.Errorf("%s: instability %v, want internal_imports/(fan_in+internal_imports) = %d/%d",
+				pkg, *m.Instability, m.InternalImports, edges)
+		}
+	}
+	if d := m.MainSequenceDistance; d != nil {
+		a, i := m.Abstractness, m.Instability
+		if a == nil || i == nil {
+			t.Errorf("%s: main_sequence_distance %v is reported without abstractness and instability", pkg, *d)
+		} else if want := math.Abs(*a + *i - 1); math.Abs(*d-want) > ratioTolerance {
+			t.Errorf("%s: main_sequence_distance %v, want |abstractness %v + instability %v - 1|", pkg, *d, *a, *i)
+		}
 	}
 }
 

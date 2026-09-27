@@ -104,8 +104,10 @@ import (
 		},
 	}
 	got := imports(&loaded{modulePath: "example.com/m"}, p)
-	if got.internal != 1 || got.external != 1 || got.stdlib != 1 {
-		t.Errorf("internal/external/stdlib = %d/%d/%d, want 1/1/1", got.internal, got.external, got.stdlib)
+	// The blank embed and dot math imports count as stdlib imports beside
+	// strings; "C" resolves to no package and counts nowhere.
+	if got.internal != 1 || got.external != 1 || got.stdlib != 3 {
+		t.Errorf("internal/external/stdlib = %d/%d/%d, want 1/1/3", got.internal, got.external, got.stdlib)
 	}
 	if !slices.Equal(got.blank, []string{"embed"}) {
 		t.Errorf("blank = %q, want [embed]", got.blank)

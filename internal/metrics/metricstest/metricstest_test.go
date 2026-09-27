@@ -22,6 +22,7 @@ const (
 	caseGolden       = "golden-mutation"
 	caseInvariant    = "invariant-violation"
 	caseDetails      = "details-mismatch"
+	caseRatio        = "ratio-noise"
 	fakeRoot         = "/fake/module"
 	thisPackage      = "github.com/rfizzle/astimate/internal/metrics"
 	metricstestPkgID = thisPackage + "/metricstest"
@@ -32,6 +33,9 @@ const (
 func syntheticPackages() map[string]metrics.RawMetrics {
 	coverage := 71.5
 	noCgo := false
+	// beta's coupling ratios: fan_in 1 and internal_imports 1 give
+	// instability 0.5, and |0.5 + 0.5 - 1| is 0.
+	half, zero := 0.5, 0.0
 	return map[string]metrics.RawMetrics{
 		"alpha": {
 			Files: 2, SLOC: 120, LargestFileSLOC: 80, TokensEst: 900, TokensEstWithTests: 1300,
@@ -45,6 +49,7 @@ func syntheticPackages() map[string]metrics.RawMetrics {
 			InternalImports: 1, StdlibImports: 1, FanIn: 1,
 			ExportedSymbols: 2, Globals: 1, MaxNesting: 1, CognitiveTotal: 2, CognitiveP90: 1, FuncCount: 2,
 			DupBlocks: 1, DuplicationPct: 45.5, UntestedExports: 2,
+			Instability: &half, Abstractness: &half, MainSequenceDistance: &zero,
 		},
 		"gamma": {
 			Files: 1, SLOC: 10, LargestFileSLOC: 10, TokensEst: 70, TokensEstWithTests: 150,
@@ -206,6 +211,17 @@ func TestSuiteSubprocess(t *testing.T) {
 		alpha := pkgs["alpha"]
 		alpha.FanIn = 1
 		pkgs["alpha"] = alpha
+	case caseRatio:
+		// alpha has internal_imports 2 and fan_in 0, so instability is 1,
+		// reported here with float noise; beta's distance disagrees with its
+		// other two ratios.
+		noisy, off := 0.9999999999999999, 0.25
+		alpha := pkgs["alpha"]
+		alpha.Instability = &noisy
+		pkgs["alpha"] = alpha
+		beta := pkgs["beta"]
+		beta.MainSequenceDistance = &off
+		pkgs["beta"] = beta
 	case caseDetails:
 		details := syntheticDetails()
 		details["beta"] = metrics.Details{UntestedExports: []string{"Open"}}
@@ -268,6 +284,15 @@ func TestSuiteDetectsInvariantViolation(t *testing.T) {
 	requireContains(t, out,
 		"--- FAIL: TestSuiteSubprocess/Invariants",
 		"sum(fan_in) 4 != sum(internal_imports) 3",
+	)
+}
+
+func TestSuiteDetectsRatioViolation(t *testing.T) {
+	out := runSubprocess(t, caseRatio)
+	requireContains(t, out,
+		"--- FAIL: TestSuiteSubprocess/Invariants",
+		"alpha: instability 0.9999999999999999 is not rounded to 3 decimals",
+		"beta: main_sequence_distance 0.25, want |abstractness 0.5 + instability 0.5 - 1|",
 	)
 }
 

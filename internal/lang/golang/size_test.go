@@ -2,8 +2,10 @@ package golang
 
 import (
 	"go/ast"
+	"go/importer"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"path/filepath"
 	"testing"
 )
@@ -50,34 +52,65 @@ func TestFileSLOC(t *testing.T) {
 }
 
 func TestExportedSymbols(t *testing.T) {
+	// want is the count with the package scope. syntacticMiss is how many of
+	// want.interfaceTypes the syntactic fallback (nil scope) does not see
+	// because the type names an interface instead of spelling one out.
 	cases := []struct {
-		name string
-		src  string
-		want exportCounts
+		name          string
+		src           string
+		want          exportCounts
+		syntacticMiss int
 	}{
-		{"func", "package p\nfunc F() {}\nfunc f() {}\n", exportCounts{symbols: 1}},
-		{"type", "package p\ntype T int\ntype t int\ntype (\n\tU int\n\tu int\n)\n", exportCounts{symbols: 2, types: 2}},
-		{"var names", "package p\nvar A, b, C = 1, 2, 3\nvar (\n\tD int\n\t_ int\n)\n", exportCounts{symbols: 3}},
-		{"const names", "package p\nconst (\n\tX = iota\n\tY\n\tz\n)\n", exportCounts{symbols: 2}},
-		{"method on exported type", "package p\ntype T struct{}\nfunc (T) M() {}\nfunc (*T) m() {}\n", exportCounts{symbols: 2, types: 1}},
-		{"method on unexported type", "package p\ntype t struct{}\nfunc (t) M() {}\nfunc (*t) N() {}\n", exportCounts{symbols: 2}},
-		{"fields and interface methods", "package p\ntype s struct{ F int }\ntype i interface{ M() }\n", exportCounts{}},
-		{"imports", "package p\nimport Fmt \"fmt\"\nvar _ = Fmt.Sprint\n", exportCounts{}},
-		{"only exported type is an interface", "package p\ntype I interface{ M() }\ntype s struct{}\n", exportCounts{symbols: 1, types: 1, interfaceTypes: 1}},
-		{"interface and struct", "package p\ntype (\n\tI interface{ M() }\n\tS struct{}\n)\n", exportCounts{symbols: 2, types: 2, interfaceTypes: 1}},
-		{"generic and constraint interfaces", "package p\ntype G[T any] interface{ Get() T }\ntype N interface{ ~int | ~float64 }\n", exportCounts{symbols: 2, types: 2, interfaceTypes: 2}},
-		{"alias of interface literal", "package p\ntype A = interface{ M() }\n", exportCounts{symbols: 1, types: 1, interfaceTypes: 1}},
-		{"alias of named interface", "package p\nimport \"io\"\ntype R = io.Reader\n", exportCounts{symbols: 1, types: 1}},
-		{"definition from named interface", "package p\nimport \"io\"\ntype R io.Reader\n", exportCounts{symbols: 1, types: 1}},
+		{"func", "package p\nfunc F() {}\nfunc f() {}\n", exportCounts{symbols: 1}, 0},
+		{"type", "package p\ntype T int\ntype t int\ntype (\n\tU int\n\tu int\n)\n", exportCounts{symbols: 2, types: 2}, 0},
+		{"var names", "package p\nvar A, b, C = 1, 2, 3\nvar (\n\tD int\n\t_ int\n)\n", exportCounts{symbols: 3}, 0},
+		{"const names", "package p\nconst (\n\tX = iota\n\tY\n\tz\n)\n", exportCounts{symbols: 2}, 0},
+		{"method on exported type", "package p\ntype T struct{}\nfunc (T) M() {}\nfunc (*T) m() {}\n", exportCounts{symbols: 2, types: 1}, 0},
+		{"method on unexported type", "package p\ntype t struct{}\nfunc (t) M() {}\nfunc (*t) N() {}\n", exportCounts{symbols: 2}, 0},
+		{"fields and interface methods", "package p\ntype s struct{ F int }\ntype i interface{ M() }\n", exportCounts{}, 0},
+		{"imports", "package p\nimport Fmt \"fmt\"\nvar _ = Fmt.Sprint\n", exportCounts{}, 0},
+		{"only exported type is an interface", "package p\ntype I interface{ M() }\ntype s struct{}\n", exportCounts{symbols: 1, types: 1, interfaceTypes: 1}, 0},
+		{"interface and struct", "package p\ntype (\n\tI interface{ M() }\n\tS struct{}\n)\n", exportCounts{symbols: 2, types: 2, interfaceTypes: 1}, 0},
+		{"generic and constraint interfaces", "package p\ntype G[T any] interface{ Get() T }\ntype N interface{ ~int | ~float64 }\n", exportCounts{symbols: 2, types: 2, interfaceTypes: 2}, 0},
+		{"alias of interface literal", "package p\ntype A = interface{ M() }\n", exportCounts{symbols: 1, types: 1, interfaceTypes: 1}, 0},
+		{"alias of named interface", "package p\nimport \"io\"\ntype R = io.Reader\n", exportCounts{symbols: 1, types: 1, interfaceTypes: 1}, 1},
+		{"definition from named interface", "package p\nimport \"io\"\ntype R io.Reader\n", exportCounts{symbols: 1, types: 1, interfaceTypes: 1}, 1},
+		{"definition from local interface", "package p\ntype I interface{ M() }\ntype J I\n", exportCounts{symbols: 2, types: 2, interfaceTypes: 2}, 1},
+		{"alias of error", "package p\ntype E = error\n", exportCounts{symbols: 1, types: 1, interfaceTypes: 1}, 1},
+		{"definition from named struct", "package p\nimport \"strings\"\ntype B strings.Builder\n", exportCounts{symbols: 1, types: 1}, 0},
+		{"alias of struct literal", "package p\ntype S = struct{ X int }\n", exportCounts{symbols: 1, types: 1}, 0},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, f := parseForSize(t, tc.src)
-			if got := exportedSymbols(f); got != tc.want {
-				t.Errorf("exportedSymbols = %+v, want %+v", got, tc.want)
+			f, scope := typeCheckForSize(t, tc.src)
+			if got := exportedSymbols(f, scope); got != tc.want {
+				t.Errorf("exportedSymbols(scope) = %+v, want %+v", got, tc.want)
+			}
+			syntactic := tc.want
+			syntactic.interfaceTypes -= tc.syntacticMiss
+			if got := exportedSymbols(f, nil); got != syntactic {
+				t.Errorf("exportedSymbols(nil) = %+v, want %+v", got, syntactic)
 			}
 		})
 	}
+}
+
+// typeCheckForSize parses src as one file and type-checks it, importing
+// standard-library packages from source, and returns the file and the
+// package scope.
+func typeCheckForSize(t *testing.T, src string) (*ast.File, *types.Scope) {
+	t.Helper()
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "src.go", src, parser.ParseComments)
+	if err != nil {
+		t.Fatalf("parsing: %v", err)
+	}
+	conf := types.Config{Importer: importer.ForCompiler(fset, "source", nil)}
+	pkg, err := conf.Check("p", fset, []*ast.File{f}, nil)
+	if err != nil {
+		t.Fatalf("type-checking: %v", err)
+	}
+	return f, pkg.Scope()
 }
 
 // TestSizePerFile checks the per-file SLOC map duplication weighs lines by:

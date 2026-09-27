@@ -49,11 +49,14 @@ are the same on every checkout.
   toward zero. Bytes are summed first, then divided once.
 - **tokens_est_with_tests**: the same over all `.go` files in the directory,
   including internal and external test files.
-- **internal_imports / external_imports / stdlib_imports**: distinct import
-  paths in non-test files. Internal means the path starts with
-  `example.com/fixture/`. Standard library means the first path element has no
-  dot. Everything else is external.
-- **fan_in**: distinct fixture packages whose non-test files import this one.
+- **internal_imports / external_imports / stdlib_imports**: distinct imported
+  packages in non-test files, keyed by package path. Blank (`_`) and dot (`.`)
+  imports count like any other; the fixture has none. Internal means the path
+  starts with `example.com/fixture/`. Standard library means the first path
+  element has no dot. Everything else is external.
+- **fan_in**: distinct fixture packages whose non-test files import this one,
+  by the same rule, so every internal edge counts once on each side and
+  `sum(fan_in) = sum(internal_imports) = 4` over the fixture.
 - **fan_in_tests**: distinct fixture packages that import this one only from
   test files. An external test package (`tested_test`) importing its own
   package is folded into that package (section 6.2) and is not a fan-in edge.
@@ -81,12 +84,17 @@ are the same on every checkout.
 - **has_tests**: `test_funcs > 0`.
 - **untested_exports**: exported funcs and methods with no reference from any
   test file of the package (section 6.4).
+- **instability**, **abstractness**, **main_sequence_distance** (v1) are
+  rounded to 3 decimals; the distance is computed from the unrounded ratios.
+  Every fixture value is 0 or 1, so rounding changes none.
 - **instability** (v1): `internal_imports / (fan_in + internal_imports)`,
   null when both are 0. Present in a golden only when non-null: `hub` is 0
   (fan-in 4, fan-out 0); `a`, `b`, `hidden` and `tested` are 1 (fan-in 0,
   fan-out 1); `dupes` and `trivial` have no internal edges and are null.
 - **abstractness** (v1): exported interface types over exported types, null
-  with no exported types. No fixture package exports a type (`dupes`' `tally`
+  with no exported types. A type counts as an interface when its underlying
+  type is one, so `type R io.Reader` and `type R = io.Reader` count. No
+  fixture package exports a type (`dupes`' `tally`
   is unexported), so it is null everywhere and absent from every golden.
 - **main_sequence_distance** (v1): `|abstractness + instability - 1|`, null
   when either is null, so null everywhere in the fixture.

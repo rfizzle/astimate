@@ -121,12 +121,13 @@ the corpus entry to match.
   import is therefore `internal_imports`, and `stdlib_imports` is 0 on
   every `std` row; the cloned modules' rows count the standard library in
   `stdlib_imports` instead. Pool `internal_imports` and `stdlib_imports`
-  with that in mind. The import edges the two sides count differ as in any
-  module: `fan_in` also counts blank and dot imports (`_ "unsafe"` in most
-  cases) and imports cgo generates, and does not count imports of the
-  vendored `golang.org/x` packages, whose import path is not their package
-  path; over the 2026-09-27 load that is 69 edges one way and 44 the other,
-  of about 2,700.
+  with that in mind. `fan_in` and `internal_imports` count the same edges,
+  as in any module: blank and dot imports count on both sides, imports only
+  cgo-generated files hold on neither, and a vendored `golang.org/x`
+  package is keyed by its package path on both, so their sums over the
+  library are equal (2,783 each on the 2026-09-27 toolchain). The data
+  under `data/2026-09-27/` predates that rule: there `fan_in` counted 69
+  edges `internal_imports` did not and missed 44 it did, of about 2,700.
 - **Popularity figures are unverified.** See criterion 1.
 
 ## Current data
