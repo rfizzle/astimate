@@ -970,3 +970,270 @@ func dupCallChain(s *dupStream, names []int32, p, n int32, loose bool) bool {
 	}
 	return len(callees) > 0 && len(callees) <= 2
 }
+
+// TestDupMeasureStdlibLiteralRuns measures two ways of reaching literal
+// tables inside mixed duplicate blocks against the shipped defaults over the
+// standard library, for calibration/notes/duplication-literal-runs.md. T
+// trims literal-only prefixes and suffixes off each block and drops what is
+// left below duplication.min_tokens; S splits each block at every
+// literal-only run of at least duplication.min_tokens tokens and keeps the
+// parts of at least that length; S10 is S with runs of at least 10 tokens,
+// short enough to reach the coefficient tables in math. Literal-only is the
+// sign-aware rule of dropLiteralOnly. It loads every std package, so it
+// runs only with ASTIMATE_MEASURE_STDLIB=1.
+func TestDupMeasureStdlibLiteralRuns(t *testing.T) {
+	if os.Getenv("ASTIMATE_MEASURE_STDLIB") != "1" {
+		t.Skip("set ASTIMATE_MEASURE_STDLIB=1 to measure the standard library")
+	}
+	start := time.Now()
+	fset := token.NewFileSet()
+	pkgs, err := packages.Load(&packages.Config{
+		Mode: packages.NeedFiles | packages.NeedSyntax | packages.NeedName,
+		Fset: fset,
+	}, "std")
+	if err != nil {
+		t.Fatalf("loading std: %v", err)
+	}
+	l := &loaded{fset: fset}
+	opts := defaultDupOptions()
+	variants := []string{"T trim", "S split", "S10 split at runs of 10"}
+	rows := make([][]dupMeasureRow, len(variants))
+	changes := make([][]string, len(variants))
+	mathFiles := []string{"j0.go", "j1.go", "erf.go", "lgamma.go"}
+	mathLines := make([]map[string]int, len(variants)+1)
+	for _, p := range pkgs {
+		if len(p.Errors) > 0 {
+			continue
+		}
+		sz, err := size(l, p, osFiles{})
+		if err != nil {
+			t.Fatalf("size %s: %v", p.PkgPath, err)
+		}
+		if sz.sloc < 200 {
+			continue
+		}
+		s, err := dupStreamOf(l, p, osFiles{}, opts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		sa, reps := s.find(opts)
+		bb := dupBlocksOf(sa, reps)
+		b, bl := dupCountOccs(s, bb, sz.sloc)
+		if p.PkgPath == "math" {
+			mathLines[0] = bl
+		}
+		for v, blocks := range [][]dupOcc{
+			dupTrimRuns(s, bb, opts.minTokens),
+			dupSplitRuns(s, bb, opts.minTokens, opts.minTokens),
+			dupSplitRuns(s, bb, 10, opts.minTokens),
+		} {
+			a, al := dupCountOccs(s, blocks, sz.sloc)
+			if p.PkgPath == "math" {
+				mathLines[v+1] = al
+			}
+			rows[v] = append(rows[v], dupMeasureRow{p.PkgPath, sz.sloc, b.blocks, a.blocks, b.pct, a.pct})
+			changes[v] = append(changes[v], dupOccDiff(s, p.PkgPath, "-", bb, blocks)...)
+			changes[v] = append(changes[v], dupOccDiff(s, p.PkgPath, "+", blocks, bb)...)
+		}
+	}
+	t.Logf("packages %d, wall %v", len(rows[0]), time.Since(start))
+	t.Log("math covered lines per file: base, T, S, S10")
+	for _, f := range mathFiles {
+		var got []string
+		for _, m := range mathLines {
+			for name, n := range m {
+				if filepath.Base(name) == f {
+					got = append(got, strconv.Itoa(n))
+				}
+			}
+		}
+		t.Logf("| %s | %s |", f, strings.Join(got, " | "))
+	}
+	for v, name := range variants {
+		t.Logf("=== %s (off = shipped defaults, on = variant)", name)
+		dupLogMeasure(t, rows[v])
+		named := []string{"math", "math/big", "math/rand", "math/cmplx"}
+		for _, r := range rows[v] {
+			if slices.Contains(named, r.path) {
+				t.Logf("| %s | %d | %d | %d | %v | %v |", r.path, r.sloc, r.offB, r.onB, r.offPct, r.onPct)
+			}
+		}
+		t.Logf("changed blocks (%d):", len(changes[v]))
+		for _, c := range changes[v] {
+			t.Log(c)
+		}
+	}
+}
+
+// dupOcc is a duplicate block given by its occurrences, in stream order, and
+// its length n.
+type dupOcc struct {
+	pos []int32
+	n   int32
+}
+
+// dupBlocksOf returns the blocks reps, intervals of the suffix array sa, as
+// occurrence lists.
+func dupBlocksOf(sa []int32, reps []dupRepeat) []dupOcc {
+	out := make([]dupOcc, 0, len(reps))
+	for _, r := range reps {
+		pos := slices.Clone(sa[r.lb : r.rb+1])
+		slices.Sort(pos)
+		out = append(out, dupOcc{pos: pos, n: r.n})
+	}
+	return out
+}
+
+// dupLiteralMask reports, per token of the block b's first occurrence,
+// whether it is literal-only under the sign-aware rule.
+func dupLiteralMask(s *dupStream, b dupOcc) []bool {
+	p := b.pos[0]
+	mask := make([]bool, b.n)
+	for i, c := range s.codes[p : p+b.n] {
+		switch {
+		case s.literalOrPunct(c):
+			mask[i] = true
+		case c == int32(token.SUB) || c == int32(token.ADD):
+			_, mask[i] = slices.BinarySearch(s.signs, p+int32(i))
+		}
+	}
+	return mask
+}
+
+// dupShift returns b's occurrences moved k tokens right with length n.
+func dupShift(b dupOcc, k, n int32) dupOcc {
+	pos := make([]int32, len(b.pos))
+	for i, p := range b.pos {
+		pos[i] = p + k
+	}
+	return dupOcc{pos: pos, n: n}
+}
+
+// dupUniq drops blocks with the same first occurrence and length as an
+// earlier one.
+func dupUniq(blocks []dupOcc) []dupOcc {
+	type key struct{ p, n int32 }
+	seen := make(map[key]bool, len(blocks))
+	return slices.DeleteFunc(blocks, func(b dupOcc) bool {
+		k := key{b.pos[0], b.n}
+		if seen[k] {
+			return true
+		}
+		seen[k] = true
+		return false
+	})
+}
+
+// dupTrimRuns is variant T: trim literal-only prefixes and suffixes off
+// every block, dropping it when fewer than minTokens tokens remain.
+func dupTrimRuns(s *dupStream, blocks []dupOcc, minTokens int) []dupOcc {
+	out := make([]dupOcc, 0, len(blocks))
+	for _, b := range blocks {
+		mask := dupLiteralMask(s, b)
+		lo, hi := int32(0), b.n
+		for lo < hi && mask[lo] {
+			lo++
+		}
+		for hi > lo && mask[hi-1] {
+			hi--
+		}
+		if int(hi-lo) >= minTokens {
+			out = append(out, dupShift(b, lo, hi-lo))
+		}
+	}
+	return dupUniq(out)
+}
+
+// dupSplitRuns is variant S: split every block at each literal-only run of
+// at least runTokens tokens and keep the parts of at least minTokens.
+func dupSplitRuns(s *dupStream, blocks []dupOcc, runTokens, minTokens int) []dupOcc {
+	out := make([]dupOcc, 0, len(blocks))
+	for _, b := range blocks {
+		mask := dupLiteralMask(s, b)
+		from := int32(0)
+		emit := func(to int32) {
+			if int(to-from) >= minTokens {
+				out = append(out, dupShift(b, from, to-from))
+			}
+		}
+		for i := int32(0); i < b.n; {
+			if !mask[i] {
+				i++
+				continue
+			}
+			j := i
+			for j < b.n && mask[j] {
+				j++
+			}
+			if int(j-i) >= runTokens {
+				emit(i)
+				from = j
+			}
+			i = j
+		}
+		emit(b.n)
+	}
+	return dupUniq(out)
+}
+
+// dupCountOccs is count over occurrence lists: it also returns the covered
+// source lines per file name.
+func dupCountOccs(s *dupStream, blocks []dupOcc, sloc int) (dupCounts, map[string]int) {
+	c := dupCounts{blocks: len(blocks)}
+	diff := make([]int32, len(s.codes)+1)
+	for _, b := range blocks {
+		for _, p := range b.pos {
+			diff[p]++
+			diff[p+b.n]--
+			c.locations = append(c.locations, dupLocation{
+				file:      s.files[s.file[p]].name,
+				startLine: int(s.line[p]),
+				endLine:   int(s.last[p+b.n-1]),
+			})
+		}
+	}
+	covered := make([][]bool, len(s.files))
+	for i, f := range s.files {
+		covered[i] = make([]bool, len(f.code))
+	}
+	depth := int32(0)
+	for t := range s.codes {
+		depth += diff[t]
+		if depth == 0 || s.file[t] < 0 {
+			continue
+		}
+		for ln := s.line[t]; ln <= s.last[t]; ln++ {
+			covered[s.file[t]][ln] = true
+		}
+	}
+	lines, per := 0, make(map[string]int, len(s.files))
+	for i, f := range s.files {
+		for ln, ok := range covered[i] {
+			if ok && f.code[ln] {
+				lines++
+				per[f.name]++
+			}
+		}
+	}
+	c.pct = dupPercent(lines, sloc)
+	return c, per
+}
+
+// dupOccDiff returns, prefixed by mark and pkg, the blocks of a whose first
+// occurrence and length are not a block of b, with their first two
+// occurrences, occurrence count and length.
+func dupOccDiff(s *dupStream, pkg, mark string, a, b []dupOcc) []string {
+	var out []string
+	for _, x := range a {
+		if slices.ContainsFunc(b, func(y dupOcc) bool { return y.pos[0] == x.pos[0] && y.n == x.n }) {
+			continue
+		}
+		line := mark + " " + pkg
+		for _, p := range x.pos[:min(2, len(x.pos))] {
+			line += " " + filepath.Base(s.files[s.file[p]].name) + ":" +
+				strconv.Itoa(int(s.line[p])) + "-" + strconv.Itoa(int(s.last[p+x.n-1]))
+		}
+		out = append(out, line+" x"+strconv.Itoa(len(x.pos))+" n"+strconv.Itoa(int(x.n)))
+	}
+	return out
+}
