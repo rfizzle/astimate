@@ -1,0 +1,15 @@
+# Local working files
+.backlog.md
+
+# Build artifacts
+/astimate
+/dist/
+*.test
+*.out
+coverage.*
+
+# Editor and OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
