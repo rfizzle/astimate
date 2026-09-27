@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"testing"
 )
 
@@ -282,6 +283,62 @@ func TestDuplicationTokens(t *testing.T) {
 	}
 	if signs != 1 {
 		t.Errorf("sign tokens = %d, want 1", signs)
+	}
+}
+
+func TestUntestedDirective(t *testing.T) {
+	cases := []struct {
+		name, src string
+		// want lists each candidate as display=directed.
+		want []string
+	}{
+		{"alone", "//astimate:untested\nexport function f() {}\n", []string{"f=true"}},
+		{"with a reason", "//astimate:untested wraps g\nexport function f() {}\n", []string{"f=true"}},
+		{"second line of the doc comment", "// f wraps g.\n//astimate:untested\nexport function f() {}\n", []string{"f=true"}},
+		{"first line of the doc comment", "//astimate:untested\n// f wraps g.\nexport function f() {}\n", []string{"f=true"}},
+		{"space after the slashes", "// astimate:untested\nexport function f() {}\n", []string{"f=false"}},
+		{"longer word", "//astimate:untestedness\nexport function f() {}\n", []string{"f=false"}},
+		{"inside a line", "// see astimate:untested\nexport function f() {}\n", []string{"f=false"}},
+		{"block comment", "/* //astimate:untested */\nexport function f() {}\n", []string{"f=false"}},
+		{"jsdoc", "/**\n * astimate:untested\n */\nexport function f() {}\n", []string{"f=false"}},
+		{"blank line before the declaration", "//astimate:untested\n\nexport function f() {}\n", []string{"f=false"}},
+		{"blank line inside the comment run", "//astimate:untested\n\n// f.\nexport function f() {}\n", []string{"f=false"}},
+		{"trailing comment of the line above", "const x = 1; //astimate:untested\nexport function f() {}\n", []string{"f=false"}},
+		{"crlf line ending", "//astimate:untested\r\nexport function f() {}\r\n", []string{"f=true"}},
+		{"arrow constant", "//astimate:untested\nexport const f = () => 1, g = () => 2;\n", []string{"f=true", "g=true"}},
+		{"default function", "//astimate:untested\nexport default function f() {}\n", []string{"f=true"}},
+		{"export list", "//astimate:untested\nfunction f() {}\nfunction g() {}\nexport { f, g as h };\n", []string{"f=true", "h=false"}},
+		{"export list comment does not apply", "function f() {}\n//astimate:untested\nexport { f };\n", []string{"f=false"}},
+		{"public method", "export class C {\n  //astimate:untested\n  m() {}\n  n() {}\n}\n", []string{"C.m=true", "C.n=false"}},
+		{"class comment does not apply to methods", "//astimate:untested\nexport class C {\n  m() {}\n}\n", []string{"C.m=false"}},
+		{"method of a class exported by list", "class C {\n  //astimate:untested\n  m() {}\n}\nexport { C };\n", []string{"C.m=true"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ff := scanSource(t, "x.ts", tc.src)
+			var got []string
+			for _, e := range ff.exportedFuncs {
+				got = append(got, e.display+"="+strconv.FormatBool(e.directed))
+			}
+			if !slices.Equal(got, tc.want) {
+				t.Errorf("candidates = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestModuleExtensions(t *testing.T) {
+	cases := []struct{ name, src string }{
+		{"x.mts", "import { a } from \"./a.mjs\";\nexport function f(): number { return a; }\n"},
+		{"x.cts", "import a = require(\"./a.cjs\");\nexport function f(): number { return a; }\n"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ff := scanSource(t, tc.name, tc.src)
+			if len(ff.funcs) != 1 || len(ff.imports) != 1 || ff.sloc != 2 {
+				t.Errorf("funcs, imports, sloc = %d, %q, %d, want 1, one import, 2", len(ff.funcs), ff.imports, ff.sloc)
+			}
+		})
 	}
 }
 

@@ -32,7 +32,8 @@ type walker struct {
 	comments []span
 	// fn is the function being scored; nil outside functions.
 	fn *funcScore
-	// localFuncs names the top-level functions, and classMethods the
+	// localFuncs maps the name of each top-level function to whether it
+	// carries the untested directive, and classMethods holds the
 	// untested_exports candidates of each top-level class, for resolving
 	// export lists.
 	localFuncs   map[string]bool
@@ -61,12 +62,12 @@ func (w *walker) program(root *sitter.Node) {
 	w.localFuncs = map[string]bool{}
 	w.classMethods = map[string][]exportedFunc{}
 	for i := range root.ChildCount() {
-		w.statement(root.Child(i), false)
+		w.statement(root.Child(i), false, w.hasDirective(root, i))
 	}
 	for _, l := range w.listed {
 		local, exported := l[0], l[1]
-		if w.localFuncs[local] {
-			w.f.exportedFuncs = append(w.f.exportedFuncs, exportedFunc{match: exported, display: exported})
+		if directed, ok := w.localFuncs[local]; ok {
+			w.f.exportedFuncs = append(w.f.exportedFuncs, exportedFunc{match: exported, display: exported, directed: directed})
 		}
 		w.f.exportedFuncs = append(w.f.exportedFuncs, w.classMethods[local]...)
 	}
@@ -94,23 +95,24 @@ func (w *walker) field(n *sitter.Node, name string) *sitter.Node {
 }
 
 // statement records the declarations of the top-level statement n, which
-// is exported when it is the declaration of an export statement, and walks
+// is exported when it is the declaration of an export statement and
+// directed when the untested directive is in its doc comment, and walks
 // it.
-func (w *walker) statement(n *sitter.Node, exported bool) {
+func (w *walker) statement(n *sitter.Node, exported, directed bool) {
 	switch typ := n.Type(w.lang); typ {
 	case "export_statement":
-		w.exportStatement(n)
+		w.exportStatement(n, directed)
 	case "function_declaration", "generator_function_declaration":
 		name := w.text(w.field(n, "name"))
-		w.localFuncs[name] = true
+		w.localFuncs[name] = directed
 		if exported {
-			w.f.exportedFuncs = append(w.f.exportedFuncs, exportedFunc{match: name, display: name})
+			w.f.exportedFuncs = append(w.f.exportedFuncs, exportedFunc{match: name, display: name, directed: directed})
 		}
 		w.function(name, n)
 	case "class_declaration", "abstract_class_declaration", "class":
 		w.class(n, exported)
 	case "lexical_declaration", "variable_declaration":
-		w.variables(n, typ == "variable_declaration" || w.text(n.Child(0)) == "let", exported)
+		w.variables(n, typ == "variable_declaration" || w.text(n.Child(0)) == "let", exported, directed)
 	case "expression_statement":
 		if w.f.test {
 			w.f.testFuncs += w.testCases(n)
@@ -124,8 +126,10 @@ func (w *walker) statement(n *sitter.Node, exported bool) {
 }
 
 // exportStatement counts the names an export statement adds, records its
-// source as an import when it re-exports, and walks it.
-func (w *walker) exportStatement(n *sitter.Node) {
+// source as an import when it re-exports, and walks it. directed reports
+// the untested directive in its doc comment, which applies to the
+// functions it declares.
+func (w *walker) exportStatement(n *sitter.Node, directed bool) {
 	decl := w.field(n, "declaration")
 	value := w.field(n, "value")
 	if source := w.field(n, "source"); source != nil {
@@ -159,11 +163,11 @@ func (w *walker) exportStatement(n *sitter.Node) {
 		c := n.Child(i)
 		switch {
 		case decl != nil && sameNode(c, decl):
-			w.statement(c, true)
+			w.statement(c, true, directed)
 		case value != nil && sameNode(c, value) && isFunctionType(c.Type(w.lang)):
 			name := w.text(w.field(c, "name"))
 			if name != "" {
-				w.f.exportedFuncs = append(w.f.exportedFuncs, exportedFunc{match: name, display: name})
+				w.f.exportedFuncs = append(w.f.exportedFuncs, exportedFunc{match: name, display: name, directed: directed})
 			} else {
 				name = "default"
 			}
@@ -233,8 +237,9 @@ func (w *walker) countDeclaration(decl *sitter.Node) {
 
 // variables records a top-level let, const or var declaration: the names a
 // let or var binds count as globals (mutable, excluding _), and a variable
-// initialized with a function or arrow function is a function.
-func (w *walker) variables(n *sitter.Node, mutable, exported bool) {
+// initialized with a function or arrow function is a function, directed
+// when the declaration carries the untested directive.
+func (w *walker) variables(n *sitter.Node, mutable, exported, directed bool) {
 	for i := range n.ChildCount() {
 		c := n.Child(i)
 		if c.Type(w.lang) != "variable_declarator" {
@@ -254,9 +259,9 @@ func (w *walker) variables(n *sitter.Node, mutable, exported bool) {
 			continue
 		}
 		name := w.text(nameNode)
-		w.localFuncs[name] = true
+		w.localFuncs[name] = directed
 		if exported {
-			w.f.exportedFuncs = append(w.f.exportedFuncs, exportedFunc{match: name, display: name})
+			w.f.exportedFuncs = append(w.f.exportedFuncs, exportedFunc{match: name, display: name, directed: directed})
 		}
 		for j := range c.ChildCount() {
 			if d := c.Child(j); sameNode(d, value) {
@@ -326,7 +331,7 @@ func (w *walker) classBody(cname string, body *sitter.Node) []exportedFunc {
 			continue
 		}
 		if candidate {
-			candidates = append(candidates, exportedFunc{match: name, display: cname + "." + name})
+			candidates = append(candidates, exportedFunc{match: name, display: cname + "." + name, directed: w.hasDirective(body, j)})
 		}
 		if sameNode(fn, m) {
 			w.function(cname+"."+name, m)
@@ -378,6 +383,37 @@ func (w *walker) member(m *sitter.Node) (name string, fn *sitter.Node, candidate
 		}
 	}
 	return name, fn, candidate
+}
+
+// untestedDirective marks an exported function or public method as
+// intentionally untested when it is a line comment of the declaration's
+// doc comment, alone or followed by a space and a reason, as in Go.
+const untestedDirective = "//astimate:untested"
+
+// hasDirective reports whether the doc comment of parent's i-th child holds
+// the untested directive. The doc comment is the run of comments directly
+// above the child, each ending on the line before the next begins, as Go
+// groups them; a comment on the same line as the code before it belongs to
+// that code and ends the run.
+func (w *walker) hasDirective(parent *sitter.Node, i int) bool {
+	next := parent.Child(i).StartPoint().Row
+	for k := i - 1; k >= 0; k-- {
+		c := parent.Child(k)
+		if c.Type(w.lang) != "comment" || next > c.EndPoint().Row+1 {
+			return false
+		}
+		if k > 0 {
+			if prev := parent.Child(k - 1); prev.Type(w.lang) != "comment" && prev.EndPoint().Row == c.StartPoint().Row {
+				return false
+			}
+		}
+		rest, ok := strings.CutPrefix(strings.TrimRight(w.text(c), "\r"), untestedDirective)
+		if ok && (rest == "" || rest[0] == ' ') {
+			return true
+		}
+		next = c.StartPoint().Row
+	}
+	return false
 }
 
 // function scores the function fn, named name, walking its children.

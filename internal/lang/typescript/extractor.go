@@ -32,8 +32,9 @@ const (
 const defaultCharsPerToken = 3.2
 
 // Extractor computes RawMetrics for TypeScript modules: a directory with a
-// package.json and the .ts and .tsx files below it. It parses each module
-// root at most once and shares the result across Packages and Extract.
+// package.json and the .ts, .tsx, .mts and .cts files below it. It parses
+// each module root at most once and shares the result across Packages and
+// Extract.
 // Construct it with New. It is safe for concurrent use.
 type Extractor struct {
 	charsPerToken float64
@@ -117,8 +118,8 @@ func (e *Extractor) Detect(root string) bool {
 
 // Packages returns the sorted identifiers of the packages of the module at
 // root: the slash-separated directories, relative to root and "." for root
-// itself, that hold at least one non-test, non-declaration .ts or .tsx
-// file. It returns an error when a file cannot be read or parsed.
+// itself, that hold at least one non-test, non-declaration .ts, .tsx, .mts
+// or .cts file. It returns an error when a file cannot be read or parsed.
 func (e *Extractor) Packages(root string) ([]string, error) {
 	m, err := e.module(context.Background(), root)
 	if err != nil {
@@ -166,7 +167,8 @@ func (e *Extractor) checkTokenizer() error {
 	}
 }
 
-// Details returns the names behind untested_exports and the duplicate block
+// Details returns the names behind untested_exports, the names the
+// //astimate:untested directive left out of it, and the duplicate block
 // locations of package pkg, from the details its most recent Extract on mod
 // recorded. When nothing is recorded it runs Extract first, so it fails
 // exactly when Extract would.
@@ -186,8 +188,9 @@ func (e *Extractor) Details(ctx context.Context, mod *metrics.ModuleContext, pkg
 		d, _ = m.detailsOf(pkg)
 	}
 	return metrics.Details{
-		UntestedExports: slices.Clone(d.untested),
-		DupLocations:    slices.Clone(d.dupLocations),
+		UntestedExports:  slices.Clone(d.untested),
+		UntestedExcluded: slices.Clone(d.excluded),
+		DupLocations:     slices.Clone(d.dupLocations),
 	}, nil
 }
 

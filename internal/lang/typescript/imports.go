@@ -84,6 +84,9 @@ func newResolver(root string, pkgs map[string]*pkg, cfg tsconfig) *resolver {
 //     the module it is internal when it lands in a package and counted
 //     nowhere otherwise, and outside the module it is external under the
 //     specifier itself;
+//   - with a baseUrl, any other non-relative specifier naming a file or
+//     directory under it is resolved there the same way, as tsc tries
+//     baseUrl before node_modules;
 //   - a specifier with the node: prefix, or whose first segment is a Node
 //     built-in, is stdlib under the built-in's name;
 //   - any other specifier is bare and external under its package name, the
@@ -98,6 +101,11 @@ func (r *resolver) classify(dir, spec string) classified {
 			abs = append(abs, filepath.Join(r.cfg.base, filepath.FromSlash(t)))
 		}
 		return r.resolved(spec, abs)
+	}
+	if r.cfg.baseURL != "" && !strings.HasPrefix(spec, "node:") {
+		if p := filepath.Join(r.cfg.baseURL, filepath.FromSlash(spec)); r.kindOf(p) != statNone {
+			return r.resolved(spec, []string{p})
+		}
 	}
 	if name, ok := strings.CutPrefix(spec, "node:"); ok {
 		return classified{kind: importStdlib, name: firstSegment(name)}
@@ -135,8 +143,10 @@ func (r *resolver) resolved(spec string, abs []string) classified {
 
 // kindOf reports what an import of the absolute path p refers to: a file
 // when p itself or p with a TypeScript or JavaScript extension is a file,
-// as TypeScript resolves a module before a directory; a directory when p is
-// one; nothing otherwise.
+// or when p ends in a JavaScript extension whose TypeScript counterpart
+// replacing it is a file (.js to .ts, .tsx or .d.ts; .jsx to .tsx; .mjs to
+// .mts or .d.mts; .cjs to .cts or .d.cts), as tsc resolves a module before
+// a directory; a directory when p is one; nothing otherwise.
 func (r *resolver) kindOf(p string) statKind {
 	if k, ok := r.stat[p]; ok {
 		return k
@@ -155,8 +165,42 @@ func (r *resolver) kindOf(p string) statKind {
 			k = statDir
 		}
 	}
+	if k != statFile {
+		for _, c := range sourceCandidates(p) {
+			if isFile(c) {
+				k = statFile
+				break
+			}
+		}
+	}
 	r.stat[p] = k
 	return k
+}
+
+// sourceCandidates returns the TypeScript files tsc tries for an import of
+// p written with a JavaScript extension, in its order; nil for any other p.
+func sourceCandidates(p string) []string {
+	var exts []string
+	stem := p
+	for _, m := range []struct {
+		js   string
+		exts []string
+	}{
+		{".js", []string{".ts", ".tsx", ".d.ts"}},
+		{".jsx", []string{".tsx"}},
+		{".mjs", []string{".mts", ".d.mts"}},
+		{".cjs", []string{".cts", ".d.cts"}},
+	} {
+		if s, ok := strings.CutSuffix(p, m.js); ok {
+			stem, exts = s, m.exts
+			break
+		}
+	}
+	out := make([]string, 0, len(exts))
+	for _, ext := range exts {
+		out = append(out, stem+ext)
+	}
+	return out
 }
 
 // isRelative reports whether spec is a relative module specifier.

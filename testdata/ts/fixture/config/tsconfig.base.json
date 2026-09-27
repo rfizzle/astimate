@@ -1,0 +1,10 @@
+{
+  // The root tsconfig.json extends this file. baseUrl ".." is relative to
+  // this file, so it names the module root; the child's paths replace these.
+  "compilerOptions": {
+    "baseUrl": "..",
+    "paths": {
+      "@app/*": ["./nowhere/*"]
+    }
+  }
+}

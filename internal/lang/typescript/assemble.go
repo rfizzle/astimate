@@ -66,13 +66,17 @@ func assemble(m *module, p *pkg, opts assembleOptions) (metrics.RawMetrics, erro
 		}
 	}
 	r.HasTests = r.TestFuncs > 0
-	var untested []string
+	var untested, excluded []string
 	for _, c := range candidates {
-		if !referenced[c.match] {
+		switch {
+		case c.directed:
+			excluded = append(excluded, c.display)
+		case !referenced[c.match]:
 			untested = append(untested, c.display)
 		}
 	}
 	slices.Sort(untested)
+	slices.Sort(excluded)
 	r.UntestedExports = len(untested)
 
 	if opts.o200k {
@@ -106,7 +110,7 @@ func assemble(m *module, p *pkg, opts assembleOptions) (metrics.RawMetrics, erro
 	for _, l := range dup.Locations {
 		locs = append(locs, relLocation(p.dir, l))
 	}
-	m.setDetails(p.id, details{untested: untested, dupLocations: locs})
+	m.setDetails(p.id, details{untested: untested, excluded: excluded, dupLocations: locs})
 	return r, nil
 }
 

@@ -43,6 +43,12 @@ func TestIsTestPath(t *testing.T) {
 		"a/x.spec.ts":            true,
 		"a/x.test.tsx":           true,
 		"a/x.spec.tsx":           true,
+		"a/x.test.mts":           true,
+		"a/x.spec.mts":           true,
+		"a/x.test.cts":           true,
+		"a/x.spec.cts":           true,
+		"a/x.mts":                false,
+		"a/x.test.mjs":           false,
 		"a/__tests__/x.ts":       true,
 		"a/__tests__/deep/x.tsx": true,
 		"a/x.tests.ts":           false,
@@ -89,6 +95,11 @@ func TestPackagesLayout(t *testing.T) {
 		"nested/package.json":     "{}",
 		"nested/x.ts":             "export const n = 1;\n",
 		"js/plain.js":             "export const j = 1;\n",
+		"esm/m.mts":               "export const m = 1;\n",
+		"cjs/c.cts":               "export const c = 1;\n",
+		"cjs/c.test.cts":          "it(\"c\", () => {});\n",
+		"decl/only.d.mts":         "export declare const d: number;\n",
+		"decl/only.d.cts":         "export declare const d: number;\n",
 		"deep/er/x.ts":            "export const e = 1;\n",
 	})
 	e := New()
@@ -96,7 +107,7 @@ func TestPackagesLayout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{".", "deep/er", "src"}
+	want := []string{".", "cjs", "deep/er", "esm", "src"}
 	if !slices.Equal(got, want) {
 		t.Errorf("Packages = %q, want %q", got, want)
 	}
@@ -152,13 +163,14 @@ func TestDetails(t *testing.T) {
 	e := New()
 	mod := &metrics.ModuleContext{Root: fixtureRoot(t)}
 	cases := []struct {
-		pkg          string
-		untested     []string
-		dupLocations []string
+		pkg                string
+		untested, excluded []string
+		dupLocations       []string
 	}{
-		{"dupes", []string{"countVisits"}, []string{"dupes.ts:6-23", "dupes.ts:27-44", "dupes.ts:48-65"}},
-		{"hub", []string{"Counter.add", "clamp", "normalize", "twice"}, nil},
-		{"tested", nil, nil},
+		{"dupes", []string{"countVisits"}, nil, []string{"dupes.ts:6-23", "dupes.ts:27-44", "dupes.ts:48-65"}},
+		{"hub", []string{"Counter.add", "clamp", "normalize", "twice"}, nil, nil},
+		{"tested", nil, nil, nil},
+		{"trivial", []string{"Box.close", "answer", "detached", "spaced"}, []string{"Box.open", "listed", "wrapped"}, nil},
 	}
 	for _, tc := range cases {
 		t.Run(tc.pkg, func(t *testing.T) {
@@ -168,6 +180,9 @@ func TestDetails(t *testing.T) {
 			}
 			if !slices.Equal(d.UntestedExports, tc.untested) {
 				t.Errorf("UntestedExports = %q, want %q", d.UntestedExports, tc.untested)
+			}
+			if !slices.Equal(d.UntestedExcluded, tc.excluded) {
+				t.Errorf("UntestedExcluded = %q, want %q", d.UntestedExcluded, tc.excluded)
 			}
 			if !slices.Equal(d.DupLocations, tc.dupLocations) {
 				t.Errorf("DupLocations = %q, want %q", d.DupLocations, tc.dupLocations)
@@ -220,8 +235,8 @@ func TestOptions(t *testing.T) {
 		return m
 	}
 	t.Run("chars per token", func(t *testing.T) {
-		if m := extract(t, New(WithCharsPerToken(1)), "trivial"); m.TokensEst != 109 {
-			t.Errorf("tokens_est at 1 char per token = %d, want the 109 bytes", m.TokensEst)
+		if m := extract(t, New(WithCharsPerToken(1)), "trivial"); m.TokensEst != 686 {
+			t.Errorf("tokens_est at 1 char per token = %d, want the 686 bytes", m.TokensEst)
 		}
 	})
 	t.Run("min tokens", func(t *testing.T) {

@@ -9,10 +9,12 @@ the source and cross-checked with `wc -c` for bytes and
 `grep -cvE '^\s*(//.*)?$'` for source lines (the fixture has no block
 comments). The packages mirror the Go fixture in `testdata/go/fixture`.
 
-If you edit any `.ts` file under `testdata/ts/fixture`, the byte-derived
+If you edit any source file under `testdata/ts/fixture`, the byte-derived
 fields (`tokens_est`, `tokens_est_with_tests`) and possibly line counts change.
-Recount and update the goldens and this file in the same change. Do not
-regenerate goldens from the extractor; that defeats their purpose.
+Recount and update the goldens and this file in the same change.
+`go test ./internal/lang/typescript -run TestConformance -update` rewrites
+the goldens from the extractor, but a rewritten number is only accepted once
+it has been recounted by hand here; the flag saves typing, not counting.
 
 The fixture is never compiled: `extmod` and `vitest` are not installed, and
 nothing needs them, since the extractor reads syntax only.
@@ -22,27 +24,41 @@ are the same on every checkout.
 ## Module layout
 
 - The module root is the directory holding `package.json`.
-- `tsconfig.json` maps the alias `@app/*` to `./*` from `baseUrl` `.`. It has
-  a comment and trailing commas, which the extractor accepts as `tsc` does.
+- `tsconfig.json` extends `./config/tsconfig.base.json`, which sets `baseUrl`
+  `..`, relative to itself, so the module root, and maps `@app/*` to
+  `./nowhere/*`. The root file sets its own `paths`, which replace the
+  parent's whole as `tsc` merges them: `@app/*` maps to `./*`, and
+  `@multi/*` to `./missing/*` then `./trivial/*`. Both paths and bare
+  specifiers resolve against the inherited `baseUrl`. The root file has
+  comments and trailing commas, which the extractor accepts as `tsc` does.
+  `config/` holds no source, so it is not a package.
 - `tools/` has its own `package.json`, so it is a separate module and not a
   package here: `tools/gen.ts` counts nowhere.
-- `hub/types.d.ts` is a declaration file and counts nowhere.
+- `hub/types.d.ts` and `b/types.d.mts` are declaration files and count
+  nowhere.
 - `tested/__tests__/count.test.ts` is a test file of package `tested`.
 
 ## Counting rules used
 
-- **files**: non-test `.ts` and `.tsx` files, declaration files excluded.
+- **files**: non-test `.ts`, `.tsx`, `.mts` and `.cts` files, declaration
+  files (`.d.ts`, `.d.mts`, `.d.cts`) excluded.
 - **sloc**: lines holding a byte outside comments and white space. The
   fixture's comments are all whole-line `//` comments.
 - **largest_file_sloc**: the largest per-file `sloc`.
 - **tokens_est**: total bytes of non-test files divided by 3.2, truncated.
 - **tokens_est_with_tests**: the same over non-test and test files.
-- **internal_imports**: distinct other packages that a relative or `@app/*`
-  specifier in a non-test file resolves to. A specifier resolving to the
-  importing package itself (`./count` in `tested`) is intra-package and not
-  counted. A specifier resolves to the file it names, with `.ts`, `.tsx`,
-  `.d.ts`, `.js` or `.jsx` appended, before a directory of that name; the
-  package is the file's directory, or the directory itself.
+- **internal_imports**: distinct other packages that a relative, `@app/*`
+  or `@multi/*` specifier in a non-test file resolves to, or a bare
+  specifier naming a file or directory under `baseUrl` (`hub` in
+  `b/esm.mts`). A specifier resolving to the importing package itself
+  (`./count` in `tested`) is intra-package and not counted. A specifier
+  resolves to the file it names, with `.ts`, `.tsx`, `.d.ts`, `.js` or
+  `.jsx` appended, or with a JavaScript extension replaced by its
+  TypeScript one (`.js` by `.ts`, `.tsx` or `.d.ts`; `.jsx` by `.tsx`;
+  `.mjs` by `.mts` or `.d.mts`; `.cjs` by `.cts` or `.d.cts`), before a
+  directory of that name; the package is the file's directory, or the
+  directory itself. Of several alias targets the first that exists wins,
+  else the first.
 - **external_imports**: distinct npm package names of bare specifiers.
 - **stdlib_imports**: distinct Node built-ins, with or without `node:`.
 - **fan_in / fan_in_tests**: as for Go: packages whose non-test files import
@@ -62,7 +78,8 @@ are the same on every checkout.
   `internal/lang/typescript/complexity.go`; p90 is nearest-rank as for Go.
 - **dup_blocks / duplication_pct**: see `dupes` below.
 - **test_files**: files named `*.test.ts`, `*.spec.ts`, `*.test.tsx`,
-  `*.spec.tsx`, or under `__tests__/`.
+  `*.spec.tsx`, the `.mts` and `.cts` forms of those, or under
+  `__tests__/`.
 - **test_funcs**: calls to `it`, `test` or `bench`, including member and
   curried forms such as `it.each(table)(...)`, whose first argument is a
   string or template literal, at the top level of a test file or in the body
@@ -71,7 +88,13 @@ are the same on every checkout.
   constants and functions exported through an `export { ... }` list) and the
   public methods of exported classes, other than constructors and accessors,
   whose name appears as no identifier in any test file of the package. This
-  is name matching without type information.
+  is name matching without type information. As in Go, a candidate whose
+  doc comment has the line comment `//astimate:untested`, alone or followed
+  by a space and a reason, is left out and listed by `Details` as excluded.
+  The doc comment is the run of comments directly above the declaration
+  with no blank line; for an export list it is the comment above the
+  function's own declaration, and a comment above a class does not reach
+  its methods.
 - **instability** (v1): `internal_imports / (fan_in + internal_imports)`,
   null when both are 0.
 - **abstractness** (v1): exported interfaces over exported classes,
@@ -82,15 +105,38 @@ are the same on every checkout.
 
 ## trivial
 
-One file, `trivial.ts`, 109 bytes.
+Two files: `trivial.ts` (109 bytes, 3 SLOC) and `wrappers.ts` (577 bytes,
+17 SLOC), which exercises the untested directive.
 
-- `sloc=3`: `export function answer(): number {`, `return 42;`, `}`.
-- `tokens_est = 109 / 3.2 = 34.1 -> 34`, the same with tests (none).
-- `answer` scores 0; `func_count=1`, `max_nesting=0`.
-- `exported_symbols=1`; no test files, so `untested_exports=1`.
-- `fan_in=0`, `fan_in_tests=1`: `dupes/dupes.test.ts` imports `@app/trivial`
+- `trivial.ts` SLOC: `export function answer(): number {`, `return 42;`,
+  `}`.
+- `wrappers.ts` SLOC: `wrapped` 3, `spaced` 1, `detached` 3, class `Box` 8
+  (declaration, `open` 3, `close` 3, closing brace), `const listed` 1, and
+  `export { listed };` 1 = 17. The comment lines and blank lines are not
+  counted.
+- `sloc=20`, `largest_file_sloc=17`.
+- `tokens_est = 686 / 3.2 = 214.4 -> 214`, the same with tests (none).
+- `exported_symbols=6`: `answer`, `wrapped`, `spaced`, `detached`, `Box`,
+  and `listed` through the list.
+- Functions: `answer`, `wrapped`, `spaced`, `detached`, `Box.open`,
+  `Box.close` and `listed`, each scoring 0: `func_count=7`, total 0, p90 0,
+  `max_nesting=0`.
+- `untested_exports=4`. The candidates are `answer`, `wrapped`, `spaced`,
+  `detached`, `Box.open`, `Box.close` and `listed`, and no test file names
+  any. The directive leaves out three: `wrapped` (directive with a reason
+  on the line above), `Box.open` (directive above the method) and `listed`
+  (directive on the second line of the comment above its `const`, exported
+  through the list). Four remain: `answer`; `spaced`, whose comment has a
+  space after `//` and is not the directive; `detached`, whose directive is
+  separated from it by a blank line and so is not its doc comment; and
+  `Box.close`. `TestDetails` checks both lists.
+- `fan_in=1`: `b/esm.mts` imports `@multi/trivial.js`. The first `@multi/*`
+  target, `./missing/trivial.js`, does not exist; the second,
+  `./trivial/trivial.js`, exists as `trivial.ts` through the `.js` to `.ts`
+  mapping. `fan_in_tests=1`: `dupes/dupes.test.ts` imports `@app/trivial`
   and `dupes`' source does not.
-- No internal edges: instability null.
+- instability `0 / (1 + 0) = 0`; abstractness `0 / 1 = 0` (`Box`, no
+  interface); main_sequence_distance `|0 + 0 - 1| = 1`.
 
 ## a
 
@@ -104,14 +150,27 @@ directory.
 
 ## b
 
-One file, `b.ts`, 143 bytes. Imports `@app/hub`, which the alias maps to
-`./hub`.
+Three non-test files: `b.ts` (143 bytes, 2 SLOC), `esm.mts` (238 bytes,
+6 SLOC) and `common.cts` (118 bytes, 3 SLOC). One test file, `esm.test.mts`
+(129 bytes). `types.d.mts` is a declaration file and counts nowhere.
 
-- `sloc=2`: import and the `export const limit = ...` line.
-- `tokens_est = 143 / 3.2 = 44.7 -> 44`.
-- `limit` is an arrow function bound to a `const`: one function scoring 0,
-  one exported symbol, one untested export. `internal_imports=1`,
-  instability 1.
+- `b.ts` SLOC: the import and the `export const limit = ...` line.
+  `esm.mts`: three imports and `bounded` 3 lines. `common.cts`: `scale` 3
+  lines. `sloc=11`, `largest_file_sloc=6`.
+- `tokens_est = (143 + 238 + 118) / 3.2 = 499 / 3.2 = 155.9 -> 155`.
+- `tokens_est_with_tests = (499 + 129) / 3.2 = 628 / 3.2 = 196.25 -> 196`.
+- Imports: `@app/hub` (alias to `./hub`) and bare `hub` (resolved under the
+  inherited `baseUrl` to the `hub` directory) are package `hub`;
+  `@multi/trivial.js` is package `trivial` (see `trivial`); `./common.cjs`
+  resolves to `common.cts` in `b` itself and is not counted.
+  `internal_imports=2`, `external_imports=0`. Were `extends` not followed,
+  there would be no `baseUrl` and `hub` would count as an external package.
+- `exported_symbols=3`: `limit`, `bounded`, `scale`.
+- Functions: `limit` (arrow function bound to a `const`), `bounded` and
+  `scale`, each scoring 0: `func_count=3`.
+- `test_files=1`, `test_funcs=1` (`it("bounds")`). The test names
+  `bounded`, so `untested_exports=2` (`limit`, `scale`).
+- instability `2 / (0 + 2) = 1`.
 
 ## hub
 
@@ -123,8 +182,9 @@ excluded.
   lines, `reset` 3 lines, closing brace) = 2 + 1 + 3 + 9 + 3 + 3 + 10 = 31.
 - `tokens_est = 745 / 3.2 = 232.8 -> 232`, the same with tests.
 - Imports: `node:path` (stdlib `path`), `extmod` (external). No internal.
-- `fan_in=4`: `a` (`../hub`), `b` (`@app/hub`), `hidden` (`@app/hub/index`
-  and `../hub`, one edge) and `tested` (`../hub/index`).
+- `fan_in=4`: `a` (`../hub`), `b` (`@app/hub` and bare `hub`, one edge),
+  `hidden` (`@app/hub/index` and `../hub`, one edge) and `tested`
+  (`../hub/index`).
 - `exported_symbols=5`: `Level`, `normalize`, `clamp`, `twice`, `Counter`.
   `double` is not exported.
 - Functions: `normalize` 0, `clamp` 2 (two `if` at nesting 0), `twice` 0,

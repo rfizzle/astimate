@@ -66,9 +66,11 @@ type reexport struct {
 }
 
 // exportedFunc is a candidate for untested_exports: the name tests must
-// mention and the name reported for it.
+// mention and the name reported for it. directed reports the untested
+// directive, which leaves it out of the count.
 type exportedFunc struct {
 	match, display string
+	directed       bool
 }
 
 // tokenStream is the normalized tokens of one file, parallel slices.

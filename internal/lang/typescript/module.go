@@ -57,10 +57,11 @@ type pkg struct {
 }
 
 // details is the per-package record Details serves: the names behind
-// untested_exports and the duplicate block locations.
+// untested_exports, those the untested directive left out, and the
+// duplicate block locations.
 type details struct {
-	untested     []string
-	dupLocations []string
+	untested, excluded []string
+	dupLocations       []string
 }
 
 // loadOptions carries the extractor settings a load needs.
@@ -72,7 +73,8 @@ type loadOptions struct {
 	logger *slog.Logger
 }
 
-// sourceFile is one .ts or .tsx file found under a module root.
+// sourceFile is one TypeScript source or test file found under a module
+// root.
 type sourceFile struct {
 	// abs is the absolute path; rel the slash path relative to the root.
 	abs, rel string
@@ -134,11 +136,12 @@ func loadModule(ctx context.Context, root string, opts loadOptions) (*module, er
 	return m, nil
 }
 
-// findFiles returns the .ts and .tsx files under root that belong to the
-// module, sorted by relative path: declaration files (.d.ts) are left out,
-// and so are directories named node_modules, dist or build, directories
-// whose name starts with a dot, and directories below root holding their
-// own package.json, which are modules of their own.
+// findFiles returns the .ts, .tsx, .mts and .cts files under root that
+// belong to the module, sorted by relative path: declaration files (.d.ts,
+// .d.mts, .d.cts) are left out, and so are directories named node_modules,
+// dist or build, directories whose name starts with a dot, and directories
+// below root holding their own package.json, which are modules of their
+// own.
 func findFiles(root string) ([]sourceFile, error) {
 	var out []sourceFile
 	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
@@ -188,20 +191,31 @@ func isFile(p string) bool {
 }
 
 // isSourceName reports whether a file named name is TypeScript source: it
-// ends in .ts or .tsx and is not a declaration file.
+// ends in .ts, .tsx, .mts or .cts and is not a declaration file (.d.ts,
+// .d.mts or .d.cts).
 func isSourceName(name string) bool {
-	if strings.HasSuffix(name, ".d.ts") {
-		return false
+	for _, ext := range []string{".d.ts", ".d.mts", ".d.cts"} {
+		if strings.HasSuffix(name, ext) {
+			return false
+		}
 	}
-	return strings.HasSuffix(name, ".ts") || strings.HasSuffix(name, ".tsx")
+	for _, ext := range []string{".ts", ".tsx", ".mts", ".cts"} {
+		if strings.HasSuffix(name, ext) {
+			return true
+		}
+	}
+	return false
 }
 
 // isTestPath reports whether the file at the slash path rel is a test file:
-// its name ends in .test.ts, .spec.ts, .test.tsx or .spec.tsx, or it lies
-// under a __tests__ directory.
+// its name ends in .test or .spec followed by .ts, .tsx, .mts or .cts, or it
+// lies under a __tests__ directory.
 func isTestPath(rel string) bool {
 	name := path.Base(rel)
-	for _, suffix := range []string{".test.ts", ".spec.ts", ".test.tsx", ".spec.tsx"} {
+	for _, suffix := range []string{
+		".test.ts", ".spec.ts", ".test.tsx", ".spec.tsx",
+		".test.mts", ".spec.mts", ".test.cts", ".spec.cts",
+	} {
 		if strings.HasSuffix(name, suffix) {
 			return true
 		}
@@ -231,7 +245,7 @@ func packageDir(dir string) string {
 }
 
 // languageFor returns the grammar for the file at rel: TSX for .tsx files,
-// TypeScript otherwise.
+// TypeScript otherwise, including .mts and .cts.
 func languageFor(rel string) *sitter.Language {
 	if strings.HasSuffix(rel, ".tsx") {
 		return grammars.TsxLanguage()

@@ -1,10 +1,12 @@
 {
   // Path aliases resolve inside the module; trailing commas are allowed.
+  // baseUrl comes from the extended file.
+  "extends": "./config/tsconfig.base.json",
   "compilerOptions": {
     "strict": true,
-    "baseUrl": ".",
     "paths": {
       "@app/*": ["./*"],
+      "@multi/*": ["./missing/*", "./trivial/*"],
     },
   },
 }
