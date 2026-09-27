@@ -72,6 +72,17 @@ func TestReportOptionalKeys(t *testing.T) {
 			},
 			wantKeys: []string{`"baseline"`, `"violations"`, `"warnings"`, `"passed": false`},
 		},
+		{
+			name: "gate ran clean",
+			mutate: func(r *Report) {
+				r.Violations = []Finding{}
+				r.Warnings = []Finding{}
+				ok := true
+				r.Passed = &ok
+			},
+			wantKeys: []string{`"violations": []`, `"warnings": []`, `"passed": true`},
+			noKeys:   []string{`"baseline"`},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

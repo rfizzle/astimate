@@ -97,12 +97,26 @@ func TestEvaluateRules(t *testing.T) {
 			want:  gate.Result{Passed: true},
 		},
 		{
-			name:  "density max exceeded while unchanged",
+			name:  "density max exceeded while unchanged passes",
 			head:  metrics.RawMetrics{MaxNesting: 6},
 			base:  &metrics.RawMetrics{MaxNesting: 6},
 			rules: []gate.Threshold{density("max_nesting", 0, ptr(5.0))},
+			want:  gate.Result{Passed: true},
+		},
+		{
+			name:  "density max exceeded while improving passes",
+			head:  metrics.RawMetrics{DuplicationPct: 70},
+			base:  &metrics.RawMetrics{DuplicationPct: 80},
+			rules: []gate.Threshold{density("duplication_pct", 0.5, ptr(5.0))},
+			want:  gate.Result{Passed: true},
+		},
+		{
+			name:  "legacy value rising within delta above max fails on max",
+			head:  metrics.RawMetrics{DuplicationPct: 80.4},
+			base:  &metrics.RawMetrics{DuplicationPct: 80},
+			rules: []gate.Threshold{density("duplication_pct", 0.5, ptr(5.0))},
 			want: gate.Result{Violations: []gate.Violation{
-				{Metric: "max_nesting", Base: 6, Head: 6, HasBase: true, Limit: "max 5"},
+				{Metric: "duplication_pct", Base: 80, Head: 80.4, HasBase: true, Limit: "max 5"},
 			}},
 		},
 		{
@@ -171,6 +185,29 @@ func TestEvaluateRules(t *testing.T) {
 			name:  "requirement guard met without tests",
 			head:  metrics.RawMetrics{SLOC: 101},
 			base:  &metrics.RawMetrics{SLOC: 50},
+			rules: []gate.Threshold{require("has_tests", true, &gate.Condition{Metric: "sloc", Value: 100})},
+			want: gate.Result{Violations: []gate.Violation{
+				{Metric: "has_tests", Base: 0, Head: 0, HasBase: true, Limit: "require true"},
+			}},
+		},
+		{
+			name:  "requirement unmet by unchanged legacy package passes",
+			head:  metrics.RawMetrics{SLOC: 300},
+			base:  &metrics.RawMetrics{SLOC: 300},
+			rules: []gate.Threshold{require("has_tests", true, &gate.Condition{Metric: "sloc", Value: 100})},
+			want:  gate.Result{Passed: true},
+		},
+		{
+			name:  "requirement unmet by shrinking legacy package passes",
+			head:  metrics.RawMetrics{SLOC: 250},
+			base:  &metrics.RawMetrics{SLOC: 300},
+			rules: []gate.Threshold{require("has_tests", true, &gate.Condition{Metric: "sloc", Value: 100})},
+			want:  gate.Result{Passed: true},
+		},
+		{
+			name:  "requirement unmet by growing legacy package fails",
+			head:  metrics.RawMetrics{SLOC: 301},
+			base:  &metrics.RawMetrics{SLOC: 300},
 			rules: []gate.Threshold{require("has_tests", true, &gate.Condition{Metric: "sloc", Value: 100})},
 			want: gate.Result{Violations: []gate.Violation{
 				{Metric: "has_tests", Base: 0, Head: 0, HasBase: true, Limit: "require true"},
@@ -397,20 +434,38 @@ func TestEvaluateDefaultConfig(t *testing.T) {
 		}
 	})
 
-	t.Run("legacy package unchanged fails only absolute max", func(t *testing.T) {
-		t.Parallel()
-
-		legacy := metrics.RawMetrics{
+	// legacy is a package already past the density ceilings and without
+	// tests before the change.
+	legacy := func() metrics.RawMetrics {
+		return metrics.RawMetrics{
 			SLOC: 3000, LargestFileSLOC: 500, TokensEst: 20000, InternalImports: 5,
 			ExportedSymbols: 30, Globals: 9, InitFuncs: 2, MaxNesting: 8,
 			CognitiveP90: 25, DupBlocks: 14, DuplicationPct: 11.5,
-			UntestedExports: 20, HasTests: true, TestFuncs: 4, TestFiles: 1,
+			UntestedExports: 20,
 		}
-		base := legacy
-		got := gate.Evaluate(legacy, &base, rules, nil)
+	}
+
+	t.Run("legacy package unchanged passes", func(t *testing.T) {
+		t.Parallel()
+
+		base := legacy()
+		got := gate.Evaluate(legacy(), &base, rules, nil)
+		if !reflect.DeepEqual(got, gate.Result{Passed: true}) {
+			t.Errorf("Evaluate() = %+v, want passed with no findings", got)
+		}
+	})
+
+	t.Run("legacy package rising above max fails", func(t *testing.T) {
+		t.Parallel()
+
+		base := legacy()
+		head := legacy()
+		head.DuplicationPct = 11.8
+		head.SLOC = 3010
+		got := gate.Evaluate(head, &base, rules, nil)
 		want := gate.Result{Violations: []gate.Violation{
-			{Metric: "duplication_pct", Base: 11.5, Head: 11.5, HasBase: true, Limit: "max 5"},
-			{Metric: "max_nesting", Base: 8, Head: 8, HasBase: true, Limit: "max 5"},
+			{Metric: "duplication_pct", Base: 11.5, Head: 11.8, HasBase: true, Limit: "max 5"},
+			{Metric: "has_tests", Base: 0, Head: 0, HasBase: true, Limit: "require true"},
 		}}
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Evaluate() =\n%+v\nwant\n%+v", got, want)

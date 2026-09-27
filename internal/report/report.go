@@ -11,8 +11,9 @@ import (
 )
 
 // Report is the per-package report of SPEC.md 10.2. Field names and JSON
-// tags match the schema exactly. Baseline, Violations, Warnings and Passed
-// are omitted when no baseline was compared and no gate ran.
+// tags match the schema exactly. Violations, Warnings and Passed are omitted
+// when no gate ran and present, the arrays possibly empty, when one did;
+// Baseline is omitted when the package had no baseline.
 type Report struct {
 	// Language is the extractor's language identifier, for example "go".
 	Language string `json:"language"`
@@ -30,10 +31,12 @@ type Report struct {
 	Metrics metrics.RawMetrics `json:"metrics"`
 	// Baseline is the metrics the package was compared against, if any.
 	Baseline *Baseline `json:"baseline,omitempty"`
-	// Violations are the failed gate rules, if a gate ran.
-	Violations []Finding `json:"violations,omitempty"`
-	// Warnings are the non-failing capacity findings, if a gate ran.
-	Warnings []Finding `json:"warnings,omitempty"`
+	// Violations are the failed gate rules: nil (omitted) when no gate ran,
+	// non-nil and possibly empty (an empty array) when one did.
+	Violations []Finding `json:"violations,omitzero"`
+	// Warnings are the non-failing capacity findings, nil or non-nil as for
+	// Violations.
+	Warnings []Finding `json:"warnings,omitzero"`
 	// Passed is the gate verdict; nil when no gate ran.
 	Passed *bool `json:"passed,omitempty"`
 	// AstimateVersion is the version of the binary that produced the report.

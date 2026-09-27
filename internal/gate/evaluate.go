@@ -69,13 +69,16 @@ type Suggester func(metric string, head float64, m metrics.RawMetrics) string
 // SPEC.md section 8.1. A nil base means the package is new at head: every
 // density rule still applies its Max, but MaxDelta is taken against zero only
 // for rules with RatchetFromZero set. Density rules fail when head minus base
-// exceeds MaxDelta or head exceeds Max; capacity rules fail above Max and
-// warn at or above WarnAt of Max; requirement rules fail when the metric's
-// boolean disagrees with Require while When holds. A rule whose metric is
-// unknown or not computed at head is skipped, which also covers rebuild
-// outputs the config loader already rejects; a v1 metric computed at head
-// but null at base skips only its delta rule and adds a Note. Suggestions
-// come from s; a nil s leaves them empty. Evaluate does no I/O.
+// exceeds MaxDelta, or when head exceeds Max and either there is no baseline
+// value or head rose above it, so an unchanged or improved legacy value over
+// Max passes. Capacity rules fail above Max and warn at or above WarnAt of
+// Max. Requirement rules fail when the metric's boolean disagrees with
+// Require while When holds and the package is new or its sloc grew. A rule
+// whose metric is unknown or not computed at head is skipped, which also
+// covers rebuild outputs the config loader already rejects; a v1 metric
+// computed at head but null at base skips only its delta rule and adds a
+// Note. Suggestions come from s; a nil s leaves them empty. Evaluate does no
+// I/O.
 func Evaluate(head metrics.RawMetrics, base *metrics.RawMetrics, rules []Threshold, s Suggester) Result {
 	e := evaluator{head: head, base: base, suggest: s}
 	for _, r := range rules {
@@ -126,7 +129,10 @@ func (e *evaluator) density(r Threshold, h float64) {
 			e.res.Violations = append(e.res.Violations, e.finding(r.Metric, b, h, hasBase, "max_delta "+signed(*r.MaxDelta)))
 		}
 	}
-	if r.Max != nil && h > *r.Max+epsilon {
+	// The max is a ceiling on what a change may introduce, not a judgment
+	// of history: an unchanged or improved legacy value above it passes.
+	introduced := !hasBase || h > b+epsilon
+	if r.Max != nil && introduced && h > *r.Max+epsilon {
 		e.res.Violations = append(e.res.Violations, e.finding(r.Metric, b, h, hasBase, "max "+num(*r.Max)))
 	}
 }
@@ -170,11 +176,18 @@ func (e *evaluator) requirement(r Threshold, h float64) {
 			return
 		}
 	}
-	if (h != 0) == *r.Require {
+	if (h != 0) == *r.Require || !e.grew() {
 		return
 	}
 	b, hasBase, _ := e.baseValue(r.Metric)
 	e.res.Violations = append(e.res.Violations, e.finding(r.Metric, b, h, hasBase, "require "+strconv.FormatBool(*r.Require)))
+}
+
+// grew reports whether requirement rules apply: the package is new at head,
+// or its sloc rose from the baseline. An unchanged legacy package is not
+// failed for a requirement it already missed.
+func (e *evaluator) grew() bool {
+	return e.base == nil || e.head.SLOC > e.base.SLOC
 }
 
 // baseValue returns the metric's baseline value and whether a baseline value
