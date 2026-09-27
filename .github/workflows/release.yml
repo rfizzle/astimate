@@ -19,9 +19,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      # No cache: a published binary is built from a clean module and build
+      # cache, never from state restored from an earlier run.
       - uses: actions/setup-go@v6
         with:
           go-version: "1.27"
+          cache: false
 
       - uses: goreleaser/goreleaser-action@v6
         with:
