@@ -20,7 +20,7 @@ const maxExtendsDepth = 32
 
 // tsconfig is the part of a tsconfig.json the extractor reads, after its
 // extends chain is applied: the path aliases under compilerOptions.paths
-// and the baseUrl they resolve against.
+// and the baseUrl they resolve against, and whether JSON modules resolve.
 type tsconfig struct {
 	// base is the absolute directory alias targets are relative to:
 	// baseUrl when set, else the directory of the configuration file that
@@ -32,6 +32,9 @@ type tsconfig struct {
 	baseURL string
 	// aliases holds each paths entry, longest prefix first.
 	aliases []alias
+	// resolveJSON is compilerOptions.resolveJsonModule: a specifier
+	// ending in .json then resolves to that file.
+	resolveJSON bool
 }
 
 // alias is one compilerOptions.paths entry. pattern holds at most one *.
@@ -42,8 +45,9 @@ type alias struct {
 	targets  []string
 }
 
-// compilerOptions is the effective baseUrl and paths of one configuration
-// file with its extends chain applied, as absolute directories.
+// compilerOptions is the effective baseUrl, paths and resolveJsonModule
+// of one configuration file with its extends chain applied, the
+// directories absolute.
 type compilerOptions struct {
 	// baseURL is the absolute baseUrl; "" when unset.
 	baseURL string
@@ -51,14 +55,16 @@ type compilerOptions struct {
 	// file that set it.
 	paths    map[string][]string
 	pathsDir string
+	// resolveJSON is resolveJsonModule, nil when unset.
+	resolveJSON *bool
 }
 
 // readTSConfig reads tsconfig.json at root and the configurations it
 // extends. A missing file yields no aliases. Files may hold comments and
 // trailing commas, as tsc accepts. An extends value, a string or an array
 // of them, is a path relative to the extending file or a bare name
-// resolved under node_modules; compilerOptions baseUrl and paths are taken
-// from the last configuration that sets each, the extending file last, so
+// resolved under node_modules; compilerOptions baseUrl, paths and
+// resolveJsonModule are taken from the last configuration that sets each, the extending file last, so
 // a child's paths replace its parent's whole, as tsc merges them. As in
 // tsc 5.5, a baseUrl, paths target or extends value starting with
 // ${configDir} has it replaced by root, the directory of the root
@@ -80,6 +86,7 @@ func readTSConfig(root string) (tsconfig, error) {
 		return tsconfig{}, err
 	}
 	cfg.baseURL = opts.baseURL
+	cfg.resolveJSON = opts.resolveJSON != nil && *opts.resolveJSON
 	switch {
 	case opts.baseURL != "":
 		cfg.base = opts.baseURL
@@ -127,6 +134,8 @@ func loadCompilerOptions(p, configDir string, seen map[string]bool, depth int) (
 		CompilerOptions struct {
 			BaseURL *string              `json:"baseUrl"`
 			Paths   *map[string][]string `json:"paths"`
+			// ResolveJSON is resolveJsonModule.
+			ResolveJSON *bool `json:"resolveJsonModule"`
 		} `json:"compilerOptions"`
 	}
 	if err := json.Unmarshal(stripJSONC(data), &raw); err != nil {
@@ -158,6 +167,9 @@ func loadCompilerOptions(p, configDir string, seen map[string]bool, depth int) (
 		if po.paths != nil {
 			opts.paths, opts.pathsDir = po.paths, po.pathsDir
 		}
+		if po.resolveJSON != nil {
+			opts.resolveJSON = po.resolveJSON
+		}
 	}
 	if b := raw.CompilerOptions.BaseURL; b != nil {
 		if abs, ok := expandConfigDir(*b, configDir); ok {
@@ -165,6 +177,9 @@ func loadCompilerOptions(p, configDir string, seen map[string]bool, depth int) (
 		} else {
 			opts.baseURL = filepath.Join(dir, filepath.FromSlash(*b))
 		}
+	}
+	if v := raw.CompilerOptions.ResolveJSON; v != nil {
+		opts.resolveJSON = v
 	}
 	if ps := raw.CompilerOptions.Paths; ps != nil {
 		opts.paths, opts.pathsDir = *ps, dir

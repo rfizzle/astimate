@@ -19,7 +19,8 @@
 //     compilerOptions.paths alias of the root tsconfig.json with its
 //     extends chain applied, or a bare specifier under its baseUrl, that
 //     resolves as tsc does to a TypeScript file (or a directory's
-//     package.json entry or index file) in another package of the module.
+//     package.json entry or index file, or under resolveJsonModule the
+//     .json file it names) in another package of the module.
 //     Any other bare specifier, including one under baseUrl or matching an
 //     alias that resolves to no such file, is external, counted by npm
 //     package name, unless it names a Node built-in, which is counted as

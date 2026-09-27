@@ -163,8 +163,8 @@ func (r *resolver) landed(spec, f string) classified {
 // resolveModule returns the file an import of the absolute path p
 // resolves to, or "" when there is none. As tsc does, it tries p as a file
 // (resolveFile) before p as a directory (resolveDir). A file with no
-// TypeScript extension after the JavaScript mapping and a missing path
-// resolve to nothing.
+// TypeScript extension after the JavaScript mapping, unless it is a .json
+// file under resolveJsonModule, and a missing path resolve to nothing.
 func (r *resolver) resolveModule(p string) string {
 	if f, ok := r.module[p]; ok {
 		return f
@@ -200,12 +200,13 @@ func (r *resolver) resolveDir(p string) string {
 
 // resolveFile returns the file an import of the absolute path p names, or
 // "" for none: p itself when it ends in a TypeScript source or declaration
-// extension; the TypeScript counterparts of a JavaScript extension
-// (sourceCandidates); else p with .ts, .tsx or .d.ts appended.
+// extension, or in .json under resolveJsonModule; the TypeScript
+// counterparts of a JavaScript extension (sourceCandidates); else p with
+// .ts, .tsx or .d.ts appended.
 func (r *resolver) resolveFile(p string) string {
 	var candidates []string
 	switch {
-	case hasTSExtension(p):
+	case hasTSExtension(p), r.cfg.resolveJSON && strings.HasSuffix(p, ".json"):
 		candidates = []string{p}
 	case hasJSExtension(p):
 		candidates = sourceCandidates(p)

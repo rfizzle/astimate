@@ -629,3 +629,83 @@ func TestAliasOrder(t *testing.T) {
 		}
 	}
 }
+
+func TestClassifyResolveJSONModule(t *testing.T) {
+	// Each case writes its configuration files over a tree where src/app
+	// and src/lib are packages and assets holds no source.
+	tree := map[string]string{
+		"package.json":      "{}",
+		"src/app/app.ts":    "export const a = 1;\n",
+		"src/app/data.json": "{}",
+		"src/lib/index.ts":  "export const l = 1;\n",
+		"src/lib/data.json": "{}",
+		"assets/x.json":     "{}",
+	}
+	const opts = `"baseUrl": "src", "paths": {"@d/*": ["lib/*"]}`
+	on := map[string]classified{
+		"./data.json":         {importInternal, "src/app"},
+		"../lib/data.json":    {importInternal, "src/lib"},
+		"../../assets/x.json": {importNone, ""},
+		"./none.json":         {importNone, ""},
+		"./data":              {importNone, ""},
+		"@d/data.json":        {importInternal, "src/lib"},
+		"lib/data.json":       {importInternal, "src/lib"},
+		"../lib":              {importInternal, "src/lib"},
+	}
+	off := map[string]classified{
+		"./data.json":         {importNone, ""},
+		"../lib/data.json":    {importNone, ""},
+		"../../assets/x.json": {importNone, ""},
+		"./none.json":         {importNone, ""},
+		"./data":              {importNone, ""},
+		"@d/data.json":        {importExternal, "@d/data.json"},
+		"lib/data.json":       {importExternal, "lib"},
+		"../lib":              {importInternal, "src/lib"},
+	}
+	cases := []struct {
+		name  string
+		files map[string]string
+		want  map[string]classified
+	}{
+		{"unset", map[string]string{
+			"tsconfig.json": `{"compilerOptions": {` + opts + `}}`,
+		}, off},
+		{"false", map[string]string{
+			"tsconfig.json": `{"compilerOptions": {"resolveJsonModule": false, ` + opts + `}}`,
+		}, off},
+		{"set", map[string]string{
+			"tsconfig.json": `{"compilerOptions": {"resolveJsonModule": true, ` + opts + `}}`,
+		}, on},
+		{"inherited through extends", map[string]string{
+			"tsconfig.json": `{"extends": "./cfg/base", "compilerOptions": {` + opts + `}}`,
+			"cfg/base.json": `{"extends": "./root.json"}`,
+			"cfg/root.json": `{"compilerOptions": {"resolveJsonModule": true}}`,
+		}, on},
+		{"child false overrides the parent", map[string]string{
+			"tsconfig.json": `{"extends": "./base.json", "compilerOptions": {"resolveJsonModule": false, ` + opts + `}}`,
+			"base.json":     `{"compilerOptions": {"resolveJsonModule": true}}`,
+		}, off},
+		{"last parent setting it wins", map[string]string{
+			"tsconfig.json": `{"extends": ["./a.json", "./b.json"], "compilerOptions": {` + opts + `}}`,
+			"a.json":        `{"compilerOptions": {"resolveJsonModule": false}}`,
+			"b.json":        `{"compilerOptions": {"resolveJsonModule": true}}`,
+		}, on},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			writeTree(t, root, tree)
+			writeTree(t, root, tc.files)
+			cfg, err := readTSConfig(root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			r := newResolver(root, map[string]*pkg{"src/app": {}, "src/lib": {}}, cfg)
+			for spec, want := range tc.want {
+				if got := r.classify("src/app", spec); got != want {
+					t.Errorf("classify(%q) = %+v, want %+v", spec, got, want)
+				}
+			}
+		})
+	}
+}
