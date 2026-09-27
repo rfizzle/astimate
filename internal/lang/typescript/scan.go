@@ -94,8 +94,15 @@ const (
 type scanner struct {
 	opts    loadOptions
 	parsers map[*sitter.Language]*sitter.Parser
-	intern  map[string]int32
+	intern  map[string]tokenKind
 	counter *o200kCounter
+}
+
+// tokenKind is an interned token kind: its duplication code, per module,
+// and its fingerprint code, stable across loads.
+type tokenKind struct {
+	code int32
+	fp   uint64
 }
 
 // newScanner returns a scanner for one module load.
@@ -103,7 +110,7 @@ func newScanner(opts loadOptions) *scanner {
 	return &scanner{
 		opts:    opts,
 		parsers: make(map[*sitter.Language]*sitter.Parser, 2),
-		intern:  make(map[string]int32),
+		intern:  make(map[string]tokenKind),
 	}
 }
 
@@ -150,14 +157,15 @@ func (s *scanner) scanFile(f sourceFile) (*fileFacts, error) {
 	return ff, nil
 }
 
-// code returns the interned code of a token kind.
-func (s *scanner) code(kind string) int32 {
-	c, ok := s.intern[kind]
+// code returns the interned duplication code and the fingerprint code of a
+// token kind.
+func (s *scanner) code(kind string) (int32, uint64) {
+	k, ok := s.intern[kind]
 	if !ok {
-		c = firstInterned + int32(len(s.intern))
-		s.intern[kind] = c
+		k = tokenKind{code: firstInterned + int32(len(s.intern)), fp: fpKind(kind)}
+		s.intern[kind] = k
 	}
-	return c
+	return k.code, k.fp
 }
 
 // span is the byte range [start, end) of one comment.

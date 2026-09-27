@@ -96,7 +96,11 @@ function overload(a: any) {}
 	ff := scanSource(t, "x.ts", src)
 	var names []string
 	for _, f := range ff.funcs {
-		names = append(names, f.name)
+		name := f.ident
+		if f.receiver != "" {
+			name = f.receiver + "." + name
+		}
+		names = append(names, name)
 	}
 	want := []string{"a", "gen", "b", "c", "default", "K.constructor", "K.m", "K.g", "K.f", "overload"}
 	if !slices.Equal(names, want) {

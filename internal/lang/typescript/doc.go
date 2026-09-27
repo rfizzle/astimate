@@ -36,6 +36,9 @@
 // tree a single time to gather the facts all metrics need, and keeps them
 // in an unexported module value shared by Packages and every Extract call
 // for that root; the trees and file contents are not kept. Extract
-// aggregates one package's facts into RawMetrics. The counting rules are
+// aggregates one package's facts into RawMetrics. The same walk
+// fingerprints each function's body, so Functions can list a package's
+// functions for the changed-function rule without another parse. The
+// counting rules are
 // written out in testdata/ts/fixture/golden/COUNTING.md.
 package typescript

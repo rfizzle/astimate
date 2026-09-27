@@ -186,8 +186,55 @@ func (e *Extractor) Details(ctx context.Context, mod *metrics.ModuleContext, pkg
 	}, nil
 }
 
+// Functions returns the functions of package pkg's non-test files, in file
+// and declaration order, for the changed-function rule (SPEC.md 6.5 and
+// 13.1): top-level functions, top-level variables initialized with a
+// function or arrow function, and the methods and function-valued fields of
+// top-level classes, with the class name as Receiver. Overload signatures
+// have no body and are not listed. File is relative to the package
+// directory. The records come from the module's parse, the one Extract
+// reads, so they reflect the most recent Extract on mod; an identifier
+// Packages does not list yields an error wrapping metrics.ErrUnknownPackage.
+func (e *Extractor) Functions(ctx context.Context, mod *metrics.ModuleContext, pkg string) ([]metrics.FunctionInfo, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("functions of %s: %w", pkg, err)
+	}
+	m, err := e.cached(ctx, mod)
+	if err != nil {
+		return nil, err
+	}
+	p, ok := m.pkgs[pkg]
+	if !ok {
+		return nil, fmt.Errorf("functions of %s: %w", pkg, metrics.ErrUnknownPackage)
+	}
+	n := 0
+	for _, f := range p.src {
+		n += len(f.funcs)
+	}
+	fns := make([]metrics.FunctionInfo, 0, n)
+	for _, f := range p.src {
+		file := filepath.Base(f.abs)
+		if rel, err := filepath.Rel(p.dir, f.abs); err == nil {
+			file = rel
+		}
+		file = filepath.ToSlash(file)
+		for _, fn := range f.funcs {
+			fns = append(fns, metrics.FunctionInfo{
+				Receiver:    fn.receiver,
+				Name:        fn.ident,
+				Fingerprint: fn.fingerprint,
+				Cognitive:   fn.cognitive,
+				File:        file,
+				Line:        fn.line,
+			})
+		}
+	}
+	return fns, nil
+}
+
 // Forget drops the cached parse of the module at root, spelled in any form
-// that resolves to the same absolute path, so the memory can be reclaimed
+// that resolves to the same absolute path, with the details and function
+// records it holds, so the memory can be reclaimed
 // once no ModuleContext still holds it. A load still in flight is left
 // alone. Forget of a root never loaded does nothing.
 func (e *Extractor) Forget(root string) {

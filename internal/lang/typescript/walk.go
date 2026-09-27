@@ -12,10 +12,16 @@ import (
 // declaration, a top-level variable initialized with a function or arrow
 // function, or a method or function-valued field of a top-level class.
 type funcScore struct {
-	name string
+	// receiver is the class name of a method or function-valued field,
+	// empty for a plain function; ident the function or member name.
+	receiver, ident string
 	// cognitive is the cognitive complexity; nesting the deepest nesting
 	// inside the body, which is itself depth 0.
 	cognitive, nesting int
+	// line is the 1-based line the function starts on.
+	line int
+	// fingerprint hashes the body's normalized tokens (fingerprint.go).
+	fingerprint uint64
 }
 
 // walker gathers the facts of one file in a single walk of its tree. The
@@ -32,6 +38,11 @@ type walker struct {
 	comments []span
 	// fn is the function being scored; nil outside functions.
 	fn *funcScore
+	// hashing reports that the walk is inside fn's body, whose tokens its
+	// fingerprint mixes; self is fn's name as a direct call spells it,
+	// empty for a method.
+	hashing bool
+	self    string
 	// localFuncs maps the name of each top-level function to whether it
 	// carries the untested directive, and classMethods holds the
 	// untested_exports candidates of each top-level class, for resolving
@@ -121,7 +132,7 @@ func (w *walker) statement(n *sitter.Node, exported, directed bool) {
 		if exported {
 			w.f.exportedFuncs = append(w.f.exportedFuncs, exportedFunc{match: name, display: name, directed: directed})
 		}
-		w.function(name, n)
+		w.function("", name, n)
 	case "class_declaration", "abstract_class_declaration", "class":
 		w.class(n, exported)
 	case "lexical_declaration", "variable_declaration":
@@ -184,7 +195,7 @@ func (w *walker) exportStatement(n *sitter.Node, directed bool) {
 			} else {
 				name = "default"
 			}
-			w.function(name, c)
+			w.function("", name, c)
 		case value != nil && sameNode(c, value) && c.Type(w.lang) == "class":
 			w.class(c, true)
 		default:
@@ -278,7 +289,7 @@ func (w *walker) variables(n *sitter.Node, mutable, exported, directed bool) {
 		}
 		for j := range c.ChildCount() {
 			if d := c.Child(j); sameNode(d, value) {
-				w.function(name, d)
+				w.function("", name, d)
 			} else {
 				w.visit(d, state{})
 			}
@@ -309,9 +320,10 @@ func (w *walker) bindings(n *sitter.Node) []string {
 }
 
 // class walks a top-level class, scoring each method and function-valued
-// field as a function named Class.member. Its public methods, other than
-// the constructor and accessors, are candidates for untested_exports when
-// the class is exported, directly or through an export list.
+// field as a function with the class name as its receiver. Its public
+// methods, other than the constructor and accessors, are candidates for
+// untested_exports when the class is exported, directly or through an
+// export list.
 func (w *walker) class(n *sitter.Node, exported bool) {
 	cname := w.text(w.field(n, "name"))
 	if cname == "" {
@@ -357,12 +369,12 @@ func (w *walker) classBody(cname string, body *sitter.Node) []exportedFunc {
 			candidates = append(candidates, exportedFunc{match: name, display: cname + "." + name, directed: w.hasDirective(body, j) || overloads[name]})
 		}
 		if sameNode(fn, m) {
-			w.function(cname+"."+name, m)
+			w.function(cname, name, m)
 			continue
 		}
 		for k := range m.ChildCount() {
 			if c := m.Child(k); sameNode(c, fn) {
-				w.function(cname+"."+name, c)
+				w.function(cname, name, c)
 			} else {
 				w.visit(c, state{})
 			}
@@ -439,16 +451,22 @@ func (w *walker) hasDirective(parent *sitter.Node, i int) bool {
 	return false
 }
 
-// function scores the function fn, named name, walking its children.
-// Functions of test files are walked but not recorded.
-func (w *walker) function(name string, fn *sitter.Node) {
-	score := &funcScore{name: name}
-	prev := w.fn
-	w.fn = score
+// function scores the function fn, the member ident of class receiver or,
+// with receiver empty, the plain function ident, walking its children and
+// fingerprinting its body. Functions of test files are walked but not
+// recorded.
+func (w *walker) function(receiver, ident string, fn *sitter.Node) {
+	score := &funcScore{receiver: receiver, ident: ident, line: int(fn.StartPoint().Row) + 1, fingerprint: fpOffset}
+	prev, prevHashing, prevSelf := w.fn, w.hashing, w.self
+	w.fn, w.self = score, ""
+	if receiver == "" {
+		w.self = ident
+	}
 	for i := range fn.ChildCount() {
+		w.hashing = !w.f.test && fn.FieldNameForChild(i, w.lang) == "body"
 		w.visit(fn.Child(i), state{})
 	}
-	w.fn = prev
+	w.fn, w.hashing, w.self = prev, prevHashing, prevSelf
 	if !w.f.test {
 		w.f.funcs = append(w.f.funcs, *score)
 	}
@@ -468,6 +486,9 @@ func (w *walker) visit(n *sitter.Node, st state) {
 		return
 	case "import_statement", "call_expression":
 		w.importOf(n, typ)
+		if w.hashing && typ == "call_expression" && w.isSelfCall(n) {
+			w.fn.fingerprint = fpMix(w.fn.fingerprint, fpSelfCall)
+		}
 	}
 	if w.fn != nil {
 		w.fn.nesting = max(w.fn.nesting, st.depth)
@@ -542,9 +563,11 @@ func (w *walker) isModuleLoader(fn *sitter.Node) bool {
 	return false
 }
 
-// leaf records a token: an identifier's text in a test file, and the
-// normalized duplication token in a non-test file unless st is quiet. sign
-// marks a unary + or - applied to a numeric literal.
+// leaf records a token: an identifier's text in a test file, and in a
+// non-test file the normalized duplication token unless st is quiet, and
+// the token's fingerprint code inside a function body unless it is a
+// semicolon or the text of a template literal. sign marks a unary + or -
+// applied to a numeric literal.
 func (w *walker) leaf(n *sitter.Node, typ string, st state, sign bool) {
 	named := n.IsNamed()
 	if w.f.test {
@@ -553,30 +576,37 @@ func (w *walker) leaf(n *sitter.Node, typ string, st state, sign bool) {
 		}
 		return
 	}
-	if st.quiet {
+	if st.quiet && (!w.hashing || isTemplateText(typ)) {
 		return
 	}
 	var (
 		code  int32
+		fp    uint64
 		class = duptok.Code
 	)
 	switch {
 	case isLiteral(n, typ):
-		code, class = literalCode, duptok.Literal
+		code, fp, class = literalCode, fpLit, duptok.Literal
 	case named && (isIdentType(typ) || typ == "undefined"):
-		code = identCode
+		code, fp = identCode, fpIdent
 	default:
 		key := typ
 		if named {
 			key = "#" + typ
 		}
-		code = w.s.code(key)
+		code, fp = w.s.code(key)
 		switch {
 		case sign:
 			class = duptok.Sign
 		case !named && isTablePunct(typ):
 			class = duptok.Punct
 		}
+	}
+	if w.hashing && typ != ";" {
+		w.fn.fingerprint = fpMix(w.fn.fingerprint, fp)
+	}
+	if st.quiet {
+		return
 	}
 	t := &w.f.toks
 	t.codes = append(t.codes, code)
@@ -671,6 +701,22 @@ func firstArgument(w *walker, args *sitter.Node) *sitter.Node {
 		}
 	}
 	return nil
+}
+
+// isSelfCall reports whether the call expression n calls, by its bare
+// name, the function being walked.
+func (w *walker) isSelfCall(n *sitter.Node) bool {
+	if w.self == "" {
+		return false
+	}
+	callee := w.field(n, "function")
+	return callee != nil && callee.Type(w.lang) == "identifier" && w.text(callee) == w.self
+}
+
+// isTemplateText reports whether a leaf of type typ inside a template
+// literal is part of its text rather than of a substitution.
+func isTemplateText(typ string) bool {
+	return typ == "string_fragment" || typ == "escape_sequence"
 }
 
 // isSignedNumber reports whether the two-child unary expression n is a +
