@@ -3,6 +3,7 @@ package golang
 import (
 	"errors"
 	"fmt"
+	"go/ast"
 	"go/parser"
 	"go/token"
 	"os"
@@ -59,6 +60,10 @@ type loaded struct {
 	// external test package (package foo_test in the same directory) to that
 	// external test package.
 	xtests map[string]*packages.Package
+	// sources maps the import path of each non-test module package whose
+	// Syntax is not its source files, a cgo package, to its source files
+	// parsed into fset, one per GoFiles entry. See sourceSyntax.
+	sources map[string][]*ast.File
 	// reverse maps an import path to the sorted import paths of the module
 	// packages that import it. It is nil until the fan-in metrics (fan_in,
 	// fan_in_tests) build it once per load.
@@ -106,6 +111,9 @@ func loadModule(cfg *packages.Config, load loadFunc) (*loaded, error) {
 		return nil, fmt.Errorf("loading %s: %w", root, ErrNoPackages)
 	}
 	l.fset = cfg.Fset
+	if err := parseSources(l); err != nil {
+		return nil, fmt.Errorf("loading %s: %w", root, err)
+	}
 	return l, nil
 }
 

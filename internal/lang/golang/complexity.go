@@ -39,9 +39,9 @@ type funcComplexity struct {
 // top-level function and method in p's non-test files, init functions
 // included (SPEC.md 6.5). Function literals are scored as part of the
 // function that contains them.
-func complexity(_ *loaded, p *packages.Package) complexityCounts {
+func complexity(l *loaded, p *packages.Package) complexityCounts {
 	var c complexityCounts
-	for _, f := range p.Syntax {
+	for _, f := range sourceSyntax(l, p) {
 		for _, d := range f.Decls {
 			fn, ok := d.(*ast.FuncDecl)
 			if !ok {

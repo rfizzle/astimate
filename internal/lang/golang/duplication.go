@@ -210,7 +210,7 @@ func duplication(l *loaded, p *packages.Package, src fileSource, sz sizeCounts, 
 func dupStreamOf(l *loaded, p *packages.Package, src fileSource, opts dupOptions) (*dupStream, error) {
 	s := &dupStream{intern: make(map[string]int32)}
 	fs := token.NewFileSet()
-	for _, f := range p.Syntax {
+	for _, f := range sourceSyntax(l, p) {
 		if ast.IsGenerated(f) {
 			continue
 		}

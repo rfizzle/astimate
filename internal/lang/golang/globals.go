@@ -25,9 +25,9 @@ type globalCounts struct {
 // so variables declared inside function bodies never count. Constants are not
 // state and are ignored. A var spec counts each of its names, so
 // var a, b = 1, 2 is 2.
-func globals(_ *loaded, p *packages.Package) globalCounts {
+func globals(l *loaded, p *packages.Package) globalCounts {
 	var c globalCounts
-	for _, f := range p.Syntax {
+	for _, f := range sourceSyntax(l, p) {
 		for _, d := range f.Decls {
 			switch d := d.(type) {
 			case *ast.GenDecl:

@@ -54,6 +54,12 @@ type untestedCounts struct {
 // function in the test files, on the receiver type with the type arguments
 // substituted; a receiver that substitutes to a concrete type marks the
 // method it selects directly.
+//
+// Unlike the syntactic metrics, it reads p.Syntax rather than sourceSyntax,
+// because p.TypesInfo.Defs is keyed by the identifiers of those trees. For a
+// cgo package they are the files cgo generated: the rewritten sources keep
+// every declaration and doc comment of the original, and the helper files
+// declare nothing exported, so the count matches the source files.
 func untestedExports(l *loaded, p *packages.Package) untestedCounts {
 	var c untestedCounts
 	// marked holds every counted key, true once a test refers to it.

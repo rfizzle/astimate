@@ -21,13 +21,15 @@ type sizeCounts struct {
 }
 
 // size computes files, sloc, largest_file_sloc and exported_symbols for p
-// from its non-test files, read through src to count source lines.
+// from its non-test files, read through src to count source lines. It
+// iterates sourceSyntax, the trees of p.GoFiles, so for a cgo package too
+// perFile has one entry per counted file.
 func size(l *loaded, p *packages.Package, src fileSource) (sizeCounts, error) {
 	c := sizeCounts{
 		files:   len(p.GoFiles),
-		perFile: make(map[string]int, len(p.Syntax)),
+		perFile: make(map[string]int, len(p.GoFiles)),
 	}
-	for _, f := range p.Syntax {
+	for _, f := range sourceSyntax(l, p) {
 		tf := l.fset.File(f.FileStart)
 		if tf == nil {
 			return sizeCounts{}, fmt.Errorf("counting lines of %s: file not in file set", p.PkgPath)

@@ -33,7 +33,7 @@ const (
 func imports(l *loaded, p *packages.Package) importCounts {
 	var c importCounts
 	seen := make(map[string]bool, len(p.Imports))
-	for _, f := range p.Syntax {
+	for _, f := range sourceSyntax(l, p) {
 		for _, spec := range f.Imports {
 			path, err := strconv.Unquote(spec.Path.Value)
 			if err != nil {
