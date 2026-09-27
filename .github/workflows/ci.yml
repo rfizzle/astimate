@@ -94,6 +94,12 @@ jobs:
       - name: go test (grammar subset tags)
         run: make test-subset
 
+      # The README's sample outputs are generated from the fixtures by
+      # scripts/readme-samples.sh; this fails with a diff when they drift
+      # from what the CLI prints.
+      - name: README samples
+        run: make readme-check
+
   # gate runs this repository's own action on pull requests, built from
   # source until a release exists. fetch-depth 0 gives the full history so
   # the merge-base of the pull request's merge commit and the base branch

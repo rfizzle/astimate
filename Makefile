@@ -1,4 +1,4 @@
-.PHONY: check actionlint tidy fmt vet lint test race-soak build test-subset
+.PHONY: check actionlint tidy fmt vet lint test race-soak build test-subset readme-samples readme-check
 .NOTPARALLEL:
 
 # Build metadata linked into the binary by `make build`. Each is overridable
@@ -17,9 +17,9 @@ LDFLAGS := -X main.buildVersion=$(VERSION) -X main.buildCommit=$(COMMIT) -X main
 BUILD_TAGS := grammar_subset grammar_subset_typescript grammar_subset_tsx
 
 # check is the full gate: workflow lint, module tidiness, format, vet, lint,
-# test, in that order, stopping on the first failure. CI runs the same six
-# commands.
-check: actionlint tidy fmt vet lint test
+# test, README samples, in that order, stopping on the first failure. CI
+# runs the same seven commands.
+check: actionlint tidy fmt vet lint test readme-check
 
 # actionlint lints .github/workflows when the binary is on PATH and skips
 # with a notice otherwise; CI always runs it from a pinned release.
@@ -66,3 +66,12 @@ build:
 # which stays untagged.
 test-subset:
 	go test -tags '$(BUILD_TAGS)' ./internal/lang/typescript/...
+
+# readme-samples rewrites the sample outputs in README.md from the fixture
+# modules; readme-check regenerates them into a temporary copy and fails
+# with a diff when README.md has drifted from what the CLI prints.
+readme-samples:
+	scripts/readme-samples.sh
+
+readme-check:
+	scripts/readme-samples.sh --check

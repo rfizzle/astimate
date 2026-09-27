@@ -47,6 +47,15 @@ Install the snippet in a scratch repository, have the agent add an untested expo
 | --- | --- |
 | Release install: `version: <tag>` in a workflow downloads and runs the published release | _pending the first `v*` tag_ |
 
+## GitHub Action
+
+2026-09-27: the `gate` job in `ci.yml` runs this repository's own action with `version: source` on every pull request. Locally, `astimate check . --base master --all` on an unchanged tree exits 0, and `action/run.sh` passes `check`'s exit code 3 and its `--format github` stdout through; `action/action_test.go` covers both scripts. No pull request had run the job when this was written, so the live behavior is the user's to record on the first one.
+
+| Check | Status |
+| --- | --- |
+| `gate` job passes on a pull request that leaves every package unchanged or better | _pending the first pull request; record the run URL and date_ |
+| A pull request that degrades a copy of the fixture fails the job with `::error` annotations on the diff lines | _pending the first pull request; record the run URL and date_ |
+
 ## CI run time
 
 2026-09-27: the `check` job in `ci.yml` took 2m12s on the first push to `master` and 1m25s on the second, against a two-minute target for an unchanged tree. `actions/setup-go@v6` restores the Go module and build caches by default (`cache` defaults to `true` in its `action.yml`), keyed on `go.sum`, so both runs already had caching and the second run was the warm one. The `setup-go` steps in the `check`, `gate` and `release-snapshot` jobs now set `cache: true` and `cache-dependency-path: go.sum` explicitly. `golangci/golangci-lint-action@v8` caches its analysis results by default (`skip-cache: false`); no extra cache step was added. The run time after this change is to be observed on the next push.
