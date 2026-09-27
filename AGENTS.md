@@ -61,7 +61,7 @@ Performance matters because agents call this tool interactively and `rank` runs 
 - Preallocate slices and maps when the size is known. Avoid `fmt.Sprintf` in loops; use `strconv` or `strings.Builder`.
 - No reflection in hot paths. No regex where `strings` functions suffice.
 - Add a benchmark for any function that runs per file or per AST node. Include `benchstat` output in the PR when changing one.
-- Bound memory: stream file bytes for size counting rather than reading whole files when the AST is not needed.
+- Bound memory: read each source file at most once per extraction and share the bytes between the metrics that need them; never cache file contents across extractions.
 
 ## Architecture boundaries
 
