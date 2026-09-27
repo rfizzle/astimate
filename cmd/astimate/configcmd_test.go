@@ -122,3 +122,29 @@ func TestConfigInitBadArgs(t *testing.T) {
 		})
 	}
 }
+
+// TestConfigInitValidates checks the written file loads without warnings
+// and, carrying no language override, resolves every language to the
+// embedded default's top level.
+func TestConfigInitValidates(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "astimate.yaml")
+	var stdout, stderr bytes.Buffer
+	if got := run([]string{"config", "init", "--out", path}, &stdout, &stderr); got != exitOK {
+		t.Fatalf("config init exit code = %d, want %d; stderr = %q", got, exitOK, stderr.String())
+	}
+	cfg, err := config.Load(path)
+	if err != nil {
+		t.Fatalf("loading written config: %v", err)
+	}
+	if len(cfg.Warnings) != 0 {
+		t.Errorf("Warnings = %q, want none", cfg.Warnings)
+	}
+	for _, lang := range []string{"go", "typescript"} {
+		eff := cfg.ForLanguage(lang)
+		if eff.Version != cfg.Version || eff.Rebuild != cfg.Rebuild || len(eff.Thresholds) != len(cfg.Thresholds) {
+			t.Errorf("ForLanguage(%q) = %+v, want the top level unchanged", lang, eff)
+		}
+	}
+}

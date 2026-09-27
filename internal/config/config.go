@@ -55,6 +55,10 @@ type Config struct {
 	// Warnings are non-fatal findings from parsing, such as deprecated keys.
 	// Callers log each one once.
 	Warnings []string
+
+	// languages holds the per-language overrides by language id; ForLanguage
+	// applies them.
+	languages map[string]languageOverride
 }
 
 // Duplication is the optional duplication section. Keys absent from the file
@@ -80,6 +84,8 @@ type fileConfig struct {
 	Duplication   *fileDuplication `yaml:"duplication"`
 	Rebuild       *fileRebuild     `yaml:"rebuild"`
 	Thresholds    []fileThreshold  `yaml:"thresholds"`
+	// Languages holds the optional per-language overrides by language id.
+	Languages map[string]*fileLanguage `yaml:"languages"`
 
 	// Deprecated top-level spellings of the duplication section, accepted
 	// with a warning for one release.
@@ -120,6 +126,8 @@ type fileThreshold struct {
 	WarnAt          *float64 `yaml:"warn_at"`
 	Require         *bool    `yaml:"require"`
 	When            string   `yaml:"when"`
+	// Disabled drops the top-level rule on Metric; only under languages.
+	Disabled bool `yaml:"disabled"`
 }
 
 // Default returns the embedded default configuration file. Each call returns a
@@ -217,22 +225,32 @@ func (c *Config) Validate() error {
 	if err := c.Rebuild.Validate(); err != nil {
 		errs = append(errs, fmt.Errorf("rebuild: %w", err))
 	}
+	isKnown := knownMetric()
+	for i, t := range c.Thresholds {
+		if err := validateRule(t, isKnown); err != nil {
+			errs = append(errs, fmt.Errorf("thresholds[%d]: %w", i, err))
+		}
+	}
+	errs = append(errs, c.validateLanguages(isKnown)...)
+	return errors.Join(errs...)
+}
+
+// knownMetric returns a lookup of the RawMetrics field names.
+func knownMetric() func(string) bool {
 	names := metrics.MetricNames()
 	known := make(map[string]bool, len(names))
 	for _, n := range names {
 		known[n] = true
 	}
-	isKnown := func(n string) bool { return known[n] }
-	for i, t := range c.Thresholds {
-		if isRebuildOutput(t.Metric) {
-			errs = append(errs, fmt.Errorf("thresholds[%d]: %q is a rebuild output and cannot be gated", i, t.Metric))
-			continue
-		}
-		if err := t.Validate(isKnown); err != nil {
-			errs = append(errs, fmt.Errorf("thresholds[%d]: %w", i, err))
-		}
+	return func(n string) bool { return known[n] }
+}
+
+// validateRule checks one rule, rejecting rebuild outputs as its metric.
+func validateRule(t gate.Threshold, isKnown func(string) bool) error {
+	if isRebuildOutput(t.Metric) {
+		return fmt.Errorf("%q is a rebuild output and cannot be gated", t.Metric)
 	}
-	return errors.Join(errs...)
+	return t.Validate(isKnown)
 }
 
 // build converts the decoded file into a Config, reporting missing fields and
@@ -252,72 +270,96 @@ func (fc *fileConfig) build() (*Config, error) {
 	if fc.Rebuild == nil {
 		missing("rebuild")
 	} else {
-		r := fc.Rebuild
-		for _, f := range []struct {
-			name string
-			src  *float64
-			dst  *float64
-		}{
-			{"rebuild.context_budget", r.ContextBudget, &cfg.Rebuild.ContextBudget},
-			{"rebuild.tokens_per_export", r.TokensPerExport, &cfg.Rebuild.TokensPerExport},
-			{"rebuild.tokens_per_untested_export", r.TokensPerUntestedExport, &cfg.Rebuild.TokensPerUntestedExport},
-			{"rebuild.tokens_per_hidden_state", r.TokensPerHiddenState, &cfg.Rebuild.TokensPerHiddenState},
-			{"rebuild.superlinear_exponent", r.SuperlinearExponent, &cfg.Rebuild.SuperlinearExponent},
-			{"rebuild.cocomo_a", r.CocomoA, &cfg.Rebuild.CocomoA},
-			{"rebuild.cocomo_b", r.CocomoB, &cfg.Rebuild.CocomoB},
-			{"rebuild.days_per_month", r.DaysPerMonth, &cfg.Rebuild.DaysPerMonth},
-		} {
-			if f.src == nil {
-				missing(f.name)
-				continue
-			}
-			*f.dst = *f.src
-		}
-		if r.Tiers == nil {
+		if fc.Rebuild.Tiers == nil {
 			missing("rebuild.tiers")
-		} else {
-			if r.Tiers.OnePassMax == nil {
-				missing("rebuild.tiers.one_pass_max")
-			} else {
-				cfg.Rebuild.Tiers.OnePassMax = *r.Tiers.OnePassMax
-			}
-			if r.Tiers.FewPassesMax == nil {
-				missing("rebuild.tiers.few_passes_max")
-			} else {
-				cfg.Rebuild.Tiers.FewPassesMax = *r.Tiers.FewPassesMax
+		}
+		for _, f := range fc.Rebuild.fields(&cfg.Rebuild) {
+			switch {
+			case f.src != nil:
+				*f.dst = *f.src
+			case fc.Rebuild.Tiers != nil || !strings.HasPrefix(f.name, "tiers."):
+				missing("rebuild." + f.name)
 			}
 		}
 	}
 	cfg.Thresholds = make([]gate.Threshold, 0, len(fc.Thresholds))
 	for i, ft := range fc.Thresholds {
-		t := gate.Threshold{
-			Metric:          ft.Metric,
-			Kind:            gate.Kind(ft.Kind),
-			Max:             ft.Max,
-			MaxDelta:        ft.MaxDelta,
-			Require:         ft.Require,
-			RatchetFromZero: ft.RatchetFromZero,
+		prefix := fmt.Sprintf("thresholds[%d] %q", i, ft.Metric)
+		if ft.Disabled {
+			errs = append(errs, fmt.Errorf("%s: disabled applies only under languages.<language>.thresholds", prefix))
+			continue
 		}
-		switch {
-		case ft.WarnAt != nil:
-			t.WarnAt = *ft.WarnAt
-		case t.Kind == gate.Capacity:
-			t.WarnAt = defaultWarnAt
-		}
-		if ft.When != "" {
-			cond, err := gate.ParseCondition(ft.When)
-			if err != nil {
-				errs = append(errs, fmt.Errorf("thresholds[%d] %q: when: %w", i, ft.Metric, err))
-			} else {
-				t.When = &cond
-			}
+		t, err := ft.build(prefix)
+		if err != nil {
+			errs = append(errs, err)
+			continue
 		}
 		cfg.Thresholds = append(cfg.Thresholds, t)
+	}
+	if err := fc.buildLanguages(cfg); err != nil {
+		errs = append(errs, err)
 	}
 	if err := errors.Join(errs...); err != nil {
 		return nil, err
 	}
 	return cfg, nil
+}
+
+// rebuildField pairs a rebuild parameter's key under the rebuild section
+// with its value in the file, nil when absent, and its field in the params.
+type rebuildField struct {
+	name string
+	src  *float64
+	dst  *float64
+}
+
+// fields lists every rebuild parameter of r against its field in p, tiers
+// included; a missing tiers section lists its keys as absent.
+func (r *fileRebuild) fields(p *score.RebuildParams) []rebuildField {
+	tiers := r.Tiers
+	if tiers == nil {
+		tiers = &fileTiers{}
+	}
+	return []rebuildField{
+		{"context_budget", r.ContextBudget, &p.ContextBudget},
+		{"tokens_per_export", r.TokensPerExport, &p.TokensPerExport},
+		{"tokens_per_untested_export", r.TokensPerUntestedExport, &p.TokensPerUntestedExport},
+		{"tokens_per_hidden_state", r.TokensPerHiddenState, &p.TokensPerHiddenState},
+		{"superlinear_exponent", r.SuperlinearExponent, &p.SuperlinearExponent},
+		{"cocomo_a", r.CocomoA, &p.CocomoA},
+		{"cocomo_b", r.CocomoB, &p.CocomoB},
+		{"days_per_month", r.DaysPerMonth, &p.DaysPerMonth},
+		{"tiers.one_pass_max", tiers.OnePassMax, &p.Tiers.OnePassMax},
+		{"tiers.few_passes_max", tiers.FewPassesMax, &p.Tiers.FewPassesMax},
+	}
+}
+
+// build converts one decoded rule into a gate.Threshold, applying the
+// capacity warn_at default. A malformed when guard is an error prefixed
+// with prefix. Range checks are left to Validate.
+func (ft fileThreshold) build(prefix string) (gate.Threshold, error) {
+	t := gate.Threshold{
+		Metric:          ft.Metric,
+		Kind:            gate.Kind(ft.Kind),
+		Max:             ft.Max,
+		MaxDelta:        ft.MaxDelta,
+		Require:         ft.Require,
+		RatchetFromZero: ft.RatchetFromZero,
+	}
+	switch {
+	case ft.WarnAt != nil:
+		t.WarnAt = *ft.WarnAt
+	case t.Kind == gate.Capacity:
+		t.WarnAt = defaultWarnAt
+	}
+	if ft.When != "" {
+		cond, err := gate.ParseCondition(ft.When)
+		if err != nil {
+			return t, fmt.Errorf("%s: when: %w", prefix, err)
+		}
+		t.When = &cond
+	}
+	return t, nil
 }
 
 // legacyDupKey pairs a deprecated top-level key with its section key.

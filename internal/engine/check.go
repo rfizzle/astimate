@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	"github.com/rfizzle/astimate/internal/baseline"
+	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/gate"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/report"
@@ -120,7 +121,8 @@ func (c *BaselineCache) get(key string, load func() (baseline.Baseline, error)) 
 }
 
 // Check runs the gate on t's module against the baseline opts select and
-// the configured thresholds. The head tree is listed with one Packages call
+// the thresholds configured for t's language (config.Config.ForLanguage),
+// resolved once per call. The head tree is listed with one Packages call
 // and the baseline tree, when it comes from git, with one more inside
 // baseline.FromGit, so each tree is loaded once; opts.Packages skips the
 // listing and opts.Baselines may skip the baseline. It returns an error
@@ -197,9 +199,10 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 
 	c = &report.Check{Packages: make([]report.CheckedPackage, 0, len(selected)), Deleted: deleted}
 	noFunctions := false
-	pkgRules := gate.ForRow(t.Cfg.Thresholds, gate.PackageRow)
+	eff := t.langConfig()
+	pkgRules := gate.ForRow(eff.Thresholds, gate.PackageRow)
 	for _, pkg := range selected {
-		p, unrecorded, err := checkPackage(ctx, ht, base, pkg, pkgRules)
+		p, unrecorded, err := checkPackage(ctx, ht, base, pkg, eff, pkgRules)
 		if err != nil {
 			path := modulePathRel(t.Mod.ModulePath, pkg)
 			logger.Error("checking package failed", "path", path, "err", err)
@@ -214,7 +217,7 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 			"reason", "the baseline records no functions to diff; rewrite the baseline file with astimate baseline write")
 	}
 	if mm, ok := t.Ext.(metrics.ModuleMetrics); ok && len(opts.Packages) == 0 && len(selected) > 0 {
-		m, err := checkModule(ctx, ht, mm, base, gate.ForRow(t.Cfg.Thresholds, gate.ModuleRow))
+		m, err := checkModule(ctx, ht, mm, base, eff, gate.ForRow(eff.Thresholds, gate.ModuleRow))
 		if err != nil {
 			logger.Error("checking module row failed", "err", err)
 			failed = append(failed, &PackageError{Path: metrics.ModuleRowID, Err: err})
@@ -420,10 +423,11 @@ func selectPackages(ctx context.Context, t *Target, head []string, src baselineS
 // it against the baseline's row under metrics.ModuleRowID, if base has one,
 // and rules, the configured thresholds that apply to the module row, as
 // checkPackage does for a package, and builds its report under package
-// path metrics.ModuleRowID. The row's suggestions name no functions or
-// locations, and it carries no baseline agent passes, since its rebuild
-// estimate is of an empty package.
-func checkModule(ctx context.Context, t *Target, mm metrics.ModuleMetrics, base baseline.Baseline, rules []gate.Threshold) (report.CheckedPackage, error) {
+// path metrics.ModuleRowID with eff, the configuration of t's language.
+// The row's suggestions name no functions or locations, and it carries no
+// baseline agent passes, since its rebuild estimate is of an empty
+// package.
+func checkModule(ctx context.Context, t *Target, mm metrics.ModuleMetrics, base baseline.Baseline, eff config.Effective, rules []gate.Threshold) (report.CheckedPackage, error) {
 	m, err := mm.ModuleRow(ctx, t.Mod)
 	if err != nil {
 		return report.CheckedPackage{}, err
@@ -445,8 +449,8 @@ func checkModule(ctx context.Context, t *Target, mm metrics.ModuleMetrics, base 
 		PackagePath:     metrics.ModuleRowID,
 		ModulePath:      t.Mod.ModulePath,
 		Metrics:         m,
-		Params:          t.Cfg.Rebuild,
-		ConfigVersion:   t.Cfg.Version,
+		Params:          eff.Rebuild,
+		ConfigVersion:   eff.Version,
 		AstimateVersion: t.Version,
 	})
 	report.ApplyGate(&r, base.Ref(), bm, &res)
@@ -456,10 +460,10 @@ func checkModule(ctx context.Context, t *Target, mm metrics.ModuleMetrics, base 
 // checkPackage extracts pkg at head, fills changed_func_cognitive_max from
 // the function-level diff against base (changedFunctions), evaluates it
 // against its baseline metrics, if base has any, and rules, the configured
-// thresholds that apply to a package row, and builds its report. unrecorded
-// reports that the diff was skipped because base has pkg but no functions
-// for it.
-func checkPackage(ctx context.Context, t *Target, base baseline.Baseline, pkg string, rules []gate.Threshold) (p report.CheckedPackage, unrecorded bool, err error) {
+// thresholds that apply to a package row, and builds its report with eff,
+// the configuration of t's language. unrecorded reports that the diff was
+// skipped because base has pkg but no functions for it.
+func checkPackage(ctx context.Context, t *Target, base baseline.Baseline, pkg string, eff config.Effective, rules []gate.Threshold) (p report.CheckedPackage, unrecorded bool, err error) {
 	m, err := t.Ext.Extract(ctx, t.Mod, pkg)
 	if err != nil {
 		return report.CheckedPackage{}, false, err
@@ -496,14 +500,14 @@ func checkPackage(ctx context.Context, t *Target, base baseline.Baseline, pkg st
 		ModulePath:      t.Mod.ModulePath,
 		Metrics:         m,
 		Names:           names,
-		Params:          t.Cfg.Rebuild,
-		ConfigVersion:   t.Cfg.Version,
+		Params:          eff.Rebuild,
+		ConfigVersion:   eff.Version,
 		AstimateVersion: t.Version,
 	})
 	report.ApplyGate(&r, base.Ref(), bm, &res)
 	p = report.CheckedPackage{Report: r}
 	if bm != nil {
-		passes := score.Estimate(*bm, t.Cfg.Rebuild).AgentPassesRounded()
+		passes := score.Estimate(*bm, eff.Rebuild).AgentPassesRounded()
 		p.BaseAgentPasses = &passes
 	}
 	return p, unrecorded, nil

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/rfizzle/astimate/internal/baseline"
+	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/report"
 )
@@ -41,7 +42,14 @@ type RankOptions struct {
 	Top int
 }
 
-// Assess extracts the metrics of t's package and builds its report.
+// langConfig returns the configuration t's language is evaluated with. A
+// target has one extractor, so each operation resolves it once per run.
+func (t *Target) langConfig() config.Effective {
+	return t.Cfg.ForLanguage(t.Ext.Language())
+}
+
+// Assess extracts the metrics of t's package and builds its report with
+// the configuration of its language (config.Config.ForLanguage).
 func Assess(ctx context.Context, t *Target) (*report.Report, error) {
 	m, err := t.Ext.Extract(ctx, t.Mod, t.ImportPath)
 	if err != nil {
@@ -51,14 +59,15 @@ func Assess(ctx context.Context, t *Target) (*report.Report, error) {
 	if err != nil {
 		return nil, err
 	}
+	eff := t.langConfig()
 	r := report.Build(&report.Input{
 		Language:        t.Ext.Language(),
 		PackagePath:     t.Dir,
 		ModulePath:      t.Mod.ModulePath,
 		Metrics:         m,
 		Names:           names,
-		Params:          t.Cfg.Rebuild,
-		ConfigVersion:   t.Cfg.Version,
+		Params:          eff.Rebuild,
+		ConfigVersion:   eff.Version,
 		AstimateVersion: t.Version,
 	})
 	return &r, nil
@@ -75,6 +84,7 @@ func Rank(ctx context.Context, t *Target, opts RankOptions) (rows []report.Row, 
 		return nil, nil, err
 	}
 	logger := t.logger()
+	params := t.langConfig().Rebuild
 	rows = make([]report.Row, 0, len(pkgs))
 	for _, pkg := range pkgs {
 		path := modulePathRel(t.Mod.ModulePath, pkg)
@@ -84,7 +94,7 @@ func Rank(ctx context.Context, t *Target, opts RankOptions) (rows []report.Row, 
 			failed = append(failed, &PackageError{Path: path, Err: err})
 			continue
 		}
-		rows = append(rows, report.NewRow(path, &m, t.Cfg.Rebuild))
+		rows = append(rows, report.NewRow(path, &m, params))
 	}
 	if err := report.SortRows(rows, opts.Sort); err != nil {
 		return nil, failed, err

@@ -131,3 +131,22 @@ thresholds:
     kind: requirement
     require: true
     when: sloc > 100
+
+# Per-language overrides (optional), keyed by language id: go or typescript.
+# A language's rebuild section sets only the parameters it names; the rest
+# come from the top-level rebuild section. Its thresholds replace the
+# top-level rules on the same metric or add a rule, and a rule with
+# disabled: true drops the top-level rule on that metric for the language.
+# Every other setting is shared. Reports for a language with an override
+# show config_version suffixed with +<language>. For example:
+#
+# languages:
+#   typescript:
+#     rebuild:
+#       tokens_per_export: 30
+#     thresholds:
+#       - metric: largest_file_sloc
+#         kind: capacity
+#         max: 1000
+#       - metric: init_funcs
+#         disabled: true

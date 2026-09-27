@@ -46,7 +46,7 @@ make build      # ./astimate with version, commit and date injected
 
 ## Configuration
 
-One file, `astimate.yaml`, holds the rebuild-estimate parameters and the gate thresholds. `astimate config init` writes the defaults with a comment on every line. A user config must be complete; there is no merging onto the defaults. Resolution order is `--config`, then `./astimate.yaml`, then the embedded default.
+One file, `astimate.yaml`, holds the rebuild-estimate parameters and the gate thresholds. `astimate config init` writes the defaults with a comment on every line. A user config must be complete; there is no merging onto the defaults. Resolution order is `--config`, then `./astimate.yaml`, then the embedded default. An optional `languages:` section overrides rebuild parameters and thresholds for one language (`go` or `typescript`), and reports for that language show `config_version` suffixed with `+<language>`.
 
 The default thresholds are placeholders until they are calibrated against a corpus of well-regarded Go modules (`SPEC.md` section 11), and every report says so.
 
