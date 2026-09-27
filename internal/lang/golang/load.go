@@ -18,11 +18,17 @@ import (
 var ErrNoPackages = errors.New("no Go packages in module")
 
 // loadMode is the go/packages mode every module is loaded with: names, files,
-// syntax and full type information for the module packages and their
-// dependencies, plus module metadata.
+// syntax and full type information for the module packages, plus module
+// metadata. It leaves out NeedDeps, so only the packages matched by the load
+// pattern, the module's packages and their test variants, are parsed and
+// type-checked from source; a dependency outside the module gets its types
+// from compiler export data and keeps its name, path and module but no
+// syntax. The metrics need no more than that of a dependency: import paths
+// for fan-in, the Module for import classification, and types for the
+// interface checks of untested_exports.
 const loadMode = packages.NeedName | packages.NeedFiles | packages.NeedSyntax |
 	packages.NeedTypes | packages.NeedTypesInfo | packages.NeedImports |
-	packages.NeedDeps | packages.NeedModule
+	packages.NeedModule
 
 // loadFunc has the signature of packages.Load, injectable so tests can count
 // loads.
@@ -125,7 +131,7 @@ func index(modulePath string, roots []*packages.Package) (*loaded, error) {
 	slices.SortFunc(mod, func(a, b *packages.Package) int { return strings.Compare(a.ID, b.ID) })
 	for _, p := range mod {
 		if len(p.Errors) > 0 {
-			return nil, fmt.Errorf("loading %s: %w", p.PkgPath, p.Errors[0])
+			return nil, fmt.Errorf("loading %s: %w", p.PkgPath, firstError(p.Errors))
 		}
 	}
 
@@ -156,6 +162,20 @@ func index(modulePath string, roots []*packages.Package) (*loaded, error) {
 	}
 	slices.Sort(l.paths)
 	return l, nil
+}
+
+// firstError returns the first of errs, which must not be empty, that did
+// not come from go list, or errs[0] when all did. Loading without NeedDeps
+// makes go list compile the module for export data, so a package that fails
+// to type-check also carries the compiler's output as a list error ahead of
+// the type checker's own, more precise, error.
+func firstError(errs []packages.Error) packages.Error {
+	for _, e := range errs {
+		if e.Kind != packages.ListError {
+			return e
+		}
+	}
+	return errs[0]
 }
 
 // forTest returns the import path of the package p is a test variant of, and

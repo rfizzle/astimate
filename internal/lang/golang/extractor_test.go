@@ -318,6 +318,27 @@ func TestInModule(t *testing.T) {
 	}
 }
 
+func TestFirstError(t *testing.T) {
+	list := packages.Error{Msg: "# example.com/m\ncompiler output", Kind: packages.ListError}
+	typ := packages.Error{Msg: "m.go:1:1: type error", Kind: packages.TypeError}
+	parse := packages.Error{Msg: "m.go:1:1: parse error", Kind: packages.ParseError}
+	for _, tc := range []struct {
+		name string
+		errs []packages.Error
+		want packages.Error
+	}{
+		{"list error before type error", []packages.Error{list, typ}, typ},
+		{"parse error first", []packages.Error{parse, list, typ}, parse},
+		{"only list errors", []packages.Error{list}, list},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := firstError(tc.errs); got != tc.want {
+				t.Errorf("firstError = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
 func benchmarkLoad(b *testing.B, root string) {
 	b.Helper()
 	for b.Loop() {
