@@ -333,7 +333,7 @@ Two sources, chosen by flag:
 
 ### 8.4 Changed-package detection
 
-`git diff --name-only <merge-base>` (the working tree against the merge-base, so committed, staged and unstaged changes all count) plus untracked non-ignored files, mapped to packages by directory. Rename detection is disabled so a moved file shows both its old and new directories. Paths under `testdata` or inside a nested module are ignored, and the set is intersected with the packages the Go tool reports, which drops `_`-prefixed, `.`-prefixed and `vendor` directories. A directory left with no Go files is reported as deleted in a summary line, never as a violation. A change to a package's test files alone still selects it. `--all` overrides. With `--baseline <file>`, the merge-base is taken against the ref the file records; if it records none or the ref does not resolve, every package is checked and a warning says so.
+`git diff --name-only <merge-base>` (the working tree against the merge-base, so committed, staged and unstaged changes all count) plus untracked non-ignored files, mapped to packages by directory. Rename detection is disabled so a moved file shows both its old and new directories. Files map to packages by the extractor's file rules (`metrics.SourceClassifier`): for Go, a `.go` file selects its directory and paths under `testdata` are ignored; for TypeScript, a source, test or declaration file selects the package that 13.1 assigns it to, the root `package.json` or any `tsconfig*.json` selects every package, and `node_modules`, `dist`, `build` and dot directories are ignored. Paths inside a nested module (a directory below the root holding the extractor's module marker, `go.mod` or `package.json`) are ignored, and the set is intersected with the packages the extractor lists, which for Go drops `_`-prefixed, `.`-prefixed and `vendor` directories. A directory left with no file that makes it a package is reported as deleted in a summary line, never as a violation. An extractor without file rules gets every package checked, with a warning. A change to a package's test files alone still selects it. `--all` overrides. With `--baseline <file>`, the merge-base is taken against the ref the file records; if it records none or the ref does not resolve, every package is checked and a warning says so.
 
 ### 8.5 Output formats
 
@@ -460,7 +460,7 @@ Counting rules, the TypeScript counterpart of 6.5 (`testdata/ts/fixture/golden/C
 - **Duplication:** tokens are tree-sitter leaves with comments and zero-width tokens (automatic semicolons) dropped. Identifiers and `undefined` become ID; strings, templates, regexes, numbers, `true`, `false`, `null` and JSX text become one LIT each; a unary sign on a number is marked as a sign for the fold rule; type keywords such as `number` stay keywords. The literal-only, fold-sign and coverage rules are the Go ones (6.3).
 - **v1 fields:** `instability`, `abstractness` (exported interfaces over exported classes, interfaces, type aliases and enums) and `main_sequence_distance` are computed; the other v1 fields are null and the module row (8.1) is not produced. `--tokenizer o200k` is supported.
 
-Changed-package detection (8.4) is currently Go-only, so plain `check` selects no TypeScript packages; `check --all` is the working form until that is fixed.
+Changed-package detection follows 8.4 with the TypeScript file rules stated there.
 
 ## 14. Milestones
 
