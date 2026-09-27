@@ -16,17 +16,21 @@ import (
 // line.
 const metricColumns = 2
 
-// WriteTable writes r for a human reader: the package, the estimate line
-// labelled as an estimate, the tier, drivers, suggestions, then the metrics
-// in two columns in metrics.MetricNames order, skipping v1 fields that were
-// not computed.
+// WriteTable writes r for a human reader: the package, with its module path
+// in parentheses when there is one, the estimate line labelled as an
+// estimate, the tier, drivers, suggestions, then the metrics in two columns
+// in metrics.MetricNames order, skipping v1 fields that were not computed.
 func WriteTable(w io.Writer, r *Report) error {
 	bw := bufio.NewWriter(w)
 	label := "uncalibrated"
 	if r.Rebuild.Calibrated {
 		label = "calibrated"
 	}
-	_, _ = fmt.Fprintf(bw, "package: %s (%s)\n", r.PackagePath, r.ModulePath)
+	if r.ModulePath == "" {
+		_, _ = fmt.Fprintf(bw, "package: %s\n", r.PackagePath)
+	} else {
+		_, _ = fmt.Fprintf(bw, "package: %s (%s)\n", r.PackagePath, r.ModulePath)
+	}
 	_, _ = fmt.Fprintf(bw, "rebuild: %s agent passes, %s human days (estimate, %s)\n",
 		strconv.FormatFloat(r.Rebuild.AgentPasses, 'f', 1, 64),
 		strconv.FormatFloat(r.Rebuild.HumanDays, 'f', 1, 64), label)

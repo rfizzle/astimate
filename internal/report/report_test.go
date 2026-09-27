@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rfizzle/astimate/internal/gate"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/score"
 )
@@ -135,6 +136,50 @@ func TestWriteTableCalibratedLabel(t *testing.T) {
 			}
 			if strings.Contains(buf.String(), "coverage_pct") {
 				t.Errorf("table shows uncomputed v1 field coverage_pct:\n%s", buf.String())
+			}
+		})
+	}
+}
+
+// TestTextEmptyModulePath checks that no text renderer prints an empty
+// parenthetical for a module without an import path, as for TypeScript, and
+// that the table header keeps the module path when there is one.
+func TestTextEmptyModulePath(t *testing.T) {
+	t.Parallel()
+
+	table := func(b *bytes.Buffer, r Report) error { return WriteTable(b, &r) }
+	tests := []struct {
+		name       string
+		modulePath string
+		write      func(*bytes.Buffer, Report) error
+		want       string
+	}{
+		{name: "table empty", write: table, want: "package: hub\n"},
+		{name: "table set", modulePath: "example.com/app", write: table, want: "package: hub (example.com/app)\n"},
+		{name: "check text empty", write: func(b *bytes.Buffer, r Report) error {
+			ApplyGate(&r, "a1b2c3d", nil, &gate.Result{Passed: true})
+			return WriteCheckText(b, &Check{Packages: []CheckedPackage{{Report: r}}})
+		}},
+		{name: "rows table empty", write: func(b *bytes.Buffer, r Report) error {
+			m := workedExample()
+			return WriteRowsTable(b, []Row{NewRow(r.PackagePath, &m, params())})
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			r := Build(&Input{Language: "typescript", PackagePath: "hub", ModulePath: tt.modulePath,
+				Metrics: workedExample(), Params: params()})
+			var buf bytes.Buffer
+			if err := tt.write(&buf, r); err != nil {
+				t.Fatalf("write: %v", err)
+			}
+			if strings.Contains(buf.String(), "()") {
+				t.Errorf("output has empty parentheses:\n%s", buf.String())
+			}
+			if !strings.HasPrefix(buf.String(), tt.want) {
+				t.Errorf("output does not start with %q:\n%s", tt.want, buf.String())
 			}
 		})
 	}
