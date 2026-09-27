@@ -404,7 +404,7 @@ Two calibrations, in priority order.
 ### 11.1 Thresholds from a reference corpus (primary)
 
 1. Assemble a corpus of 20 or more well-regarded Go modules: the standard library plus widely used, actively maintained open-source modules with permissive licenses.
-2. Run `astimate rank --json` over each and pool all packages.
+2. Run the collector under `calibration/collect` over each (it calls the engine directly and writes every package's raw metrics, which `rank --json` does not carry) and pool all packages.
 3. Set each metric's default `max` at the pooled 90th percentile, rounded to a human-readable value, and `max_delta` at a fraction of the interquartile range. Record the corpus, commit hashes and the resulting distribution.
 4. Ship as `config_version: thresholds-<date>`. Good code passes by construction; the gate flags what falls outside what good projects do.
 5. Re-run yearly or when the metric set changes.
