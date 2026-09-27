@@ -1,0 +1,28 @@
+# Dependabot moves the SHA-pinned actions and the Go module requirements by
+# pull request. Minor and patch updates are grouped per ecosystem so a week's
+# bumps arrive as one pull request; major updates stay separate for review.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
+    groups:
+      actions-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: build
+    groups:
+      gomod-minor-patch:
+        update-types:
+          - minor
+          - patch
