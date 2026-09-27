@@ -10,6 +10,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -40,6 +41,12 @@ type checkOptions struct {
 	baselineFile string
 	// all checks every package instead of the changed ones.
 	all bool
+	// staged checks the tree the git index holds instead of the working
+	// tree.
+	staged bool
+	// indexFile is the index a staged check reads (hookIndexFile); empty
+	// means the repository's own index.
+	indexFile string
 	// format is the --format value, one of checkFormats.
 	format string
 	// hookStdin returns the Claude Code hook input read in the hook format,
@@ -83,7 +90,7 @@ func stopHookActive(r io.Reader) bool {
 
 // runCheck gates the packages of a module against a baseline and the
 // configured thresholds: `check [<module-root>] [--base ref | --baseline
-// file] [--all] [--config|--thresholds file] [--format
+// file] [--all] [--staged] [--config|--thresholds file] [--format
 // text|json|hook|github] [--tokenizer est|o200k]`. It exits 3 when any
 // package has a violation (0 with --format hook, whose JSON carries the
 // decision), 2 when analysis failed, and 0 otherwise; warnings never change
@@ -106,12 +113,14 @@ func runCheckInput(args []string, hookStdin func() io.Reader, stdout, stderr io.
 		"(default origin/master, then master, origin/main, main)")
 	fs.StringVar(&opts.baselineFile, "baseline", "", "compare against this baseline file instead of a git ref")
 	fs.BoolVar(&opts.all, "all", false, "check every package, not only the changed ones")
+	fs.BoolVar(&opts.staged, "staged", false, "check the tree the git index holds, as a commit would record it, "+
+		"instead of the working tree")
 	fs.StringVar(&configPath, "config", "", "configuration file (default ./astimate.yaml, then the embedded default)")
 	fs.StringVar(&configPath, "thresholds", "", "alias of --config")
 	fs.StringVar(&opts.format, "format", formatText, "output format: "+strings.Join(checkFormats(), ", "))
 	tokenizer := fs.String("tokenizer", tokenizerEst, "token counting method: est or o200k")
 	fs.Usage = func() {
-		_, _ = fmt.Fprintln(stderr, "usage: astimate check [<module-root>] [--base ref | --baseline file] [--all] "+
+		_, _ = fmt.Fprintln(stderr, "usage: astimate check [<module-root>] [--base ref | --baseline file] [--all] [--staged] "+
 			"[--config|--thresholds file] [--format text|json|hook|github] [--tokenizer est|o200k]")
 		fs.PrintDefaults()
 	}
@@ -152,6 +161,12 @@ func runCheckInput(args []string, hookStdin func() io.Reader, stdout, stderr io.
 		}
 		return exitOK
 	}
+	if opts.staged {
+		if opts.indexFile, err = hookIndexFile(); err != nil {
+			logger.Error("check failed", "dir", dir, "err", err)
+			return exitAnalysis
+		}
+	}
 	t, err := loadTarget(dir, configPath, *tokenizer, logger)
 	if err != nil {
 		logger.Error("check failed", "dir", dir, "err", err)
@@ -170,6 +185,8 @@ func checkTarget(ctx context.Context, t *engine.Target, opts checkOptions, stdou
 		Base:         opts.base,
 		BaselineFile: opts.baselineFile,
 		All:          opts.all,
+		Staged:       opts.staged,
+		IndexFile:    opts.indexFile,
 	})
 	if errors.Is(err, engine.ErrNoBaseline) {
 		err = fmt.Errorf("%w; pass --base <ref> or --baseline <file>", err)
@@ -187,6 +204,23 @@ func checkTarget(ctx context.Context, t *engine.Target, opts checkOptions, stdou
 		logger.Error("check incomplete", "failed_packages", len(failed))
 	}
 	return checkExitCode(opts.format, c.Failed(), len(failed))
+}
+
+// hookIndexFile returns the index a --staged check reads: the absolute form
+// of GIT_INDEX_FILE, which git sets for its hooks, relative to the working
+// directory it runs them in, and which names a temporary index under `git
+// commit -a` and `git commit <paths>`; empty, meaning the repository's own
+// index, when it is unset.
+func hookIndexFile() (string, error) {
+	idx := os.Getenv("GIT_INDEX_FILE")
+	if idx == "" {
+		return "", nil
+	}
+	abs, err := filepath.Abs(idx)
+	if err != nil {
+		return "", fmt.Errorf("resolving GIT_INDEX_FILE %s: %w", idx, err)
+	}
+	return abs, nil
 }
 
 // checkExitCode maps a check outcome in format to the process exit code

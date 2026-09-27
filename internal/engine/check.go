@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strconv"
 	"sync"
+	"syscall"
 
 	"github.com/rfizzle/astimate/internal/baseline"
 	"github.com/rfizzle/astimate/internal/gate"
@@ -57,6 +59,16 @@ type CheckOptions struct {
 	// Baselines memoizes baselines across Check calls on one module; nil
 	// resolves the baseline afresh on every call.
 	Baselines *BaselineCache
+	// Staged checks the tree the git index holds instead of the working
+	// tree, so a partial commit is judged on what it commits: head is
+	// extracted from a temporary copy of the index (baseline.StagedTree)
+	// and only staged changes select packages. The baseline is unchanged.
+	// It needs a git repository.
+	Staged bool
+	// IndexFile is the index Staged reads, as GIT_INDEX_FILE names it
+	// inside a git hook; empty means the repository's own index. Ignored
+	// unless Staged.
+	IndexFile string
 }
 
 // BaselineCache holds baselines already read or extracted, so repeated
@@ -132,13 +144,29 @@ func (c *BaselineCache) get(key string, load func() (baseline.Baseline, error)) 
 // and in the baseline (changedFunctions); otherwise, and for a baseline
 // file that records no functions, it stays null and its rule is skipped,
 // the latter with one info log.
+//
+// With opts.Staged the head packages are listed and extracted from a
+// temporary copy of the index (stagedTarget), removed before Check
+// returns, also on SIGINT or SIGTERM; git commands and the baseline still
+// use t's module root, and report paths are module-relative as always.
 func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, failed []error, err error) {
 	if opts.Base != "" && opts.BaselineFile != "" {
 		return nil, nil, ErrBaseAndBaselineFile
 	}
+	ht := t
+	if opts.Staged {
+		var stop, cleanup func()
+		ctx, stop = signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+		defer stop()
+		ht, cleanup, err = stagedTarget(ctx, t, opts.IndexFile)
+		if err != nil {
+			return nil, nil, err
+		}
+		defer cleanup()
+	}
 	var head []string
 	if len(opts.Packages) == 0 {
-		head, err = t.Ext.Packages(t.Mod.Root)
+		head, err = ht.Ext.Packages(ht.Mod.Root)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -153,7 +181,7 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 	}
 	selected, deleted := opts.Packages, []string(nil)
 	if len(selected) == 0 {
-		selected, deleted, err = selectPackages(ctx, t, head, src, opts.All)
+		selected, deleted, err = selectPackages(ctx, t, head, src, opts.All, headOf(ht, opts))
 		if err != nil {
 			return nil, nil, err
 		}
@@ -171,7 +199,7 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 	noFunctions := false
 	pkgRules := gate.ForRow(t.Cfg.Thresholds, gate.PackageRow)
 	for _, pkg := range selected {
-		p, unrecorded, err := checkPackage(ctx, t, base, pkg, pkgRules)
+		p, unrecorded, err := checkPackage(ctx, ht, base, pkg, pkgRules)
 		if err != nil {
 			path := modulePathRel(t.Mod.ModulePath, pkg)
 			logger.Error("checking package failed", "path", path, "err", err)
@@ -186,7 +214,7 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 			"reason", "the baseline records no functions to diff; rewrite the baseline file with astimate baseline write")
 	}
 	if mm, ok := t.Ext.(metrics.ModuleMetrics); ok && len(opts.Packages) == 0 && len(selected) > 0 {
-		m, err := checkModule(ctx, t, mm, base, gate.ForRow(t.Cfg.Thresholds, gate.ModuleRow))
+		m, err := checkModule(ctx, ht, mm, base, gate.ForRow(t.Cfg.Thresholds, gate.ModuleRow))
 		if err != nil {
 			logger.Error("checking module row failed", "err", err)
 			failed = append(failed, &PackageError{Path: metrics.ModuleRowID, Err: err})
@@ -195,6 +223,37 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 		}
 	}
 	return c, failed, nil
+}
+
+// stagedTarget copies the git index of the repository holding t's module
+// into a temporary directory (baseline.StagedTree) and returns a copy of t
+// whose module root is the module's counterpart there, with a cleanup that
+// makes t's extractor forget that root, when it caches loads, and removes
+// the directory. indexFile is passed to baseline.StagedTree.
+func stagedTarget(ctx context.Context, t *Target, indexFile string) (*Target, func(), error) {
+	root, remove, err := baseline.StagedTree(ctx, t.Mod.Root, indexFile)
+	if err != nil {
+		return nil, nil, fmt.Errorf("checking the staged tree: %w", err)
+	}
+	ht := *t
+	ht.Mod = &metrics.ModuleContext{Root: root, ModulePath: t.Mod.ModulePath}
+	cleanup := func() {
+		if f, ok := t.Ext.(metrics.Forgetter); ok {
+			f.Forget(root)
+		}
+		remove()
+	}
+	return &ht, cleanup, nil
+}
+
+// headOf returns the head side of the changed-package diff for a check of
+// ht with opts: the index and its copy at ht's module root when
+// opts.Staged, the working tree otherwise.
+func headOf(ht *Target, opts CheckOptions) baseline.Head {
+	if !opts.Staged {
+		return baseline.Head{}
+	}
+	return baseline.Head{Staged: true, IndexFile: opts.IndexFile, Tree: ht.Mod.Root}
 }
 
 // tokenizer returns t.Tokenizer, or TokenizerEst when it is empty.
@@ -306,9 +365,10 @@ func gitBaseline(ctx context.Context, t *Target, ref string, cache *BaselineCach
 // for example outside a repository, and an extractor that does not
 // implement metrics.SourceClassifier select every package and say so. A
 // changed file that can move every package, such as a TypeScript
-// tsconfig.json, selects every package too.
+// tsconfig.json, selects every package too. tree says whether the changes
+// are those of the working tree or of the index.
 func selectPackages(ctx context.Context, t *Target, head []string, src baselineSource,
-	all bool,
+	all bool, tree baseline.Head,
 ) (selected, deleted []string, err error) {
 	if all {
 		return head, nil, nil
@@ -336,7 +396,7 @@ func selectPackages(ctx context.Context, t *Target, head []string, src baselineS
 		logger.Warn("cannot resolve the baseline file's ref; checking every package", "ref", ref, "err", err)
 		return head, nil, nil
 	}
-	change, err := baseline.ChangedPackages(ctx, t.Mod.Root, mergeBase, sc)
+	change, err := baseline.ChangedPackages(ctx, t.Mod.Root, mergeBase, sc, tree)
 	if err != nil {
 		return nil, nil, err
 	}

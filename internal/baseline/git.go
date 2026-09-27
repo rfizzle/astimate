@@ -218,9 +218,16 @@ func gitEnvOverrides() []string {
 // dir and returns its trimmed standard output. The error includes git's
 // standard error and wraps the *exec.ExitError.
 func git(ctx context.Context, dir string, args ...string) (string, error) {
+	return gitEnv(ctx, dir, nil, args...)
+}
+
+// gitEnv is git with the entries of env added to the environment after the
+// variables gitEnvOverrides names are dropped, such as a GIT_INDEX_FILE
+// that selects the index to read.
+func gitEnv(ctx context.Context, dir string, env []string, args ...string) (string, error) {
 	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Dir = dir
-	cmd.Env = withoutGitOverrides(os.Environ())
+	cmd.Env = append(withoutGitOverrides(os.Environ()), env...)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()

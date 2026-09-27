@@ -148,7 +148,7 @@ func TestChangedPackages(t *testing.T) {
 			t.Parallel()
 			r, base := newChangeRepo(t)
 			tt.change(r)
-			got, err := ChangedPackages(context.Background(), r.dir, base, golang.New())
+			got, err := ChangedPackages(context.Background(), r.dir, base, golang.New(), Head{})
 			if err != nil {
 				t.Fatalf("ChangedPackages: %v", err)
 			}
@@ -174,7 +174,7 @@ func TestChangedPackagesModuleBelowRepositoryRoot(t *testing.T) {
 	r.write("sub/a/new.go", "package a\n")
 	r.write("other/o.go", "package other\n\n// edited\n")
 
-	got, err := ChangedPackages(context.Background(), filepath.Join(r.dir, "sub"), base, golang.New())
+	got, err := ChangedPackages(context.Background(), filepath.Join(r.dir, "sub"), base, golang.New(), Head{})
 	if err != nil {
 		t.Fatalf("ChangedPackages: %v", err)
 	}
@@ -190,14 +190,14 @@ func TestChangedPackagesErrors(t *testing.T) {
 	t.Parallel()
 	r, _ := newChangeRepo(t)
 	for _, base := range []string{"", "--output=x", "0000000000000000000000000000000000000000"} {
-		if _, err := ChangedPackages(context.Background(), r.dir, base, golang.New()); err == nil {
+		if _, err := ChangedPackages(context.Background(), r.dir, base, golang.New(), Head{}); err == nil {
 			t.Errorf("ChangedPackages(%q): want error", base)
 		}
 	}
 	if _, err := os.Stat(filepath.Join(r.dir, "x")); err == nil {
 		t.Error("an option-like merge-base reached git")
 	}
-	if _, err := ChangedPackages(context.Background(), t.TempDir(), "HEAD", golang.New()); err == nil {
+	if _, err := ChangedPackages(context.Background(), t.TempDir(), "HEAD", golang.New(), Head{}); err == nil {
 		t.Error("ChangedPackages outside a repository: want error")
 	}
 }
@@ -216,7 +216,7 @@ func TestChangedPackagesTypeScriptBelowRepositoryRoot(t *testing.T) {
 	r.write("tsconfig.json", "{\"compilerOptions\": {}}\n")
 	r.write("other/o.ts", "export const o = 2;\n")
 
-	got, err := ChangedPackages(context.Background(), filepath.Join(r.dir, "web"), base, typescript.New())
+	got, err := ChangedPackages(context.Background(), filepath.Join(r.dir, "web"), base, typescript.New(), Head{})
 	if err != nil {
 		t.Fatalf("ChangedPackages: %v", err)
 	}
@@ -225,7 +225,7 @@ func TestChangedPackagesTypeScriptBelowRepositoryRoot(t *testing.T) {
 	}
 
 	r.write("web/tsconfig.json", "{\"compilerOptions\": {}}\n")
-	got, err = ChangedPackages(context.Background(), filepath.Join(r.dir, "web"), base, typescript.New())
+	got, err = ChangedPackages(context.Background(), filepath.Join(r.dir, "web"), base, typescript.New(), Head{})
 	if err != nil {
 		t.Fatalf("ChangedPackages: %v", err)
 	}
@@ -347,7 +347,7 @@ func TestChangedPackagesTypeScript(t *testing.T) {
 			t.Parallel()
 			r, base := newTSChangeRepo(t)
 			tt.change(r)
-			got, err := ChangedPackages(context.Background(), r.dir, base, typescript.New())
+			got, err := ChangedPackages(context.Background(), r.dir, base, typescript.New(), Head{})
 			if err != nil {
 				t.Fatalf("ChangedPackages: %v", err)
 			}

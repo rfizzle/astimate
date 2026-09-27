@@ -21,11 +21,11 @@ type Change struct {
 	// Packages are the module-relative, slash-separated package directories
 	// ("." for the module root, matching assess's package_path) that a
 	// changed source file belongs to, test files included, and that still
-	// hold a file making them a package in the working tree. Sorted.
+	// hold a file making them a package in the head tree. Sorted.
 	Packages []string
 	// Deleted are the module-relative directories that a changed file
 	// making them a package belongs to but that hold no such file in the
-	// working tree: packages removed or renamed away since the merge-base.
+	// head tree: packages removed or renamed away since the merge-base.
 	// Callers report them in a summary line, never as violations. Sorted.
 	Deleted []string
 	// All reports that a changed file can move every package's metrics,
@@ -34,18 +34,35 @@ type Change struct {
 	All bool
 }
 
+// Head is the head side ChangedPackages compares with a merge-base: the
+// working tree when zero, or the index.
+type Head struct {
+	// Staged compares the index (git diff --cached) instead of the working
+	// tree: unstaged changes and untracked files do not count.
+	Staged bool
+	// IndexFile is the index Staged reads, as StagedTree takes it; empty
+	// means the repository's own index. Ignored unless Staged.
+	IndexFile string
+	// Tree is root's counterpart in a copy of the head tree, such as
+	// StagedTree returns, whose files decide which changed directories
+	// still hold a package and which lie in a nested module; empty means
+	// root itself.
+	Tree string
+}
+
 // ChangedPackages returns the packages of the module at root whose source
-// files differ between the commit mergeBase and the working tree, with sc
-// saying which files are source and which package each belongs to.
-// Committed, staged, unstaged and untracked (but not ignored) files all
-// count. Files sc classifies as metrics.NotSource, files outside root and
-// files in a module nested below root are ignored; a directory is in a
-// nested module when it or an ancestor below root holds a file sc reports
-// as a module marker.
+// files differ between the commit mergeBase and head, with sc saying which
+// files are source and which package each belongs to. Against the working
+// tree, committed, staged, unstaged and untracked (but not ignored) files
+// all count; against the index, committed and staged files do. Files sc
+// classifies as metrics.NotSource, files outside root and files in a
+// module nested below root are ignored; a directory is in a nested module
+// when it or an ancestor below root holds a file sc reports as a module
+// marker in head's tree.
 //
 // Selecting every package (--all) is the caller's concern: it checks every
 // package the extractor lists and does not call ChangedPackages.
-func ChangedPackages(ctx context.Context, root, mergeBase string, sc metrics.SourceClassifier) (Change, error) {
+func ChangedPackages(ctx context.Context, root, mergeBase string, sc metrics.SourceClassifier, head Head) (Change, error) {
 	if mergeBase == "" || strings.HasPrefix(mergeBase, "-") {
 		return Change{}, fmt.Errorf("listing changes since %q: not a valid commit", mergeBase)
 	}
@@ -53,18 +70,13 @@ func ChangedPackages(ctx context.Context, root, mergeBase string, sc metrics.Sou
 	if err != nil {
 		return Change{}, err
 	}
-	// --no-renames lists a rename as its deleted and its added path, so the
-	// directories on both sides are considered. --no-relative keeps paths
-	// relative to the repository top level whatever diff.relative says.
-	diff, err := git(ctx, root, "diff", "--name-only", "-z", "--no-renames", "--no-relative", mergeBase, "--")
+	paths, err := changedPaths(ctx, root, mergeBase, head)
 	if err != nil {
-		return Change{}, fmt.Errorf("listing files changed since %s: %w", mergeBase, err)
+		return Change{}, err
 	}
-	untracked, err := git(ctx, root, "ls-files", "-z", "--others", "--exclude-standard", "--full-name")
-	if err != nil {
-		return Change{}, fmt.Errorf("listing untracked files: %w", err)
+	if head.Tree != "" {
+		root = head.Tree
 	}
-	paths := append(splitNUL(diff), splitNUL(untracked)...)
 
 	var c Change
 	nested := make(map[string]bool)
@@ -98,6 +110,41 @@ func ChangedPackages(ctx context.Context, root, mergeBase string, sc metrics.Sou
 	c.Packages = slices.Compact(c.Packages)
 	c.Deleted = slices.Compact(c.Deleted)
 	return c, nil
+}
+
+// changedPaths returns the paths, relative to the top level of the
+// repository containing root, that differ between mergeBase and head:
+// against the working tree the diff plus the untracked, non-ignored files;
+// against the index the cached diff alone.
+func changedPaths(ctx context.Context, root, mergeBase string, head Head) ([]string, error) {
+	// --no-renames lists a rename as its deleted and its added path, so the
+	// directories on both sides are considered. --no-relative keeps paths
+	// relative to the repository top level whatever diff.relative says.
+	args := []string{"diff", "--name-only", "-z", "--no-renames", "--no-relative", mergeBase, "--"}
+	var env []string
+	if head.Staged {
+		top, err := git(ctx, root, "rev-parse", "--show-toplevel")
+		if err != nil {
+			return nil, fmt.Errorf("finding repository root of %s: %w", root, err)
+		}
+		if env, err = indexEnv(top, head.IndexFile); err != nil {
+			return nil, err
+		}
+		args = slices.Insert(args, 1, "--cached")
+	}
+	diff, err := gitEnv(ctx, root, env, args...)
+	if err != nil {
+		return nil, fmt.Errorf("listing files changed since %s: %w", mergeBase, err)
+	}
+	paths := splitNUL(diff)
+	if head.Staged {
+		return paths, nil
+	}
+	untracked, err := git(ctx, root, "ls-files", "-z", "--others", "--exclude-standard", "--full-name")
+	if err != nil {
+		return nil, fmt.Errorf("listing untracked files: %w", err)
+	}
+	return append(paths, splitNUL(untracked)...), nil
 }
 
 // splitNUL splits NUL-separated git output into its non-empty entries.

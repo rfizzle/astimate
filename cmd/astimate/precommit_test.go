@@ -86,9 +86,11 @@ func degradeFixture(t *testing.T, repo string) {
 }
 
 // TestPreCommitSnippet installs the git hook script of docs/pre-commit.md in
-// a temporary repository and checks that it skips the first commit, refuses
-// a degrading commit with the gate's exit code and violations on stderr, and
-// allows the commit once the degradation is reverted.
+// a temporary repository and checks that it skips the first commit, allows
+// a commit that stages a harmless change beside an unstaged degradation,
+// refuses the degradation once staged with the gate's exit code and
+// violations on stderr, and allows a git commit -a that reverts it, which
+// only the temporary index git hands the hook reflects.
 func TestPreCommitSnippet(t *testing.T) {
 	if testing.Short() {
 		t.Skip("integration test: builds the binary and runs git")
@@ -119,7 +121,30 @@ func TestPreCommitSnippet(t *testing.T) {
 		t.Errorf("first commit stderr = %q, want the skip notice", stderr)
 	}
 
+	// A harmless change to package tested, so each passing commit is gated
+	// rather than empty.
+	tested := filepath.Join(repo, "fixture", "tested", "tested.go")
+	comment := func(t *testing.T) {
+		t.Helper()
+		src, err := os.ReadFile(tested)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(tested, append(src, "\n// A comment changes no metric.\n"...), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// A partial stage: the harmless change is staged and the degradation
+	// sits unstaged beside it in the same package. The hook judges only
+	// what the commit records.
 	degradeFixture(t, repo)
+	comment(t)
+	gitCmd(t, repo, env, "add", "fixture/tested/tested.go")
+	if _, stderr, err := gitRun(t, repo, env, "commit", "-q", "-m", "comment tested"); err != nil {
+		t.Fatalf("commit of the staged harmless change refused over an unstaged degradation: %v\n%s", err, stderr)
+	}
+
 	stderr, err = commit(t, "degrade tested")
 	if err == nil {
 		t.Fatalf("degrading commit succeeded, want it refused; stderr:\n%s", stderr)
@@ -132,26 +157,23 @@ func TestPreCommitSnippet(t *testing.T) {
 			t.Errorf("stderr does not list the %s violation:\n%s", m, stderr)
 		}
 	}
+	if strings.Contains(stderr, "astimate-staged-") {
+		t.Errorf("stderr names the temporary staged tree, want module-relative paths:\n%s", stderr)
+	}
 
+	// Revert with git commit -a: the degradation is still in .git/index,
+	// and only the temporary index git hands the hook in GIT_INDEX_FILE
+	// has it removed.
 	for _, name := range degradedFiles() {
 		if err := os.Remove(filepath.Join(repo, "fixture", "tested", name)); err != nil {
 			t.Fatal(err)
 		}
 	}
-	// A harmless change to the same package, so the passing commit is
-	// gated rather than empty.
-	tested := filepath.Join(repo, "fixture", "tested", "tested.go")
-	src, err := os.ReadFile(tested)
-	if err != nil {
-		t.Fatal(err)
+	comment(t)
+	if _, stderr, err := gitRun(t, repo, env, "commit", "-q", "-a", "-m", "revert and comment tested"); err != nil {
+		t.Fatalf("commit -a after revert refused: %v\n%s", err, stderr)
 	}
-	if err := os.WriteFile(tested, append(src, "\n// A comment changes no metric.\n"...), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if stderr, err := commit(t, "comment tested"); err != nil {
-		t.Fatalf("commit after revert refused: %v\n%s", err, stderr)
-	}
-	if out, _, err := gitRun(t, repo, env, "rev-list", "--count", "HEAD"); err != nil || strings.TrimSpace(out) != "2" {
-		t.Errorf("rev-list --count HEAD = %q (%v), want 2 commits", out, err)
+	if out, _, err := gitRun(t, repo, env, "rev-list", "--count", "HEAD"); err != nil || strings.TrimSpace(out) != "3" {
+		t.Errorf("rev-list --count HEAD = %q (%v), want 3 commits", out, err)
 	}
 }

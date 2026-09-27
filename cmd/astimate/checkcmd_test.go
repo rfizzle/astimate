@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"io/fs"
 	"log/slog"
@@ -486,6 +487,107 @@ func TestCheckGitRef(t *testing.T) {
 			t.Errorf("Extract ran on %s, a root never listed", root)
 		}
 	}
+}
+
+// TestCheckStaged checks that --staged extracts head from a temporary copy
+// of the index, removed afterwards, so an unstaged degradation is ignored
+// until it is staged, that --all --staged checks every package of the
+// index, and that --staged outside git is an analysis failure saying why.
+func TestCheckStaged(t *testing.T) {
+	if testing.Short() {
+		t.Skip("integration test: loads Go packages and runs git")
+	}
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+	t.Parallel()
+
+	repo := t.TempDir()
+	copyTree(t, fixtureDir, filepath.Join(repo, "fixture"))
+	copyTree(t, extmodDir, filepath.Join(repo, "extmod"))
+	gitIn(t, repo, "init", "-q", "-b", "master")
+	gitIn(t, repo, "add", "-A")
+	gitIn(t, repo, "commit", "-q", "--no-verify", "-m", "pristine fixture")
+	copyTree(t, filepath.Join(degradedDir, "tested"), filepath.Join(repo, "fixture", "tested"))
+
+	// check runs the staged check of the fixture and returns its exit code,
+	// reports and stderr, and the roots head was listed at.
+	check := func(t *testing.T, all bool) (int, []report.Report, string, map[string]int) {
+		t.Helper()
+		tg, err := engine.LoadTarget(filepath.Join(repo, "fixture"), engine.TargetOptions{Tokenizer: tokenizerEst})
+		if err != nil {
+			t.Fatal(err)
+		}
+		ext := newRootCountingExtractor(tg.Ext.(*golang.Extractor))
+		tg.Ext = ext
+		var stdout, stderr bytes.Buffer
+		logger := slog.New(slog.NewTextHandler(&stderr, nil))
+		tg.Logger = logger
+		opts := checkOptions{base: "master", all: all, staged: true, format: formatJSON}
+		code := checkTarget(context.Background(), tg, opts, &stdout, &stderr, logger)
+		if strings.Contains(stdout.String(), "astimate-staged-") {
+			t.Errorf("output names the temporary staged tree:\n%s", stdout.String())
+		}
+		for root := range ext.extracts {
+			if strings.HasPrefix(root, repo) {
+				t.Errorf("Extract ran on the working tree %s, want the staged copy", root)
+			}
+			if _, err := os.Stat(root); !errors.Is(err, os.ErrNotExist) {
+				t.Errorf("head root %s still exists after the check: %v", root, err)
+			}
+		}
+		return code, decodeReports(t, stdout.Bytes()), stderr.String(), ext.packages
+	}
+
+	t.Run("unstaged degradation", func(t *testing.T) {
+		code, reports, stderr, _ := check(t, false)
+		if code != exitOK || len(reports) != 0 {
+			t.Errorf("exit code = %d with %d reports, want %d and nothing selected; stderr = %s",
+				code, len(reports), exitOK, stderr)
+		}
+	})
+	t.Run("all", func(t *testing.T) {
+		code, reports, stderr, _ := check(t, true)
+		if code != exitOK || len(reports) < 2 {
+			t.Fatalf("exit code = %d with %d reports, want %d and every package; stderr = %s",
+				code, len(reports), exitOK, stderr)
+		}
+		if got := violationMetrics(reports, "tested"); len(got) != 0 {
+			t.Errorf("tested violations = %q, want none: the degradation is not staged", got)
+		}
+	})
+
+	gitIn(t, repo, "add", "fixture/tested")
+	code, reports, stderr, packages := check(t, false)
+	if code != exitGateFailed {
+		t.Fatalf("staged degradation: exit code = %d, want %d; stderr = %s", code, exitGateFailed, stderr)
+	}
+	if got := violationMetrics(reports, "tested"); !containsAll(got, degradedMetrics()) {
+		t.Errorf("tested violations = %q, want %q among them", got, degradedMetrics())
+	}
+	// Head is listed once, at the staged copy; the baseline worktree is
+	// the other root.
+	if len(packages) != 2 {
+		t.Errorf("Packages called for roots %v, want the staged copy and the baseline", packages)
+	}
+
+	t.Run("outside git", func(t *testing.T) {
+		t.Parallel()
+		root := writeModule(t)
+		var out, errOut bytes.Buffer
+		if got := run([]string{"baseline", "write", root}, &out, &errOut); got != exitOK {
+			t.Fatalf("baseline write exit code = %d; stderr = %s", got, errOut.String())
+		}
+		out.Reset()
+		errOut.Reset()
+		if got := run([]string{"check", root, "--staged"}, &out, &errOut); got != exitAnalysis {
+			t.Errorf("exit code = %d, want %d", got, exitAnalysis)
+		}
+		if !strings.Contains(errOut.String(), "not in a git repository") || out.Len() != 0 {
+			t.Errorf("stdout = %q, stderr = %q, want empty stdout and the missing repository named",
+				out.String(), errOut.String())
+		}
+	})
 }
 
 func TestCheckDefaultRefFallback(t *testing.T) {
