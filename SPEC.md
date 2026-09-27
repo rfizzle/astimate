@@ -76,7 +76,7 @@ The gate targets the ways LLM-written changes tend to degrade a package. The met
                                                    └──────────────┘
 ```
 
-**Packages** (Go module `github.com/<owner>/astimate`, Go 1.27 or later):
+**Packages** (Go module `github.com/rfizzle/astimate`, Go 1.27 or later):
 
 ```
 astimate/
