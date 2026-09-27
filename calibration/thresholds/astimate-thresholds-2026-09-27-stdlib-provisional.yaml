@@ -1,0 +1,145 @@
+# Astimate configuration: rebuild parameters and gate thresholds in one file.
+#
+# Candidate thresholds-2026-09-27-stdlib-provisional, fitted by
+# calibration/fit (SPEC.md 11.1) from 358 packages in
+# calibration/data/2026-09-27/packages.jsonl.
+# PROVISIONAL: every row is from the Go standard library; refit after the
+# corpus run, before this replaces the embedded default.
+#
+# Percentiles are nearest-rank: the p-th percentile of n values is the value
+# at rank ceil(p/100 * n), so it is always an observed value. IQR is p75
+# minus p25.
+#
+# A capacity rule's max, and a density rule's max where the base rule has
+# one, is the 90th percentile rounded to two significant figures and then to
+# the nearest readable step: 500 above 1000, 50 above 100, 5 above 10,
+# otherwise 1 (0.5 for a percentage). A capacity max is at least one step.
+#
+# A density rule's max_delta is a quarter of the IQR rounded up to a whole
+# step, at least 1 for a count and 0.5 for a percentage.
+#
+# Kinds, warn_at, ratchet_from_zero, when guards, requirement rules, the
+# rebuild parameters and every other key are copied from the base unchanged;
+# a density rule with no max in the base gets none.
+
+# Identifies the defaults this file was generated from.
+config_version: thresholds-2026-09-27-stdlib-provisional
+
+# Bytes of source per estimated token; tokens_est = bytes / chars_per_token.
+chars_per_token: 3.2
+
+# Duplicate-block detection. This section is optional: any key left out, or
+# the whole section, takes the value shown here.
+duplication:
+  # Minimum normalized token run that counts as a duplicate block.
+  min_tokens: 40
+  # Drop a duplicate block made only of literals and the punctuation of a
+  # literal table, so repeated runs of data tables are not duplication.
+  ignore_literal_only: true
+  # Under ignore_literal_only, count a unary + or - directly before a
+  # numeric literal as part of the literal, so tables of negative numbers
+  # are data too. Matching is unchanged.
+  fold_signs: true
+
+# Rebuild estimate parameters (SPEC.md sections 7.2 to 7.4).
+rebuild:
+  # Tokens one agent can hold in context for a rebuild; past it work is split.
+  context_budget: 25000
+  # Tokens charged per exported symbol whose signature must survive.
+  tokens_per_export: 40
+  # Tokens charged per untested export whose behavior must be reverse-engineered.
+  tokens_per_untested_export: 800
+  # Tokens charged per global or init function, state no signature reveals.
+  tokens_per_hidden_state: 400
+  # Exponent on the budget ratio once a rebuild no longer fits one pass.
+  superlinear_exponent: 1.3
+  # COCOMO basic organic-mode coefficient for the human estimate.
+  cocomo_a: 2.4
+  # COCOMO basic organic-mode exponent for the human estimate.
+  cocomo_b: 1.05
+  # Working days per person-month when converting the human estimate.
+  days_per_month: 19
+  # Upper bounds on agent_passes for each tier.
+  tiers:
+    # At or below this a package is ONE_PASS.
+    one_pass_max: 1.0
+    # At or below this a package is FEW_PASSES; above it, PARTITION.
+    few_passes_max: 3.0
+
+# Gate thresholds (SPEC.md section 8.2). Density rules ratchet on the change
+# via max_delta and may add a max; for a package new at head only their max
+# applies, plus max_delta against zero where ratchet_from_zero is true.
+# Capacity rules carry an absolute max with a warn_at band (default 0.75);
+# requirement rules demand a boolean, optionally guarded by
+# when: "<metric> > <number>".
+thresholds:
+  # No new duplicate blocks; copy-paste is the primary target.
+  - metric: dup_blocks
+    kind: density
+    max_delta: 3
+    # Counted from zero for a package with no baseline.
+    ratchet_from_zero: true
+  # Guards against a large duplicated feature that adds only one block.
+  - metric: duplication_pct
+    kind: density
+    max_delta: 7.5
+    max: 50
+  # New exported behavior needs a test; legacy gaps are reported, not failed.
+  - metric: untested_exports
+    kind: density
+    max_delta: 3
+    # Counted from zero for a package with no baseline.
+    ratchet_from_zero: true
+  # No new package-level state.
+  - metric: globals
+    kind: density
+    max_delta: 2
+    # Counted from zero for a package with no baseline.
+    ratchet_from_zero: true
+  # No new init functions.
+  - metric: init_funcs
+    kind: density
+    max_delta: 1
+    # Counted from zero for a package with no baseline.
+    ratchet_from_zero: true
+  # Never nest deeper than today, and never past the ceiling.
+  - metric: max_nesting
+    kind: density
+    max_delta: 1
+    max: 6
+  # Small drift allowed since p90 moves with function count.
+  - metric: cognitive_p90
+    kind: density
+    max_delta: 3
+    # What a new package, which has no baseline to drift from, is judged by.
+    max: 25
+  # The rebuild bar: past this a rebuild no longer fits one agent pass; split.
+  - metric: tokens_est
+    kind: capacity
+    max: 31000
+    warn_at: 0.75
+  # Files past this rarely fit an edit in one view.
+  - metric: largest_file_sloc
+    kind: capacity
+    max: 900
+    warn_at: 0.75
+  # Surface past this is a package boundary problem.
+  - metric: exported_symbols
+    kind: capacity
+    max: 100
+    warn_at: 0.75
+  # Fan-out ceiling on internal imports.
+  - metric: internal_imports
+    kind: capacity
+    max: 15
+    warn_at: 0.75
+  # Overall non-test source size ceiling.
+  - metric: sloc
+    kind: capacity
+    max: 2500
+    warn_at: 0.75
+  # Packages of meaningful size must have tests.
+  - metric: has_tests
+    kind: requirement
+    require: true
+    when: sloc > 100

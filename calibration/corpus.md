@@ -138,3 +138,20 @@ maximum 164 (`errors`). As in a module rank, cgo packages are measured
 from their Go source files, not the files cgo generates. The cloned
 modules are still to be collected with the command above; the pooled data should reach at least 2,000 packages before the
 SPEC.md 11.1 percentiles are derived from it.
+
+## Fitting thresholds
+
+`fit/` derives candidate thresholds from the pooled rows per SPEC.md 11.1:
+
+```sh
+go run ./calibration/fit --data calibration/data/<date>/packages.jsonl --date <date>
+ASTIMATE_CONFIG=$PWD/calibration/thresholds/astimate-thresholds-<version>.yaml go test ./internal/invariants
+```
+
+It writes `thresholds/astimate-thresholds-<version>.yaml`, the embedded
+default with each rule's `max` and `max_delta` refitted, and
+`reports/thresholds-<version>.md`, each gated metric's percentiles,
+histogram and chosen limits. The fitting rules are stated in both files.
+While every row is from the standard library the version carries a
+`-stdlib-provisional` suffix; `thresholds-2026-09-27-stdlib-provisional`
+is such a candidate and is not the shipped default.
