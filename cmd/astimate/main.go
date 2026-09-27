@@ -33,6 +33,7 @@ func commands() map[string]command {
 		"check":    runCheck,
 		"config":   runConfig,
 		"rank":     runRank,
+		"serve":    runServe,
 		"version":  runVersion,
 	}
 }
