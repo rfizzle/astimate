@@ -5,7 +5,7 @@
   "goarch": "arm64",
   "cpus": 14,
   "astimate_version": "(devel)",
-  "astimate_commit": "8a6c0fefd446020567258280ec9d134558b1f5ec",
+  "astimate_commit": "690a175affecb10a8d5fe3ab25e2a94b9e2726ca",
   "config_version": "default-uncalibrated-1",
   "tokenizer": "est",
   "corpus": "calibration/corpus.yaml",
@@ -14,7 +14,8 @@
     {
       "module": "std",
       "commit": "go1.27.1",
-      "packages": 358
+      "packages": 358,
+      "note": "measured as one load of the pattern std, so fan_in and fan_in_tests count standard-library importers and every standard-library import is internal_imports, not stdlib_imports"
     }
   ]
 }

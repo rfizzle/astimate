@@ -99,17 +99,21 @@ func TestCollectModule(t *testing.T) {
 	}
 }
 
-// TestCollectStdlib extracts two small standard-library packages in
-// parallel and one that does not exist, which is reported, not fatal.
+// TestCollectStdlib measures the standard library in one load and keeps
+// the rows of two packages, one of them imported across the library, and
+// reports one that does not exist, which is not fatal.
 func TestCollectStdlib(t *testing.T) {
+	if testing.Short() {
+		t.Skip("loads the whole standard library")
+	}
 	cfg := defaultConfig(t)
 	pkgs := []string{"unicode/utf16", "errors", "example.invalid/nope"}
-	rows, failed := collectStdlib(t.Context(), pkgs, "go1.test", cfg, 2, slog.New(slog.DiscardHandler))
+	rows, failed, err := collectStdlib(t.Context(), pkgs, "go1.test", cfg, slog.New(slog.DiscardHandler))
+	if err != nil {
+		t.Skipf("toolchain has no usable GOROOT sources: %v", err)
+	}
 	if len(failed) != 1 || failed[0].Package != "example.invalid/nope" {
 		t.Errorf("failed = %+v, want only example.invalid/nope", failed)
-	}
-	if len(rows) == 0 {
-		t.Skip("toolchain has no usable GOROOT sources")
 	}
 	if len(rows) != 2 || rows[0].Package != "errors" || rows[1].Package != "unicode/utf16" {
 		t.Fatalf("rows = %+v, want errors and unicode/utf16 in order", rows)
@@ -118,6 +122,9 @@ func TestCollectStdlib(t *testing.T) {
 		if r.Module != stdlibModule || r.Commit != "go1.test" || r.Metrics.SLOC == 0 || r.AgentPasses <= 0 {
 			t.Errorf("row %+v", r)
 		}
+	}
+	if rows[0].Metrics.FanIn == 0 {
+		t.Error("errors has fan_in 0, want its standard-library importers counted")
 	}
 }
 

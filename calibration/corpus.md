@@ -83,8 +83,8 @@ go run ./calibration/collect --pin && go run ./calibration/collect --out calibra
 Other forms:
 
 - `go run ./calibration/collect --stdlib` collects only the standard
-  library, in-process with `golang.ExtractStdlib` over `go list std`; no
-  network.
+  library, in-process with `golang.ExtractStdlibAll`, one load of the
+  pattern `std`, keeping the packages of `go list std`; no network.
 - `go run ./calibration/collect --only <module>` collects one corpus entry.
 
 The collector ranks each module the way `astimate rank --json` does, with
@@ -115,16 +115,26 @@ the corpus entry to match.
 
 ## Known limits
 
-- **Standard-library `fan_in` is 0.** `ExtractStdlib` loads each package on
-  its own, so no importer is in the load. Compute `fan_in` percentiles from
-  the cloned modules only, or collect the standard library as one load
-  first.
+- **The standard library is one module.** It is loaded once, so `fan_in`
+  and `fan_in_tests` count the standard-library packages importing each
+  one, as a module rank counts module packages. Every standard-library
+  import is therefore `internal_imports`, and `stdlib_imports` is 0 on
+  every `std` row; the cloned modules' rows count the standard library in
+  `stdlib_imports` instead. Pool `internal_imports` and `stdlib_imports`
+  with that in mind. The import edges the two sides count differ as in any
+  module: `fan_in` also counts blank and dot imports (`_ "unsafe"` in most
+  cases) and imports cgo generates, and does not count imports of the
+  vendored `golang.org/x` packages, whose import path is not their package
+  path; over the 2026-09-27 load that is 69 edges one way and 44 the other,
+  of about 2,700.
 - **Popularity figures are unverified.** See criterion 1.
 
 ## Current data
 
 `data/2026-09-27/` holds the standard-library portion only: 358 packages
 (the 381 packages of `go list std` less 23 under `vendor/`), no failures,
-Go 1.27.1. The cloned modules are still to be collected with the command
-above; the pooled data should reach at least 2,000 packages before the
+Go 1.27.1, measured as one load, so `fan_in` is real: p50 2, p90 16,
+maximum 164 (`errors`). As in a module rank, cgo packages are measured
+from their Go source files, not the files cgo generates. The cloned
+modules are still to be collected with the command above; the pooled data should reach at least 2,000 packages before the
 SPEC.md 11.1 percentiles are derived from it.

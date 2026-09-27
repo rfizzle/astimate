@@ -72,11 +72,14 @@ func imports(l *loaded, p *packages.Package) importCounts {
 // path has no dot, internal when its path is the module path or lies under
 // it, and external otherwise. A replaced local module has a Module and so is
 // external. The standard-library test comes first, so a standard-library
-// package is never internal.
+// package is never internal, except in a load of the whole standard library
+// (stdAllModulePath), where it is the module and so internal.
 func classifyImport(l *loaded, imp *packages.Package) importClass {
-	first, _, _ := strings.Cut(imp.PkgPath, "/")
 	switch {
-	case imp.Module == nil && !strings.Contains(first, "."):
+	case imp.Module == nil && stdlibPath(imp.PkgPath):
+		if l.modulePath == stdAllModulePath {
+			return importInternal
+		}
 		return importStdlib
 	case isInternal(l, imp.PkgPath):
 		return importInternal
@@ -87,7 +90,20 @@ func classifyImport(l *loaded, imp *packages.Package) importClass {
 
 // isInternal reports whether importPath is the module path of l or lies
 // under it. It is the internal test classifyImport applies after ruling out
-// the standard library.
+// the standard library. In a load of the whole standard library every
+// standard-library path is internal, as classifyImport has it, so fan_in
+// and internal_imports both count the edges between standard-library
+// packages.
 func isInternal(l *loaded, importPath string) bool {
+	if l.modulePath == stdAllModulePath {
+		return stdlibPath(importPath)
+	}
 	return inModule(l.modulePath, importPath)
+}
+
+// stdlibPath reports whether the first element of importPath has no dot,
+// the path shape of a standard-library package.
+func stdlibPath(importPath string) bool {
+	first, _, _ := strings.Cut(importPath, "/")
+	return !strings.Contains(first, ".")
 }

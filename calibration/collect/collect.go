@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"sync"
 
 	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/engine"
@@ -119,47 +118,34 @@ func stdlibOptions(cfg *config.Config) []golang.Option {
 	}
 }
 
-// collectStdlib extracts each standard-library package in pkgs with
-// golang.ExtractStdlib, jobs at a time, and returns the rows sorted by
-// import path, tagged with goVersion as the commit, and the packages that
-// failed. Each package loads on its own, so fan_in and fan_in_tests are 0.
-func collectStdlib(ctx context.Context, pkgs []string, goVersion string, cfg *config.Config, jobs int,
-	logger *slog.Logger,
-) (rows []Row, failed []packageFailure) {
-	opts := stdlibOptions(cfg)
-	results := make([]Row, len(pkgs))
-	errs := make([]error, len(pkgs))
-	next := make(chan int)
-	var wg sync.WaitGroup
-	for range max(jobs, 1) {
-		wg.Go(func() {
-			for i := range next {
-				m, err := golang.ExtractStdlib(ctx, pkgs[i], opts...)
-				if err != nil {
-					errs[i] = err
-					continue
-				}
-				results[i] = newRow(stdlibModule, goVersion, pkgs[i], &m, cfg)
-			}
-		})
+// collectStdlib measures the whole standard library in one load with
+// golang.ExtractStdlibAll, so fan_in and fan_in_tests count the
+// standard-library packages importing each one, and returns the rows of
+// the packages in pkgs sorted by import path, tagged with goVersion as the
+// commit, and the packages of pkgs that failed or were not in the load. An
+// error means the standard library could not be loaded at all.
+func collectStdlib(ctx context.Context, pkgs []string, goVersion string, cfg *config.Config, logger *slog.Logger,
+) (rows []Row, failed []packageFailure, err error) {
+	all, errs, err := golang.ExtractStdlibAll(ctx, stdlibOptions(cfg)...)
+	if err != nil {
+		return nil, nil, err
 	}
-	for i := range pkgs {
-		next <- i
-	}
-	close(next)
-	wg.Wait()
-
 	rows = make([]Row, 0, len(pkgs))
-	for i, err := range errs {
-		if err != nil {
-			logger.Error("extracting package failed", "package", pkgs[i], "err", err)
-			failed = append(failed, packageFailure{Package: pkgs[i], Err: err.Error()})
+	for _, pkg := range pkgs {
+		m, ok := all[pkg]
+		if !ok {
+			err := errs[pkg]
+			if err == nil {
+				err = fmt.Errorf("extracting %s: %w", pkg, golang.ErrUnknownPackage)
+			}
+			logger.Error("extracting package failed", "package", pkg, "err", err)
+			failed = append(failed, packageFailure{Package: pkg, Err: err.Error()})
 			continue
 		}
-		rows = append(rows, results[i])
+		rows = append(rows, newRow(stdlibModule, goVersion, pkg, &m, cfg))
 	}
 	sortRows(rows)
-	return rows, failed
+	return rows, failed, nil
 }
 
 // sortRows orders rows by module, then import path.

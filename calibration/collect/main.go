@@ -53,7 +53,6 @@ type options struct {
 	pin    bool
 	only   string
 	stdlib bool
-	jobs   int
 }
 
 // RunInfo is run.json: the environment and tool version a collection ran
@@ -103,7 +102,14 @@ type ModuleRun struct {
 	Failed []packageFailure `json:"failed_packages,omitempty"`
 	// Error is why the module could not be collected at all.
 	Error string `json:"error,omitempty"`
+	// Note says how the module's rows were measured, where that differs
+	// from a module rank.
+	Note string `json:"note,omitempty"`
 }
+
+// stdlibNote is the run.json note on the standard library's rows.
+const stdlibNote = "measured as one load of the pattern std, so fan_in and fan_in_tests count " +
+	"standard-library importers and every standard-library import is internal_imports, not stdlib_imports"
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -142,7 +148,6 @@ func parseFlags(args []string, stderr io.Writer) (options, error) {
 	fs.BoolVar(&o.pin, "pin", false, "fill empty commits in the corpus with each repo's HEAD via git ls-remote (network), then exit")
 	fs.StringVar(&o.only, "only", "", "collect only this corpus module")
 	fs.BoolVar(&o.stdlib, "stdlib", false, "collect only the standard library, in-process (no network)")
-	fs.IntVar(&o.jobs, "jobs", max(runtime.NumCPU()/2, 1), "standard-library packages extracted in parallel")
 	if err := fs.Parse(args); err != nil {
 		return o, err
 	}
@@ -235,7 +240,7 @@ func collect(ctx context.Context, opts options, logger *slog.Logger) int {
 	var all []Row
 	code := exitOK
 	for _, e := range entries {
-		rows, mr := collectEntry(ctx, e, opts.jobs, cfg, logger)
+		rows, mr := collectEntry(ctx, e, cfg, logger)
 		all = append(all, rows...)
 		info.Modules = append(info.Modules, mr)
 		if mr.Error != "" || len(mr.Failed) > 0 {
@@ -257,17 +262,22 @@ func collect(ctx context.Context, opts options, logger *slog.Logger) int {
 
 // collectEntry collects one corpus entry: the standard library in-process,
 // any other module from a temporary shallow clone at its pin.
-func collectEntry(ctx context.Context, e Entry, jobs int, cfg *config.Config, logger *slog.Logger) ([]Row, ModuleRun) {
+func collectEntry(ctx context.Context, e Entry, cfg *config.Config, logger *slog.Logger) ([]Row, ModuleRun) {
 	logger = logger.With("module", e.Module)
 	logger.Info("collecting")
 	if e.Local {
-		mr := ModuleRun{Module: e.Module, Commit: runtime.Version()}
+		mr := ModuleRun{Module: e.Module, Commit: runtime.Version(), Note: stdlibNote}
 		pkgs, err := stdPackages(ctx)
 		if err != nil {
 			mr.Error = err.Error()
 			return nil, mr
 		}
-		rows, failed := collectStdlib(ctx, pkgs, mr.Commit, cfg, jobs, logger)
+		rows, failed, err := collectStdlib(ctx, pkgs, mr.Commit, cfg, logger)
+		if err != nil {
+			logger.Error("collect failed", "err", err)
+			mr.Error = err.Error()
+			return nil, mr
+		}
 		mr.Packages, mr.Failed = len(rows), failed
 		return rows, mr
 	}
