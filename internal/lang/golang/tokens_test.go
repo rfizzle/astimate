@@ -4,12 +4,10 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/rfizzle/astimate/internal/metrics/metricstest"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -19,16 +17,6 @@ const knownSnippet = "package main\n\nimport \"fmt\"\n\nfunc main() {\n\tfmt.Pri
 // knownSnippetO200k is the o200k_base token count of knownSnippet, captured
 // from tiktoken-go v0.1.8 with tiktoken-go-loader v0.0.2.
 const knownSnippetO200k = 19
-
-// loadForTokens loads the fixture module for the token tests.
-func loadForTokens(tb testing.TB) *loaded {
-	tb.Helper()
-	l, err := loadModule(&packages.Config{Dir: fixtureRoot(tb)}, packages.Load)
-	if err != nil {
-		tb.Fatalf("loading fixture: %v", err)
-	}
-	return l
-}
 
 // newO200kForTest returns an o200k counter with proxies pointed at an
 // unroutable address and an empty tiktoken cache directory, so a download of
@@ -146,7 +134,7 @@ func TestO200kOffline(t *testing.T) {
 // deliberately not compared here.
 func TestRatioNearO200k(t *testing.T) {
 	const o200kCharsPerToken = 4.0
-	l := loadForTokens(t)
+	l := loadFixture(t)
 	hub := l.pkgs["example.com/fixture/hub"]
 	est, err := newRatioCounter(o200kCharsPerToken).Count(hub.GoFiles)
 	if err != nil {
@@ -164,7 +152,7 @@ func TestRatioNearO200k(t *testing.T) {
 }
 
 func TestTokensWithTests(t *testing.T) {
-	l := loadForTokens(t)
+	l := loadFixture(t)
 	p := l.pkgs["example.com/fixture/tested"]
 	got, err := tokens(l, p, newRatioCounter(1))
 	if err != nil {
@@ -220,57 +208,25 @@ func TestTokensErrors(t *testing.T) {
 	}
 }
 
-func TestTokensFixture(t *testing.T) {
-	l := loadForTokens(t)
-	goldenDir := filepath.Join(fixtureRoot(t), "golden")
-	exact := newO200kForTest(t)
-	ratio := newRatioCounter(defaultCharsPerToken)
-
-	if len(l.paths) != 7 {
-		t.Errorf("fixture has %d packages, want 7", len(l.paths))
-	}
-	for _, pkg := range l.paths {
-		name := path.Base(pkg)
-		t.Run("golden/"+name, func(t *testing.T) {
-			want, err := metricstest.LoadGolden(goldenDir, name)
-			if err != nil {
-				t.Fatal(err)
-			}
-			got, err := tokens(l, l.pkgs[pkg], ratio)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if got.method != methodEst {
-				t.Errorf("method = %q, want %q", got.method, methodEst)
-			}
-			for _, f := range []struct {
-				field string
-				got   int
-			}{
-				{"tokens_est", got.tokensEst},
-				{"tokens_est_with_tests", got.tokensEstWithTests},
-			} {
-				w, ok := want.Value(f.field)
-				if !ok {
-					t.Fatalf("golden %s has no %s", name, f.field)
-				}
-				if float64(f.got) != w {
-					t.Errorf("%s = %d, want %v", f.field, f.got, w)
-				}
-			}
-
-			for _, c := range []tokenCounter{ratio, exact} {
+// TestTokensFixtureMethods checks, for both counters, the recorded method
+// and that the with-tests total never falls below the non-test one. The
+// conformance suite covers the "est" values against the goldens.
+func TestTokensFixtureMethods(t *testing.T) {
+	l := loadFixture(t)
+	for _, c := range []tokenCounter{newRatioCounter(defaultCharsPerToken), newO200kForTest(t)} {
+		for _, pkg := range l.paths {
+			t.Run(c.Method()+"/"+path.Base(pkg), func(t *testing.T) {
 				tc, err := tokens(l, l.pkgs[pkg], c)
 				if err != nil {
 					t.Fatal(err)
 				}
-				if tc.tokensEstWithTests < tc.tokensEst {
-					t.Errorf("%s: tokens_est_with_tests %d < tokens_est %d", c.Method(), tc.tokensEstWithTests, tc.tokensEst)
+				if tc.method != c.Method() {
+					t.Errorf("method = %q, want %q", tc.method, c.Method())
 				}
-			}
-		})
-	}
-	if !slices.Contains(l.paths, "example.com/fixture/hub") {
-		t.Error("fixture lacks hub")
+				if tc.tokensEstWithTests < tc.tokensEst {
+					t.Errorf("tokens_est_with_tests %d < tokens_est %d", tc.tokensEstWithTests, tc.tokensEst)
+				}
+			})
+		}
 	}
 }

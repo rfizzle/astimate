@@ -5,24 +5,12 @@ import (
 	"go/parser"
 	"go/token"
 	"path"
-	"path/filepath"
 	"slices"
 	"strconv"
 	"testing"
 
-	"github.com/rfizzle/astimate/internal/metrics/metricstest"
 	"golang.org/x/tools/go/packages"
 )
-
-// loadForImports loads the fixture module for the import tests.
-func loadForImports(tb testing.TB) *loaded {
-	tb.Helper()
-	l, err := loadModule(&packages.Config{Dir: fixtureRoot(tb)}, packages.Load)
-	if err != nil {
-		tb.Fatalf("loading fixture: %v", err)
-	}
-	return l
-}
 
 func TestClassifyImport(t *testing.T) {
 	l := &loaded{modulePath: "example.com/fixture"}
@@ -128,8 +116,7 @@ import (
 }
 
 func TestImportsFixture(t *testing.T) {
-	l := loadForImports(t)
-	goldenDir := filepath.Join(fixtureRoot(t), "golden")
+	l := loadFixture(t)
 
 	t.Run("test-file imports excluded", func(t *testing.T) {
 		const pkg = "example.com/fixture/tested"
@@ -148,30 +135,8 @@ func TestImportsFixture(t *testing.T) {
 	})
 
 	for _, pkg := range l.paths {
-		name := path.Base(pkg)
-		t.Run("golden/"+name, func(t *testing.T) {
-			want, err := metricstest.LoadGolden(goldenDir, name)
-			if err != nil {
-				t.Fatal(err)
-			}
-			got := imports(l, l.pkgs[pkg])
-			for _, f := range []struct {
-				field string
-				got   int
-			}{
-				{"internal_imports", got.internal},
-				{"external_imports", got.external},
-				{"stdlib_imports", got.stdlib},
-			} {
-				w, ok := want.Value(f.field)
-				if !ok {
-					t.Fatalf("golden %s has no %s", name, f.field)
-				}
-				if float64(f.got) != w {
-					t.Errorf("%s = %d, want %v", f.field, f.got, w)
-				}
-			}
-			if len(got.blank) != 0 || len(got.dot) != 0 {
+		t.Run("no blank or dot/"+path.Base(pkg), func(t *testing.T) {
+			if got := imports(l, l.pkgs[pkg]); len(got.blank) != 0 || len(got.dot) != 0 {
 				t.Errorf("blank = %q, dot = %q, want none", got.blank, got.dot)
 			}
 		})

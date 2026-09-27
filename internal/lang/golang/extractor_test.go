@@ -2,12 +2,13 @@ package golang
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
+	"go/token"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 
@@ -237,31 +238,6 @@ func TestOneLoadPerModule(t *testing.T) {
 	}
 }
 
-func TestExtractFilesMatchesGolden(t *testing.T) {
-	root := fixtureRoot(t)
-	e := New()
-	mod := &metrics.ModuleContext{Root: root, ModulePath: "example.com/fixture"}
-	for _, pkg := range fixturePackages() {
-		t.Run(pkg, func(t *testing.T) {
-			data, err := os.ReadFile(filepath.Join(root, "golden", filepath.Base(pkg)+".json"))
-			if err != nil {
-				t.Fatal(err)
-			}
-			var want metrics.RawMetrics
-			if err := json.Unmarshal(data, &want); err != nil {
-				t.Fatal(err)
-			}
-			got, err := e.Extract(t.Context(), mod, pkg)
-			if err != nil {
-				t.Fatalf("Extract: %v", err)
-			}
-			if got.Files != want.Files {
-				t.Errorf("files = %d, want %d", got.Files, want.Files)
-			}
-		})
-	}
-}
-
 func TestExtractErrors(t *testing.T) {
 	root := fixtureRoot(t)
 	e := New()
@@ -357,4 +333,198 @@ func BenchmarkLoadFixture(b *testing.B) {
 
 func BenchmarkLoadSelf(b *testing.B) {
 	benchmarkLoad(b, filepath.Join(fixtureRoot(b), "..", "..", ".."))
+}
+
+// fileBytes returns the total size of the files at paths.
+func fileBytes(t *testing.T, paths []string) int {
+	t.Helper()
+	n := 0
+	for _, name := range paths {
+		fi, err := os.Stat(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		n += int(fi.Size())
+	}
+	return n
+}
+
+func TestExtractOptions(t *testing.T) {
+	root := fixtureRoot(t)
+	const hub = "example.com/fixture/hub"
+	const dupes = "example.com/fixture/dupes"
+	extract := func(t *testing.T, e *Extractor, pkg string) metrics.RawMetrics {
+		t.Helper()
+		m, err := e.Extract(t.Context(), &metrics.ModuleContext{Root: root}, pkg)
+		if err != nil {
+			t.Fatalf("Extract(%s): %v", pkg, err)
+		}
+		return m
+	}
+
+	t.Run("chars per token", func(t *testing.T) {
+		l := loadFixture(t)
+		want := fileBytes(t, l.pkgs[hub].GoFiles)
+		if got := extract(t, New(WithCharsPerToken(1)), hub).TokensEst; got != want {
+			t.Errorf("tokens_est at 1 char per token = %d, want the byte count %d", got, want)
+		}
+	})
+	t.Run("invalid chars per token", func(t *testing.T) {
+		if _, err := New(WithCharsPerToken(0)).Extract(t.Context(), &metrics.ModuleContext{Root: root}, hub); err == nil ||
+			!strings.Contains(err.Error(), hub) {
+			t.Errorf("Extract error = %v, want one naming %s", err, hub)
+		}
+	})
+	t.Run("unknown tokenizer", func(t *testing.T) {
+		_, err := New(WithTokenizer("cl100k")).Extract(t.Context(), &metrics.ModuleContext{Root: root}, hub)
+		if !errors.Is(err, ErrUnknownTokenizer) || !strings.Contains(err.Error(), "cl100k") {
+			t.Errorf("Extract error = %v, want ErrUnknownTokenizer naming cl100k", err)
+		}
+	})
+	t.Run("dup min tokens", func(t *testing.T) {
+		if got := extract(t, New(), dupes).DupBlocks; got != 1 {
+			t.Fatalf("dup_blocks at the default minimum = %d, want 1", got)
+		}
+		if got := extract(t, New(WithDupMinTokens(1000)), dupes); got.DupBlocks != 0 || got.DuplicationPct != 0 {
+			t.Errorf("dup_blocks, duplication_pct at 1000 tokens = %d, %v, want 0, 0", got.DupBlocks, got.DuplicationPct)
+		}
+		if _, err := New(WithDupMinTokens(0)).Extract(t.Context(), &metrics.ModuleContext{Root: root}, dupes); err == nil ||
+			!strings.Contains(err.Error(), dupes) {
+			t.Errorf("Extract error = %v, want one naming %s", err, dupes)
+		}
+	})
+}
+
+// TestExtractO200kConcurrent extracts every fixture package concurrently
+// through one o200k extractor, so the race detector sees the lazy counter
+// build, the fan-in graph build and the details writes race each other.
+func TestExtractO200kConcurrent(t *testing.T) {
+	exact := newO200kForTest(t) // sets the offline environment
+	root := fixtureRoot(t)
+	e := New(WithTokenizer(methodO200k))
+	mod := &metrics.ModuleContext{Root: root}
+	if _, err := e.Packages(root); err != nil {
+		t.Fatalf("Packages: %v", err)
+	}
+	pkgs := fixturePackages()
+	got := make([]metrics.RawMetrics, len(pkgs))
+	errs := make([]error, len(pkgs))
+	var wg sync.WaitGroup
+	for i, pkg := range pkgs {
+		wg.Go(func() { got[i], errs[i] = e.Extract(t.Context(), mod, pkg) })
+	}
+	wg.Wait()
+	l := mod.Cache.(*loaded)
+	for i, pkg := range pkgs {
+		if errs[i] != nil {
+			t.Errorf("Extract(%s): %v", pkg, errs[i])
+			continue
+		}
+		want, err := exact.Count(l.pkgs[pkg].GoFiles)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got[i].TokensEst != want {
+			t.Errorf("%s: tokens_est = %d, want o200k count %d", pkg, got[i].TokensEst, want)
+		}
+		if d, ok := l.detailsOf(pkg); !ok || d.tokensMethod != methodO200k {
+			t.Errorf("%s: details = %+v, %v, want tokens method %q", pkg, d, ok, methodO200k)
+		}
+	}
+}
+
+func TestExtractRecordsDetails(t *testing.T) {
+	root := fixtureRoot(t)
+	e := New()
+	mod := &metrics.ModuleContext{Root: root}
+	for _, pkg := range []string{"example.com/fixture/dupes", "example.com/fixture/hub"} {
+		if _, err := e.Extract(t.Context(), mod, pkg); err != nil {
+			t.Fatalf("Extract(%s): %v", pkg, err)
+		}
+	}
+	l := mod.Cache.(*loaded)
+	dupes, ok := l.detailsOf("example.com/fixture/dupes")
+	if !ok {
+		t.Fatal("no details for dupes")
+	}
+	if len(dupes.dupLocations) != 3 || dupes.tokensMethod != methodEst {
+		t.Errorf("dupes details = %+v, want 3 duplicate locations and method %q", dupes, methodEst)
+	}
+	hub, ok := l.detailsOf("example.com/fixture/hub")
+	if !ok {
+		t.Fatal("no details for hub")
+	}
+	if len(hub.untestedNames) != 3 {
+		t.Errorf("hub untested names = %v, want 3", hub.untestedNames)
+	}
+	if _, ok := l.detailsOf("example.com/fixture/a"); ok {
+		t.Error("details recorded for a package never extracted")
+	}
+}
+
+// TestExtractStdlibErrors assembles the standard library errors package,
+// loaded with its test variants outside the module loader, through the same
+// mapping Extract uses. It checks that assemble works on a load the module
+// loader did not build; the module path is set to "std", the standard
+// library's, but internal_imports=0 holds under any module path because
+// classifyImport rules out the standard library before it consults the module
+// path. runtime.GOROOT is deprecated, so a toolchain without usable sources
+// is detected by the load failing, and the test skips.
+func TestExtractStdlibErrors(t *testing.T) {
+	cfg := &packages.Config{
+		Mode: packages.NeedName | packages.NeedFiles | packages.NeedSyntax |
+			packages.NeedTypes | packages.NeedTypesInfo | packages.NeedImports,
+		Tests: true,
+		Fset:  token.NewFileSet(),
+	}
+	roots, err := packages.Load(cfg, "errors")
+	if err != nil {
+		t.Skipf("loading stdlib errors: %v", err)
+	}
+	// index keeps the packages under its module path argument, so "errors"
+	// selects the package and its test variants and drops the test main.
+	l, err := index("errors", roots)
+	if err != nil || l.pkgs["errors"] == nil || len(l.pkgs["errors"].Syntax) == 0 {
+		t.Skipf("indexing stdlib errors: %v", err)
+	}
+	l.modulePath = "std"
+	l.fset = cfg.Fset
+
+	got, err := assemble(t.Context(), l, l.pkgs["errors"],
+		assembleOptions{counter: newRatioCounter(defaultCharsPerToken), dup: defaultDupOptions()})
+	if err != nil {
+		t.Fatalf("assemble: %v", err)
+	}
+	if got.Globals != 2 || got.InternalImports != 0 || got.TestFuncs <= 0 {
+		t.Errorf("globals=%d internal_imports=%d test_funcs=%d, want 2, 0, >0",
+			got.Globals, got.InternalImports, got.TestFuncs)
+	}
+	if err := got.Validate(); err != nil {
+		t.Errorf("Validate: %v", err)
+	}
+}
+
+// BenchmarkExtractAll extracts every package of this repository's module
+// per iteration, after one load outside the timer, with a fresh module
+// context each time as a new invocation sharing the load would.
+func BenchmarkExtractAll(b *testing.B) {
+	root, err := filepath.Abs(filepath.Join(fixtureRoot(b), "..", "..", ".."))
+	if err != nil {
+		b.Fatal(err)
+	}
+	e := New()
+	pkgs, err := e.Packages(root)
+	if err != nil {
+		b.Fatalf("Packages(%s): %v", root, err)
+	}
+	b.ReportAllocs()
+	for b.Loop() {
+		mod := &metrics.ModuleContext{Root: root}
+		for _, pkg := range pkgs {
+			if _, err := e.Extract(b.Context(), mod, pkg); err != nil {
+				b.Fatalf("Extract(%s): %v", pkg, err)
+			}
+		}
+	}
+	b.ReportMetric(float64(len(pkgs)), "pkgs")
 }

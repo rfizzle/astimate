@@ -6,20 +6,7 @@ import (
 	"go/token"
 	"path/filepath"
 	"testing"
-
-	"github.com/rfizzle/astimate/internal/metrics/metricstest"
-	"golang.org/x/tools/go/packages"
 )
-
-// loadForSize loads the fixture module once for a size test.
-func loadForSize(tb testing.TB) *loaded {
-	tb.Helper()
-	l, err := loadModule(&packages.Config{Dir: fixtureRoot(tb)}, packages.Load)
-	if err != nil {
-		tb.Fatalf("loading fixture: %v", err)
-	}
-	return l
-}
 
 // parseForSize parses src as one file into a fresh file set.
 func parseForSize(t *testing.T, src string) (*token.File, *ast.File) {
@@ -87,36 +74,15 @@ func TestExportedSymbols(t *testing.T) {
 	}
 }
 
-func TestSizeGoldens(t *testing.T) {
-	l := loadForSize(t)
-	goldenDir := filepath.Join(fixtureRoot(t), "golden")
+// TestSizePerFile checks the per-file SLOC map duplication weighs lines by:
+// absolute keys, one per non-test file, summing to sloc.
+func TestSizePerFile(t *testing.T) {
+	l := loadFixture(t)
 	for _, path := range l.paths {
 		t.Run(path, func(t *testing.T) {
-			p := l.pkgs[path]
-			got, err := size(l, p)
+			got, err := size(l, l.pkgs[path])
 			if err != nil {
 				t.Fatalf("size: %v", err)
-			}
-			want, err := metricstest.LoadGolden(goldenDir, filepath.Base(path))
-			if err != nil {
-				t.Fatal(err)
-			}
-			for _, c := range []struct {
-				name string
-				got  int
-			}{
-				{"files", got.files},
-				{"sloc", got.sloc},
-				{"largest_file_sloc", got.largestFileSLOC},
-				{"exported_symbols", got.exportedSymbols},
-			} {
-				w, _ := want.Value(c.name)
-				if float64(c.got) != w {
-					t.Errorf("%s = %d, want %v", c.name, c.got, w)
-				}
-			}
-			if got.largestFileSLOC > got.sloc {
-				t.Errorf("largest_file_sloc %d > sloc %d", got.largestFileSLOC, got.sloc)
 			}
 			sum := 0
 			for name, n := range got.perFile {
@@ -134,7 +100,7 @@ func TestSizeGoldens(t *testing.T) {
 }
 
 func BenchmarkSize(b *testing.B) {
-	l := loadForSize(b)
+	l := loadFixture(b)
 	for b.Loop() {
 		for _, path := range l.paths {
 			if _, err := size(l, l.pkgs[path]); err != nil {

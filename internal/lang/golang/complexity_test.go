@@ -4,22 +4,10 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"path/filepath"
 	"testing"
 
-	"github.com/rfizzle/astimate/internal/metrics/metricstest"
 	"golang.org/x/tools/go/packages"
 )
-
-// loadForComplexity loads the fixture module for the complexity tests.
-func loadForComplexity(tb testing.TB) *loaded {
-	tb.Helper()
-	l, err := loadModule(&packages.Config{Dir: fixtureRoot(tb)}, packages.Load)
-	if err != nil {
-		tb.Fatalf("loading fixture: %v", err)
-	}
-	return l
-}
 
 // parseForComplexity parses src as one file and wraps it in a package that
 // carries only syntax, which is all complexity reads.
@@ -183,37 +171,8 @@ func TestComplexityP90(t *testing.T) {
 	}
 }
 
-func TestComplexityGolden(t *testing.T) {
-	l := loadForComplexity(t)
-	goldenDir := filepath.Join(fixtureRoot(t), "golden")
-	for _, path := range l.paths {
-		short := filepath.Base(path)
-		t.Run(short, func(t *testing.T) {
-			want, err := metricstest.LoadGolden(goldenDir, short)
-			if err != nil {
-				t.Fatal(err)
-			}
-			got := complexity(l, l.pkgs[path])
-			for _, c := range []struct {
-				name string
-				got  int
-			}{
-				{"max_nesting", got.maxNesting},
-				{"cognitive_total", got.cognitiveTotal},
-				{"cognitive_p90", got.cognitiveP90},
-				{"func_count", got.funcCount},
-			} {
-				w, _ := want.Value(c.name)
-				if float64(c.got) != w {
-					t.Errorf("%s = %d, want %v", c.name, c.got, w)
-				}
-			}
-		})
-	}
-}
-
 func TestComplexityHiddenPerFunc(t *testing.T) {
-	l := loadForComplexity(t)
+	l := loadFixture(t)
 	got := complexity(l, l.pkgs["example.com/fixture/hidden"])
 	want := []funcComplexity{
 		{name: "init", cognitive: 0, nesting: 0},
@@ -246,7 +205,7 @@ func TestFuncDeclName(t *testing.T) {
 }
 
 func BenchmarkComplexityWalk(b *testing.B) {
-	l := loadForComplexity(b)
+	l := loadFixture(b)
 	for b.Loop() {
 		for _, path := range l.paths {
 			complexity(l, l.pkgs[path])

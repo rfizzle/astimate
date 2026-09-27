@@ -90,10 +90,8 @@ const (
 	dupSeparatorBase = int32(1 << 30)
 )
 
-// dupOptions configures duplication. Extract does not call duplication yet;
-// wiring it in and exposing these values as extractor Options and config
-// keys (dup_min_tokens and the normalization rules) belongs to the assembly
-// of the extractor.
+// dupOptions configures duplication. The extractor option WithDupMinTokens
+// sets minTokens; the normalization toggles keep their defaults.
 type dupOptions struct {
 	// minTokens is dup_min_tokens: the shortest normalized token sequence
 	// that counts as a duplicate block.

@@ -5,7 +5,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"math"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -13,19 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rfizzle/astimate/internal/metrics/metricstest"
 	"golang.org/x/tools/go/packages"
 )
-
-// loadForDup loads the fixture module once for a duplication test.
-func loadForDup(tb testing.TB) *loaded {
-	tb.Helper()
-	l, err := loadModule(&packages.Config{Dir: fixtureRoot(tb)}, packages.Load)
-	if err != nil {
-		tb.Fatalf("loading fixture: %v", err)
-	}
-	return l
-}
 
 // dupRender renders the stream codes of one scanned source up to its
 // separator: ID, LIT, #n for the n-th interned text, else the token.
@@ -469,7 +457,7 @@ b` + "`" + `
 }
 
 func TestDupRejectsNonPositiveMinimum(t *testing.T) {
-	l := loadForDup(t)
+	l := loadFixture(t)
 	p := l.pkgs[l.paths[0]]
 	sz, err := size(l, p)
 	if err != nil {
@@ -482,36 +470,8 @@ func TestDupRejectsNonPositiveMinimum(t *testing.T) {
 	}
 }
 
-func TestDuplicationGoldens(t *testing.T) {
-	l := loadForDup(t)
-	goldenDir := filepath.Join(fixtureRoot(t), "golden")
-	for _, path := range l.paths {
-		t.Run(path, func(t *testing.T) {
-			p := l.pkgs[path]
-			sz, err := size(l, p)
-			if err != nil {
-				t.Fatalf("size: %v", err)
-			}
-			got, err := duplication(l, p, sz, defaultDupOptions())
-			if err != nil {
-				t.Fatalf("duplication: %v", err)
-			}
-			want, err := metricstest.LoadGolden(goldenDir, filepath.Base(path))
-			if err != nil {
-				t.Fatal(err)
-			}
-			if got.blocks != want.DupBlocks {
-				t.Errorf("dup_blocks = %d, want %d", got.blocks, want.DupBlocks)
-			}
-			if r := math.Round(got.pct*10) / 10; r != want.DuplicationPct {
-				t.Errorf("duplication_pct = %v, want %v", got.pct, want.DuplicationPct)
-			}
-		})
-	}
-}
-
 func TestDuplicationDupesLocations(t *testing.T) {
-	l := loadForDup(t)
+	l := loadFixture(t)
 	p := l.pkgs["example.com/fixture/dupes"]
 	sz, err := size(l, p)
 	if err != nil {

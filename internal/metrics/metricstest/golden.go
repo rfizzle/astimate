@@ -12,9 +12,11 @@ import (
 	"github.com/rfizzle/astimate/internal/metrics"
 )
 
-// LoadGolden reads <dir>/<pkg>.json, the hand-verified metrics of pkg. The
-// file uses the RawMetrics JSON encoding; every v0 field must be present,
-// v1 fields may be omitted or null, and unknown fields are rejected so a
+// LoadGolden reads <dir>/<pkg>.json, the hand-verified metrics of pkg, where
+// pkg is the golden name: the module-relative path described at
+// Fixture.GoldenDir, with "/" mapped to subdirectories. The file uses the
+// RawMetrics JSON encoding; every v0 field must be present, v1 fields may be
+// omitted or null, and unknown fields are rejected so a
 // misspelled name cannot silently compare as zero. TestExtractor calls it
 // for each package; call it directly only when a test needs a golden record
 // outside the suite, for example as input to a Fake.
@@ -97,7 +99,7 @@ func formatValue(v float64) string {
 	return strconv.FormatFloat(v, 'g', -1, 64)
 }
 
-// writeGolden rewrites <dir>/<pkg>.json from m in MetricNames order with a
+// writeGolden rewrites <dir>/<pkg>.json, pkg being the golden name, from m in MetricNames order with a
 // two-space indent, omitting v1 fields that were not computed, which matches
 // the layout of hand-written goldens.
 func writeGolden(dir, pkg string, m metrics.RawMetrics) error {

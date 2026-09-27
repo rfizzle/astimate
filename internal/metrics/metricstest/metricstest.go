@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/metrics"
@@ -24,13 +25,22 @@ type Fixture struct {
 	// Root is the module root the extractor must Detect and list packages
 	// under. It becomes ModuleContext.Root for every Extract call.
 	Root string
+	// ModulePath is the prefix trimmed from each package identifier to name
+	// its golden file; see GoldenDir. Leave it empty when the identifiers are
+	// already module-relative.
+	ModulePath string
 	// Packages is the complete, sorted list of package identifiers Packages
 	// must return for Root. The cross-package invariants assume it covers the
 	// whole module.
 	Packages []string
-	// GoldenDir holds one <pkg>.json per entry of Packages, in the RawMetrics
+	// GoldenDir holds one golden per entry of Packages, in the RawMetrics
 	// JSON encoding with v1 fields omitted or null, plus the COUNTING.md that
-	// explains how each value was derived. It is required.
+	// explains how each value was derived. It is required. A golden is named
+	// by the package's module-relative path: ModulePath + "/" is trimmed from
+	// the identifier, each remaining "/" is a subdirectory, and ".json" is
+	// appended, so "example.com/m/nested/pkg" with ModulePath "example.com/m"
+	// is nested/pkg.json. The identifier equal to ModulePath, the module's
+	// root package, is root.json. An empty ModulePath trims nothing.
 	GoldenDir string
 	// Update makes the golden subtest rewrite every golden from the
 	// extractor's output instead of comparing against the files on disk. Set
@@ -199,13 +209,14 @@ func checkGoldens(t *testing.T, fx Fixture, got map[string]metrics.RawMetrics) {
 	counting := filepath.Join(fx.GoldenDir, "COUNTING.md")
 	for _, pkg := range fx.Packages {
 		m := got[pkg]
+		name := goldenName(fx.ModulePath, pkg)
 		if fx.Update {
-			if err := writeGolden(fx.GoldenDir, pkg, m); err != nil {
+			if err := writeGolden(fx.GoldenDir, name, m); err != nil {
 				t.Errorf("%s: %v", pkg, err)
 			}
 			continue
 		}
-		want, err := LoadGolden(fx.GoldenDir, pkg)
+		want, err := LoadGolden(fx.GoldenDir, name)
 		if err != nil {
 			t.Errorf("%s: %v", pkg, err)
 			continue
@@ -215,4 +226,21 @@ func checkGoldens(t *testing.T, fx Fixture, got map[string]metrics.RawMetrics) {
 				pkg, d.field, d.golden, d.got, counting)
 		}
 	}
+}
+
+// rootGolden names the golden of the package whose identifier equals
+// Fixture.ModulePath.
+const rootGolden = "root"
+
+// goldenName returns the module-relative golden name of package id: id with
+// modulePath + "/" trimmed, or rootGolden when id is modulePath itself. An
+// empty modulePath trims nothing.
+func goldenName(modulePath, id string) string {
+	if modulePath == "" {
+		return id
+	}
+	if id == modulePath {
+		return rootGolden
+	}
+	return strings.TrimPrefix(id, modulePath+"/")
 }

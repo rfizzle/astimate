@@ -4,23 +4,10 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"path"
-	"path/filepath"
 	"testing"
 
-	"github.com/rfizzle/astimate/internal/metrics/metricstest"
 	"golang.org/x/tools/go/packages"
 )
-
-// loadForTests loads the fixture module for the test-metric tests.
-func loadForTests(tb testing.TB) *loaded {
-	tb.Helper()
-	l, err := loadModule(&packages.Config{Dir: fixtureRoot(tb)}, packages.Load)
-	if err != nil {
-		tb.Fatalf("loading fixture: %v", err)
-	}
-	return l
-}
 
 // parseTestFile parses src as the file name into fset.
 func parseTestFile(tb testing.TB, fset *token.FileSet, name, src string) *ast.File {
@@ -132,8 +119,7 @@ func TestTestMetricsFoldsExternal(t *testing.T) {
 }
 
 func TestTestMetricsFixture(t *testing.T) {
-	l := loadForTests(t)
-	goldenDir := filepath.Join(fixtureRoot(t), "golden")
+	l := loadFixture(t)
 
 	t.Run("tested", func(t *testing.T) {
 		want := testCounts{testFiles: 3, testFuncs: 4, hasTests: true}
@@ -146,35 +132,4 @@ func TestTestMetricsFixture(t *testing.T) {
 			t.Errorf("testMetrics = %+v, want has_tests=false", got)
 		}
 	})
-
-	for _, pkg := range l.paths {
-		name := path.Base(pkg)
-		t.Run("golden/"+name, func(t *testing.T) {
-			want, err := metricstest.LoadGolden(goldenDir, name)
-			if err != nil {
-				t.Fatal(err)
-			}
-			got := testMetrics(l, l.pkgs[pkg])
-			hasTests := 0
-			if got.hasTests {
-				hasTests = 1
-			}
-			for _, f := range []struct {
-				field string
-				got   int
-			}{
-				{"test_files", got.testFiles},
-				{"test_funcs", got.testFuncs},
-				{"has_tests", hasTests},
-			} {
-				w, ok := want.Value(f.field)
-				if !ok {
-					t.Fatalf("golden %s has no %s", name, f.field)
-				}
-				if float64(f.got) != w {
-					t.Errorf("%s = %d, want %v", f.field, f.got, w)
-				}
-			}
-		})
-	}
 }

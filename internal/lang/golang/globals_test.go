@@ -4,23 +4,11 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"path/filepath"
 	"slices"
 	"testing"
 
-	"github.com/rfizzle/astimate/internal/metrics/metricstest"
 	"golang.org/x/tools/go/packages"
 )
-
-// loadForGlobals loads the fixture module once for the globals tests.
-func loadForGlobals(tb testing.TB) *loaded {
-	tb.Helper()
-	l, err := loadModule(&packages.Config{Dir: fixtureRoot(tb)}, packages.Load)
-	if err != nil {
-		tb.Fatalf("loading fixture: %v", err)
-	}
-	return l
-}
 
 // parseForGlobals parses src as one file and wraps it in a package that
 // carries only syntax, which is all globals reads.
@@ -116,32 +104,8 @@ func TestGlobalsSnippets(t *testing.T) {
 	}
 }
 
-func TestGlobalsGolden(t *testing.T) {
-	l := loadForGlobals(t)
-	goldenDir := filepath.Join(fixtureRoot(t), "golden")
-	for _, path := range l.paths {
-		short := filepath.Base(path)
-		t.Run(short, func(t *testing.T) {
-			want, err := metricstest.LoadGolden(goldenDir, short)
-			if err != nil {
-				t.Fatal(err)
-			}
-			got := globals(l, l.pkgs[path])
-			for _, c := range []struct {
-				name string
-				got  int
-			}{{"globals", got.globals}, {"init_funcs", got.initFuncs}} {
-				w, _ := want.Value(c.name)
-				if float64(c.got) != w {
-					t.Errorf("%s = %d, want %v", c.name, c.got, w)
-				}
-			}
-		})
-	}
-}
-
 func TestGlobalsHiddenBreakdown(t *testing.T) {
-	l := loadForGlobals(t)
+	l := loadFixture(t)
 	got := globals(l, l.pkgs["example.com/fixture/hidden"])
 	if want := []string{"limit", "events", "done", "counter"}; !slices.Equal(got.unexported, want) {
 		t.Errorf("unexported = %v, want %v", got.unexported, want)

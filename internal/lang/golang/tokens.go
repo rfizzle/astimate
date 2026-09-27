@@ -29,12 +29,9 @@ type tokenCounts struct {
 	method                        string
 }
 
-// tokenCounter counts the tokens of a set of source files.
-//
-// The extractor option that chooses between newRatioCounter and
-// newO200kCounter, and the configuration that feeds it, are added when the
-// metrics are assembled in extractor.go; until then tokens takes the counter
-// as a parameter.
+// tokenCounter counts the tokens of a set of source files. The extractor
+// options WithTokenizer and WithCharsPerToken choose between newRatioCounter
+// and newO200kCounter.
 type tokenCounter interface {
 	// Count returns the total tokens of the files at paths.
 	Count(paths []string) (int, error)

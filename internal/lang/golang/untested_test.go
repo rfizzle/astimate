@@ -11,19 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rfizzle/astimate/internal/metrics/metricstest"
 	"golang.org/x/tools/go/packages"
 )
-
-// loadForUntested loads the module at root for the untested-exports tests.
-func loadForUntested(tb testing.TB, root string) *loaded {
-	tb.Helper()
-	l, err := loadModule(&packages.Config{Dir: root}, packages.Load)
-	if err != nil {
-		tb.Fatalf("loading %s: %v", root, err)
-	}
-	return l
-}
 
 // refsRoot returns the absolute path of testdata/go/refs.
 func refsRoot(tb testing.TB) string {
@@ -87,7 +76,7 @@ func checkUntestedSrc(t *testing.T, files map[string]string) (*loaded, *packages
 }
 
 func TestUntestedReferenceTable(t *testing.T) {
-	l := loadForUntested(t, refsRoot(t))
+	l := loadRoot(t, refsRoot(t))
 	got := untestedExports(l, l.pkgs["example.com/refs/refs"])
 	for _, tc := range []struct {
 		how, key string
@@ -114,7 +103,7 @@ func TestUntestedReferenceTable(t *testing.T) {
 }
 
 func TestUntestedNoTests(t *testing.T) {
-	l := loadForUntested(t, refsRoot(t))
+	l := loadRoot(t, refsRoot(t))
 	got := untestedExports(l, l.pkgs["example.com/refs/notests"])
 	if want := []string{"One", "Three", "Two"}; got.untested != 3 || !slices.Equal(got.names, want) {
 		t.Errorf("untested = %d %v, want 3 %v", got.untested, got.names, want)
@@ -237,32 +226,8 @@ func TestDispatch(t *testing.T) {
 	}
 }
 
-func TestUntestedGolden(t *testing.T) {
-	l := loadForUntested(t, fixtureRoot(t))
-	goldenDir := filepath.Join(fixtureRoot(t), "golden")
-	for _, path := range l.paths {
-		short := filepath.Base(path)
-		t.Run(short, func(t *testing.T) {
-			want, err := metricstest.LoadGolden(goldenDir, short)
-			if err != nil {
-				t.Fatal(err)
-			}
-			w, ok := want.Value("untested_exports")
-			if !ok {
-				t.Fatalf("golden %s has no untested_exports", short)
-			}
-			if got := untestedExports(l, l.pkgs[path]); float64(got.untested) != w {
-				t.Errorf("untested_exports = %d %v, want %v", got.untested, got.names, w)
-			}
-		})
-	}
-	if n := len(l.paths); n != 7 {
-		t.Errorf("fixture has %d packages, want 7", n)
-	}
-}
-
 func BenchmarkUntestedExports(b *testing.B) {
-	l := loadForUntested(b, fixtureRoot(b))
+	l := loadFixture(b)
 	b.ReportAllocs()
 	for b.Loop() {
 		for _, path := range l.paths {

@@ -17,11 +17,28 @@ import (
 // not a non-test package of the module.
 var ErrUnknownPackage = errors.New("unknown package")
 
+// ErrUnknownTokenizer is returned by Extract when WithTokenizer named a
+// tokenizer other than "est" or "o200k".
+var ErrUnknownTokenizer = errors.New("unknown tokenizer")
+
 // Extractor computes RawMetrics for Go modules. It loads each module root at
 // most once and shares the result across Packages and Extract. Construct it
 // with New. It is safe for concurrent use.
 type Extractor struct {
 	load loadFunc
+
+	// charsPerToken is the ratio the "est" tokenizer divides bytes by.
+	charsPerToken float64
+	// tokenizer is the token counting method: methodEst or methodO200k.
+	tokenizer string
+	// dup configures duplicate detection.
+	dup dupOptions
+
+	// o200kOnce guards the one-time build of o200k, because
+	// tiktoken.SetBpeLoader writes an unguarded library global.
+	o200kOnce sync.Once
+	o200k     tokenCounter
+	o200kErr  error
 
 	mu      sync.Mutex
 	modules map[string]*moduleLoad
@@ -38,11 +55,36 @@ type moduleLoad struct {
 // Option configures an Extractor.
 type Option func(*Extractor)
 
+// WithCharsPerToken sets the bytes-per-token ratio of the "est" tokenizer
+// (SPEC.md 6.1; default 3.2). A ratio that is not positive and finite makes
+// Extract fail.
+func WithCharsPerToken(ratio float64) Option {
+	return func(e *Extractor) { e.charsPerToken = ratio }
+}
+
+// WithTokenizer selects how tokens_est is counted: "est" (the default)
+// divides file bytes by the chars-per-token ratio, "o200k" counts exactly
+// with the o200k_base encoding, offline. Any other name makes Extract return
+// an error wrapping ErrUnknownTokenizer.
+func WithTokenizer(name string) Option {
+	return func(e *Extractor) { e.tokenizer = name }
+}
+
+// WithDupMinTokens sets dup_min_tokens, the shortest normalized token
+// sequence counted as a duplicate block (SPEC.md 6.3; default 40). A value
+// below 1 makes Extract fail.
+func WithDupMinTokens(n int) Option {
+	return func(e *Extractor) { e.dup.minTokens = n }
+}
+
 // New returns a Go extractor configured by opts.
 func New(opts ...Option) *Extractor {
 	e := &Extractor{
-		load:    packages.Load,
-		modules: make(map[string]*moduleLoad),
+		load:          packages.Load,
+		charsPerToken: defaultCharsPerToken,
+		tokenizer:     methodEst,
+		dup:           defaultDupOptions(),
+		modules:       make(map[string]*moduleLoad),
 	}
 	for _, opt := range opts {
 		opt(e)
@@ -71,10 +113,12 @@ func (e *Extractor) Packages(root string) ([]string, error) {
 	return slices.Clone(l.paths), nil
 }
 
-// Extract computes the metrics of the package with import path pkg in the
-// module at mod.Root. The module is loaded on the first call for its root
-// and cached in mod.Cache. An import path that is not a non-test package of
-// the module yields an error wrapping ErrUnknownPackage.
+// Extract computes the v0 metrics of the package with import path pkg in the
+// module at mod.Root; v1 fields are left nil. The module is loaded on the
+// first call for its root and cached in mod.Cache. An import path that is not
+// a non-test package of the module yields an error wrapping
+// ErrUnknownPackage, and an unknown tokenizer one wrapping
+// ErrUnknownTokenizer.
 func (e *Extractor) Extract(ctx context.Context, mod *metrics.ModuleContext, pkg string) (metrics.RawMetrics, error) {
 	l, err := e.cached(ctx, mod)
 	if err != nil {
@@ -87,9 +131,25 @@ func (e *Extractor) Extract(ctx context.Context, mod *metrics.ModuleContext, pkg
 	if !ok {
 		return metrics.RawMetrics{}, fmt.Errorf("extracting %s: %w", pkg, ErrUnknownPackage)
 	}
-	return metrics.RawMetrics{
-		Files: len(p.GoFiles),
-	}, nil
+	counter, err := e.counter()
+	if err != nil {
+		return metrics.RawMetrics{}, fmt.Errorf("extracting %s: %w", pkg, err)
+	}
+	return assemble(ctx, l, p, assembleOptions{counter: counter, dup: e.dup})
+}
+
+// counter returns the token counter the tokenizer option selects. The o200k
+// counter is built on first use and shared by every later call.
+func (e *Extractor) counter() (tokenCounter, error) {
+	switch e.tokenizer {
+	case methodEst:
+		return newRatioCounter(e.charsPerToken), nil
+	case methodO200k:
+		e.o200kOnce.Do(func() { e.o200k, e.o200kErr = newO200kCounter() })
+		return e.o200k, e.o200kErr
+	default:
+		return nil, fmt.Errorf("%w %q: want %q or %q", ErrUnknownTokenizer, e.tokenizer, methodEst, methodO200k)
+	}
 }
 
 // cached returns the load held in mod.Cache, loading the module and filling

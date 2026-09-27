@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/packages"
@@ -55,6 +56,12 @@ type loaded struct {
 	// fanIn guards the one-time build of reverse and holds the test-only
 	// importer graph behind fan_in_tests.
 	fanIn reverseGraph
+
+	// detailsMu guards details, which maps an import path to the debug
+	// details of its most recent Extract. Besides the fan-in graphs it is
+	// the only state on loaded written after the load.
+	detailsMu sync.Mutex
+	details   map[string]details
 }
 
 // loadModule loads every package under cfg.Dir, which must be an absolute

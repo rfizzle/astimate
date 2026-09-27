@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -256,6 +257,55 @@ func TestUpdateRewritesGoldens(t *testing.T) {
 	}
 	if got, want := string(gamma), strings.Replace(syntheticGoldens()["gamma"], ",\n  \"generated_files\": null", "", 1); got != want {
 		t.Errorf("rewritten gamma golden differs from the hand-written layout:\ngot:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+// TestGoldenNamesTrimModulePath runs the suite in update mode, then in
+// compare mode, over package identifiers that are full import paths, and
+// checks where the goldens land: ModulePath + "/" is trimmed, "/" becomes a
+// subdirectory, and the root package is root.json. With an empty ModulePath
+// the identifiers are used as they are.
+func TestGoldenNamesTrimModulePath(t *testing.T) {
+	const mod = "example.com/m"
+	src := syntheticPackages()
+	for _, tc := range []struct {
+		name       string
+		modulePath string
+		ids        map[string]string // synthetic name -> package identifier
+		files      []string          // golden files the writer must create
+	}{
+		{
+			name:       "module path",
+			modulePath: mod,
+			ids:        map[string]string{"alpha": mod, "beta": mod + "/beta", "gamma": mod + "/nested/gamma"},
+			files:      []string{"root.json", "beta.json", filepath.Join("nested", "gamma.json")},
+		},
+		{
+			name:  "empty module path",
+			ids:   map[string]string{"alpha": mod, "beta": mod + "/beta", "gamma": "gamma"},
+			files: []string{"example.com/m.json", "example.com/m/beta.json", "gamma.json"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			pkgs := make(map[string]metrics.RawMetrics, len(tc.ids))
+			ids := make([]string, 0, len(tc.ids))
+			for short, id := range tc.ids {
+				pkgs[id] = src[short]
+				ids = append(ids, id)
+			}
+			slices.Sort(ids)
+			dir := t.TempDir()
+			fx := metricstest.Fixture{Root: fakeRoot, ModulePath: tc.modulePath, Packages: ids, GoldenDir: dir, Update: true}
+			ext := metricstest.NewFake("fake", fakeRoot, pkgs)
+			metricstest.TestExtractor(t, ext, fx)
+			for _, f := range tc.files {
+				if _, err := os.Stat(filepath.Join(dir, filepath.FromSlash(f))); err != nil {
+					t.Errorf("golden %s not written: %v", f, err)
+				}
+			}
+			fx.Update = false
+			metricstest.TestExtractor(t, ext, fx)
+		})
 	}
 }
 

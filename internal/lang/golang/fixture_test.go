@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"golang.org/x/tools/go/packages"
 )
 
 // fixtureRoot returns the absolute path of testdata/go/fixture. It walks up
@@ -27,6 +29,23 @@ func fixtureRoot(t testing.TB) string {
 		}
 		dir = parent
 	}
+}
+
+// loadFixture loads the fixture module, bypassing the Extractor, for tests
+// that call metric functions directly.
+func loadFixture(tb testing.TB) *loaded {
+	tb.Helper()
+	return loadRoot(tb, fixtureRoot(tb))
+}
+
+// loadRoot loads the module at root, bypassing the Extractor.
+func loadRoot(tb testing.TB, root string) *loaded {
+	tb.Helper()
+	l, err := loadModule(&packages.Config{Dir: root}, packages.Load)
+	if err != nil {
+		tb.Fatalf("loading %s: %v", root, err)
+	}
+	return l
 }
 
 // isRepoRoot reports whether path is a go.mod declaring the astimate module.

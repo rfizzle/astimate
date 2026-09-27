@@ -1,24 +1,12 @@
 package golang
 
 import (
-	"path"
 	"path/filepath"
 	"slices"
 	"testing"
 
-	"github.com/rfizzle/astimate/internal/metrics/metricstest"
 	"golang.org/x/tools/go/packages"
 )
-
-// loadForFanIn loads the fixture module for the fan-in tests.
-func loadForFanIn(tb testing.TB) *loaded {
-	tb.Helper()
-	l, err := loadModule(&packages.Config{Dir: fixtureRoot(tb)}, packages.Load)
-	if err != nil {
-		tb.Fatalf("loading fixture: %v", err)
-	}
-	return l
-}
 
 // synthPkg returns a package at path whose Imports hold the given paths.
 func synthPkg(path string, imports ...string) *packages.Package {
@@ -129,8 +117,7 @@ func TestReverseGraphTestOnly(t *testing.T) {
 }
 
 func TestFanInFixture(t *testing.T) {
-	l := loadForFanIn(t)
-	goldenDir := filepath.Join(fixtureRoot(t), "golden")
+	l := loadFixture(t)
 
 	t.Run("hub", func(t *testing.T) {
 		if got := fanIn(l, l.pkgs["example.com/fixture/hub"]); got.fanIn != 4 {
@@ -143,30 +130,9 @@ func TestFanInFixture(t *testing.T) {
 		}
 	})
 
+	// Every package's counts come from the one graph build.
 	for _, pkg := range l.paths {
-		name := path.Base(pkg)
-		t.Run("golden/"+name, func(t *testing.T) {
-			want, err := metricstest.LoadGolden(goldenDir, name)
-			if err != nil {
-				t.Fatal(err)
-			}
-			got := fanIn(l, l.pkgs[pkg])
-			for _, f := range []struct {
-				field string
-				got   int
-			}{
-				{"fan_in", got.fanIn},
-				{"fan_in_tests", got.fanInTests},
-			} {
-				w, ok := want.Value(f.field)
-				if !ok {
-					t.Fatalf("golden %s has no %s", name, f.field)
-				}
-				if float64(f.got) != w {
-					t.Errorf("%s = %d, want %v", f.field, f.got, w)
-				}
-			}
-		})
+		fanIn(l, l.pkgs[pkg])
 	}
 
 	if n := len(l.paths); n != 7 {
