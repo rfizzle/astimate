@@ -41,20 +41,43 @@ func TestDiscovery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListTools: %v", err)
 	}
-	if len(res.Tools) != 2 || res.Tools[0].Name != checkToolName || res.Tools[1].Name != rankToolName {
-		t.Fatalf("ListTools returned %d tools, want %s and %s", len(res.Tools), checkToolName, rankToolName)
+	tools := make(map[string]*mcp.Tool, len(res.Tools))
+	for _, tool := range res.Tools {
+		tools[tool.Name] = tool
 	}
-	schema, err := json.Marshal(res.Tools[0].InputSchema)
-	if err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		name     string
+		props    []string
+		whenText string
+	}{
+		{name: checkToolName, props: []string{`"path"`, `"base"`, `"baseline_file"`, `"required":["path"]`},
+			whenText: "before declaring the work done"},
+		{name: assessToolName, props: []string{`"path"`, `"tokenizer"`, `"required":["path"]`},
+			whenText: "before deciding how to approach a change"},
+		{name: rankToolName, props: []string{`"module_root"`, `"top"`, `"sort"`},
+			whenText: "before choosing what to touch"},
 	}
-	for _, prop := range []string{`"path"`, `"base"`, `"baseline_file"`, `"required":["path"]`} {
-		if !strings.Contains(string(schema), prop) {
-			t.Errorf("input schema %s lacks %s", schema, prop)
+	if len(tools) != len(tests) {
+		t.Fatalf("ListTools returned %d tools, want %d", len(tools), len(tests))
+	}
+	for _, tt := range tests {
+		tool, ok := tools[tt.name]
+		if !ok {
+			t.Errorf("ListTools lacks %s", tt.name)
+			continue
 		}
-	}
-	if !strings.Contains(res.Tools[0].Description, "before declaring the work done") {
-		t.Errorf("description = %q, want it to say when to call the tool", res.Tools[0].Description)
+		schema, err := json.Marshal(tool.InputSchema)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, prop := range tt.props {
+			if !strings.Contains(string(schema), prop) {
+				t.Errorf("%s input schema %s lacks %s", tt.name, schema, prop)
+			}
+		}
+		if !strings.Contains(tool.Description, tt.whenText) {
+			t.Errorf("%s description = %q, want it to say when to call the tool", tt.name, tool.Description)
+		}
 	}
 }
 

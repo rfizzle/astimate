@@ -50,6 +50,7 @@ func New(o Options) *mcp.Server {
 		},
 	)
 	s := newSession(o)
+	addAssessTool(srv, s)
 	addCheckTool(srv, s)
 	addRankTool(srv, s)
 	return srv

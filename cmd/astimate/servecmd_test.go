@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -198,8 +199,16 @@ func TestServeStdoutCarriesOnlyProtocolFrames(t *testing.T) {
 			Name string `json:"name"`
 		} `json:"tools"`
 	}
-	if err := json.Unmarshal(byID["2"].Result, &list); err != nil || len(list.Tools) != 2 || list.Tools[0].Name != "check_package" {
-		t.Errorf("tools/list result = %s (err %v), want check_package among two tools", byID["2"].Result, err)
+	if err := json.Unmarshal(byID["2"].Result, &list); err != nil {
+		t.Errorf("tools/list result = %s: %v", byID["2"].Result, err)
+	}
+	names := make([]string, 0, len(list.Tools))
+	for _, tool := range list.Tools {
+		names = append(names, tool.Name)
+	}
+	slices.Sort(names)
+	if want := []string{"assess_package", "check_package", "rank_packages"}; !slices.Equal(names, want) {
+		t.Errorf("tools/list names = %v, want %v", names, want)
 	}
 	if !strings.Contains(stderr.String(), "mcp server starting") {
 		t.Errorf("stderr = %q, want the startup log line", stderr)
