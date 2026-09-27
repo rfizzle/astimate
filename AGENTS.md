@@ -65,6 +65,8 @@ Performance matters because agents call this tool interactively and `rank` runs 
 
 ## Architecture boundaries
 
+The repository follows the [golang-standards/project-layout](https://github.com/golang-standards/project-layout) conventions: commands under `cmd/`, private code under `internal/`, and any package deliberately made importable by other modules under `pkg/`. Nothing is under `pkg/` today; the metrics contract and the conformance suite stay internal until there is a concrete external implementer.
+
 - `internal/metrics` defines `RawMetrics` and `Extractor`. It imports nothing language-specific.
 - `internal/lang/<lang>` implements one extractor. Language-specific code lives only here.
 - `internal/score` and `internal/gate` depend on `internal/metrics` only. Neither may import any `internal/lang` package.
