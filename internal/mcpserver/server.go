@@ -53,6 +53,7 @@ func New(o Options) *mcp.Server {
 	addAssessTool(srv, s)
 	addCheckTool(srv, s)
 	addRankTool(srv, s)
+	addExplainTool(srv, s)
 	return srv
 }
 

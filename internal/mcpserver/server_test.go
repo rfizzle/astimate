@@ -56,6 +56,8 @@ func TestDiscovery(t *testing.T) {
 			whenText: "before deciding how to approach a change"},
 		{name: rankToolName, props: []string{`"module_root"`, `"top"`, `"sort"`},
 			whenText: "before choosing what to touch"},
+		{name: explainToolName, props: []string{`"metric"`, `"required":["metric"]`},
+			whenText: "names a metric you do not understand"},
 	}
 	if len(tools) != len(tests) {
 		t.Fatalf("ListTools returned %d tools, want %d", len(tools), len(tests))
