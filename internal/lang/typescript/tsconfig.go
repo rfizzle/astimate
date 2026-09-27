@@ -20,7 +20,8 @@ const maxExtendsDepth = 32
 
 // tsconfig is the part of a tsconfig.json the extractor reads, after its
 // extends chain is applied: the path aliases under compilerOptions.paths
-// and the baseUrl they resolve against, and whether JSON modules resolve.
+// and the baseUrl they resolve against, whether JSON modules resolve, and
+// whether JavaScript files do.
 type tsconfig struct {
 	// base is the absolute directory alias targets are relative to:
 	// baseUrl when set, else the directory of the configuration file that
@@ -35,6 +36,10 @@ type tsconfig struct {
 	// resolveJSON is compilerOptions.resolveJsonModule: a specifier
 	// ending in .json then resolves to that file.
 	resolveJSON bool
+	// allowJS is compilerOptions.allowJs, which checkJs implies when
+	// allowJs is unset, as in tsc: JavaScript files are then resolution
+	// targets after the TypeScript ones.
+	allowJS bool
 }
 
 // alias is one compilerOptions.paths entry. pattern holds at most one *.
@@ -45,8 +50,8 @@ type alias struct {
 	targets  []string
 }
 
-// compilerOptions is the effective baseUrl, paths and resolveJsonModule
-// of one configuration file with its extends chain applied, the
+// compilerOptions is the effective baseUrl, paths, resolveJsonModule,
+// allowJs and checkJs of one configuration file with its extends chain applied, the
 // directories absolute.
 type compilerOptions struct {
 	// baseURL is the absolute baseUrl; "" when unset.
@@ -57,15 +62,18 @@ type compilerOptions struct {
 	pathsDir string
 	// resolveJSON is resolveJsonModule, nil when unset.
 	resolveJSON *bool
+	// allowJS is allowJs and checkJS checkJs, each nil when unset.
+	allowJS, checkJS *bool
 }
 
 // readTSConfig reads tsconfig.json at root and the configurations it
 // extends. A missing file yields no aliases. Files may hold comments and
 // trailing commas, as tsc accepts. An extends value, a string or an array
 // of them, is a path relative to the extending file or a bare name
-// resolved under node_modules; compilerOptions baseUrl, paths and
-// resolveJsonModule are taken from the last configuration that sets each, the extending file last, so
-// a child's paths replace its parent's whole, as tsc merges them. As in
+// resolved under node_modules; compilerOptions baseUrl, paths,
+// resolveJsonModule, allowJs and checkJs are taken from the last
+// configuration that sets each, the extending file last, so a child's
+// paths replace its parent's whole, as tsc merges them. As in
 // tsc 5.5, a baseUrl, paths target or extends value starting with
 // ${configDir} has it replaced by root, the directory of the root
 // configuration, in every file of the chain. An extended file that cannot
@@ -87,6 +95,12 @@ func readTSConfig(root string) (tsconfig, error) {
 	}
 	cfg.baseURL = opts.baseURL
 	cfg.resolveJSON = opts.resolveJSON != nil && *opts.resolveJSON
+	switch {
+	case opts.allowJS != nil:
+		cfg.allowJS = *opts.allowJS
+	case opts.checkJS != nil:
+		cfg.allowJS = *opts.checkJS
+	}
 	switch {
 	case opts.baseURL != "":
 		cfg.base = opts.baseURL
@@ -136,6 +150,8 @@ func loadCompilerOptions(p, configDir string, seen map[string]bool, depth int) (
 			Paths   *map[string][]string `json:"paths"`
 			// ResolveJSON is resolveJsonModule.
 			ResolveJSON *bool `json:"resolveJsonModule"`
+			AllowJS     *bool `json:"allowJs"`
+			CheckJS     *bool `json:"checkJs"`
 		} `json:"compilerOptions"`
 	}
 	if err := json.Unmarshal(stripJSONC(data), &raw); err != nil {
@@ -170,6 +186,12 @@ func loadCompilerOptions(p, configDir string, seen map[string]bool, depth int) (
 		if po.resolveJSON != nil {
 			opts.resolveJSON = po.resolveJSON
 		}
+		if po.allowJS != nil {
+			opts.allowJS = po.allowJS
+		}
+		if po.checkJS != nil {
+			opts.checkJS = po.checkJS
+		}
 	}
 	if b := raw.CompilerOptions.BaseURL; b != nil {
 		if abs, ok := expandConfigDir(*b, configDir); ok {
@@ -180,6 +202,12 @@ func loadCompilerOptions(p, configDir string, seen map[string]bool, depth int) (
 	}
 	if v := raw.CompilerOptions.ResolveJSON; v != nil {
 		opts.resolveJSON = v
+	}
+	if v := raw.CompilerOptions.AllowJS; v != nil {
+		opts.allowJS = v
+	}
+	if v := raw.CompilerOptions.CheckJS; v != nil {
+		opts.checkJS = v
 	}
 	if ps := raw.CompilerOptions.Paths; ps != nil {
 		opts.paths, opts.pathsDir = *ps, dir

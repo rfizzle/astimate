@@ -20,7 +20,9 @@
 //     extends chain applied, or a bare specifier under its baseUrl, that
 //     resolves as tsc does to a TypeScript file (or a directory's
 //     package.json entry or index file, or under resolveJsonModule the
-//     .json file it names) in another package of the module.
+//     .json file it names, or under allowJs or checkJs, when no TypeScript
+//     file resolves, a JavaScript file) in another package of the module.
+//     JavaScript and JSON files add nothing to source metrics.
 //     Any other bare specifier, including one under baseUrl or matching an
 //     alias that resolves to no such file, is external, counted by npm
 //     package name, unless it names a Node built-in, which is counted as

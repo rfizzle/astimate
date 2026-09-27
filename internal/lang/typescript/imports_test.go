@@ -230,6 +230,20 @@ func TestResolveModule(t *testing.T) {
 		"plain.js":                "",
 		"logo.svg":                "",
 		"esm.mts":                 "",
+		"idx/jsx/index.jsx":       "",
+		"idx/jsboth/index.js":     "",
+		"idx/jsboth/index.jsx":    "",
+		"pj/jsdir/package.json":   `{"main": "lib"}`,
+		"pj/jsdir/lib/index.jsx":  "",
+		"pj/jstypes/package.json": `{"types": "t.js", "main": "m.js"}`,
+		"pj/jstypes/t.js":         "",
+		"pj/jstypes/index.js":     "",
+		"comp.jsx":                "",
+		"pair.js":                 "",
+		"pair.jsx":                "",
+		"mod.mjs":                 "",
+		"com.cjs":                 "",
+		"data.json.js":            "",
 	})
 	r := newResolver(root, nil, tsconfig{base: root})
 	cases := map[string]string{
@@ -263,16 +277,67 @@ func TestResolveModule(t *testing.T) {
 		"esm.mts":    "esm.mts",
 		"nothing":    "",
 	}
+	// The JavaScript pass, which classify runs under allowJs only after
+	// the TypeScript pass found nothing.
+	jsCases := map[string]string{
+		"idx/ts":      "",
+		"idx/js":      "idx/js/index.js",
+		"idx/jsx":     "idx/jsx/index.jsx",
+		"idx/jsboth":  "idx/jsboth/index.js",
+		"pj/js":       "pj/js/index.js",
+		"pj/main":     "",
+		"pj/jsdir":    "pj/jsdir/lib/index.jsx",
+		"pj/jstypes":  "pj/jstypes/index.js",
+		"file":        "",
+		"file.ts":     "",
+		"plain":       "plain.js",
+		"plain.js":    "plain.js",
+		"comp":        "comp.jsx",
+		"comp.js":     "comp.jsx",
+		"comp.jsx":    "comp.jsx",
+		"pair":        "pair.js",
+		"pair.js":     "pair.js",
+		"pair.jsx":    "pair.jsx",
+		"mod":         "",
+		"mod.mjs":     "mod.mjs",
+		"com.cjs":     "com.cjs",
+		"data.json":   "data.json.js",
+		"logo.svg":    "",
+		"nothing":     "",
+		"nothing.mjs": "",
+	}
+	for _, pc := range []struct {
+		name  string
+		pass  pass
+		cases map[string]string
+	}{{"typescript", passTS, cases}, {"javascript", passJS, jsCases}} {
+		for in, want := range pc.cases {
+			t.Run(pc.name+"/"+in, func(t *testing.T) {
+				got := r.resolveModule(filepath.Join(root, filepath.FromSlash(in)), pc.pass)
+				if want != "" {
+					want = filepath.Join(root, filepath.FromSlash(want))
+				}
+				if got != want {
+					t.Errorf("resolveModule(%q, %d) = %q, want %q", in, pc.pass, got, want)
+				}
+			})
+		}
+	}
+}
+
+func TestScriptCandidates(t *testing.T) {
+	cases := map[string][]string{
+		"a/x.js":  {"a/x.js", "a/x.jsx"},
+		"a/x.jsx": {"a/x.jsx", "a/x.js"},
+		"a/x.mjs": {"a/x.mjs"},
+		"a/x.cjs": {"a/x.cjs"},
+		"a/x.ts":  nil,
+		"a/x":     nil,
+	}
 	for in, want := range cases {
-		t.Run(in, func(t *testing.T) {
-			got := r.resolveModule(filepath.Join(root, filepath.FromSlash(in)))
-			if want != "" {
-				want = filepath.Join(root, filepath.FromSlash(want))
-			}
-			if got != want {
-				t.Errorf("resolveModule(%q) = %q, want %q", in, got, want)
-			}
-		})
+		if got := scriptCandidates(in); !slices.Equal(got, want) {
+			t.Errorf("scriptCandidates(%q) = %q, want %q", in, got, want)
+		}
 	}
 }
 
@@ -707,5 +772,140 @@ func TestClassifyResolveJSONModule(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestClassifyAllowJS(t *testing.T) {
+	// Each case writes its configuration files over a tree where src/app,
+	// src/lib and src/shadow are packages; src/jsonly and vendor hold only
+	// JavaScript, so they are not.
+	tree := map[string]string{
+		"package.json":         "{}",
+		"src/app/app.ts":       "export const a = 1;\n",
+		"src/lib/index.ts":     "export const l = 1;\n",
+		"src/lib/legacy.js":    "export const j = 1;\n",
+		"src/lib/widget.jsx":   "export const w = 1;\n",
+		"src/jsonly/index.js":  "export const o = 1;\n",
+		"src/shadow.js":        "export const s = 1;\n",
+		"src/shadow/index.ts":  "export const s = 1;\n",
+		"vendor/v.js":          "export const v = 1;\n",
+		"src/app/data.json":    "{}",
+		"src/lib/data.json.js": "export const d = 1;\n",
+	}
+	const opts = `"baseUrl": "src", "paths": {"@l/*": ["lib/*"]}`
+	on := map[string]classified{
+		"../lib/legacy.js":  {importInternal, "src/lib"},
+		"../lib/legacy":     {importInternal, "src/lib"},
+		"../lib/widget":     {importInternal, "src/lib"},
+		"../lib/widget.js":  {importInternal, "src/lib"},
+		"@l/legacy":         {importInternal, "src/lib"},
+		"lib/legacy":        {importInternal, "src/lib"},
+		"../jsonly":         {importNone, ""},
+		"jsonly":            {importNone, ""},
+		"../shadow":         {importInternal, "src/shadow"},
+		"../lib":            {importInternal, "src/lib"},
+		"../../vendor/v.js": {importNone, ""},
+		"../lib/missing":    {importNone, ""},
+		"lodash":            {importExternal, "lodash"},
+		"../lib/data.json":  {importInternal, "src/lib"},
+	}
+	off := map[string]classified{
+		"../lib/legacy.js":  {importNone, ""},
+		"../lib/legacy":     {importNone, ""},
+		"../lib/widget":     {importNone, ""},
+		"../lib/widget.js":  {importNone, ""},
+		"@l/legacy":         {importExternal, "@l/legacy"},
+		"lib/legacy":        {importExternal, "lib"},
+		"../jsonly":         {importNone, ""},
+		"jsonly":            {importExternal, "jsonly"},
+		"../shadow":         {importInternal, "src/shadow"},
+		"../lib":            {importInternal, "src/lib"},
+		"../../vendor/v.js": {importNone, ""},
+		"../lib/missing":    {importNone, ""},
+		"lodash":            {importExternal, "lodash"},
+		"../lib/data.json":  {importNone, ""},
+	}
+	cases := []struct {
+		name  string
+		files map[string]string
+		want  map[string]classified
+	}{
+		{"unset", map[string]string{
+			"tsconfig.json": `{"compilerOptions": {` + opts + `}}`,
+		}, off},
+		{"false", map[string]string{
+			"tsconfig.json": `{"compilerOptions": {"allowJs": false, ` + opts + `}}`,
+		}, off},
+		{"set", map[string]string{
+			"tsconfig.json": `{"compilerOptions": {"allowJs": true, ` + opts + `}}`,
+		}, on},
+		{"checkJs alone implies it", map[string]string{
+			"tsconfig.json": `{"compilerOptions": {"checkJs": true, ` + opts + `}}`,
+		}, on},
+		{"checkJs false alone", map[string]string{
+			"tsconfig.json": `{"compilerOptions": {"checkJs": false, ` + opts + `}}`,
+		}, off},
+		{"explicit false beats checkJs", map[string]string{
+			"tsconfig.json": `{"compilerOptions": {"allowJs": false, "checkJs": true, ` + opts + `}}`,
+		}, off},
+		{"inherited through extends", map[string]string{
+			"tsconfig.json": `{"extends": "./cfg/base", "compilerOptions": {` + opts + `}}`,
+			"cfg/base.json": `{"extends": "./root.json"}`,
+			"cfg/root.json": `{"compilerOptions": {"allowJs": true}}`,
+		}, on},
+		{"checkJs inherited through extends", map[string]string{
+			"tsconfig.json": `{"extends": "./base.json", "compilerOptions": {` + opts + `}}`,
+			"base.json":     `{"compilerOptions": {"checkJs": true}}`,
+		}, on},
+		{"child false overrides the parent", map[string]string{
+			"tsconfig.json": `{"extends": "./base.json", "compilerOptions": {"allowJs": false, ` + opts + `}}`,
+			"base.json":     `{"compilerOptions": {"allowJs": true}}`,
+		}, off},
+		{"inherited false beats a child's checkJs", map[string]string{
+			"tsconfig.json": `{"extends": "./base.json", "compilerOptions": {"checkJs": true, ` + opts + `}}`,
+			"base.json":     `{"compilerOptions": {"allowJs": false}}`,
+		}, off},
+		{"last parent setting it wins", map[string]string{
+			"tsconfig.json": `{"extends": ["./a.json", "./b.json"], "compilerOptions": {` + opts + `}}`,
+			"a.json":        `{"compilerOptions": {"allowJs": false}}`,
+			"b.json":        `{"compilerOptions": {"allowJs": true}}`,
+		}, on},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			writeTree(t, root, tree)
+			writeTree(t, root, tc.files)
+			cfg, err := readTSConfig(root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			r := newResolver(root, map[string]*pkg{"src/app": {}, "src/lib": {}, "src/shadow": {}}, cfg)
+			for spec, want := range tc.want {
+				if got := r.classify("src/app", spec); got != want {
+					t.Errorf("classify(%q) = %+v, want %+v", spec, got, want)
+				}
+			}
+		})
+	}
+}
+
+func TestClassifyAllowJSWithResolveJSONModule(t *testing.T) {
+	// Under resolveJsonModule a .json specifier names that file alone, so
+	// the JavaScript pass does not append .js to it.
+	root := t.TempDir()
+	writeTree(t, root, map[string]string{
+		"src/app/app.ts":       "export const a = 1;\n",
+		"src/lib/index.ts":     "export const l = 1;\n",
+		"src/lib/data.json.js": "export const d = 1;\n",
+		"tsconfig.json":        `{"compilerOptions": {"allowJs": true, "resolveJsonModule": true}}`,
+	})
+	cfg, err := readTSConfig(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := newResolver(root, map[string]*pkg{"src/app": {}, "src/lib": {}}, cfg)
+	if got, want := r.classify("src/app", "../lib/data.json"), (classified{importNone, ""}); got != want {
+		t.Errorf("classify = %+v, want %+v", got, want)
 	}
 }

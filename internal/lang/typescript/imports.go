@@ -61,11 +61,37 @@ type resolver struct {
 	cfg      tsconfig
 	builtins map[string]bool
 	// stat caches what exists at a path; module the file an import of a
-	// path resolves to, "" for none; manifests the entries of the
-	// package.json in a directory.
+	// path resolves to in a pass, "" for none; manifests the entries of
+	// the package.json in a directory.
 	stat      map[string]statKind
-	module    map[string]string
-	manifests map[string][]string
+	module    map[moduleKey]string
+	manifests map[string]manifest
+}
+
+// pass is one of tsc's two resolution passes: every lookup is tried for
+// TypeScript files first, and only when that finds nothing, and allowJs is
+// set, again for JavaScript files.
+type pass int
+
+const (
+	// passTS resolves to TypeScript source and declaration files, and to
+	// .json files under resolveJsonModule.
+	passTS pass = iota
+	// passJS resolves to .js, .jsx, .mjs and .cjs files.
+	passJS
+)
+
+// moduleKey is a path resolved in one pass.
+type moduleKey struct {
+	path string
+	pass pass
+}
+
+// manifest is what a package.json names for resolution: its typings and
+// types targets, which only the TypeScript pass reads, and its main
+// target, which both do; each an absolute path, "" when unset.
+type manifest struct {
+	typings, types, main string
 }
 
 // statKind is what exists at a path.
@@ -82,7 +108,7 @@ const (
 func newResolver(root string, pkgs map[string]*pkg, cfg tsconfig) *resolver {
 	return &resolver{
 		root: root, pkgs: pkgs, cfg: cfg, builtins: nodeBuiltins(),
-		stat: map[string]statKind{}, module: map[string]string{}, manifests: map[string][]string{},
+		stat: map[string]statKind{}, module: map[moduleKey]string{}, manifests: map[string]manifest{},
 	}
 }
 
@@ -103,38 +129,24 @@ func newResolver(root string, pkgs map[string]*pkg, cfg tsconfig) *resolver {
 //   - any other specifier is bare and external under its package name, the
 //     first segment or, for a scoped package, the first two.
 //
+// As in tsc, the relative, alias and baseUrl lookups are all tried in the
+// TypeScript pass before any is tried in the JavaScript pass, which runs
+// only under allowJs; so a directory's index.ts wins over a sibling .js
+// file of the same name.
+//
 // A resolved file inside the module is internal to the package holding
 // it, and counted nowhere when its directory is in no package; a resolved
 // file outside the module is external under the specifier itself.
 func (r *resolver) classify(dir, spec string) classified {
-	if isRelative(spec) {
-		p := filepath.Join(r.root, filepath.FromSlash(path.Join(dir, spec)))
-		var f string
-		if last := path.Base(spec); strings.HasSuffix(spec, "/") || last == "." || last == ".." {
-			// tsc resolves ".", ".." and a trailing slash as a directory
-			// only.
-			f = r.resolveDir(p)
-		} else {
-			f = r.resolveModule(p)
-		}
-		if f == "" {
-			return classified{kind: importNone}
-		}
+	f := r.resolveLocal(dir, spec, passTS)
+	if f == "" && r.cfg.allowJS {
+		f = r.resolveLocal(dir, spec, passJS)
+	}
+	if f != "" {
 		return r.landed(spec, f)
 	}
-	for _, t := range r.cfg.match(spec) {
-		p := filepath.FromSlash(t)
-		if !filepath.IsAbs(p) {
-			p = filepath.Join(r.cfg.base, p)
-		}
-		if f := r.resolveModule(p); f != "" {
-			return r.landed(spec, f)
-		}
-	}
-	if r.cfg.baseURL != "" && !strings.HasPrefix(spec, "node:") {
-		if f := r.resolveModule(filepath.Join(r.cfg.baseURL, filepath.FromSlash(spec))); f != "" {
-			return r.landed(spec, f)
-		}
+	if isRelative(spec) {
+		return classified{kind: importNone}
 	}
 	if name, ok := strings.CutPrefix(spec, "node:"); ok {
 		return classified{kind: importStdlib, name: firstSegment(name)}
@@ -143,6 +155,35 @@ func (r *resolver) classify(dir, spec string) classified {
 		return classified{kind: importStdlib, name: first}
 	}
 	return classified{kind: importExternal, name: packageName(spec)}
+}
+
+// resolveLocal returns the file spec, imported from a file in the slash
+// directory dir, resolves to in pass ps on the file system: relative to
+// dir, else through the first paths alias target that resolves, else under
+// baseUrl; "" when none does.
+func (r *resolver) resolveLocal(dir, spec string, ps pass) string {
+	if isRelative(spec) {
+		p := filepath.Join(r.root, filepath.FromSlash(path.Join(dir, spec)))
+		if last := path.Base(spec); strings.HasSuffix(spec, "/") || last == "." || last == ".." {
+			// tsc resolves ".", ".." and a trailing slash as a directory
+			// only.
+			return r.resolveDir(p, ps)
+		}
+		return r.resolveModule(p, ps)
+	}
+	for _, t := range r.cfg.match(spec) {
+		p := filepath.FromSlash(t)
+		if !filepath.IsAbs(p) {
+			p = filepath.Join(r.cfg.base, p)
+		}
+		if f := r.resolveModule(p, ps); f != "" {
+			return f
+		}
+	}
+	if r.cfg.baseURL != "" && !strings.HasPrefix(spec, "node:") {
+		return r.resolveModule(filepath.Join(r.cfg.baseURL, filepath.FromSlash(spec)), ps)
+	}
+	return ""
 }
 
 // landed classifies an import of spec that resolved to the absolute file
@@ -161,52 +202,71 @@ func (r *resolver) landed(spec, f string) classified {
 }
 
 // resolveModule returns the file an import of the absolute path p
-// resolves to, or "" when there is none. As tsc does, it tries p as a file
-// (resolveFile) before p as a directory (resolveDir). A file with no
-// TypeScript extension after the JavaScript mapping, unless it is a .json
-// file under resolveJsonModule, and a missing path resolve to nothing.
-func (r *resolver) resolveModule(p string) string {
-	if f, ok := r.module[p]; ok {
+// resolves to in pass ps, or "" when there is none. As tsc does, it tries
+// p as a file (resolveFile) before p as a directory (resolveDir). A file
+// with no extension of the pass, and a missing path, resolve to nothing.
+func (r *resolver) resolveModule(p string, ps pass) string {
+	k := moduleKey{p, ps}
+	if f, ok := r.module[k]; ok {
 		return f
 	}
-	f := r.resolveFile(p)
+	f := r.resolveFile(p, ps)
 	if f == "" {
-		f = r.resolveDir(p)
+		f = r.resolveDir(p, ps)
 	}
-	r.module[p] = f
+	r.module[k] = f
 	return f
 }
 
 // resolveDir returns the file an import of the absolute directory p
-// resolves to, or "" for none: the first of its package.json typings,
-// types and main fields whose target resolves as a file or, being a
-// directory, through that directory's index file; failing those, its own
-// index file (resolveIndex). A directory with neither resolves to nothing.
-func (r *resolver) resolveDir(p string) string {
+// resolves to in pass ps, or "" for none: the first of its package.json
+// entries for the pass (typings, types and main in the TypeScript pass,
+// main alone in the JavaScript one) whose target resolves as a file or,
+// being a directory, through that directory's index file; failing those,
+// its own index file (resolveIndex). A directory with neither resolves to
+// nothing.
+func (r *resolver) resolveDir(p string, ps pass) string {
 	if r.kindOf(p) != statDir {
 		return ""
 	}
-	for _, entry := range r.manifestEntries(p) {
-		f := r.resolveFile(entry)
+	m := r.manifestEntries(p)
+	entries := []string{m.typings, m.types, m.main}
+	if ps == passJS {
+		entries = entries[2:]
+	}
+	for _, entry := range entries {
+		if entry == "" {
+			continue
+		}
+		f := r.resolveFile(entry, ps)
 		if f == "" && r.kindOf(entry) == statDir {
-			f = r.resolveIndex(entry)
+			f = r.resolveIndex(entry, ps)
 		}
 		if f != "" {
 			return f
 		}
 	}
-	return r.resolveIndex(p)
+	return r.resolveIndex(p, ps)
 }
 
-// resolveFile returns the file an import of the absolute path p names, or
-// "" for none: p itself when it ends in a TypeScript source or declaration
-// extension, or in .json under resolveJsonModule; the TypeScript
-// counterparts of a JavaScript extension (sourceCandidates); else p with
-// .ts, .tsx or .d.ts appended.
-func (r *resolver) resolveFile(p string) string {
+// resolveFile returns the file an import of the absolute path p names in
+// pass ps, or "" for none. In the TypeScript pass: p itself when it ends
+// in a TypeScript source or declaration extension, or in .json under
+// resolveJsonModule; the TypeScript counterparts of a JavaScript extension
+// (sourceCandidates); else p with .ts, .tsx or .d.ts appended. In the
+// JavaScript pass: nothing for those same TypeScript and JSON names; the
+// JavaScript files of a JavaScript extension (scriptCandidates); else p
+// with .js or .jsx appended.
+func (r *resolver) resolveFile(p string, ps pass) string {
 	var candidates []string
+	own := hasTSExtension(p) || r.cfg.resolveJSON && strings.HasSuffix(p, ".json")
 	switch {
-	case hasTSExtension(p), r.cfg.resolveJSON && strings.HasSuffix(p, ".json"):
+	case ps == passJS && own:
+	case ps == passJS && hasJSExtension(p):
+		candidates = scriptCandidates(p)
+	case ps == passJS:
+		candidates = []string{p + ".js", p + ".jsx"}
+	case own:
 		candidates = []string{p}
 	case hasJSExtension(p):
 		candidates = sourceCandidates(p)
@@ -221,14 +281,19 @@ func (r *resolver) resolveFile(p string) string {
 	return ""
 }
 
-// resolveIndex returns the first index file in the absolute directory dir,
-// or "" for none: index.ts, index.tsx and index.d.ts, then the .mts and
-// .cts forms.
-func (r *resolver) resolveIndex(dir string) string {
-	for _, name := range []string{
+// resolveIndex returns the first index file in the absolute directory dir
+// for pass ps, or "" for none: in the TypeScript pass index.ts, index.tsx
+// and index.d.ts, then the .mts and .cts forms; in the JavaScript pass
+// index.js, then index.jsx.
+func (r *resolver) resolveIndex(dir string, ps pass) string {
+	names := []string{
 		"index.ts", "index.tsx", "index.d.ts",
 		"index.mts", "index.cts", "index.d.mts", "index.d.cts",
-	} {
+	}
+	if ps == passJS {
+		names = []string{"index.js", "index.jsx"}
+	}
+	for _, name := range names {
 		if c := filepath.Join(dir, name); r.kindOf(c) == statFile {
 			return c
 		}
@@ -237,44 +302,44 @@ func (r *resolver) resolveIndex(dir string) string {
 }
 
 // manifestEntries returns the absolute paths the package.json in the
-// absolute directory dir names in its typings, types and main fields, in
-// that order, skipping unset ones; nil when dir has no readable, valid
-// package.json, since tsc then goes on to the index file.
+// absolute directory dir names in its typings, types and main fields; the
+// zero manifest when dir has no readable, valid package.json, since tsc
+// then goes on to the index file.
 // Each package.json is read at most once per resolver.
-func (r *resolver) manifestEntries(dir string) []string {
-	if entries, ok := r.manifests[dir]; ok {
-		return entries
+func (r *resolver) manifestEntries(dir string) manifest {
+	if m, ok := r.manifests[dir]; ok {
+		return m
 	}
-	var entries []string
+	var m manifest
 	if p := filepath.Join(dir, manifestName); r.kindOf(p) == statFile {
-		entries = readManifestEntries(dir, p)
+		m = readManifestEntries(dir, p)
 	}
-	r.manifests[dir] = entries
-	return entries
+	r.manifests[dir] = m
+	return m
 }
 
 // readManifestEntries reads the package.json at p in the directory dir for
 // manifestEntries.
-func readManifestEntries(dir, p string) []string {
+func readManifestEntries(dir, p string) manifest {
 	data, err := os.ReadFile(p)
 	if err != nil {
-		return nil
+		return manifest{}
 	}
-	var m struct {
+	var raw struct {
 		Typings any `json:"typings"`
 		Types   any `json:"types"`
 		Main    any `json:"main"`
 	}
-	if json.Unmarshal(data, &m) != nil {
-		return nil
+	if json.Unmarshal(data, &raw) != nil {
+		return manifest{}
 	}
-	out := make([]string, 0, 3)
-	for _, v := range []any{m.Typings, m.Types, m.Main} {
+	entry := func(v any) string {
 		if s, ok := v.(string); ok && s != "" {
-			out = append(out, filepath.Join(dir, filepath.FromSlash(s)))
+			return filepath.Join(dir, filepath.FromSlash(s))
 		}
+		return ""
 	}
-	return out
+	return manifest{typings: entry(raw.Typings), types: entry(raw.Types), main: entry(raw.Main)}
 }
 
 // kindOf reports what exists at the absolute path p, caching the answer.
@@ -341,6 +406,23 @@ func sourceCandidates(p string) []string {
 		out = append(out, stem+ext)
 	}
 	return out
+}
+
+// scriptCandidates returns the JavaScript files tsc tries under allowJs
+// for an import of p written with a JavaScript extension, in its order:
+// .js then .jsx for .js, .jsx then .js for .jsx, and the file itself for
+// .mjs and .cjs; nil for any other p.
+func scriptCandidates(p string) []string {
+	if stem, ok := strings.CutSuffix(p, ".jsx"); ok {
+		return []string{p, stem + ".js"}
+	}
+	if stem, ok := strings.CutSuffix(p, ".js"); ok {
+		return []string{p, stem + ".jsx"}
+	}
+	if hasJSExtension(p) {
+		return []string{p}
+	}
+	return nil
 }
 
 // isRelative reports whether spec is a relative module specifier.
