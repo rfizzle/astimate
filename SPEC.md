@@ -50,6 +50,7 @@ The gate targets the ways LLM-written changes tend to degrade a package. The met
 | Exporting everything | `exported_symbols` | No direct study. Wider API surface raises fan-in cost and the facts the next agent must hold (Coherence Debt, arXiv 2608.16630). | Indirect |
 | Untested additions | `untested_exports`, `has_tests` | Agents self-correct through a run-and-check loop; a package without tests denies the next agent that loop. | Moderate, indirect |
 | Hidden state | `globals`, `init_funcs` | No direct study. Plausible; kept at low weight. | Unproven |
+| Coupling shape | `instability`, `abstractness`, `main_sequence_distance` | Martin's package metrics are widely reported but their validation as predictors is mixed and none exists for Go, whose consumer-defined interfaces invert the abstract-provider assumption. Reported only until the corpus measurement in 11.1 shows where good Go modules sit. | Unproven |
 | Deep nesting | `max_nesting`, `cognitive_p90` | Classical complexity shows no consistent correlation with LLM performance once length is controlled (arXiv 2602.07882). Kept as a gate on regressions only. | Weak |
 | Coupling growth | `internal_imports` | Failures come from coupled facts absent from context (arXiv 2608.16630; CrossCodeEval; RepoBench). | Moderate |
 | Blast radius | `fan_in` | Strongest predictor of task difficulty (SWE-bench analyses, arXiv 2511.00197). Rarely changes within one PR, so it drives the rebuild estimate more than gating. | Strong for ranking |
@@ -142,8 +143,10 @@ Every field is reported in output. *(v0)* fields are required for the first rele
 | `test_funcs` | int | `Test*`, `Benchmark*`, `Fuzz*`, `Example*` functions | v0 |
 | `has_tests` | bool | `test_funcs > 0` | v0 |
 | `untested_exports` | int | Exported funcs and methods not referenced from any test file in the package; see 6.4 | v0 |
-| `concrete_param_ratio` | float | Share of exported-function params typed as struct or pointer-to-struct from another package versus interface | v1 |
-| `dup_blocks_cross_pkg` | int | Duplicate blocks shared with other packages in the module | v1 |
+| `dup_blocks_cross_pkg` | int | Duplicate blocks shared with other packages in the module (exact normalized repeats; also reported on a module-level row for gating) | v1 |
+| `instability` | float | Martin instability `Ce / (Ca + Ce)` with `Ca = fan_in`, `Ce = internal_imports`; null when both are 0 | v1 |
+| `abstractness` | float | Exported interface types over all exported types; null with no exported types | v1 |
+| `main_sequence_distance` | float | `|abstractness + instability - 1|`; reported, not gated, since idiomatic Go leaf packages sit near 1 by design | v1 |
 | `uses_cgo` | bool | Imports `"C"` | v1 |
 | `uses_reflect` | bool | Imports `reflect` or `unsafe` | v1 |
 | `generated_files` | int | Files with a `Code generated ... DO NOT EDIT` header | v1 |
@@ -484,7 +487,7 @@ Each bullet is intended to become one story.
 
 ### M6: v1 metrics and second language
 
-- `concrete_param_ratio`, `dup_blocks_cross_pkg`, `uses_cgo`, `uses_reflect`, `generated_files`, `coverage_pct`.
+- `instability`, `abstractness`, `main_sequence_distance` (reported only), `dup_blocks_cross_pkg` with a module-level gate row, `uses_cgo`, `uses_reflect`, `generated_files`, `coverage_pct`.
 - TypeScript extractor behind tree-sitter with fixtures, passing the conformance suite.
 - Per-language config overrides.
 
@@ -494,6 +497,6 @@ Each bullet is intended to become one story.
 
 ## 15. Open questions
 
-- Should `check` also evaluate packages whose importers changed, since a change to `hub` can affect their metrics? Proposed: no in v0; `--all` covers it.
+- Should `check` also evaluate packages whose importers changed, since a change to `hub` can affect their metrics? Proposed: no in v0; `--all` covers it. Cross-package duplication is handled by a module-level row instead (section 6, `dup_blocks_cross_pkg`).
 - Should the duplication detector ignore table-driven test-like literal blocks in non-test code? Proposed: literals normalize to `LIT`, so long literal tables will match; add a `dup_ignore_literal_only` option in v1.
 - Which reference modules go in the corpus? To be listed in S-034.
