@@ -1,8 +1,7 @@
-# Astimate configuration: composite weights and gate thresholds in one file.
+# Astimate configuration: rebuild parameters and gate thresholds in one file.
 #
-# These defaults are uncalibrated placeholders (SPEC.md sections 7.2 and 8.2)
-# until the reference-corpus calibration in SPEC.md section 11 has run.
-# The config loader owns the schema and may reshape this file.
+# These defaults are uncalibrated placeholders (SPEC.md sections 7 and 8.2)
+# until the calibration in SPEC.md section 11 has run.
 
 # Identifies the defaults this file was generated from.
 config_version: default-uncalibrated-1
@@ -13,111 +12,93 @@ chars_per_token: 3.2
 # Minimum normalized token run that counts as a duplicate block.
 dup_min_tokens: 40
 
-# Composite friction weights (SPEC.md section 7.2). Weights sum to 1; k is the
-# metric value at which a term's pressure reaches about 0.63.
-weights:
-  # Context size: estimated tokens of non-test source.
-  context_size:
-    metric: tokens_est
-    weight: 0.20
-    k: 25000
-  # Duplication: share of non-test SLOC covered by a duplicate block.
-  duplication:
-    metric: duplication_pct
-    weight: 0.15
-    k: 8
-  # Blast radius: distinct internal packages importing this package.
-  blast_radius:
-    metric: fan_in
-    weight: 0.15
-    k: 6
-  # Coupling: distinct internal packages this package imports.
-  coupling:
-    metric: internal_imports
-    weight: 0.10
-    k: 8
-  # Feedback loop: has_tests penalty plus exported functions no test references.
-  feedback_loop:
-    metric: untested_exports
-    weight: 0.15
-    k: 5
-  # Surface: exported funcs, methods, types, vars and consts.
-  surface:
-    metric: exported_symbols
-    weight: 0.10
-    k: 40
-  # Hidden state: package-level vars plus twice the init functions.
-  hidden_state:
-    metric: globals + 2 * init_funcs
-    weight: 0.05
-    k: 10
-  # Complexity: 90th percentile cognitive complexity per function.
-  complexity:
-    metric: cognitive_p90
-    weight: 0.10
-    k: 25
+# Rebuild estimate parameters (SPEC.md sections 7.2 to 7.4).
+rebuild:
+  # Tokens one agent can hold in context for a rebuild; past it work is split.
+  context_budget: 25000
+  # Tokens charged per exported symbol whose signature must survive.
+  tokens_per_export: 40
+  # Tokens charged per untested export whose behavior must be reverse-engineered.
+  tokens_per_untested_export: 800
+  # Tokens charged per global or init function, state no signature reveals.
+  tokens_per_hidden_state: 400
+  # Exponent on the budget ratio once a rebuild no longer fits one pass.
+  superlinear_exponent: 1.3
+  # COCOMO basic organic-mode coefficient for the human estimate.
+  cocomo_a: 2.4
+  # COCOMO basic organic-mode exponent for the human estimate.
+  cocomo_b: 1.05
+  # Working days per person-month when converting the human estimate.
+  days_per_month: 19
+  # Upper bounds on agent_passes for each tier.
+  tiers:
+    # At or below this a package is ONE_PASS.
+    one_pass_max: 1.0
+    # At or below this a package is FEW_PASSES; above it, PARTITION.
+    few_passes_max: 3.0
 
 # Gate thresholds (SPEC.md section 8.2). Density rules ratchet on the change
-# via max_delta; capacity rules carry an absolute max with a warn_at band;
-# requirement rules demand a boolean, optionally guarded by when.
+# via max_delta and may add a max; capacity rules carry an absolute max with a
+# warn_at band (default 0.75); requirement rules demand a boolean, optionally
+# guarded by when: "<metric> > <number>".
 thresholds:
   # No new duplicate blocks; copy-paste is the primary target.
-  dup_blocks:
+  - metric: dup_blocks
     kind: density
     max_delta: 0
   # Guards against a large duplicated feature that adds only one block.
-  duplication_pct:
+  - metric: duplication_pct
     kind: density
     max_delta: 0.5
     max: 5.0
   # New exported behavior needs a test; legacy gaps are reported, not failed.
-  untested_exports:
+  - metric: untested_exports
     kind: density
     max_delta: 0
   # No new package-level state.
-  globals:
+  - metric: globals
     kind: density
     max_delta: 0
   # No new init functions.
-  init_funcs:
+  - metric: init_funcs
     kind: density
     max_delta: 0
   # Never nest deeper than today, and never past the ceiling.
-  max_nesting:
+  - metric: max_nesting
     kind: density
     max_delta: 0
     max: 5
   # Small drift allowed since p90 moves with function count.
-  cognitive_p90:
+  - metric: cognitive_p90
     kind: density
     max_delta: 3
-  # Keep packages inside the context range agents handle; a breach means split.
-  tokens_est:
+  # The rebuild bar: past this a rebuild no longer fits one agent pass; split.
+  - metric: tokens_est
     kind: capacity
     max: 30000
     warn_at: 0.75
   # Files past this rarely fit an edit in one view.
-  largest_file_sloc:
+  - metric: largest_file_sloc
     kind: capacity
     max: 800
     warn_at: 0.75
   # Surface past this is a package boundary problem.
-  exported_symbols:
+  - metric: exported_symbols
     kind: capacity
     max: 60
     warn_at: 0.75
   # Fan-out ceiling on internal imports.
-  internal_imports:
+  - metric: internal_imports
     kind: capacity
     max: 12
     warn_at: 0.75
   # Overall non-test source size ceiling.
-  sloc:
+  - metric: sloc
     kind: capacity
     max: 6000
     warn_at: 0.75
   # Packages of meaningful size must have tests.
-  has_tests:
+  - metric: has_tests
     kind: requirement
     require: true
     when: sloc > 100
