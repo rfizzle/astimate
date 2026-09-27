@@ -211,6 +211,21 @@ agent_passes = r                       when r <= 1
 
 `agent_passes` is reported to one decimal. Below 1.0 the package is rebuildable in one pass with room to spare.
 
+Worked example (the reference test reproduces every value to four decimals): `sloc` 1200, `tokens_est` 10000, `tokens_est_with_tests` 16000, `duplication_pct` 20, `exported_symbols` 30, `untested_exports` 15, `globals` 2, `init_funcs` 1, default parameters.
+
+```
+volume      = 10000 * 0.8          =  8000
+spec        = 16000 - 10000        =  6000
+contract    = 30 * 40              =  1200
+unspecified = 15 * 800             = 12000
+hidden      = (2 + 1) * 400        =  1200
+rebuild_tokens                     = 28400
+r           = 28400 / 25000        = 1.136
+agent_passes = 1.136 ^ 1.3         = 1.1803   (reported as 1.2)
+```
+
+Note that `duplication_pct` also lowers `human_days` through 7.3; "halves the volume term and nothing else" in the tests refers to the five token terms.
+
 ### 7.3 Human estimate
 
 A rough figure using published COCOMO basic organic-mode coefficients, the same model `scc` uses, with unspecified behavior inflating the effective size:
@@ -221,7 +236,7 @@ person_months = 2.4 * kloc_eff ^ 1.05
 human_days = person_months * days_per_month   (default 19)
 ```
 
-where `untested_ratio = untested_exports / max(exported_symbols, 1)`. Labelled as an estimate in every output.
+where `untested_ratio = untested_exports / max(exported_symbols, 1)`, clamped to [0, 1]. Labelled as an estimate in every output. For the worked example above: `untested_ratio` 0.5, `kloc_eff` = 0.96 × 1.25 = 1.2, `person_months` = 2.4 × 1.2^1.05 = 2.9064, `human_days` = 55.2211.
 
 ### 7.4 Tiers, drivers and suggestions
 
