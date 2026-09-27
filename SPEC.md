@@ -324,7 +324,7 @@ Two sources, chosen by flag:
 
 ### 8.4 Changed-package detection
 
-`git diff --name-only <merge-base>` (the working tree against the merge-base, so committed, staged and unstaged changes all count) plus untracked non-ignored files, mapped to packages by directory. Rename detection is disabled so a moved file shows both its old and new directories. Paths under `testdata` or inside a nested module are ignored, and the set is intersected with the packages the Go tool reports, which drops `_`-prefixed, `.`-prefixed and `vendor` directories. A directory left with no Go files is reported as deleted in a summary line, never as a violation. A change to a package's test files alone still selects it. `--all` overrides.
+`git diff --name-only <merge-base>` (the working tree against the merge-base, so committed, staged and unstaged changes all count) plus untracked non-ignored files, mapped to packages by directory. Rename detection is disabled so a moved file shows both its old and new directories. Paths under `testdata` or inside a nested module are ignored, and the set is intersected with the packages the Go tool reports, which drops `_`-prefixed, `.`-prefixed and `vendor` directories. A directory left with no Go files is reported as deleted in a summary line, never as a violation. A change to a package's test files alone still selects it. `--all` overrides. With `--baseline <file>`, the merge-base is taken against the ref the file records; if it records none or the ref does not resolve, every package is checked and a warning says so.
 
 ### 8.5 Output formats
 
