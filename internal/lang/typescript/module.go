@@ -14,6 +14,7 @@ import (
 
 	sitter "github.com/odvcencio/gotreesitter"
 	"github.com/odvcencio/gotreesitter/grammars"
+	"github.com/rfizzle/astimate/internal/metrics"
 )
 
 // manifestName is the file that marks a module root.
@@ -58,10 +59,17 @@ type pkg struct {
 
 // details is the per-package record Details serves: the names behind
 // untested_exports, those the untested directive left out, and the
-// duplicate block locations.
+// duplicate block locations; the declarations of the untested names, index
+// for index, and of the globals, in the order the count reads them; the
+// largest file; and the source files, sorted. Files are relative to the
+// package directory in slash form.
 type details struct {
 	untested, excluded []string
 	dupLocations       []string
+	untestedPos        []metrics.Position
+	globalPos          []metrics.Position
+	largestFile        string
+	sourceFiles        []string
 }
 
 // loadOptions carries the extractor settings a load needs.

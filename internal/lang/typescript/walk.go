@@ -47,10 +47,10 @@ type walker struct {
 	self       string
 	selfMember string
 	// localFuncs maps the name of each top-level function to whether it
-	// carries the untested directive, and classMethods holds the
-	// untested_exports candidates of each top-level class, for resolving
-	// export lists.
-	localFuncs   map[string]bool
+	// carries the untested directive and the line it is declared on, and
+	// classMethods holds the untested_exports candidates of each top-level
+	// class, for resolving export lists.
+	localFuncs   map[string]localFunc
 	classMethods map[string][]exportedFunc
 	// overloads holds the names of top-level functions with an overload
 	// signature that carries the untested directive, which applies to the
@@ -60,6 +60,13 @@ type walker struct {
 	// without a source, resolved once the whole file is walked.
 	listed [][2]string
 	err    error
+}
+
+// localFunc is a top-level function an export list may name: whether it
+// carries the untested directive, and the 1-based line of its declaration.
+type localFunc struct {
+	directed bool
+	line     int
 }
 
 // state is the context visit passes down.
@@ -77,7 +84,7 @@ type state struct {
 
 // program walks the top-level statements of the file rooted at root.
 func (w *walker) program(root *sitter.Node) {
-	w.localFuncs = map[string]bool{}
+	w.localFuncs = map[string]localFunc{}
 	w.classMethods = map[string][]exportedFunc{}
 	w.overloads = map[string]bool{}
 	for i := range root.ChildCount() {
@@ -85,8 +92,8 @@ func (w *walker) program(root *sitter.Node) {
 	}
 	for _, l := range w.listed {
 		local, exported := l[0], l[1]
-		if directed, ok := w.localFuncs[local]; ok {
-			w.f.exportedFuncs = append(w.f.exportedFuncs, exportedFunc{match: exported, display: exported, directed: directed})
+		if lf, ok := w.localFuncs[local]; ok {
+			w.f.exportedFuncs = append(w.f.exportedFuncs, exportedFunc{match: exported, display: exported, directed: lf.directed, line: lf.line})
 		}
 		w.f.exportedFuncs = append(w.f.exportedFuncs, w.classMethods[local]...)
 	}
@@ -131,9 +138,10 @@ func (w *walker) statement(n *sitter.Node, exported, directed bool) {
 	case "function_declaration", "generator_function_declaration":
 		name := w.text(w.field(n, "name"))
 		directed = directed || w.overloads[name]
-		w.localFuncs[name] = directed
+		line := lineOf(n)
+		w.localFuncs[name] = localFunc{directed: directed, line: line}
 		if exported {
-			w.f.exportedFuncs = append(w.f.exportedFuncs, exportedFunc{match: name, display: name, directed: directed})
+			w.f.exportedFuncs = append(w.f.exportedFuncs, exportedFunc{match: name, display: name, directed: directed, line: line})
 		}
 		w.function("", name, n)
 	case "class_declaration", "abstract_class_declaration", "class":
@@ -194,7 +202,7 @@ func (w *walker) exportStatement(n *sitter.Node, directed bool) {
 		case value != nil && sameNode(c, value) && isFunctionType(c.Type(w.lang)):
 			name := w.text(w.field(c, "name"))
 			if name != "" {
-				w.f.exportedFuncs = append(w.f.exportedFuncs, exportedFunc{match: name, display: name, directed: directed || w.overloads[name]})
+				w.f.exportedFuncs = append(w.f.exportedFuncs, exportedFunc{match: name, display: name, directed: directed || w.overloads[name], line: lineOf(c)})
 			} else {
 				name = "default"
 			}
@@ -254,7 +262,7 @@ func (w *walker) countDeclaration(decl *sitter.Node) {
 	case "lexical_declaration", "variable_declaration":
 		for i := range decl.NamedChildCount() {
 			if d := decl.NamedChild(i); d.Type(w.lang) == "variable_declarator" {
-				w.f.exports += len(w.bindings(w.field(d, "name")))
+				w.f.exports += len(w.bindings(w.field(d, "name"), nil))
 			}
 		}
 	default:
@@ -275,9 +283,9 @@ func (w *walker) variables(n *sitter.Node, mutable, exported, directed bool) {
 		}
 		nameNode, value := w.field(c, "name"), w.field(c, "value")
 		if mutable {
-			for _, b := range w.bindings(nameNode) {
-				if b != "_" {
-					w.f.globals++
+			for _, b := range w.bindings(nameNode, nil) {
+				if w.text(b) != "_" {
+					w.f.globals = append(w.f.globals, lineOf(b))
 				}
 			}
 		}
@@ -285,10 +293,10 @@ func (w *walker) variables(n *sitter.Node, mutable, exported, directed bool) {
 			w.visit(c, state{})
 			continue
 		}
-		name := w.text(nameNode)
-		w.localFuncs[name] = directed
+		name, line := w.text(nameNode), lineOf(c)
+		w.localFuncs[name] = localFunc{directed: directed, line: line}
 		if exported {
-			w.f.exportedFuncs = append(w.f.exportedFuncs, exportedFunc{match: name, display: name, directed: directed})
+			w.f.exportedFuncs = append(w.f.exportedFuncs, exportedFunc{match: name, display: name, directed: directed, line: line})
 		}
 		for j := range c.ChildCount() {
 			if d := c.Child(j); sameNode(d, value) {
@@ -300,26 +308,31 @@ func (w *walker) variables(n *sitter.Node, mutable, exported, directed bool) {
 	}
 }
 
-// bindings returns the names a binding pattern binds: an identifier binds
-// itself, and object and array patterns bind the names inside them, not
-// their property keys or default values.
-func (w *walker) bindings(n *sitter.Node) []string {
+// bindings appends to out the name nodes a binding pattern binds and
+// returns the result: an identifier binds itself, and object and array
+// patterns bind the names inside them, not their property keys or default
+// values.
+func (w *walker) bindings(n *sitter.Node, out []*sitter.Node) []*sitter.Node {
 	if n == nil {
-		return nil
+		return out
 	}
 	switch n.Type(w.lang) {
 	case "identifier", "shorthand_property_identifier_pattern":
-		return []string{w.text(n)}
+		return append(out, n)
 	case "pair_pattern":
-		return w.bindings(w.field(n, "value"))
+		return w.bindings(w.field(n, "value"), out)
 	case "assignment_pattern", "object_assignment_pattern":
-		return w.bindings(w.field(n, "left"))
+		return w.bindings(w.field(n, "left"), out)
 	}
-	var out []string
 	for i := range n.NamedChildCount() {
-		out = append(out, w.bindings(n.NamedChild(i))...)
+		out = w.bindings(n.NamedChild(i), out)
 	}
 	return out
+}
+
+// lineOf returns the 1-based line n starts on.
+func lineOf(n *sitter.Node) int {
+	return int(n.StartPoint().Row) + 1
 }
 
 // class walks a top-level class, scoring each method and function-valued
@@ -369,7 +382,7 @@ func (w *walker) classBody(cname string, body *sitter.Node) []exportedFunc {
 			continue
 		}
 		if candidate {
-			candidates = append(candidates, exportedFunc{match: name, display: cname + "." + name, directed: w.hasDirective(body, j) || overloads[name]})
+			candidates = append(candidates, exportedFunc{match: name, display: cname + "." + name, directed: w.hasDirective(body, j) || overloads[name], line: lineOf(m)})
 		}
 		if sameNode(fn, m) {
 			w.function(cname, name, m)

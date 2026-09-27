@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/rfizzle/astimate/internal/lang/duptok"
 	"github.com/rfizzle/astimate/internal/metrics"
@@ -27,18 +28,28 @@ func assemble(m *module, p *pkg, opts assembleOptions) (metrics.RawMetrics, erro
 	var scores []int
 	var types, interfaces int
 	var srcBytes, srcTokens, allBytes, allTokens int
-	var candidates []exportedFunc
+	var candidates []candidate
+	var globalPos []metrics.Position
+	files := make([]string, 0, len(p.src))
+	largest := ""
 	inits := 0
 	for _, f := range p.src {
+		rel := relFile(p.dir, f.abs)
+		files = append(files, rel)
 		r.Files++
 		r.SLOC += f.sloc
-		r.LargestFileSLOC = max(r.LargestFileSLOC, f.sloc)
+		if largest == "" || f.sloc > r.LargestFileSLOC {
+			largest, r.LargestFileSLOC = rel, f.sloc
+		}
 		srcBytes += f.size
 		srcTokens += f.o200k
 		r.ExportedSymbols += f.exports
 		types += f.exportedTypes
 		interfaces += f.exportedInterfaces
-		r.Globals += f.globals
+		r.Globals += len(f.globals)
+		for _, line := range f.globals {
+			globalPos = append(globalPos, metrics.Position{File: rel, Line: line})
+		}
 		if f.hasInit {
 			inits++
 		}
@@ -47,7 +58,9 @@ func assemble(m *module, p *pkg, opts assembleOptions) (metrics.RawMetrics, erro
 			r.CognitiveTotal += fn.cognitive
 			r.MaxNesting = max(r.MaxNesting, fn.nesting)
 		}
-		candidates = append(candidates, f.exportedFuncs...)
+		for _, c := range f.exportedFuncs {
+			candidates = append(candidates, candidate{exportedFunc: c, file: rel})
+		}
 	}
 	r.InitFuncs = inits
 	r.ExportedSymbols += p.reexports
@@ -66,16 +79,27 @@ func assemble(m *module, p *pkg, opts assembleOptions) (metrics.RawMetrics, erro
 		}
 	}
 	r.HasTests = r.TestFuncs > 0
-	var untested, excluded []string
+	var excluded []string
+	var missed []candidate
 	for _, c := range candidates {
 		switch {
 		case c.directed:
 			excluded = append(excluded, c.display)
 		case !referenced[c.match]:
-			untested = append(untested, c.display)
+			missed = append(missed, c)
 		}
 	}
-	slices.Sort(untested)
+	slices.SortStableFunc(missed, func(a, b candidate) int { return strings.Compare(a.display, b.display) })
+	var untested []string
+	var untestedPos []metrics.Position
+	if len(missed) > 0 {
+		untested = make([]string, len(missed))
+		untestedPos = make([]metrics.Position, len(missed))
+		for i, c := range missed {
+			untested[i] = c.display
+			untestedPos[i] = metrics.Position{File: c.file, Line: c.line}
+		}
+	}
 	slices.Sort(excluded)
 	r.UntestedExports = len(untested)
 
@@ -114,8 +138,24 @@ func assemble(m *module, p *pkg, opts assembleOptions) (metrics.RawMetrics, erro
 	for _, l := range dup.Locations {
 		locs = append(locs, relLocation(p.dir, l))
 	}
-	m.setDetails(p.id, details{untested: untested, excluded: excluded, dupLocations: locs})
+	slices.Sort(files)
+	m.setDetails(p.id, details{
+		untested:     untested,
+		excluded:     excluded,
+		dupLocations: locs,
+		untestedPos:  untestedPos,
+		globalPos:    globalPos,
+		largestFile:  largest,
+		sourceFiles:  files,
+	})
 	return r, nil
+}
+
+// candidate is an untested_exports candidate of a package with the file,
+// relative to the package directory, that declares it.
+type candidate struct {
+	exportedFunc
+	file string
 }
 
 // duplication runs the duplicate finder over the non-test files of p, with
@@ -137,9 +177,15 @@ func duplication(p *pkg, sloc int, opts duptok.Options) (duptok.Result, error) {
 // relLocation renders loc as "file:start-end" with file relative to dir, in
 // slash form, falling back to the base name.
 func relLocation(dir string, loc duptok.Location) string {
-	file := filepath.Base(loc.File)
-	if rel, err := filepath.Rel(dir, loc.File); err == nil {
-		file = rel
+	return relFile(dir, loc.File) + ":" + strconv.Itoa(loc.StartLine) + "-" + strconv.Itoa(loc.EndLine)
+}
+
+// relFile returns file relative to dir in slash form, falling back to the
+// base name when it cannot be related to dir.
+func relFile(dir, file string) string {
+	rel := filepath.Base(file)
+	if r, err := filepath.Rel(dir, file); err == nil {
+		rel = r
 	}
-	return filepath.ToSlash(file) + ":" + strconv.Itoa(loc.StartLine) + "-" + strconv.Itoa(loc.EndLine)
+	return filepath.ToSlash(rel)
 }

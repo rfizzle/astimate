@@ -199,15 +199,30 @@ func TestCouplingRatiosRounded(t *testing.T) {
 func TestDetails(t *testing.T) {
 	e := New()
 	mod := &metrics.ModuleContext{Root: fixtureRoot(t)}
+	type pos = metrics.Position
 	cases := []struct {
 		pkg                string
 		untested, excluded []string
 		dupLocations       []string
+		untestedPos        []pos
+		largest            string
+		files              []string
 	}{
-		{"dupes", []string{"countVisits"}, nil, []string{"dupes.ts:6-23", "dupes.ts:27-44", "dupes.ts:48-65"}},
-		{"hub", []string{"Counter.add", "clamp", "normalize", "twice"}, nil, nil},
-		{"tested", nil, nil, nil},
-		{"trivial", []string{"Box.close", "answer", "detached", "spaced"}, []string{"Box.open", "listed", "wrapped"}, nil},
+		{
+			"dupes", []string{"countVisits"}, nil, []string{"dupes.ts:6-23", "dupes.ts:27-44", "dupes.ts:48-65"},
+			[]pos{{File: "dupes.ts", Line: 48}}, "dupes.ts", []string{"dupes.ts"},
+		},
+		{
+			"hub", []string{"Counter.add", "clamp", "normalize", "twice"}, nil, nil,
+			[]pos{{File: "index.ts", Line: 33}, {File: "index.ts", Line: 12}, {File: "index.ts", Line: 8}, {File: "index.ts", Line: 22}},
+			"index.ts", []string{"index.ts"},
+		},
+		{"tested", nil, nil, nil, nil, "tested.ts", []string{"count.ts", "tested.ts"}},
+		{
+			"trivial", []string{"Box.close", "answer", "detached", "spaced"}, []string{"Box.open", "listed", "wrapped"}, nil,
+			[]pos{{File: "wrappers.ts", Line: 23}, {File: "trivial.ts", Line: 2}, {File: "wrappers.ts", Line: 13}, {File: "wrappers.ts", Line: 9}},
+			"wrappers.ts", []string{"trivial.ts", "wrappers.ts"},
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.pkg, func(t *testing.T) {
@@ -223,6 +238,18 @@ func TestDetails(t *testing.T) {
 			}
 			if !slices.Equal(d.DupLocations, tc.dupLocations) {
 				t.Errorf("DupLocations = %q, want %q", d.DupLocations, tc.dupLocations)
+			}
+			if !slices.Equal(d.UntestedPositions, tc.untestedPos) {
+				t.Errorf("UntestedPositions = %+v, want %+v", d.UntestedPositions, tc.untestedPos)
+			}
+			if d.GlobalPositions != nil {
+				t.Errorf("GlobalPositions = %+v, want none", d.GlobalPositions)
+			}
+			if d.LargestFile != tc.largest {
+				t.Errorf("LargestFile = %q, want %q", d.LargestFile, tc.largest)
+			}
+			if !slices.Equal(d.SourceFiles, tc.files) {
+				t.Errorf("SourceFiles = %q, want %q", d.SourceFiles, tc.files)
 			}
 		})
 	}

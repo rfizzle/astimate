@@ -42,8 +42,9 @@ type fileFacts struct {
 	// exportedFuncs lists the exported functions and public methods of
 	// exported classes, the candidates for untested_exports.
 	exportedFuncs []exportedFunc
-	// globals counts the names top-level let and var declarations bind.
-	globals int
+	// globals holds the 1-based line of each name top-level let and var
+	// declarations bind, in source order; its length is the file's count.
+	globals []int
 	// hasInit reports a top-level statement that is a call.
 	hasInit bool
 	// funcs holds the complexity of each function, in source order.
@@ -67,10 +68,12 @@ type reexport struct {
 
 // exportedFunc is a candidate for untested_exports: the name tests must
 // mention and the name reported for it. directed reports the untested
-// directive, which leaves it out of the count.
+// directive, which leaves it out of the count; line is the 1-based line of
+// its declaration.
 type exportedFunc struct {
 	match, display string
 	directed       bool
+	line           int
 }
 
 // tokenStream is the normalized tokens of one file, parallel slices.

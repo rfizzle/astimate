@@ -140,11 +140,13 @@ export function over(a: string): void;
 	}
 	var got []string
 	for _, e := range ff.exportedFuncs {
-		got = append(got, e.display+"="+e.match)
+		got = append(got, e.display+"="+e.match+"@"+strconv.Itoa(e.line))
 	}
+	// Each candidate carries the line of its declaration, not of the
+	// export list naming it.
 	want := []string{
-		"f=f", "g=g", "h=h", "C.pub=pub", "C.st=st",
-		"local=local", "renamed=renamed", "Hidden.run=run",
+		"f=f@4", "g=g@5", "h=h@6", "C.pub=pub@8", "C.st=st@8",
+		"local=local@1", "renamed=renamed@2", "Hidden.run=run@3",
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("exported funcs = %q, want %q", got, want)
@@ -159,26 +161,27 @@ func TestGlobalsAndInit(t *testing.T) {
 	cases := []struct {
 		name    string
 		src     string
-		globals int
+		globals []int
 		init    bool
 	}{
-		{"let and var count", "let a = 1;\nvar b, c;\n", 3, false},
-		{"const does not", "const a = 1;\n", 0, false},
-		{"underscore excluded", "let _ = 1, d = 2;\n", 1, false},
-		{"destructuring binds each name", "let { a, b: [c, d = 1], ...e } = o;\n", 4, false},
-		{"exported let", "export let a = 1;\n", 1, false},
-		{"let inside a function is local", "function f() { let a = 1; }\n", 0, false},
-		{"top-level call", "setup();\n", 0, true},
-		{"awaited call", "await load();\n", 0, true},
-		{"iife", "(function () {})();\n", 0, true},
-		{"assignment is not a call", "x = f();\n", 0, false},
-		{"call inside a function", "function f() { g(); }\n", 0, false},
+		{"let and var count", "let a = 1;\nvar b, c;\n", []int{1, 2, 2}, false},
+		{"const does not", "const a = 1;\n", nil, false},
+		{"underscore excluded", "let _ = 1, d = 2;\n", []int{1}, false},
+		{"destructuring binds each name", "let { a, b: [c, d = 1], ...e } = o;\n", []int{1, 1, 1, 1}, false},
+		{"binding line", "let {\n  a,\n  b,\n} = o;\n", []int{2, 3}, false},
+		{"exported let", "\nexport let a = 1;\n", []int{2}, false},
+		{"let inside a function is local", "function f() { let a = 1; }\n", nil, false},
+		{"top-level call", "setup();\n", nil, true},
+		{"awaited call", "await load();\n", nil, true},
+		{"iife", "(function () {})();\n", nil, true},
+		{"assignment is not a call", "x = f();\n", nil, false},
+		{"call inside a function", "function f() { g(); }\n", nil, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ff := scanSource(t, "x.ts", tc.src)
-			if ff.globals != tc.globals || ff.hasInit != tc.init {
-				t.Errorf("globals, init = %d, %v, want %d, %v", ff.globals, ff.hasInit, tc.globals, tc.init)
+			if !slices.Equal(ff.globals, tc.globals) || ff.hasInit != tc.init {
+				t.Errorf("global lines, init = %v, %v, want %v, %v", ff.globals, ff.hasInit, tc.globals, tc.init)
 			}
 		})
 	}

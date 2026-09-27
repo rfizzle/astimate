@@ -160,9 +160,10 @@ func (e *Extractor) checkTokenizer() error {
 }
 
 // Details returns the names behind untested_exports, the names the
-// //astimate:untested directive left out of it, and the duplicate block
-// locations of package pkg, from the details its most recent Extract on mod
-// recorded. When nothing is recorded it runs Extract first, so it fails
+// //astimate:untested directive left out of it, the duplicate block
+// locations, the declarations of the untested exports and globals, the
+// largest file and the source files of package pkg, from the details its
+// most recent Extract on mod recorded. When nothing is recorded it runs Extract first, so it fails
 // exactly when Extract would.
 func (e *Extractor) Details(ctx context.Context, mod *metrics.ModuleContext, pkg string) (metrics.Details, error) {
 	if err := ctx.Err(); err != nil {
@@ -180,9 +181,13 @@ func (e *Extractor) Details(ctx context.Context, mod *metrics.ModuleContext, pkg
 		d, _ = m.detailsOf(pkg)
 	}
 	return metrics.Details{
-		UntestedExports:  slices.Clone(d.untested),
-		UntestedExcluded: slices.Clone(d.excluded),
-		DupLocations:     slices.Clone(d.dupLocations),
+		UntestedExports:   slices.Clone(d.untested),
+		UntestedExcluded:  slices.Clone(d.excluded),
+		DupLocations:      slices.Clone(d.dupLocations),
+		UntestedPositions: slices.Clone(d.untestedPos),
+		GlobalPositions:   slices.Clone(d.globalPos),
+		LargestFile:       d.largestFile,
+		SourceFiles:       slices.Clone(d.sourceFiles),
 	}, nil
 }
 
