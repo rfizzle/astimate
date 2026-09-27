@@ -38,6 +38,12 @@ jobs:
           cache: true
           cache-dependency-path: go.sum
 
+      # go mod tidy -diff exits non-zero and prints the diff when go.mod or
+      # go.sum drift from the imports, such as a direct import still marked
+      # indirect.
+      - name: go mod tidy
+        run: go mod tidy -diff
+
       - name: gofmt
         run: |
           out="$(gofmt -l .)"
