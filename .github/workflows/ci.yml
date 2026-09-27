@@ -78,8 +78,15 @@ jobs:
         with:
           version: v2.13.2
 
+      # Same split as the Makefile's test target: calibration/collect runs
+      # with GOMAXPROCS=1 to keep an upstream go/types race out of the gate
+      # (calibration/notes/go-types-race-2026-09-27.md).
       - name: go test
-        run: go test -race ./...
+        run: |
+          pkgs="$(go list ./... | grep -v '/calibration/collect$')"
+          # shellcheck disable=SC2086 # one import path per word
+          go test -race $pkgs
+          GOMAXPROCS=1 go test -race ./calibration/collect/
 
       # The release build embeds only the grammars named by BUILD_TAGS in
       # the Makefile. A tag that drifts from gotreesitter's names still

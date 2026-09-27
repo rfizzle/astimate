@@ -86,23 +86,70 @@ read the field while the first is expanding the instance. No code of ours is
 on either stack, and nothing in astimate shares `types` values between
 loads: the race is between two goroutines of one `packages.Load`.
 
-## Workaround: none applied
+## Upstream status
+
+Reported as golang/go#81122 ("go/types: data race between (*Named).unpack
+and (*Checker).isComplete under concurrent go/packages export-data loading
+on go1.27.0"), open and labelled NeedsInvestigation when checked on
+2026-09-27. Its follow-up comment reproduces the same two frames with
+source-mode loading, through the instantiation branch of `unpack`, which is
+our case; it also notes that `GOMAXPROCS=1` masks the race. No fix has
+landed.
+
+## Bumps tried
+
+Checked on 2026-09-27: the newest Go 1.27 release is go1.27.1 (tags
+go1.27.0, go1.27.1; no go1.28 tag yet) and the newest `golang.org/x/tools`
+is v0.50.0. Both are what this module already uses, so there was no newer
+toolchain or x/tools to try and neither `go.mod` line changed.
+
+| Go | x/tools | Setting | Command | Result |
+| --- | --- | --- | --- | --- |
+| go1.27.1 | v0.50.0 | default GOMAXPROCS (14) | 50-count soak | 1 race in 50 (first run above) |
+| go1.27.1 | v0.50.0 | `GOMAXPROCS=1` | 50-count soak | clean: 50 of 50 passed, no race report (181.7 s) |
+| go1.27.1 | v0.50.0 | `GOMAXPROCS=1` | `make race-soak` | clean: 50 of 50 passed, no race report (144.6 s) |
+
+## Fix: GOMAXPROCS=1 for the collector package only
 
 Serializing our own loads cannot help, because the racing checkers belong to
 the same `packages.Load` call. `packages.Config` has no option that bounds
 type-checking parallelism: the workers are gated by the package-level
 `cpuLimit` semaphore, sized from `runtime.GOMAXPROCS(0)` when go/packages is
-initialized. The only lever is running the whole process with
-`GOMAXPROCS=1`, which would slow every load and changes global state, so it
-is not applied, and `-race` stays on.
+initialized, so the only lever is the process's `GOMAXPROCS`. Loading one
+package at a time in `TestCollectModule/this_repository` was the other
+candidate and was not taken: with tests enabled a single package's load
+still type-checks the package and its test variant concurrently, the pair
+most likely racing here, and the test would stop exercising the collector's
+real whole-module load.
 
-Impact: about one run of `TestCollectModule/this_repository` in 50 under
-`-race` may fail with this report, so `make check` can flake at that rate.
-Outside the race detector the read sees either nil or the finished
-right-hand side; a nil read would at worst make `isComplete` report a type
-incomplete for one expression. No metric has been seen to change.
+`make test` and the CI `check` job's `go test` step therefore run in two
+commands: every package except `./calibration/collect/` with the default
+`GOMAXPROCS`, then `GOMAXPROCS=1 go test -race ./calibration/collect/`.
+`-race` stays on for both. The race is in go/types, not in astimate; the
+production binary is untouched, and outside the race detector the racy read
+sees either nil or the finished right-hand side, so no metric has been seen
+to change.
 
-Action: report upstream to golang/go against go/types (`isComplete` reading
-`Named.fromRHS` without `unpack`) with this stack, and rerun the command
-above after each toolchain or x/tools bump; when 50 iterations pass, record
-that here.
+Cost, `go test -race -count=1 ./calibration/collect/` on this host:
+
+| Setting | Wall time (two runs) |
+| --- | --- |
+| default GOMAXPROCS (14) | 15.3 s (cold), 10.6 s |
+| `GOMAXPROCS=1` | 41.1 s, 44.9 s |
+
+About 30 s more for that package, and it now runs after the other packages
+instead of alongside them, so `make check` grows by up to its full 41 s;
+every other package keeps full parallelism.
+
+## Re-verifying: make race-soak
+
+`make race-soak` runs the soak under the setting `make test` uses:
+
+```
+GOMAXPROCS=1 go test -race -run TestCollectModule -count=50 -timeout 25m ./calibration/collect/
+```
+
+It is not part of `make check`. After each Go or x/tools bump, run it; to
+test whether upstream fixed the race, run the same command without
+`GOMAXPROCS=1`. When 50 iterations pass at the default setting, record that
+here and drop the split from `make test` and the CI step.

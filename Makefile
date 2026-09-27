@@ -1,4 +1,4 @@
-.PHONY: check actionlint tidy fmt vet lint test build test-subset
+.PHONY: check actionlint tidy fmt vet lint test race-soak build test-subset
 .NOTPARALLEL:
 
 # Build metadata linked into the binary by `make build`. Each is overridable
@@ -40,8 +40,23 @@ vet:
 lint:
 	golangci-lint run
 
+# COLLECT_PKG's tests load this whole repository through go/packages, whose
+# parallel type-checkers hit an upstream go/types data race under -race
+# (golang/go#81122; calibration/notes/go-types-race-2026-09-27.md). go/packages
+# sizes its worker pool from GOMAXPROCS at init, so that one package runs
+# with GOMAXPROCS=1 and everything else keeps full parallelism. CI's go test
+# step repeats both commands.
+COLLECT_PKG := ./calibration/collect/
+
 test:
-	go test -race ./...
+	go test -race $$(go list ./... | grep -v /calibration/collect$$)
+	GOMAXPROCS=1 go test -race $(COLLECT_PKG)
+
+# race-soak re-verifies the fix after a toolchain or x/tools bump: 50 runs of
+# the test that used to flake, under the same setting test uses. Not part of
+# check; it takes several minutes.
+race-soak:
+	GOMAXPROCS=1 go test -race -run TestCollectModule -count=50 -timeout 25m $(COLLECT_PKG)
 
 build:
 	go build -tags '$(BUILD_TAGS)' -ldflags "$(LDFLAGS)" -o astimate ./cmd/astimate
