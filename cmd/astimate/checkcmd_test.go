@@ -484,3 +484,86 @@ func TestCheckExitCode(t *testing.T) {
 		})
 	}
 }
+
+func TestStopHookActive(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		input io.Reader
+		want  bool
+	}{
+		{"true", strings.NewReader(`{"hook_event_name":"Stop","stop_hook_active":true}`), true},
+		{"false", strings.NewReader(`{"hook_event_name":"Stop","stop_hook_active":false}`), false},
+		{"field absent", strings.NewReader(`{"hook_event_name":"Stop"}`), false},
+		{"no input", nil, false},
+		{"empty input", strings.NewReader(""), false},
+		{"malformed", strings.NewReader(`{"stop_hook_active": tru`), false},
+		{"wrong type", strings.NewReader(`{"stop_hook_active":"true"}`), false},
+		{"oversized", io.MultiReader(strings.NewReader(`{"stop_hook_active":true,"pad":"`),
+			strings.NewReader(strings.Repeat("x", maxHookInput)), strings.NewReader(`"}`)), false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := stopHookActive(tt.input); got != tt.want {
+				t.Errorf("stopHookActive = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCheckHookStdin(t *testing.T) {
+	if testing.Short() {
+		t.Skip("integration test: loads Go packages")
+	}
+	t.Parallel()
+
+	base := fixtureBaseline(t)
+	tests := []struct {
+		name  string
+		stdin func() io.Reader
+		allow bool
+	}{
+		{"stop_hook_active true", func() io.Reader { return strings.NewReader(`{"stop_hook_active":true}`) }, true},
+		{"stop_hook_active false", func() io.Reader { return strings.NewReader(`{"stop_hook_active":false}`) }, false},
+		{"terminal", func() io.Reader { return nil }, false},
+		{"malformed", func() io.Reader { return strings.NewReader("not json") }, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var stdout, stderr bytes.Buffer
+			args := []string{"--all", "--baseline", base, "--format", "hook", degradedDir}
+			if got := runCheckInput(args, tt.stdin, &stdout, &stderr); got != exitOK {
+				t.Fatalf("exit code = %d, want %d\nstderr:\n%s", got, exitOK, stderr.String())
+			}
+			if tt.allow {
+				if stdout.String() != "{}\n" {
+					t.Errorf("stdout = %q, want %q", stdout.String(), "{}\n")
+				}
+				if !strings.Contains(stderr.String(), "already blocked once") {
+					t.Errorf("stderr does not say the hook already blocked:\n%s", stderr.String())
+				}
+				return
+			}
+			assertHookBlock(t, stdout.String(), degradedMetrics())
+		})
+	}
+
+	t.Run("other formats ignore stdin", func(t *testing.T) {
+		t.Parallel()
+
+		var stdout, stderr bytes.Buffer
+		read := false
+		stdin := func() io.Reader {
+			read = true
+			return strings.NewReader(`{"stop_hook_active":true}`)
+		}
+		args := []string{"--all", "--baseline", base, "--format", "json", degradedDir}
+		if got := runCheckInput(args, stdin, &stdout, &stderr); got != exitGateFailed || read {
+			t.Errorf("json format: exit code = %d, stdin read = %v; want %d and no read", got, read, exitGateFailed)
+		}
+	})
+}

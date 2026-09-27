@@ -199,7 +199,7 @@ func TestStopHookSnippet(t *testing.T) {
 	if testing.Short() {
 		t.Skip("integration test: builds the binary and runs git")
 	}
-	requireTools(t, "git", "go", "sh", "jq")
+	requireTools(t, "git", "go", "sh")
 	t.Parallel()
 
 	command := stopHookCommand(t)

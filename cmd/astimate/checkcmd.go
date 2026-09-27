@@ -3,11 +3,13 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
 	"slices"
 	"strings"
 
@@ -40,6 +42,43 @@ type checkOptions struct {
 	all bool
 	// format is the --format value, one of checkFormats.
 	format string
+	// hookStdin returns the Claude Code hook input read in the hook format,
+	// or nil when there is none; nil hookStdin means no input.
+	hookStdin func() io.Reader
+}
+
+// maxHookInput bounds how much of the hook input check reads.
+const maxHookInput = 64 << 10
+
+// processHookStdin returns os.Stdin when it is not a terminal, and nil when
+// it is one or cannot be inspected, so an interactive check never waits for
+// input.
+func processHookStdin() io.Reader {
+	fi, err := os.Stdin.Stat()
+	if err != nil || fi.Mode()&os.ModeCharDevice != 0 {
+		return nil
+	}
+	return os.Stdin
+}
+
+// stopHookActive reports whether the Claude Code Stop hook input in r has
+// stop_hook_active set to true. A nil reader, a read error and missing or
+// malformed input all report false, so the check runs as usual.
+func stopHookActive(r io.Reader) bool {
+	if r == nil {
+		return false
+	}
+	data, err := io.ReadAll(io.LimitReader(r, maxHookInput))
+	if err != nil {
+		return false
+	}
+	var in struct {
+		StopHookActive bool `json:"stop_hook_active"`
+	}
+	if err := json.Unmarshal(data, &in); err != nil {
+		return false
+	}
+	return in.StopHookActive
 }
 
 // runCheck gates the packages of a module against a baseline and the
@@ -48,11 +87,20 @@ type checkOptions struct {
 // text|json|hook|github] [--tokenizer est|o200k]`. It exits 3 when any
 // package has a violation (0 with --format hook, whose JSON carries the
 // decision), 2 when analysis failed, and 0 otherwise; warnings never change
-// the exit code.
+// the exit code. In the hook format it reads the Stop hook input from stdin
+// when stdin is not a terminal.
 func runCheck(args []string, stdout, stderr io.Writer) int {
+	return runCheckInput(args, processHookStdin, stdout, stderr)
+}
+
+// runCheckInput is runCheck with the hook input taken from hookStdin. When
+// the format is hook and that input has stop_hook_active true, it prints
+// {} and exits 0 without analysis: the hook already blocked once, and
+// blocking again could keep the agent looping.
+func runCheckInput(args []string, hookStdin func() io.Reader, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("astimate check", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	var opts checkOptions
+	opts := checkOptions{hookStdin: hookStdin}
 	var configPath string
 	fs.StringVar(&opts.base, "base", "", "compare against the merge-base of HEAD and this git ref "+
 		"(default origin/master, then master, origin/main, main)")
@@ -96,6 +144,14 @@ func runCheck(args []string, stdout, stderr io.Writer) int {
 	}
 
 	logger := slog.New(slog.NewTextHandler(stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	if opts.format == formatHook && opts.hookStdin != nil && stopHookActive(opts.hookStdin()) {
+		logger.Info("stop hook already blocked once; allowing the stop without a check")
+		if _, err := io.WriteString(stdout, "{}\n"); err != nil {
+			logger.Error("check failed", "err", fmt.Errorf("writing check output: %w", err))
+			return exitAnalysis
+		}
+		return exitOK
+	}
 	t, err := loadTarget(dir, configPath, *tokenizer, logger)
 	if err != nil {
 		logger.Error("check failed", "dir", dir, "err", err)

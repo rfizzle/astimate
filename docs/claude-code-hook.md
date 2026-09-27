@@ -12,15 +12,16 @@ The contract below is the Claude Code hooks reference as known when this integra
 - Any other non-zero exit code is a non-blocking error: the agent stops and stderr is shown to the user only.
 - `stop_hook_active` is `true` when the agent is already continuing because a Stop hook blocked it. A hook should not block again in that case, or the agent can loop indefinitely.
 
-`astimate check --format hook` fits the first three rules (SPEC.md 8.5):
+`astimate check --format hook` follows all of them (SPEC.md 8.5):
 
 | Outcome | stdout | Exit code | What Claude Code does |
 | --- | --- | --- | --- |
 | A package has a violation | `{"decision":"block","reason":"violations:\n  ..."}` | 0 | Blocks the stop; the agent sees the violations and warnings |
 | No violation | `{}` (warnings, if any, go to stderr) | 0 | Lets the agent stop |
 | Analysis failed (the module does not type-check, the base ref does not exist) | empty; the error is on stderr | 2 | Blocks the stop; the agent sees the error |
+| The hook input has `stop_hook_active: true` | `{}`, without running the check | 0 | Lets the agent stop |
 
-`astimate` does not read stdin, so it cannot apply the loop rule itself. The snippet below adds a guard for it.
+In the hook format, and only when stdin is not a terminal, `astimate check` reads the hook input from stdin and applies the loop rule itself, so the snippet below needs no shell guard.
 
 ## settings.json snippet
 
@@ -35,7 +36,7 @@ Paste this into `.claude/settings.json` in the repository (shared with the team)
         "hooks": [
           {
             "type": "command",
-            "command": "jq -e .stop_hook_active >/dev/null && echo '{}' || astimate check \"$CLAUDE_PROJECT_DIR\" --format hook --base master",
+            "command": "astimate check \"$CLAUDE_PROJECT_DIR\" --format hook --base master",
             "timeout": 300
           }
         ]
@@ -48,11 +49,11 @@ Paste this into `.claude/settings.json` in the repository (shared with the team)
 
 `cmd/astimate/hookcontract_test.go` runs this exact command, read from this file, against a temporary repository, so an edit here that breaks it fails the tests.
 
-### The guard
+### Loop protection
 
-`jq -e .stop_hook_active` reads the hook input from stdin and exits 0 only when `stop_hook_active` is `true`. In that case the command prints `{}` and the agent may stop: it has already been blocked once and has had its chance to fix the violations. Otherwise `jq` exits 1 and `astimate check` runs. If `jq` is not installed the shell exits 127 for it, which also falls through to the check, so a missing `jq` costs the loop protection, never the gate.
+Claude Code sets `stop_hook_active` to `true` in the hook input when the agent is already continuing because a Stop hook blocked it. `astimate check --format hook` reads that input from stdin and, when the flag is `true`, prints `{}` without running the check and logs on stderr that the hook already blocked once, so the agent may stop: it has had its chance to fix the violations. Missing, empty or malformed input is ignored and the check runs as usual, so an unexpected input costs the loop protection, never the gate. Stdin is read only in the hook format and only when it is not a terminal, so running the same command by hand never waits for input.
 
-The consequence is one blocking round per stop. If the agent's fix still fails the gate, it stops anyway, and the violations remain visible the next time you run `astimate check`. That is deliberate: an unbounded loop spends tokens without a human noticing. If you want the gate to keep blocking, drop the guard and rely on your own supervision; do so knowingly.
+The consequence is one blocking round per stop. If the agent's fix still fails the gate, it stops anyway, and the violations remain visible the next time you run `astimate check`. That is deliberate: an unbounded loop spends tokens without a human noticing. If you want the gate to keep blocking, redirect the command's stdin from `/dev/null` (append `< /dev/null` to it) and rely on your own supervision; do so knowingly.
 
 ### Choosing `--base`
 
@@ -81,5 +82,5 @@ Each line reads `metric: baseline -> head, limit. suggestion`. [reading-violatio
 ## Requirements and failure modes
 
 - `astimate` must be on the `PATH` Claude Code runs hooks with. If it is not, the shell exits 127, a non-blocking error: the agent stops and the gate did nothing. Check with `command -v astimate` in the shell you start Claude Code from.
-- The base ref must exist locally. A missing ref is an analysis failure (exit 2), which blocks the stop with the git error on stderr; the guard lets the agent stop on the next attempt.
+- The base ref must exist locally. A missing ref is an analysis failure (exit 2), which blocks the stop with the git error on stderr; on the next attempt `stop_hook_active` is `true` and the agent may stop.
 - The module must type-check. A broken build is also an analysis failure, and blocking on it is usually what you want.

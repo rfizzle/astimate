@@ -19,6 +19,7 @@ The hook contract in [claude-code-hook.md](claude-code-hook.md) was taken from t
 
 - `TestHookContract` (`cmd/astimate/hookcontract_test.go`): `astimate check --all --baseline <pristine> --format hook` on the degraded fixture exits 0 and prints exactly one JSON object with only the keys `decision` (`"block"`) and `reason`, which names `dup_blocks`, `untested_exports` and `globals`; on the pristine fixture it exits 0 and prints exactly `{}` and a newline.
 - `TestStopHookSnippet` (same file): the command from the documented `settings.json` snippet, run through `sh -c` with a Stop hook input on stdin and `CLAUDE_PROJECT_DIR` set, in a git repository whose working tree degrades the fixture since `master`: prints `{}` on a clean tree, the block decision naming the three violations when `stop_hook_active` is `false`, and `{}` when it is `true`.
+- `TestCheckHookStdin` (`cmd/astimate/checkcmd_test.go`): `check --format hook` on the degraded fixture prints `{}` without analysis when the hook input has `stop_hook_active: true`, and the block decision when it is `false`, absent (stdin a terminal) or malformed. Since the command reads `stop_hook_active` itself, `TestStopHookSnippet` runs a snippet with no `jq` guard.
 - `TestPreCommitSnippet` (`cmd/astimate/precommit_test.go`): see the pre-commit entry below.
 
 ### Live check in Claude Code (to be filled in by a person)
@@ -31,7 +32,7 @@ Install the snippet in a scratch repository, have the agent add an untested expo
 | Date | _not yet run_ |
 | Hooks reference matches the contract above | _yes / no, with differences_ |
 | Degraded change blocked, violation text shown to the agent | _yes / no_ |
-| Agent allowed to stop on the second attempt (`stop_hook_active` guard) | _yes / no_ |
+| Agent allowed to stop on the second attempt (`stop_hook_active` read by `astimate check`) | _yes / no_ |
 | Checked by | |
 
 ## Pre-commit hook
