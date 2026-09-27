@@ -45,6 +45,8 @@ type fileFacts struct {
 	// globals holds the 1-based line of each name top-level let and var
 	// declarations bind, in source order; its length is the file's count.
 	globals []int
+	// globalNames holds the name of each of globals, index for index.
+	globalNames []string
 	// hasInit reports a top-level statement that is a call.
 	hasInit bool
 	// funcs holds the complexity of each function, in source order.

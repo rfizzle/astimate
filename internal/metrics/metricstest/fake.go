@@ -190,6 +190,7 @@ func cloneDetails(d metrics.Details) metrics.Details {
 		CrossBlocks:       cloneCrossBlocks(d.CrossBlocks),
 		UntestedPositions: slices.Clone(d.UntestedPositions),
 		GlobalPositions:   slices.Clone(d.GlobalPositions),
+		GlobalNames:       slices.Clone(d.GlobalNames),
 		LargestFile:       d.LargestFile,
 		SourceFiles:       slices.Clone(d.SourceFiles),
 	}

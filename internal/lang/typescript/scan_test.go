@@ -183,7 +183,17 @@ func TestGlobalsAndInit(t *testing.T) {
 			if !slices.Equal(ff.globals, tc.globals) || ff.hasInit != tc.init {
 				t.Errorf("global lines, init = %v, %v, want %v, %v", ff.globals, ff.hasInit, tc.globals, tc.init)
 			}
+			if len(ff.globalNames) != len(ff.globals) {
+				t.Errorf("global names %q for %d globals, want one per global", ff.globalNames, len(ff.globals))
+			}
 		})
+	}
+}
+
+func TestGlobalNames(t *testing.T) {
+	ff := scanSource(t, "x.ts", "let a = 1, _ = 2;\nvar { b, c: [d, e = 1], ...f } = o;\nexport let g = 3;\nconst h = 4;\n")
+	if want := []string{"a", "b", "d", "e", "f", "g"}; !slices.Equal(ff.globalNames, want) {
+		t.Errorf("global names = %q, want %q", ff.globalNames, want)
 	}
 }
 

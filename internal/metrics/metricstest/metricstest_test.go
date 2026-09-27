@@ -29,6 +29,7 @@ const (
 	caseCrossLength  = "cross-length"
 	caseCrossBlock   = "cross-block"
 	casePositions    = "positions-length"
+	caseGlobalNames  = "global-names-length"
 	caseModuleCross  = "module-cross"
 	fakeRoot         = "/fake/module"
 	thisPackage      = "github.com/rfizzle/astimate/internal/metrics"
@@ -289,6 +290,7 @@ func crossDetails() map[string]metrics.Details {
 	beta := details["beta"]
 	beta.UntestedPositions = []metrics.Position{{File: "b.go", Line: 2}, {File: "b.go", Line: 7}}
 	beta.GlobalPositions = []metrics.Position{{File: "b.go", Line: 1}}
+	beta.GlobalNames = []string{"state"}
 	beta.CrossBlocks = []metrics.CrossBlock{sharedBlock()}
 	details["beta"] = beta
 	details["gamma"] = metrics.Details{GlobalPositions: []metrics.Position{}}
@@ -441,6 +443,13 @@ func TestSuiteSubprocess(t *testing.T) {
 		beta.GlobalPositions = append(beta.GlobalPositions, metrics.Position{File: "b.go", Line: 2})
 		details["beta"] = beta
 		opts = append(opts, metricstest.WithDetails(details))
+	case caseGlobalNames:
+		// beta names two globals for one global at one position.
+		details := crossDetails()
+		beta := details["beta"]
+		beta.GlobalNames = append(beta.GlobalNames, "extra")
+		details["beta"] = beta
+		opts = append(opts, metricstest.WithDetails(details))
 	case caseModuleCross:
 		// The module details name two blocks for a row of one, and the
 		// shared block is missing from beta's details.
@@ -557,6 +566,15 @@ func TestSuiteDetectsPositionsMismatch(t *testing.T) {
 		"--- FAIL: TestSuiteSubprocess/Details",
 		`alpha: Details has 2 untested positions for 1 untested exports ["Parse"], want one per export`,
 		"beta: Details has 2 global positions, want globals 1",
+	)
+}
+
+func TestSuiteDetectsGlobalNamesMismatch(t *testing.T) {
+	out := runSubprocess(t, caseGlobalNames)
+	requireContains(t, out,
+		"--- FAIL: TestSuiteSubprocess/Details",
+		`beta: Details names 2 globals ["state" "extra"], want globals 1`,
+		"beta: Details names 2 globals at 1 positions, want one position per name",
 	)
 }
 

@@ -801,7 +801,7 @@ func packageDetails(ctx context.Context, ext metrics.Extractor, mod *metrics.Mod
 
 // namesOf returns the names in d that suggestions quote.
 func namesOf(d *metrics.Details) score.Names {
-	return score.Names{UntestedExports: d.UntestedExports, DupLocations: d.DupLocations, CrossBlocks: d.CrossBlocks}
+	return score.Names{UntestedExports: d.UntestedExports, DupLocations: d.DupLocations, CrossBlocks: d.CrossBlocks, Globals: d.GlobalNames}
 }
 
 // locateFindings locates each of r's findings on the file and line that

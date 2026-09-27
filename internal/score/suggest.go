@@ -35,6 +35,9 @@ type Names struct {
 	// dup_blocks_cross_pkg, first occurrence first, with files relative to
 	// the module root.
 	CrossBlocks []metrics.CrossBlock
+	// Globals names the package-level variables counted by globals, in
+	// declaration order.
+	Globals []string
 }
 
 // DriverSuggestions returns one suggestion per driver of r, in driver order,
@@ -100,7 +103,7 @@ func MetricSuggestion(metric string, head float64, m metrics.RawMetrics, n Names
 	case "untested_exports":
 		return untestedSentence(int(head), n.UntestedExports)
 	case "globals":
-		return count(int(head), "package-level variable holds", "package-level variables hold") + " state no signature reveals; pass it explicitly or move it into a struct."
+		return globalsSentence(int(head), n.Globals)
 	case "init_funcs":
 		return count(int(head), "init function runs", "init functions run") + " hidden setup on import; replace them with explicit constructors."
 	case "max_nesting":
@@ -193,6 +196,16 @@ func crossPair(blocks []metrics.CrossBlock) string {
 // occurrenceText renders o as "file:start-end".
 func occurrenceText(o metrics.Occurrence) string {
 	return o.File + ":" + strconv.Itoa(o.StartLine) + "-" + strconv.Itoa(o.EndLine)
+}
+
+// globalsSentence renders the globals template for n package-level
+// variables, naming up to five of names.
+func globalsSentence(n int, names []string) string {
+	s := count(n, "package-level variable holds", "package-level variables hold") + " state no signature reveals"
+	if len(names) > 0 {
+		s += " (" + nameList(names, n) + ")"
+	}
+	return s + "; pass it explicitly or move it into a struct."
 }
 
 // untestedSentence renders the untested-exports template for n exports,

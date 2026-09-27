@@ -24,8 +24,8 @@ type Details struct {
 	// an //astimate:untested directive, sorted.
 	ExcludedUntested []string `json:"excluded_untested,omitempty"`
 	// Globals are the declarations counted by globals, in declaration
-	// order. The extractor records their positions, not their names.
-	Globals []Location `json:"globals,omitempty"`
+	// order, each named and located as far as the extractor records it.
+	Globals []Global `json:"globals,omitempty"`
 	// LargestFile is the file largest_file_sloc measures.
 	LargestFile string `json:"largest_file,omitempty"`
 	// CrossBlocks are the cross-package duplicate blocks behind
@@ -48,6 +48,18 @@ type Span struct {
 type Declaration struct {
 	// Name is the declaration's name as the extractor gives it.
 	Name string `json:"name"`
+	// File is relative to the package directory, in slash form; empty
+	// (omitted) when unknown.
+	File string `json:"file,omitempty"`
+	// Line is 1-based; 0 (omitted) when unknown.
+	Line int `json:"line,omitempty"`
+}
+
+// Global is one package-level variable counted by globals, named and
+// located as far as the extractor records it.
+type Global struct {
+	// Name is the variable's name; empty (omitted) when unknown.
+	Name string `json:"name,omitempty"`
 	// File is relative to the package directory, in slash form; empty
 	// (omitted) when unknown.
 	File string `json:"file,omitempty"`
@@ -101,10 +113,16 @@ func NewDetails(d *metrics.Details, pkgPath func(string) string) *Details {
 			}
 		}
 	}
-	if len(d.GlobalPositions) > 0 {
-		out.Globals = make([]Location, len(d.GlobalPositions))
-		for i, p := range d.GlobalPositions {
-			out.Globals[i] = Location{File: p.File, Line: p.Line}
+	if n := max(len(d.GlobalNames), len(d.GlobalPositions)); n > 0 {
+		out.Globals = make([]Global, n)
+		for i := range out.Globals {
+			if i < len(d.GlobalNames) {
+				out.Globals[i].Name = d.GlobalNames[i]
+			}
+			if i < len(d.GlobalPositions) {
+				out.Globals[i].File = d.GlobalPositions[i].File
+				out.Globals[i].Line = d.GlobalPositions[i].Line
+			}
 		}
 	}
 	if len(d.CrossBlocks) > 0 {

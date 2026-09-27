@@ -186,6 +186,7 @@ func (e *Extractor) Details(ctx context.Context, mod *metrics.ModuleContext, pkg
 		DupLocations:      slices.Clone(d.dupLocations),
 		UntestedPositions: slices.Clone(d.untestedPos),
 		GlobalPositions:   slices.Clone(d.globalPos),
+		GlobalNames:       slices.Clone(d.globalNames),
 		LargestFile:       d.largestFile,
 		SourceFiles:       slices.Clone(d.sourceFiles),
 	}, nil

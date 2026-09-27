@@ -160,6 +160,43 @@ func TestUntestedExportsNamesTruncated(t *testing.T) {
 	}
 }
 
+func TestMetricSuggestionGlobalsNames(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		head  float64
+		names []string
+		want  string
+	}{
+		{
+			name: "no names",
+			head: 3,
+			want: "3 package-level variables hold state no signature reveals; pass it explicitly or move it into a struct.",
+		},
+		{
+			name:  "one name",
+			head:  1,
+			names: []string{"joins"},
+			want:  "1 package-level variable holds state no signature reveals (joins); pass it explicitly or move it into a struct.",
+		},
+		{
+			name:  "seven names",
+			head:  7,
+			names: []string{"a", "b", "c", "d", "e", "f", "g"},
+			want:  "7 package-level variables hold state no signature reveals (a, b, c, d, e and 2 more); pass it explicitly or move it into a struct.",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := MetricSuggestion("globals", tt.head, metrics.RawMetrics{}, Names{Globals: tt.names}); got != tt.want {
+				t.Errorf("MetricSuggestion = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestDuplicationNamesFirstLocation(t *testing.T) {
 	t.Parallel()
 

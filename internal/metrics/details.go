@@ -33,6 +33,11 @@ type Details struct {
 	// in declaration order. Nil when there are none or the implementation
 	// does not record them.
 	GlobalPositions []Position
+	// GlobalNames names the globals counted by globals, index for index
+	// with GlobalPositions, in the same order. Nil when there are none or
+	// the implementation does not record them; when set, its length equals
+	// globals.
+	GlobalNames []string
 	// LargestFile is the non-test file with the most source lines, the one
 	// largest_file_sloc measures, relative to the package directory in
 	// slash form; the first such file on a tie. Empty when unknown.

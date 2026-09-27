@@ -21,6 +21,9 @@ type globalCounts struct {
 	// pos holds the declaring identifier of each counted global, in
 	// declaration order, for annotations.
 	pos []token.Pos
+	// names holds the name of each counted global, index for index with
+	// pos.
+	names []string
 }
 
 // globals counts the package-level variables and init functions declared in
@@ -61,6 +64,7 @@ func (c *globalCounts) addVars(d *ast.GenDecl) {
 			}
 			c.globals++
 			c.pos = append(c.pos, n.Pos())
+			c.names = append(c.names, n.Name)
 			if n.IsExported() {
 				c.exported = append(c.exported, n.Name)
 			} else {

@@ -52,6 +52,11 @@ func degradedLocations() map[string]string {
 	}
 }
 
+// degradedGlobal is the global the degraded copy adds to its tested
+// package, which the globals finding names in the details and the
+// suggestion.
+const degradedGlobal = "joins"
+
 // degradedGrade is the start of the changed_func_cognitive_max suggestion
 // on the degraded fixture, naming its complex function.
 const degradedGrade = "Changed function grade (grade.go:8) has cognitive complexity 40"
@@ -219,7 +224,16 @@ func TestCheckFixtures(t *testing.T) {
 						failing && (*got != 40 || r.Metrics.CognitiveP90 >= 10):
 						t.Errorf("tested: changed_func_cognitive_max %d with cognitive_p90 %d", *got, r.Metrics.CognitiveP90)
 					}
+					if failing {
+						want := report.Global{Name: degradedGlobal, File: "degraded.go", Line: 9}
+						if r.Details == nil || !slices.Contains(r.Details.Globals, want) {
+							t.Errorf("tested details = %+v, want globals to hold %+v", r.Details, want)
+						}
+					}
 					for _, v := range r.Violations {
+						if v.Metric == "globals" && !strings.Contains(v.Suggestion, "("+degradedGlobal+")") {
+							t.Errorf("globals suggestion = %q, want it to name %s", v.Suggestion, degradedGlobal)
+						}
 						if v.Metric == "changed_func_cognitive_max" && !strings.HasPrefix(v.Suggestion, degradedGrade) {
 							t.Errorf("changed_func_cognitive_max suggestion = %q, want it to start %q", v.Suggestion, degradedGrade)
 						}

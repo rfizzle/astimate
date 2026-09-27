@@ -196,6 +196,26 @@ func TestCouplingRatiosRounded(t *testing.T) {
 	}
 }
 
+// TestDetailsGlobals checks that Details names and locates the globals of
+// the fixture's hidden package, index for index, in the order the count
+// reads them.
+func TestDetailsGlobals(t *testing.T) {
+	d, err := New().Details(t.Context(), &metrics.ModuleContext{Root: fixtureRoot(t)}, "hidden")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantPos := []metrics.Position{
+		{File: "hidden.ts", Line: 5}, {File: "hidden.ts", Line: 6},
+		{File: "hidden.ts", Line: 6}, {File: "hidden.ts", Line: 7},
+	}
+	if !slices.Equal(d.GlobalPositions, wantPos) {
+		t.Errorf("GlobalPositions = %+v, want %+v", d.GlobalPositions, wantPos)
+	}
+	if want := []string{"limit", "events", "done", "counter"}; !slices.Equal(d.GlobalNames, want) {
+		t.Errorf("GlobalNames = %q, want %q", d.GlobalNames, want)
+	}
+}
+
 func TestDetails(t *testing.T) {
 	e := New()
 	mod := &metrics.ModuleContext{Root: fixtureRoot(t)}
@@ -242,8 +262,8 @@ func TestDetails(t *testing.T) {
 			if !slices.Equal(d.UntestedPositions, tc.untestedPos) {
 				t.Errorf("UntestedPositions = %+v, want %+v", d.UntestedPositions, tc.untestedPos)
 			}
-			if d.GlobalPositions != nil {
-				t.Errorf("GlobalPositions = %+v, want none", d.GlobalPositions)
+			if d.GlobalPositions != nil || d.GlobalNames != nil {
+				t.Errorf("GlobalPositions, GlobalNames = %+v, %q, want none", d.GlobalPositions, d.GlobalNames)
 			}
 			if d.LargestFile != tc.largest {
 				t.Errorf("LargestFile = %q, want %q", d.LargestFile, tc.largest)

@@ -61,12 +61,15 @@ func TestDetailsDupes(t *testing.T) {
 			if len(got.GlobalPositions) != 0 {
 				t.Errorf("GlobalPositions = %v, want none", got.GlobalPositions)
 			}
+			if len(got.GlobalNames) != 0 {
+				t.Errorf("GlobalNames = %q, want none", got.GlobalNames)
+			}
 		})
 	}
 }
 
-// TestDetailsPositions checks the declarations and files Details records
-// for annotations on a package with globals and two source files.
+// TestDetailsPositions checks the declarations, global names and files
+// Details records for annotations on a package with globals and two source files.
 func TestDetailsPositions(t *testing.T) {
 	const pkg = "example.com/fixture/hidden"
 	e := New()
@@ -81,6 +84,9 @@ func TestDetailsPositions(t *testing.T) {
 	}
 	if !slices.Equal(got.GlobalPositions, wantGlobals) {
 		t.Errorf("GlobalPositions = %v, want %v", got.GlobalPositions, wantGlobals)
+	}
+	if want := []string{"limit", "events", "done", "counter"}; !slices.Equal(got.GlobalNames, want) {
+		t.Errorf("GlobalNames = %q, want %q, index for index with GlobalPositions", got.GlobalNames, want)
 	}
 	if want := []metrics.Position{{File: "hidden.go", Line: 20}}; !slices.Equal(got.UntestedPositions, want) {
 		t.Errorf("UntestedPositions = %v, want %v (Drain)", got.UntestedPositions, want)

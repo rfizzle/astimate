@@ -34,6 +34,7 @@ func TestNewDetails(t *testing.T) {
 				UntestedPositions: []metrics.Position{{File: "p.go", Line: 3}, {File: "t.go", Line: 9}},
 				DupLocations:      []string{"a.go:4-20", "sub/b.go:30-46", "bad", "c.go:x-1"},
 				GlobalPositions:   []metrics.Position{{File: "state.go", Line: 7}},
+				GlobalNames:       []string{"cache"},
 				LargestFile:       "a.go",
 				SourceFiles:       []string{"a.go", "p.go"},
 				CrossBlocks: []metrics.CrossBlock{{Occurrences: []metrics.Occurrence{
@@ -45,7 +46,7 @@ func TestNewDetails(t *testing.T) {
 				Duplicates:       []Span{{File: "a.go", StartLine: 4, EndLine: 20}, {File: "sub/b.go", StartLine: 30, EndLine: 46}},
 				UntestedExports:  []Declaration{{Name: "Parse", File: "p.go", Line: 3}, {Name: "T.Run", File: "t.go", Line: 9}},
 				ExcludedUntested: []string{"Debug"},
-				Globals:          []Location{{File: "state.go", Line: 7}},
+				Globals:          []Global{{Name: "cache", File: "state.go", Line: 7}},
 				LargestFile:      "a.go",
 				CrossBlocks: []CrossBlock{{Occurrences: []CrossOccurrence{
 					{Package: "x", File: "x/x.go", StartLine: 1, EndLine: 9},
@@ -57,6 +58,16 @@ func TestNewDetails(t *testing.T) {
 			name: "names without positions",
 			in:   metrics.Details{UntestedExports: []string{"Parse"}},
 			want: &Details{UntestedExports: []Declaration{{Name: "Parse"}}},
+		},
+		{
+			name: "global positions without names",
+			in:   metrics.Details{GlobalPositions: []metrics.Position{{File: "state.go", Line: 7}}},
+			want: &Details{Globals: []Global{{File: "state.go", Line: 7}}},
+		},
+		{
+			name: "global names without positions",
+			in:   metrics.Details{GlobalNames: []string{"cache", "hits"}},
+			want: &Details{Globals: []Global{{Name: "cache"}, {Name: "hits"}}},
 		},
 	}
 	for _, tt := range tests {

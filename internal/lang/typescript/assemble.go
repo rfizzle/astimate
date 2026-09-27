@@ -30,6 +30,7 @@ func assemble(m *module, p *pkg, opts assembleOptions) (metrics.RawMetrics, erro
 	var srcBytes, srcTokens, allBytes, allTokens int
 	var candidates []candidate
 	var globalPos []metrics.Position
+	var globalNames []string
 	files := make([]string, 0, len(p.src))
 	largest := ""
 	inits := 0
@@ -50,6 +51,7 @@ func assemble(m *module, p *pkg, opts assembleOptions) (metrics.RawMetrics, erro
 		for _, line := range f.globals {
 			globalPos = append(globalPos, metrics.Position{File: rel, Line: line})
 		}
+		globalNames = append(globalNames, f.globalNames...)
 		if f.hasInit {
 			inits++
 		}
@@ -145,6 +147,7 @@ func assemble(m *module, p *pkg, opts assembleOptions) (metrics.RawMetrics, erro
 		dupLocations: locs,
 		untestedPos:  untestedPos,
 		globalPos:    globalPos,
+		globalNames:  globalNames,
 		largestFile:  largest,
 		sourceFiles:  files,
 	})

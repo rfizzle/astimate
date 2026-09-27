@@ -286,6 +286,7 @@ func (w *walker) variables(n *sitter.Node, mutable, exported, directed bool) {
 			for _, b := range w.bindings(nameNode, nil) {
 				if w.text(b) != "_" {
 					w.f.globals = append(w.f.globals, lineOf(b))
+					w.f.globalNames = append(w.f.globalNames, w.text(b))
 				}
 			}
 		}

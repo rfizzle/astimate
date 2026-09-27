@@ -34,6 +34,8 @@ type details struct {
 	// untestedPos and globalPos are the declarations behind
 	// untestedNames, index for index, and globals.
 	untestedPos, globalPos []token.Pos
+	// globalNames names the globals, index for index with globalPos.
+	globalNames []string
 	// largestFile is the absolute filename of the largest non-test file.
 	largestFile string
 	// files are the absolute filenames of the non-test files.
@@ -119,6 +121,7 @@ func assemble(ctx context.Context, l *loaded, p *packages.Package, opts assemble
 		functions:        cx.perFunc,
 		untestedPos:      un.pos,
 		globalPos:        gl.pos,
+		globalNames:      gl.names,
 		largestFile:      sz.largestFile,
 		files:            p.GoFiles,
 	})
