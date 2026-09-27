@@ -208,25 +208,39 @@ func duplication(l *loaded, p *packages.Package, src fileSource, sz sizeCounts, 
 // dupStreamOf scans the non-test, non-generated files of p, read through
 // src, into one normalized stream under opts.
 func dupStreamOf(l *loaded, p *packages.Package, src fileSource, opts dupOptions) (*dupStream, error) {
-	s := &dupStream{intern: make(map[string]int32)}
-	fs := token.NewFileSet()
+	s := newDupStream()
+	if err := s.appendPackage(token.NewFileSet(), l, p, src, opts); err != nil {
+		return nil, err
+	}
+	return s, nil
+}
+
+// newDupStream returns an empty stream.
+func newDupStream() *dupStream {
+	return &dupStream{intern: make(map[string]int32)}
+}
+
+// appendPackage scans the non-test, non-generated files of p, read through
+// src and positioned in fs, onto the end of s under opts, each followed by
+// its separator.
+func (s *dupStream) appendPackage(fs *token.FileSet, l *loaded, p *packages.Package, src fileSource, opts dupOptions) error {
 	for _, f := range sourceSyntax(l, p) {
 		if ast.IsGenerated(f) {
 			continue
 		}
 		tf := l.fset.File(f.FileStart)
 		if tf == nil {
-			return nil, errors.New("file not in file set")
+			return errors.New("file not in file set")
 		}
 		data, err := src.read(tf.Name())
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if err := s.scan(fs, tf.Name(), data, opts); err != nil {
-			return nil, err
+			return err
 		}
 	}
-	return s, nil
+	return nil
 }
 
 // find returns the suffix array of the stream and its duplicate blocks

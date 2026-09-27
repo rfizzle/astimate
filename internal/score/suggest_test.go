@@ -273,3 +273,28 @@ func TestDriverSuggestionsOrderAndUnspecified(t *testing.T) {
 		t.Errorf("second suggestion = %q, want the volume driver", got[1])
 	}
 }
+
+// TestMetricSuggestionV1Templates covers the templates of the v1 metrics a
+// config may gate although the default configuration does not.
+func TestMetricSuggestionV1Templates(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		metric string
+		head   float64
+		want   string
+	}{
+		{"dup_blocks_cross_pkg", 3, "3 duplicate blocks are shared with other packages; extract them into one place."},
+		{"dup_blocks_cross_pkg", 1, "1 duplicate block is shared with other packages; extract it into one place."},
+		{"uses_cgo", 1, `imports "C"`},
+		{"uses_reflect", 1, "imports reflect or unsafe"},
+		{"generated_files", 2, "2 files are generated; change the generator or its input, not the output."},
+		{"generated_files", 1, "1 file is generated"},
+	}
+	for _, tt := range tests {
+		got := MetricSuggestion(tt.metric, tt.head, metrics.RawMetrics{}, Names{})
+		if !strings.Contains(got, tt.want) {
+			t.Errorf("MetricSuggestion(%s, %v) = %q, want it to contain %q", tt.metric, tt.head, got, tt.want)
+		}
+	}
+}

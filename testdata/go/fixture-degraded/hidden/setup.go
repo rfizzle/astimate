@@ -1,5 +1,7 @@
 package hidden
 
+import "unsafe"
+
 func init() {
-	events <- limit
+	events <- limit * int(unsafe.Sizeof(counter))
 }

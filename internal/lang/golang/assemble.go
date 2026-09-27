@@ -31,12 +31,18 @@ type details struct {
 
 // assemble computes every v0 metric of p in l and maps it into RawMetrics by
 // its SPEC.md section 6 name, with the v1 fields instability, abstractness
-// and main_sequence_distance derived from them; those are nil when
-// undefined, and the other v1 fields are left nil. It records the
-// debug details of p in l. size runs before duplication, which weighs lines
-// by it, and ctx is checked before each of the expensive steps, duplication
-// and tokens. size, duplication and tokens share one fileCache, so each file
-// is opened at most once. Errors are wrapped with p's import path.
+// and main_sequence_distance derived from them (nil when undefined), the
+// opacity flags uses_cgo, uses_reflect and generated_files, and
+// dup_blocks_cross_pkg (nil for the standard-library loads, which are not
+// modules); coverage_pct and changed_func_cognitive_max are left nil. It
+// records the debug details of p in l. size runs before duplication, which
+// weighs lines by it, and ctx is checked before each of the expensive
+// steps, duplication, cross-package duplication and tokens. size,
+// duplication and tokens share one fileCache, so each file is opened at
+// most once. The module-wide cross-package pass runs once per load (see
+// crossDuplication); the call that runs it reads every module file through
+// the same fileCache, so p's own files are still opened once. Errors are
+// wrapped with p's import path.
 func assemble(ctx context.Context, l *loaded, p *packages.Package, opts assembleOptions) (metrics.RawMetrics, error) {
 	imp := imports(l, p)
 	fi := fanIn(l, p)
@@ -63,6 +69,19 @@ func assemble(ctx context.Context, l *loaded, p *packages.Package, opts assemble
 	if err := ctx.Err(); err != nil {
 		return metrics.RawMetrics{}, fmt.Errorf("extracting %s: %w", p.PkgPath, err)
 	}
+	var crossPkg *int
+	if crossApplies(l) {
+		cross, err := crossDuplication(l, src, opts.dup)
+		if err != nil {
+			return metrics.RawMetrics{}, fmt.Errorf("extracting %s: %w", p.PkgPath, err)
+		}
+		n := cross.perPkg[p.PkgPath]
+		crossPkg = &n
+		if err := ctx.Err(); err != nil {
+			return metrics.RawMetrics{}, fmt.Errorf("extracting %s: %w", p.PkgPath, err)
+		}
+	}
+	op := opacity(l, p)
 	tok, err := tokens(l, p, src, opts.counter)
 	if err != nil {
 		return metrics.RawMetrics{}, fmt.Errorf("extracting %s: %w", p.PkgPath, err)
@@ -110,6 +129,10 @@ func assemble(ctx context.Context, l *loaded, p *packages.Package, opts assemble
 		Instability:          instability,
 		Abstractness:         abstractness,
 		MainSequenceDistance: metrics.MainSequenceDistance(abstractness, instability),
+		DupBlocksCrossPkg:    crossPkg,
+		UsesCgo:              &op.cgo,
+		UsesReflect:          &op.reflect,
+		GeneratedFiles:       &op.generated,
 	}, nil
 }
 

@@ -142,7 +142,8 @@ func (e *Extractor) Packages(root string) ([]string, error) {
 }
 
 // Extract computes the v0 metrics of the package with import path pkg in the
-// module at mod.Root; v1 fields are left nil. The module is loaded on the
+// module at mod.Root, and the v1 fields assemble lists; coverage_pct and
+// changed_func_cognitive_max are left nil. The module is loaded on the
 // first call for its root and cached in mod.Cache. An import path that is not
 // a non-test package of the module yields an error wrapping
 // ErrUnknownPackage, and an unknown tokenizer one wrapping
@@ -164,6 +165,27 @@ func (e *Extractor) Extract(ctx context.Context, mod *metrics.ModuleContext, pkg
 		return metrics.RawMetrics{}, fmt.Errorf("extracting %s: %w", pkg, err)
 	}
 	return assemble(ctx, l, p, assembleOptions{counter: counter, dup: e.dup})
+}
+
+// ModuleRow returns the module-level row of the module at mod.Root
+// (metrics.ModuleMetrics): v0 fields zero, v1 fields null except
+// dup_blocks_cross_pkg, the number of distinct duplicate blocks whose
+// occurrences lie in two or more of the module's packages. It shares the
+// load and the memoized cross-package pass with Extract.
+func (e *Extractor) ModuleRow(ctx context.Context, mod *metrics.ModuleContext) (metrics.RawMetrics, error) {
+	l, err := e.cached(ctx, mod)
+	if err != nil {
+		return metrics.RawMetrics{}, err
+	}
+	if err := ctx.Err(); err != nil {
+		return metrics.RawMetrics{}, fmt.Errorf("extracting %s: %w", metrics.ModuleRowID, err)
+	}
+	cross, err := crossDuplication(l, osFiles{}, e.dup)
+	if err != nil {
+		return metrics.RawMetrics{}, fmt.Errorf("extracting %s: %w", metrics.ModuleRowID, err)
+	}
+	n := cross.blocks
+	return metrics.RawMetrics{DupBlocksCrossPkg: &n}, nil
 }
 
 // counter returns the token counter the tokenizer option selects. The o200k

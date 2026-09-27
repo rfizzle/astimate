@@ -142,8 +142,15 @@ func TestCheckFixtures(t *testing.T) {
 						t.Errorf("%s: passed %v baseline %+v, want a verdict against ref fixture", r.PackagePath, r.Passed, r.Baseline)
 					}
 				}
-				if !slices.Equal(paths, fixturePackages()) {
-					t.Errorf("reports = %q, want every fixture package %q", paths, fixturePackages())
+				// The module row comes first; a and b share one block in
+				// every fixture copy, so it passes against the baseline.
+				if want := append([]string{"module"}, fixturePackages()...); !slices.Equal(paths, want) {
+					t.Errorf("reports = %q, want the module row and every fixture package %q", paths, want)
+				}
+				if m := reports[0]; m.PackagePath == "module" {
+					if m.Passed == nil || !*m.Passed || m.Metrics.DupBlocksCrossPkg == nil || *m.Metrics.DupBlocksCrossPkg != 1 {
+						t.Errorf("module row passed %v with dup_blocks_cross_pkg %v, want a pass at 1", m.Passed, m.Metrics.DupBlocksCrossPkg)
+					}
 				}
 				got := violationMetrics(reports, "tested")
 				if failing && !containsAll(got, degradedMetrics()) {
@@ -157,6 +164,9 @@ func TestCheckFixtures(t *testing.T) {
 				t.Parallel()
 
 				out, _ := check(t, formatText)
+				if !strings.Contains("\n"+out, "\nmodule: dup_blocks_cross_pkg 1, 0 violations, 0 warnings\n") {
+					t.Errorf("text has no module summary line:\n%s", out)
+				}
 				for _, pkg := range fixturePackages() {
 					if !strings.Contains(out, "\n"+pkg+": ") && !strings.HasPrefix(out, pkg+": ") {
 						t.Errorf("text has no summary line for %s:\n%s", pkg, out)
@@ -343,18 +353,20 @@ func TestCheckGitRef(t *testing.T) {
 	}
 
 	reports := decodeReports(t, stdout.Bytes())
-	if len(reports) != 1 || reports[0].PackagePath != "tested" {
+	if len(reports) != 2 || reports[0].PackagePath != "module" || reports[1].PackagePath != "tested" {
 		paths := make([]string, 0, len(reports))
 		for i := range reports {
 			paths = append(paths, reports[i].PackagePath)
 		}
-		t.Fatalf("checked %q, want only tested", paths)
+		t.Fatalf("checked %q, want the module row and tested", paths)
 	}
 	if got := violationMetrics(reports, "tested"); !containsAll(got, degradedMetrics()) {
 		t.Errorf("tested violations = %q, want %q among them", got, degradedMetrics())
 	}
-	if b := reports[0].Baseline; b == nil || len(b.Ref) != 40 {
-		t.Errorf("baseline = %+v, want the merge-base commit", b)
+	for i := range reports {
+		if b := reports[i].Baseline; b == nil || len(b.Ref) != 40 {
+			t.Errorf("%s: baseline = %+v, want the merge-base commit", reports[i].PackagePath, b)
+		}
 	}
 
 	// Two trees, head and the baseline worktree, each listed exactly once;
@@ -400,8 +412,8 @@ func TestCheckDefaultRefFallback(t *testing.T) {
 		if !strings.Contains(errOut.String(), "using the baseline file") {
 			t.Errorf("stderr = %q, want it to say the baseline file is used", errOut.String())
 		}
-		if reports := decodeReports(t, out.Bytes()); len(reports) != 2 {
-			t.Errorf("checked %d packages, want 2", len(reports))
+		if reports := decodeReports(t, out.Bytes()); len(reports) != 3 {
+			t.Errorf("checked %d rows, want the module row and 2 packages", len(reports))
 		}
 	})
 	t.Run("no baseline", func(t *testing.T) {

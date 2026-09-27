@@ -79,7 +79,9 @@ func driverSuggestion(d Driver, m *metrics.RawMetrics, n Names) string {
 // MetricSuggestion returns the fix suggestion for a gate violation or warning
 // on metric, whose value at head is head. m supplies related values quoted in
 // the text and n the names, when known. It returns "" for a metric without a
-// template; every metric with a default threshold in SPEC.md 8.2 has one.
+// template; every metric with a default threshold in SPEC.md 8.2 has one, and
+// so do dup_blocks_cross_pkg and the informational flags uses_cgo,
+// uses_reflect and generated_files, which a config may gate.
 func MetricSuggestion(metric string, head float64, m metrics.RawMetrics, n Names) string {
 	v := formatNum(head)
 	switch metric {
@@ -109,6 +111,17 @@ func MetricSuggestion(metric string, head float64, m metrics.RawMetrics, n Names
 		return "The package has " + v + " source lines; split it before the next feature."
 	case "has_tests":
 		return "The package has " + strconv.Itoa(m.SLOC) + " source lines and no tests; add tests that pin its behavior."
+	case "dup_blocks_cross_pkg":
+		if int(head) == 1 {
+			return "1 duplicate block is shared with other packages; extract it into one place."
+		}
+		return strconv.Itoa(int(head)) + " duplicate blocks are shared with other packages; extract them into one place."
+	case "uses_cgo":
+		return "The package imports \"C\"; cgo code is opaque to Go analysis and needs a C toolchain to build, so keep it behind a narrow Go API."
+	case "uses_reflect":
+		return "The package imports reflect or unsafe; what they do is invisible in signatures, so keep their use small and tested."
+	case "generated_files":
+		return count(int(head), "file is", "files are") + " generated; change the generator or its input, not the output."
 	default:
 		return ""
 	}

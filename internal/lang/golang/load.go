@@ -76,10 +76,15 @@ type loaded struct {
 	// fanIn guards the one-time build of reverse and holds the test-only
 	// importer graph behind fan_in_tests.
 	fanIn reverseGraph
+	// cross memoizes the cross-package duplication counts behind
+	// dup_blocks_cross_pkg, per duplication options, built once per load
+	// on first use. It holds counts only, never file contents.
+	cross crossDupMemo
 
 	// detailsMu guards details, which maps an import path to the debug
-	// details of its most recent Extract. Besides the fan-in graphs it is
-	// the only state on loaded written after the load.
+	// details of its most recent Extract. Besides the fan-in graphs and the
+	// cross-package duplication counts it is the only state on loaded
+	// written after the load.
 	detailsMu sync.Mutex
 	details   map[string]details
 }

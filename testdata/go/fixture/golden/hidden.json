@@ -1,12 +1,12 @@
 {
   "files": 2,
-  "sloc": 31,
+  "sloc": 32,
   "largest_file_sloc": 27,
-  "tokens_est": 211,
-  "tokens_est_with_tests": 211,
+  "tokens_est": 226,
+  "tokens_est_with_tests": 226,
   "internal_imports": 1,
   "external_imports": 0,
-  "stdlib_imports": 0,
+  "stdlib_imports": 1,
   "fan_in": 0,
   "fan_in_tests": 0,
   "exported_symbols": 1,
@@ -22,5 +22,9 @@
   "test_funcs": 0,
   "has_tests": false,
   "untested_exports": 1,
-  "instability": 1
+  "dup_blocks_cross_pkg": 0,
+  "instability": 1,
+  "uses_cgo": false,
+  "uses_reflect": true,
+  "generated_files": 0
 }

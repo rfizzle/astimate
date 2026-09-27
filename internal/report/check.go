@@ -16,6 +16,12 @@ import (
 // Check is the outcome of one check run (SPEC.md section 8): the input of
 // the check renderers.
 type Check struct {
+	// Module is the module-level row, with package path
+	// metrics.ModuleRowID: module-wide metrics such as the number of
+	// distinct cross-package duplicate blocks, gated like a package. It is
+	// rendered before the packages. Nil when the check has none, as for a
+	// check of chosen packages or an extractor without module metrics.
+	Module *CheckedPackage
 	// Packages are the checked packages, in the order they are rendered.
 	Packages []CheckedPackage
 	// Deleted are the module-relative directories that lost all their Go
@@ -34,14 +40,27 @@ type CheckedPackage struct {
 	BaseAgentPasses *float64
 }
 
-// Failed reports whether any package has a violation.
+// Failed reports whether the module row or any package has a violation.
 func (c *Check) Failed() bool {
-	for i := range c.Packages {
-		if len(c.Packages[i].Report.Violations) > 0 {
+	for _, p := range c.rows() {
+		if len(p.Report.Violations) > 0 {
 			return true
 		}
 	}
 	return false
+}
+
+// rows returns the module row, when there is one, followed by the
+// packages: the order every renderer lists them in.
+func (c *Check) rows() []*CheckedPackage {
+	rows := make([]*CheckedPackage, 0, len(c.Packages)+1)
+	if c.Module != nil {
+		rows = append(rows, c.Module)
+	}
+	for i := range c.Packages {
+		rows = append(rows, &c.Packages[i])
+	}
+	return rows
 }
 
 // ApplyGate records a gate outcome on r: the baseline block when base is
@@ -74,12 +93,16 @@ func findings(vs []gate.Violation) []Finding {
 }
 
 // WriteCheckText writes c for a human reader: the violations, then the
-// warnings, each grouped under its package, then one summary line per
+// warnings, each grouped under its package (the module row's first, under
+// a "module" heading), then one summary line for the module row and one per
 // package with its agent passes, tier, finding counts and the change in
 // agent passes from the baseline, and a final line naming deleted packages.
 func WriteCheckText(w io.Writer, c *Check) error {
 	bw := bufio.NewWriter(w)
 	writeFindings(bw, c)
+	if c.Module != nil {
+		writeModuleSummary(bw, c.Module)
+	}
 	for i := range c.Packages {
 		writeSummary(bw, &c.Packages[i])
 	}
@@ -96,8 +119,8 @@ func WriteCheckText(w io.Writer, c *Check) error {
 }
 
 // writeFindings writes the violations section, then the warnings section,
-// each package's findings under its directory; an empty section is left
-// out.
+// the module row's findings under "module" and then each package's under
+// its directory; an empty section is left out.
 func writeFindings(w *bufio.Writer, c *Check) {
 	sections := []struct {
 		title string
@@ -108,8 +131,8 @@ func writeFindings(w *bufio.Writer, c *Check) {
 	}
 	for _, s := range sections {
 		header := false
-		for i := range c.Packages {
-			r := &c.Packages[i].Report
+		for _, p := range c.rows() {
+			r := &p.Report
 			fs := s.get(r)
 			if len(fs) == 0 {
 				continue
@@ -146,6 +169,35 @@ func writeSummary(w *bufio.Writer, p *CheckedPackage) {
 		_, _ = w.WriteString(", new since baseline")
 	}
 	_, _ = w.WriteString("\n")
+}
+
+// writeModuleSummary writes the module row's summary line: the module-wide
+// metrics it carries, its finding counts and whether the baseline has a
+// module row. It has no rebuild estimate to report.
+func writeModuleSummary(w *bufio.Writer, p *CheckedPackage) {
+	r := &p.Report
+	_, _ = w.WriteString(r.PackagePath + ":")
+	for _, name := range metrics.MetricNames() {
+		v, ok := r.Metrics.Value(name)
+		if !ok || isV0(name) {
+			continue
+		}
+		_, _ = w.WriteString(" " + name + " " + valueText(name, v) + ",")
+	}
+	_, _ = w.WriteString(" " + plural(len(r.Violations), "violation", "violations") + ", " +
+		plural(len(r.Warnings), "warning", "warnings"))
+	if r.Baseline == nil {
+		_, _ = w.WriteString(", new since baseline")
+	}
+	_, _ = w.WriteString("\n")
+}
+
+// isV0 reports whether name is a v0 metric, which the module row leaves at
+// zero: v0 fields are the ones a zero RawMetrics reports a value for.
+func isV0(name string) bool {
+	var zero metrics.RawMetrics
+	_, ok := zero.Value(name)
+	return ok
 }
 
 // findingText renders one finding as "<metric>: <base> -> <head>, <limit>.
@@ -190,12 +242,15 @@ func plural(n int, one, many string) string {
 	return strconv.Itoa(n) + " " + many
 }
 
-// WriteCheckJSON writes the packages' reports as an indented JSON array
-// followed by a newline; no packages yields "[]".
+// WriteCheckJSON writes the reports of the module row, when there is one,
+// and the packages as an indented JSON array followed by a newline; the
+// module row is an ordinary entry whose package_path is "module". No rows
+// yields "[]".
 func WriteCheckJSON(w io.Writer, c *Check) error {
-	reports := make([]Report, 0, len(c.Packages))
-	for i := range c.Packages {
-		reports = append(reports, c.Packages[i].Report)
+	rows := c.rows()
+	reports := make([]Report, 0, len(rows))
+	for _, p := range rows {
+		reports = append(reports, p.Report)
 	}
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
@@ -249,17 +304,22 @@ func WriteHook(w, warnings io.Writer, c *Check) error {
 // WriteGitHub writes GitHub Actions workflow commands (SPEC.md 8.5): one
 // "::error file=<dir>::" annotation per violation and one
 // "::warning file=<dir>::" per warning, package by package, with the
-// property and message escaped per the workflow-command rules.
+// property and message escaped per the workflow-command rules. The module
+// row's findings come first, with no file, since the module row has no
+// directory, and their message leads with "module: ".
 func WriteGitHub(w io.Writer, c *Check) error {
 	bw := bufio.NewWriter(w)
-	for i := range c.Packages {
-		r := &c.Packages[i].Report
-		file := escapeProperty(r.PackagePath)
+	for _, p := range c.rows() {
+		r := &p.Report
+		prop, lead := " file="+escapeProperty(r.PackagePath), ""
+		if p == c.Module {
+			prop, lead = "", r.PackagePath+": "
+		}
 		for j := range r.Violations {
-			_, _ = bw.WriteString("::error file=" + file + "::" + escapeData(findingText(&r.Violations[j])) + "\n")
+			_, _ = bw.WriteString("::error" + prop + "::" + escapeData(lead+findingText(&r.Violations[j])) + "\n")
 		}
 		for j := range r.Warnings {
-			_, _ = bw.WriteString("::warning file=" + file + "::" + escapeData(findingText(&r.Warnings[j])) + "\n")
+			_, _ = bw.WriteString("::warning" + prop + "::" + escapeData(lead+findingText(&r.Warnings[j])) + "\n")
 		}
 	}
 	if err := bw.Flush(); err != nil {

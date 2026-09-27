@@ -2,6 +2,7 @@ package golang
 
 import (
 	"errors"
+	"go/ast"
 	"maps"
 	"path/filepath"
 	"slices"
@@ -34,10 +35,16 @@ func (c *countingFiles) length(name string) (int64, error) {
 // in-package test and external test files, with both token counters. size,
 // duplication and tokens together must open each non-test file exactly once
 // and touch each _test.go file once: opened by the o200k counter, which
-// needs its text, and only sized by the ratio counter.
+// needs its text, and only sized by the ratio counter. The module-wide
+// cross-package pass, which runs once per load and is checked by
+// TestCrossDuplicationReadsEachFileOnce, is run first so it is out of the
+// count.
 func TestAssembleReadsEachFileOnce(t *testing.T) {
 	l := loadFixture(t)
 	p := l.pkgs["example.com/fixture/tested"]
+	if _, err := crossDuplication(l, osFiles{}, defaultDupOptions()); err != nil {
+		t.Fatalf("crossDuplication: %v", err)
+	}
 	for _, tc := range []struct {
 		counter   tokenCounter
 		readTests bool
@@ -80,6 +87,51 @@ func TestAssembleReadsEachFileOnce(t *testing.T) {
 				t.Errorf("touched %d _test.go files, want the in-package and external test files", tests)
 			}
 		})
+	}
+}
+
+// TestCrossDuplicationReadsEachFileOnce runs the first extraction of a load,
+// which also runs the module-wide cross-package pass: every non-test file of
+// the package and every non-test, non-generated file of the rest of the
+// module is opened exactly once, and no other file of the module is. A
+// second extraction reuses the memoized pass and opens only its own
+// package's files.
+func TestCrossDuplicationReadsEachFileOnce(t *testing.T) {
+	l := loadFixture(t)
+	opts := func(files fileSource) assembleOptions {
+		return assembleOptions{counter: newRatioCounter(defaultCharsPerToken), dup: defaultDupOptions(), files: files}
+	}
+	first := newCountingFiles()
+	if _, err := assemble(t.Context(), l, l.pkgs["example.com/fixture/tested"], opts(first)); err != nil {
+		t.Fatalf("assemble: %v", err)
+	}
+	for _, path := range l.paths {
+		for _, f := range sourceSyntax(l, l.pkgs[path]) {
+			name := l.fset.File(f.FileStart).Name()
+			want := 1
+			if ast.IsGenerated(f) && path != "example.com/fixture/tested" {
+				want = 0 // not duplication input, and not a file of tested
+			}
+			if first.reads[name] != want {
+				t.Errorf("first extraction opened %s %d times, want %d", filepath.Base(name), first.reads[name], want)
+			}
+		}
+	}
+	for name, n := range first.reads {
+		if strings.HasSuffix(name, "_test.go") {
+			t.Errorf("first extraction opened test file %s %d times, want 0", filepath.Base(name), n)
+		}
+	}
+
+	second := newCountingFiles()
+	p := l.pkgs["example.com/fixture/dupes"]
+	if _, err := assemble(t.Context(), l, p, opts(second)); err != nil {
+		t.Fatalf("assemble: %v", err)
+	}
+	for name := range second.reads {
+		if !slices.Contains(p.GoFiles, name) && !strings.HasSuffix(name, "_test.go") {
+			t.Errorf("second extraction opened %s, which is not a file of the package", filepath.Base(name))
+		}
 	}
 }
 

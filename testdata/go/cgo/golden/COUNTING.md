@@ -1,7 +1,8 @@
 # How the cgo goldens were counted
 
 `native.json` and `user.json` hold every v0 field from `SPEC.md` section 6,
-plus the non-null v1 field `instability`, for the two packages of the `example.com/cgo` module. They are counted by
+plus the non-null v1 fields `instability`, `dup_blocks_cross_pkg`,
+`uses_cgo`, `uses_reflect` and `generated_files`, for the two packages of the `example.com/cgo` module. They are counted by
 hand from `native/native.go`, `native/native_test.go` and `user/user.go`
 with the rules in `../../fixture/golden/COUNTING.md`, and describe the source
 files only. With a working C compiler, go/packages hands the extractor the
@@ -53,6 +54,14 @@ the same change. Do not regenerate goldens from the extractor.
   `Add`. The test file's `testing` import is not counted in the imports.
 - **instability** 0: fan-in 1, fan-out 0. No exported types, so
   **abstractness** and **main_sequence_distance** are null and absent.
+- **uses_cgo** true: `native.go` imports `"C"`. It is read from the import
+  specs of the source file, since `"C"` is never a loaded import.
+- **uses_reflect** false: the source imports neither `reflect` nor
+  `unsafe`. The `unsafe` import cgo writes into its generated files does not
+  count, because the flags are read from the source files.
+- **generated_files** 0: the files cgo generates are not source files of
+  the package, and `native.go` has no generated-file header.
+- **dup_blocks_cross_pkg** 0: nothing in `user` repeats `native`'s code.
 
 ## user
 
@@ -73,3 +82,6 @@ blank.
   **untested_exports** 1 (`Sum`).
 - **instability** 1: fan-in 0, fan-out 1. No exported types, so
   **abstractness** and **main_sequence_distance** are null and absent.
+- **uses_cgo** false and **uses_reflect** false: `user` imports only
+  `native`; a pure Go package importing a cgo package is not itself cgo.
+- **generated_files** 0, **dup_blocks_cross_pkg** 0.

@@ -44,6 +44,8 @@ const (
 		"well-regarded Go modules sit."
 	evidenceNotYetGated = "Reported only; no default threshold until the metric is computed and " +
 		"calibrated against the reference corpus."
+	evidenceOpacity = "Opacity: code the next agent cannot follow from Go source alone (C, reflection, " +
+		"unsafe memory, generator output). Informational: reported, not gated, and no default threshold."
 )
 
 // explanations returns a fresh table of every metric's explanation.
@@ -91,7 +93,16 @@ func explanations() map[string]Explanation {
 			Evidence:   evidenceTests,
 			Release:    "v0", Gated: true,
 		},
-		"dup_blocks_cross_pkg": {Definition: "Duplicate blocks shared with other packages in the module.", Evidence: evidenceDuplication + " " + evidenceNotYetGated, Release: "v1"},
+		"dup_blocks_cross_pkg": {
+			Definition: "Duplicate blocks shared with other packages in the module: exact normalized repeats of at " +
+				"least duplication.min_tokens found over one module-wide stream, counted once per package they touch. " +
+				"The module-level row (package path \"module\") counts the distinct blocks and is baselined and gated " +
+				"like a package, because one edit that copies code across packages changes two packages' counts.",
+			Evidence: evidenceDuplication + " Measured before it is gated: the default configuration has no rule " +
+				"on it until the reference corpus shows its spread; a config can gate the module row with " +
+				"max_delta 0 and ratchet_from_zero.",
+			Release: "v1",
+		},
 		"instability": {
 			Definition: "Martin instability Ce / (Ca + Ce) with Ca = fan_in and Ce = internal_imports; " +
 				"0 is maximally stable, 1 maximally unstable. Null when both are 0.",
@@ -109,12 +120,17 @@ func explanations() map[string]Explanation {
 			Evidence: evidenceCoupling,
 			Release:  "v1",
 		},
-		"uses_cgo":     {Definition: "Whether the package imports \"C\".", Evidence: evidenceNotYetGated, Release: "v1"},
-		"uses_reflect": {Definition: "Whether the package imports reflect or unsafe.", Evidence: evidenceNotYetGated, Release: "v1"},
-		"generated_files": {
-			Definition: "Files with a \"Code generated ... DO NOT EDIT\" header.",
-			Evidence:   evidenceNotYetGated,
+		"uses_cgo": {Definition: "Whether a non-test file of the package imports \"C\".", Evidence: evidenceOpacity, Release: "v1"},
+		"uses_reflect": {
+			Definition: "Whether a non-test file of the package imports reflect or unsafe, under any name.",
+			Evidence:   evidenceOpacity,
 			Release:    "v1",
+		},
+		"generated_files": {
+			Definition: "Non-test files with a \"// Code generated ... DO NOT EDIT.\" line before the package clause, " +
+				"Go's generated-file convention.",
+			Evidence: evidenceOpacity,
+			Release:  "v1",
 		},
 		"coverage_pct": {Definition: "Statement coverage from go test -cover, only with --coverage.", Evidence: evidenceTests + " " + evidenceNotYetGated, Release: "v1"},
 		"changed_func_cognitive_max": {

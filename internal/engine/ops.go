@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/rfizzle/astimate/internal/baseline"
+	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/report"
 )
 
@@ -99,8 +100,10 @@ func Rank(ctx context.Context, t *Target, opts RankOptions) (rows []report.Row, 
 // out is empty, creating the file's directory if missing. The file records
 // HEAD's commit, or no ref outside git or before the first commit, and t's
 // tokenizer, so a check with another tokenizer can warn that token counts
-// are not comparable. It returns the path written and the number of
-// packages.
+// are not comparable. When t's extractor implements metrics.ModuleMetrics
+// the file also holds the module-level row under metrics.ModuleRowID. It
+// returns the path written and the number of packages, not counting that
+// row.
 func WriteBaseline(ctx context.Context, t *Target, out string) (path string, n int, err error) {
 	pkgs, err := baseline.Collect(ctx, t.Ext, t.Mod)
 	if err != nil {
@@ -119,5 +122,9 @@ func WriteBaseline(ctx context.Context, t *Target, out string) (path string, n i
 	if err := baseline.Write(path, ref, t.Mod.ModulePath, t.tokenizer(), pkgs); err != nil {
 		return "", 0, err
 	}
-	return path, len(pkgs), nil
+	n = len(pkgs)
+	if _, ok := pkgs[metrics.ModuleRowID]; ok {
+		n--
+	}
+	return path, n, nil
 }

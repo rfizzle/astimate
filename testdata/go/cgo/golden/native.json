@@ -22,5 +22,9 @@
   "test_funcs": 1,
   "has_tests": true,
   "untested_exports": 0,
-  "instability": 0
+  "dup_blocks_cross_pkg": 0,
+  "instability": 0,
+  "uses_cgo": true,
+  "uses_reflect": false,
+  "generated_files": 0
 }

@@ -220,6 +220,10 @@ func TestWriteBaseline(t *testing.T) {
 	if _, ok := b.Metrics("example.com/w/sub"); !ok {
 		t.Error("baseline has no metrics for example.com/w/sub")
 	}
+	// The count excludes the module row, which the file holds beside them.
+	if m, ok := b.Metrics(metrics.ModuleRowID); !ok || m.DupBlocksCrossPkg == nil || *m.DupBlocksCrossPkg != 0 {
+		t.Errorf("baseline module row = %+v (present %v), want dup_blocks_cross_pkg 0", m, ok)
+	}
 	if b.Tokenizer() != TokenizerEst {
 		t.Errorf("baseline records tokenizer %q, want the target's %q", b.Tokenizer(), TokenizerEst)
 	}

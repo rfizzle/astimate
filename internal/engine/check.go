@@ -117,6 +117,13 @@ func (c *BaselineCache) get(key string, load func() (baseline.Baseline, error)) 
 // means no baseline was given or found. A package that fails to extract
 // is logged, left out of the result and returned as a *PackageError in
 // failed.
+//
+// When t's extractor implements metrics.ModuleMetrics and at least one
+// package is selected, the result also carries the module-level row
+// (checkModule), gated against the baseline's row of the same id. A check
+// of opts.Packages has no module row: it answers for those packages only.
+// A module row that fails to extract is logged and returned in failed like
+// a package.
 func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, failed []error, err error) {
 	if opts.Base != "" && opts.BaselineFile != "" {
 		return nil, nil, ErrBaseAndBaselineFile
@@ -162,6 +169,15 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 			continue
 		}
 		c.Packages = append(c.Packages, p)
+	}
+	if mm, ok := t.Ext.(metrics.ModuleMetrics); ok && len(opts.Packages) == 0 && len(selected) > 0 {
+		m, err := checkModule(ctx, t, mm, base)
+		if err != nil {
+			logger.Error("checking module row failed", "err", err)
+			failed = append(failed, &PackageError{Path: metrics.ModuleRowID, Err: err})
+		} else {
+			c.Module = &m
+		}
 	}
 	return c, failed, nil
 }
@@ -310,6 +326,42 @@ func selectPackages(ctx context.Context, t *Target, head []string, src baselineS
 		}
 	}
 	return selected, change.Deleted, nil
+}
+
+// checkModule builds the module-level row of t's module with mm, evaluates
+// it against the baseline's row under metrics.ModuleRowID, if base has one,
+// and the configured thresholds, as checkPackage does for a package, and
+// builds its report under package path metrics.ModuleRowID. The row's
+// suggestions name no functions or locations, and it carries no baseline
+// agent passes, since its rebuild estimate is of an empty package.
+func checkModule(ctx context.Context, t *Target, mm metrics.ModuleMetrics, base baseline.Baseline) (report.CheckedPackage, error) {
+	m, err := mm.ModuleRow(ctx, t.Mod)
+	if err != nil {
+		return report.CheckedPackage{}, err
+	}
+	var bm *metrics.RawMetrics
+	if v, ok := base.Metrics(metrics.ModuleRowID); ok {
+		bm = &v
+	}
+	suggest := func(metric string, h float64, hm metrics.RawMetrics) string {
+		return score.MetricSuggestion(metric, h, hm, score.Names{})
+	}
+	res := gate.Evaluate(m, bm, t.Cfg.Thresholds, suggest)
+	logger := t.logger()
+	for _, n := range res.Notes {
+		logger.Info("rule skipped", "path", metrics.ModuleRowID, "metric", n.Metric, "reason", n.Text)
+	}
+	r := report.Build(&report.Input{
+		Language:        t.Ext.Language(),
+		PackagePath:     metrics.ModuleRowID,
+		ModulePath:      t.Mod.ModulePath,
+		Metrics:         m,
+		Params:          t.Cfg.Rebuild,
+		ConfigVersion:   t.Cfg.Version,
+		AstimateVersion: t.Version,
+	})
+	report.ApplyGate(&r, base.Ref(), bm, &res)
+	return report.CheckedPackage{Report: r}, nil
 }
 
 // checkPackage extracts pkg at head, evaluates it against its baseline

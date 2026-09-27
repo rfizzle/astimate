@@ -43,8 +43,11 @@ func (s *snapshot) Ref() string { return s.ref }
 func (s *snapshot) Tokenizer() string { return s.tokenizer }
 
 // Collect extracts every package ext lists under mod.Root and returns the
-// metrics keyed by package identifier (the import path for Go). It stops at
-// the first extraction error or when ctx is done.
+// metrics keyed by package identifier (the import path for Go). When ext
+// implements metrics.ModuleMetrics it also adds the module-level row under
+// metrics.ModuleRowID, so a check can compare module-wide metrics such as
+// dup_blocks_cross_pkg against it. It stops at the first extraction error
+// or when ctx is done.
 func Collect(ctx context.Context, ext metrics.Extractor, mod *metrics.ModuleContext) (map[string]metrics.RawMetrics, error) {
 	names, err := ext.Packages(mod.Root)
 	if err != nil {
@@ -60,6 +63,13 @@ func Collect(ctx context.Context, ext metrics.Extractor, mod *metrics.ModuleCont
 			return nil, fmt.Errorf("extracting %s: %w", name, err)
 		}
 		pkgs[name] = m
+	}
+	if mm, ok := ext.(metrics.ModuleMetrics); ok {
+		m, err := mm.ModuleRow(ctx, mod)
+		if err != nil {
+			return nil, fmt.Errorf("extracting %s row: %w", metrics.ModuleRowID, err)
+		}
+		pkgs[metrics.ModuleRowID] = m
 	}
 	return pkgs, nil
 }
