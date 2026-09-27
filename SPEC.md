@@ -331,7 +331,7 @@ Two sources, chosen by flag:
 
 - `text` (default): violations, then warnings, then a one-line summary per package.
 - `json`: the section 10.2 report per package plus `violations` and `warnings` arrays and a `passed` bool.
-- `hook`: the JSON shape Claude Code Stop hooks consume: `{ "decision": "block", "reason": "<violations as text>" }` on failure, `{}` on success, so the agent is told to keep working and why. Warnings are appended to the reason on failure and written to stderr on success. Because Claude Code reads a hook's JSON only when it exits 0, `--format hook` exits 0 whenever it produced a decision, whether or not there were violations; analysis failure still exits 2, which a Stop hook treats as a blocking error with stderr shown to the agent.
+- `hook`: the JSON shape Claude Code Stop hooks consume: `{ "decision": "block", "reason": "<violations as text>" }` on failure, `{}` on success, so the agent is told to keep working and why. Warnings are appended to the reason on failure and written to stderr on success. Because Claude Code reads a hook's JSON only when it exits 0, `--format hook` exits 0 whenever it produced a decision, whether or not there were violations; analysis failure still exits 2, which a Stop hook treats as a blocking error with stderr shown to the agent. In hook format, `check` reads the Stop hook's JSON from stdin when present and emits `{}` without analysis when `stop_hook_active` is true, so a hook that already blocked once never blocks again.
 - `github`: `::error file=<pkgdir>::` annotations, one per violation, and `::warning file=<pkgdir>::` per warning.
 
 ## 9. CLI
