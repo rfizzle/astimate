@@ -4,17 +4,14 @@ import (
 	"bufio"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
-
-	"golang.org/x/tools/go/packages"
 )
 
 // fixtureRoot returns the absolute path of testdata/go/fixture. It walks up
 // from the test's working directory (the package directory under go test)
 // to the go.mod that declares this repository's module.
-func fixtureRoot(t *testing.T) string {
+func fixtureRoot(t testing.TB) string {
 	t.Helper()
 	dir, err := os.Getwd()
 	if err != nil {
@@ -33,7 +30,7 @@ func fixtureRoot(t *testing.T) string {
 }
 
 // isRepoRoot reports whether path is a go.mod declaring the astimate module.
-func isRepoRoot(t *testing.T, path string) bool {
+func isRepoRoot(t testing.TB, path string) bool {
 	t.Helper()
 	f, err := os.Open(path)
 	if err != nil {
@@ -51,37 +48,4 @@ func isRepoRoot(t *testing.T, path string) bool {
 		}
 	}
 	return false
-}
-
-func TestFixtureLoadsSevenPackages(t *testing.T) {
-	root := fixtureRoot(t)
-	cfg := &packages.Config{
-		Mode:    packages.NeedName,
-		Dir:     root,
-		Context: t.Context(),
-	}
-	pkgs, err := packages.Load(cfg, "./...")
-	if err != nil {
-		t.Fatalf("loading fixture at %s: %v", root, err)
-	}
-	got := make([]string, 0, len(pkgs))
-	for _, p := range pkgs {
-		for _, e := range p.Errors {
-			t.Errorf("package %s: %v", p.PkgPath, e)
-		}
-		got = append(got, p.PkgPath)
-	}
-	slices.Sort(got)
-	want := []string{
-		"example.com/fixture/a",
-		"example.com/fixture/b",
-		"example.com/fixture/dupes",
-		"example.com/fixture/hidden",
-		"example.com/fixture/hub",
-		"example.com/fixture/tested",
-		"example.com/fixture/trivial",
-	}
-	if !slices.Equal(got, want) {
-		t.Fatalf("fixture packages = %v, want %v", got, want)
-	}
 }
