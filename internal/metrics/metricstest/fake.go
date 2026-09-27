@@ -22,7 +22,9 @@ import (
 //
 // With WithDetails the fake also implements metrics.Detailer; without it, it
 // does not, so callers exercise their fallback to counts alone. Likewise,
-// WithModuleRow makes it implement metrics.ModuleMetrics.
+// WithModuleRow makes it implement metrics.ModuleMetrics, and
+// WithModuleDetails together with WithModuleRow makes it implement
+// metrics.ModuleDetailer.
 func NewFake(lang, root string, pkgs map[string]metrics.RawMetrics, opts ...FakeOption) metrics.Extractor {
 	f := &fake{
 		lang: lang,
@@ -32,7 +34,14 @@ func NewFake(lang, root string, pkgs map[string]metrics.RawMetrics, opts ...Fake
 	for _, opt := range opts {
 		opt(f)
 	}
+	if f.row == nil {
+		f.moduleDetails = nil // a ModuleDetailer implements ModuleMetrics
+	}
 	switch {
+	case f.details != nil && f.moduleDetails != nil:
+		return &detailModuleDetailFake{fake: f}
+	case f.moduleDetails != nil:
+		return &moduleDetailFake{fake: f}
 	case f.details != nil && f.row != nil:
 		return &detailModuleFake{fake: f}
 	case f.details != nil:
@@ -65,12 +74,23 @@ func WithModuleRow(row metrics.RawMetrics) FakeOption {
 	return func(f *fake) { f.row = &row }
 }
 
+// WithModuleDetails makes a fake built with WithModuleRow also implement
+// metrics.ModuleDetailer, serving details as the module row's details;
+// without WithModuleRow it has no effect. ModuleDetails returns ctx.Err()
+// when the context is done. Nothing ties details to the row or to the
+// packages' details, so a test can build a consistent fake or a
+// deliberately inconsistent one.
+func WithModuleDetails(details metrics.Details) FakeOption {
+	return func(f *fake) { f.moduleDetails = &details }
+}
+
 type fake struct {
-	lang    string
-	root    string
-	pkgs    map[string]metrics.RawMetrics
-	details map[string]metrics.Details
-	row     *metrics.RawMetrics
+	lang          string
+	root          string
+	pkgs          map[string]metrics.RawMetrics
+	details       map[string]metrics.Details
+	row           *metrics.RawMetrics
+	moduleDetails *metrics.Details
 }
 
 // detailFake is a fake that also implements metrics.Detailer.
@@ -105,6 +125,45 @@ func (f *detailModuleFake) ModuleRow(ctx context.Context, mod *metrics.ModuleCon
 	return f.moduleRow(ctx, mod)
 }
 
+// moduleDetailFake is a fake that implements metrics.ModuleMetrics and
+// metrics.ModuleDetailer.
+type moduleDetailFake struct {
+	*fake
+}
+
+func (f *moduleDetailFake) ModuleRow(ctx context.Context, mod *metrics.ModuleContext) (metrics.RawMetrics, error) {
+	return f.moduleRow(ctx, mod)
+}
+
+func (f *moduleDetailFake) ModuleDetails(ctx context.Context, mod *metrics.ModuleContext) (metrics.Details, error) {
+	return f.moduleDetailsOf(ctx, mod)
+}
+
+// detailModuleDetailFake is a fake that implements metrics.Detailer,
+// metrics.ModuleMetrics and metrics.ModuleDetailer.
+type detailModuleDetailFake struct {
+	*fake
+}
+
+func (f *detailModuleDetailFake) Details(ctx context.Context, mod *metrics.ModuleContext, pkg string) (metrics.Details, error) {
+	return f.detailsOf(ctx, mod, pkg)
+}
+
+func (f *detailModuleDetailFake) ModuleRow(ctx context.Context, mod *metrics.ModuleContext) (metrics.RawMetrics, error) {
+	return f.moduleRow(ctx, mod)
+}
+
+func (f *detailModuleDetailFake) ModuleDetails(ctx context.Context, mod *metrics.ModuleContext) (metrics.Details, error) {
+	return f.moduleDetailsOf(ctx, mod)
+}
+
+func (f *fake) moduleDetailsOf(ctx context.Context, _ *metrics.ModuleContext) (metrics.Details, error) {
+	if err := ctx.Err(); err != nil {
+		return metrics.Details{}, fmt.Errorf("fake %s extractor: details of %s: %w", f.lang, metrics.ModuleRowID, err)
+	}
+	return cloneDetails(*f.moduleDetails), nil
+}
+
 func (f *fake) moduleRow(ctx context.Context, _ *metrics.ModuleContext) (metrics.RawMetrics, error) {
 	if err := ctx.Err(); err != nil {
 		return metrics.RawMetrics{}, fmt.Errorf("fake %s extractor: extracting %s: %w", f.lang, metrics.ModuleRowID, err)
@@ -119,13 +178,21 @@ func (f *fake) detailsOf(ctx context.Context, _ *metrics.ModuleContext, pkg stri
 	if _, ok := f.pkgs[pkg]; !ok {
 		return metrics.Details{}, fmt.Errorf("fake %s extractor: unknown package %q", f.lang, pkg)
 	}
-	d := f.details[pkg]
+	return cloneDetails(f.details[pkg]), nil
+}
+
+// cloneDetails returns a deep copy of d.
+func cloneDetails(d metrics.Details) metrics.Details {
 	return metrics.Details{
-		UntestedExports:  slices.Clone(d.UntestedExports),
-		UntestedExcluded: slices.Clone(d.UntestedExcluded),
-		DupLocations:     slices.Clone(d.DupLocations),
-		CrossBlocks:      cloneCrossBlocks(d.CrossBlocks),
-	}, nil
+		UntestedExports:   slices.Clone(d.UntestedExports),
+		UntestedExcluded:  slices.Clone(d.UntestedExcluded),
+		DupLocations:      slices.Clone(d.DupLocations),
+		CrossBlocks:       cloneCrossBlocks(d.CrossBlocks),
+		UntestedPositions: slices.Clone(d.UntestedPositions),
+		GlobalPositions:   slices.Clone(d.GlobalPositions),
+		LargestFile:       d.LargestFile,
+		SourceFiles:       slices.Clone(d.SourceFiles),
+	}
 }
 
 // cloneCrossBlocks returns a deep copy of bs, nil when bs is.

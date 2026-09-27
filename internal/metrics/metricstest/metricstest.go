@@ -63,7 +63,12 @@ type Fixture struct {
 // context, module-wide invariants, and every golden in fx.GoldenDir. When ext
 // also implements the optional metrics.Detailer, it checks that Details
 // succeeds for every package after Extract and names as many untested
-// exports as untested_exports counts. When ext also implements the optional
+// exports as untested_exports counts; that recorded positions number one
+// per untested export and one per global; and that recorded CrossBlocks
+// number dup_blocks_cross_pkg, each block with at least two occurrences in
+// at least two packages of the fixture, the package itself among them,
+// files slash-separated and relative, and line ranges positive with start
+// <= end. When ext also implements the optional
 // metrics.ImporterLister, it checks that Importers lists, for every package,
 // sorted distinct packages of the fixture other than the package itself, as
 // many as fan_in counts, and fails for an unknown package with
@@ -74,7 +79,11 @@ type Fixture struct {
 // deterministic and fails on a cancelled context, the sum of
 // dup_blocks_cross_pkg over packages lies between twice the row's value and
 // the row's value times the number of packages, and it matches module.json
-// in fx.GoldenDir. An extractor without ModuleMetrics skips those checks.
+// in fx.GoldenDir. When ext also implements metrics.ModuleDetailer,
+// ModuleDetails must name exactly the row's dup_blocks_cross_pkg blocks,
+// each valid as above and, for a Detailer, listed in the Details of every
+// package it touches. An extractor without ModuleMetrics skips those
+// checks.
 //
 // Implementations must check ctx.Err() at least once on every Extract call,
 // including calls served from ModuleContext.Cache, so that a cancelled
@@ -164,6 +173,9 @@ func TestExtractor(t *testing.T, ext metrics.Extractor, fx Fixture) {
 	mm, hasRow := ext.(metrics.ModuleMetrics)
 	if hasRow {
 		row = checkModuleRow(t, mm, mod, fx, got)
+		if md, ok := ext.(metrics.ModuleDetailer); ok && row != nil {
+			t.Run("ModuleRow/Details", func(t *testing.T) { checkModuleDetails(t, ext, md, mod, fx.Packages, row) })
+		}
 	} else {
 		t.Logf("metricstest: %s extractor does not implement metrics.ModuleMetrics; skipping the module row", ext.Language())
 	}
@@ -300,7 +312,8 @@ func checkRatios(t *testing.T, pkg string, m metrics.RawMetrics) {
 // checkDetails runs only for an extractor that implements the optional
 // metrics.Detailer. After Extract on mod, Details must succeed for every
 // package and name exactly as many untested exports as untested_exports
-// counts.
+// counts; see checkDetailsConsistency for the positions and cross-package
+// blocks it checks when they are present.
 func checkDetails(t *testing.T, d metrics.Detailer, mod *metrics.ModuleContext, pkgs []string, got map[string]metrics.RawMetrics) {
 	t.Helper()
 	for _, pkg := range pkgs {
@@ -313,6 +326,7 @@ func checkDetails(t *testing.T, d metrics.Detailer, mod *metrics.ModuleContext, 
 			t.Errorf("%s: Details names %d untested exports %q, want untested_exports %d",
 				pkg, n, det.UntestedExports, want)
 		}
+		checkDetailsConsistency(t, pkg, det, got[pkg], pkgs)
 	}
 }
 

@@ -26,6 +26,10 @@ const (
 	caseModuleShape  = "module-shape"
 	caseModuleSum    = "module-sum"
 	caseModuleValid  = "module-invalid"
+	caseCrossLength  = "cross-length"
+	caseCrossBlock   = "cross-block"
+	casePositions    = "positions-length"
+	caseModuleCross  = "module-cross"
 	fakeRoot         = "/fake/module"
 	thisPackage      = "github.com/rfizzle/astimate/internal/metrics"
 	metricstestPkgID = thisPackage + "/metricstest"
@@ -264,6 +268,67 @@ func TestSuitePassesOnFakeWithModuleRow(t *testing.T) {
 	}
 }
 
+// sharedBlock is the one cross-package block alpha and beta share in
+// syntheticPackages.
+func sharedBlock() metrics.CrossBlock {
+	return metrics.CrossBlock{Occurrences: []metrics.Occurrence{
+		{Package: "alpha", File: "alpha/a.go", StartLine: 3, EndLine: 9},
+		{Package: "beta", File: "beta/b.go", StartLine: 12, EndLine: 18},
+	}}
+}
+
+// crossDetails extends syntheticDetails with positions and the shared
+// cross-package block, consistent with syntheticPackages and
+// syntheticModuleRow.
+func crossDetails() map[string]metrics.Details {
+	details := syntheticDetails()
+	alpha := details["alpha"]
+	alpha.UntestedPositions = []metrics.Position{{File: "a.go", Line: 4}}
+	alpha.CrossBlocks = []metrics.CrossBlock{sharedBlock()}
+	details["alpha"] = alpha
+	beta := details["beta"]
+	beta.UntestedPositions = []metrics.Position{{File: "b.go", Line: 2}, {File: "b.go", Line: 7}}
+	beta.GlobalPositions = []metrics.Position{{File: "b.go", Line: 1}}
+	beta.CrossBlocks = []metrics.CrossBlock{sharedBlock()}
+	details["beta"] = beta
+	details["gamma"] = metrics.Details{GlobalPositions: []metrics.Position{}}
+	return details
+}
+
+func TestSuitePassesOnFakeWithCrossDetails(t *testing.T) {
+	dir := writeGoldens(t, syntheticGoldensWithModule())
+	ext := metricstest.NewFake("fake", fakeRoot, syntheticPackages(),
+		metricstest.WithDetails(crossDetails()),
+		metricstest.WithModuleRow(syntheticModuleRow()),
+		metricstest.WithModuleDetails(metrics.Details{CrossBlocks: []metrics.CrossBlock{sharedBlock()}}))
+	if _, ok := ext.(metrics.ModuleDetailer); !ok {
+		t.Fatal("NewFake with WithModuleRow and WithModuleDetails does not implement metrics.ModuleDetailer")
+	}
+	metricstest.TestExtractor(t, ext, syntheticFixture(dir))
+}
+
+func TestFakeModuleDetailerNeedsModuleRow(t *testing.T) {
+	blocks := metrics.Details{CrossBlocks: []metrics.CrossBlock{sharedBlock()}}
+	for name, tc := range map[string]struct {
+		opts []metricstest.FakeOption
+		want bool
+	}{
+		"module details only": {[]metricstest.FakeOption{metricstest.WithModuleDetails(blocks)}, false},
+		"row only":            {[]metricstest.FakeOption{metricstest.WithModuleRow(syntheticModuleRow())}, false},
+		"row and module details": {[]metricstest.FakeOption{
+			metricstest.WithModuleDetails(blocks), metricstest.WithModuleRow(syntheticModuleRow()),
+		}, true},
+	} {
+		ext := metricstest.NewFake("fake", fakeRoot, syntheticPackages(), tc.opts...)
+		if _, ok := ext.(metrics.ModuleDetailer); ok != tc.want {
+			t.Errorf("%s: NewFake implements metrics.ModuleDetailer = %v, want %v", name, ok, tc.want)
+		}
+		if _, ok := ext.(metrics.Detailer); ok {
+			t.Errorf("%s: NewFake without WithDetails implements metrics.Detailer", name)
+		}
+	}
+}
+
 func TestFakeWithoutModuleRowIsNotModuleMetrics(t *testing.T) {
 	for name, ext := range map[string]metrics.Extractor{
 		"plain":        metricstest.NewFake("fake", fakeRoot, syntheticPackages()),
@@ -336,6 +401,62 @@ func TestSuiteSubprocess(t *testing.T) {
 		ext := metricstest.NewFake("fake", fakeRoot, pkgs, metricstest.WithDetails(details))
 		metricstest.TestExtractor(t, ext, syntheticFixture(dir))
 		return
+	case caseCrossLength:
+		// beta counts one cross-package block but names two.
+		details := crossDetails()
+		beta := details["beta"]
+		other := metrics.CrossBlock{Occurrences: []metrics.Occurrence{
+			{Package: "beta", File: "beta/b.go", StartLine: 20, EndLine: 30},
+			{Package: "gamma", File: "gamma/g.go", StartLine: 1, EndLine: 11},
+		}}
+		beta.CrossBlocks = append(beta.CrossBlocks, other)
+		details["beta"] = beta
+		opts = append(opts, metricstest.WithDetails(details))
+	case caseCrossBlock:
+		// alpha's block has an occurrence in an unknown package, an
+		// absolute file and an inverted line range; beta's lies in one
+		// package that is not beta, in a backslash path at line 0.
+		details := crossDetails()
+		details["alpha"] = metrics.Details{UntestedExports: []string{"Parse"}, CrossBlocks: []metrics.CrossBlock{{
+			Occurrences: []metrics.Occurrence{
+				{Package: "alpha", File: "alpha/a.go", StartLine: 3, EndLine: 9},
+				{Package: "delta", File: "/abs/d.go", StartLine: 9, EndLine: 3},
+			},
+		}}}
+		beta := details["beta"]
+		beta.CrossBlocks = []metrics.CrossBlock{{Occurrences: []metrics.Occurrence{
+			{Package: "alpha", File: "alpha/a.go", StartLine: 3, EndLine: 9},
+			{Package: "alpha", File: `alpha\c.go`, StartLine: 0, EndLine: 5},
+		}}}
+		details["beta"] = beta
+		opts = append(opts, metricstest.WithDetails(details))
+	case casePositions:
+		// alpha records two positions for one untested export, and beta
+		// two global positions for one global.
+		details := crossDetails()
+		alpha := details["alpha"]
+		alpha.UntestedPositions = append(alpha.UntestedPositions, metrics.Position{File: "a.go", Line: 8})
+		details["alpha"] = alpha
+		beta := details["beta"]
+		beta.GlobalPositions = append(beta.GlobalPositions, metrics.Position{File: "b.go", Line: 2})
+		details["beta"] = beta
+		opts = append(opts, metricstest.WithDetails(details))
+	case caseModuleCross:
+		// The module details name two blocks for a row of one, and the
+		// shared block is missing from beta's details.
+		details := crossDetails()
+		beta := details["beta"]
+		beta.CrossBlocks = nil
+		details["beta"] = beta
+		extra := metrics.CrossBlock{Occurrences: []metrics.Occurrence{
+			{Package: "alpha", File: "alpha/a.go", StartLine: 30, EndLine: 40},
+			{Package: "gamma", File: "gamma/g.go", StartLine: 1, EndLine: 11},
+		}}
+		opts = append(opts,
+			metricstest.WithDetails(details),
+			metricstest.WithModuleRow(syntheticModuleRow()),
+			metricstest.WithModuleDetails(metrics.Details{CrossBlocks: []metrics.CrossBlock{sharedBlock(), extra}}))
+		goldens = syntheticGoldensWithModule()
 	case caseModuleShape:
 		// The row reports a v0 field, a v1 field that is not module-wide,
 		// and no dup_blocks_cross_pkg.
@@ -406,6 +527,49 @@ func TestSuiteDetectsDetailsMismatch(t *testing.T) {
 		"--- FAIL: TestSuiteSubprocess/Details",
 		`beta: Details names 1 untested exports ["Open"], want untested_exports 2`,
 	)
+}
+
+func TestSuiteDetectsCrossBlocksLengthMismatch(t *testing.T) {
+	out := runSubprocess(t, caseCrossLength)
+	requireContains(t, out,
+		"--- FAIL: TestSuiteSubprocess/Details",
+		"beta: Details names 2 cross-package blocks, want dup_blocks_cross_pkg 1",
+	)
+}
+
+func TestSuiteDetectsInvalidCrossBlock(t *testing.T) {
+	out := runSubprocess(t, caseCrossBlock)
+	requireContains(t, out,
+		"--- FAIL: TestSuiteSubprocess/Details",
+		`alpha: cross-package block 0 has an occurrence in "delta", want a package Packages lists`,
+		`alpha: cross-package block 0 has an occurrence in file "/abs/d.go", want a clean slash-separated path`,
+		"alpha: cross-package block 0 has an occurrence at /abs/d.go:9-3, want 1 <= start <= end",
+		`beta: cross-package block 0 has an occurrence in file "alpha\\c.go", want a clean slash-separated path`,
+		"beta: cross-package block 0 has an occurrence at alpha\\c.go:0-5, want 1 <= start <= end",
+		"beta: cross-package block 0 has 2 occurrences in 1 packages, want at least two in at least two packages",
+		"beta: cross-package block 0 has no occurrence in the package itself",
+	)
+}
+
+func TestSuiteDetectsPositionsMismatch(t *testing.T) {
+	out := runSubprocess(t, casePositions)
+	requireContains(t, out,
+		"--- FAIL: TestSuiteSubprocess/Details",
+		`alpha: Details has 2 untested positions for 1 untested exports ["Parse"], want one per export`,
+		"beta: Details has 2 global positions, want globals 1",
+	)
+}
+
+func TestSuiteDetectsModuleCrossMismatch(t *testing.T) {
+	out := runSubprocess(t, caseModuleCross)
+	requireContains(t, out,
+		"--- FAIL: TestSuiteSubprocess/ModuleRow/Details",
+		"module: ModuleDetails names 2 cross-package blocks, want dup_blocks_cross_pkg 1",
+		"module: cross-package block 0 touches beta, but Details(beta) does not list it",
+	)
+	if strings.Contains(out, "--- FAIL: TestSuiteSubprocess/Details") {
+		t.Errorf("nil CrossBlocks in beta's details must pass the package check:\n%s", out)
+	}
 }
 
 func TestSuiteDetectsInvariantViolation(t *testing.T) {
