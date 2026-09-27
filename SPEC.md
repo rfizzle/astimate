@@ -369,7 +369,7 @@ Built on `github.com/modelcontextprotocol/go-sdk` v1.8 or later, which supports 
 
 | Tool | Input | Output |
 | --- | --- | --- |
-| `check_package` | `{ "path": string, "base"?: string, "baseline_file"?: string }` | Gate result: the package's report (10.2) with `passed` false when the package or the module row has a violation, plus a `module` block holding the module row's report (8.1) with its own `violations`, `warnings` and `passed`, absent when the extractor has no module row. The agent's self-check; the text opens with PASSED or FAILED and what to do next, and lists the module row's findings under `module` as `check`'s text format does. |
+| `check_package` | `{ "path": string, "base"?: string, "baseline_file"?: string, "staged"?: bool }` | Gate result: the package's report (10.2) with `passed` false when the package or the module row has a violation, plus a `module` block holding the module row's report (8.1) with its own `violations`, `warnings` and `passed`, absent when the extractor has no module row. The agent's self-check; the text opens with PASSED or FAILED and what to do next, and lists the module row's findings under `module` as `check`'s text format does. `staged: true` judges the git index instead of the working tree, as `check --staged` does (8.3), reading the repository's own index; outside a git repository it is an `isError` result. |
 | `assess_package` | `{ "path": string, "tokenizer"?: string }` | One report (10.2) |
 | `rank_packages` | `{ "module_root": string, "top"?: int, "sort"?: string }` | Sorted array of `{ path, agent_passes, human_days, tier, fan_in, tokens_est, duplication_pct }` |
 | `explain_metric` | `{ "metric": string }` | Definition, evidence note and default threshold for one metric |
