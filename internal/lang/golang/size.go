@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
-	"os"
 
 	"golang.org/x/tools/go/packages"
 )
@@ -22,8 +21,8 @@ type sizeCounts struct {
 }
 
 // size computes files, sloc, largest_file_sloc and exported_symbols for p
-// from its non-test files. It reads each file once to count source lines.
-func size(l *loaded, p *packages.Package) (sizeCounts, error) {
+// from its non-test files, read through src to count source lines.
+func size(l *loaded, p *packages.Package, src fileSource) (sizeCounts, error) {
 	c := sizeCounts{
 		files:   len(p.GoFiles),
 		perFile: make(map[string]int, len(p.Syntax)),
@@ -33,11 +32,11 @@ func size(l *loaded, p *packages.Package) (sizeCounts, error) {
 		if tf == nil {
 			return sizeCounts{}, fmt.Errorf("counting lines of %s: file not in file set", p.PkgPath)
 		}
-		src, err := os.ReadFile(tf.Name())
+		data, err := src.read(tf.Name())
 		if err != nil {
 			return sizeCounts{}, fmt.Errorf("counting lines of %s: %w", p.PkgPath, err)
 		}
-		n := fileSLOC(tf, f, src)
+		n := fileSLOC(tf, f, data)
 		c.perFile[tf.Name()] = n
 		c.sloc += n
 		c.largestFileSLOC = max(c.largestFileSLOC, n)

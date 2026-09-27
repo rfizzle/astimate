@@ -69,7 +69,7 @@ func TestRatioCounterArithmetic(t *testing.T) {
 		{"no files", 4.0, nil, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := newRatioCounter(tc.ratio).Count(tc.paths)
+			got, err := newRatioCounter(tc.ratio).Count(osFiles{}, tc.paths)
 			if err != nil {
 				t.Fatalf("Count: %v", err)
 			}
@@ -92,7 +92,7 @@ func TestRatioCounterErrors(t *testing.T) {
 		{"missing file", 4.0, []string{filepath.Join(t.TempDir(), "missing.go")}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if _, err := newRatioCounter(tc.ratio).Count(tc.paths); err == nil {
+			if _, err := newRatioCounter(tc.ratio).Count(osFiles{}, tc.paths); err == nil {
 				t.Error("Count succeeded, want error")
 			}
 		})
@@ -102,14 +102,14 @@ func TestRatioCounterErrors(t *testing.T) {
 func TestO200kKnownString(t *testing.T) {
 	c := newO200kForTest(t)
 	f := writeTokenFile(t, t.TempDir(), "main.go", []byte(knownSnippet))
-	got, err := c.Count([]string{f, f})
+	got, err := c.Count(osFiles{}, []string{f, f})
 	if err != nil {
 		t.Fatalf("Count: %v", err)
 	}
 	if got != 2*knownSnippetO200k {
 		t.Errorf("Count of two copies = %d, want %d", got, 2*knownSnippetO200k)
 	}
-	if _, err := c.Count([]string{filepath.Join(t.TempDir(), "missing.go")}); err == nil {
+	if _, err := c.Count(osFiles{}, []string{filepath.Join(t.TempDir(), "missing.go")}); err == nil {
 		t.Error("Count of a missing file succeeded, want error")
 	}
 }
@@ -136,11 +136,11 @@ func TestRatioNearO200k(t *testing.T) {
 	const o200kCharsPerToken = 4.0
 	l := loadFixture(t)
 	hub := l.pkgs["example.com/fixture/hub"]
-	est, err := newRatioCounter(o200kCharsPerToken).Count(hub.GoFiles)
+	est, err := newRatioCounter(o200kCharsPerToken).Count(osFiles{}, hub.GoFiles)
 	if err != nil {
 		t.Fatalf("ratio Count: %v", err)
 	}
-	exact, err := newO200kForTest(t).Count(hub.GoFiles)
+	exact, err := newO200kForTest(t).Count(osFiles{}, hub.GoFiles)
 	if err != nil {
 		t.Fatalf("o200k Count: %v", err)
 	}
@@ -154,7 +154,7 @@ func TestRatioNearO200k(t *testing.T) {
 func TestTokensWithTests(t *testing.T) {
 	l := loadFixture(t)
 	p := l.pkgs["example.com/fixture/tested"]
-	got, err := tokens(l, p, newRatioCounter(1))
+	got, err := tokens(l, p, osFiles{}, newRatioCounter(1))
 	if err != nil {
 		t.Fatalf("tokens: %v", err)
 	}
@@ -191,7 +191,7 @@ func TestTokensWithTests(t *testing.T) {
 
 	// Without test variants both totals are the non-test total.
 	bare := &loaded{fset: l.fset, pkgs: l.pkgs}
-	got, err = tokens(bare, p, newRatioCounter(1))
+	got, err = tokens(bare, p, osFiles{}, newRatioCounter(1))
 	if err != nil {
 		t.Fatalf("tokens without tests: %v", err)
 	}
@@ -202,7 +202,7 @@ func TestTokensWithTests(t *testing.T) {
 
 func TestTokensErrors(t *testing.T) {
 	p := &packages.Package{PkgPath: "example.com/x", GoFiles: []string{filepath.Join(t.TempDir(), "gone.go")}}
-	if _, err := tokens(&loaded{}, p, newRatioCounter(defaultCharsPerToken)); err == nil ||
+	if _, err := tokens(&loaded{}, p, osFiles{}, newRatioCounter(defaultCharsPerToken)); err == nil ||
 		!strings.Contains(err.Error(), "example.com/x") {
 		t.Errorf("tokens error = %v, want one naming the package", err)
 	}
@@ -216,7 +216,7 @@ func TestTokensFixtureMethods(t *testing.T) {
 	for _, c := range []tokenCounter{newRatioCounter(defaultCharsPerToken), newO200kForTest(t)} {
 		for _, pkg := range l.paths {
 			t.Run(c.Method()+"/"+path.Base(pkg), func(t *testing.T) {
-				tc, err := tokens(l, l.pkgs[pkg], c)
+				tc, err := tokens(l, l.pkgs[pkg], osFiles{}, c)
 				if err != nil {
 					t.Fatal(err)
 				}

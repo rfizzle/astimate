@@ -14,6 +14,9 @@ type assembleOptions struct {
 	counter tokenCounter
 	// dup configures duplicate detection.
 	dup dupOptions
+	// files is where source bytes are read from; nil means the disk. It is
+	// wrapped in a fileCache per call, so each file is opened at most once.
+	files fileSource
 }
 
 // details is the per-package debug record the metric functions produce
@@ -30,7 +33,8 @@ type details struct {
 // its SPEC.md section 6 name, leaving the v1 fields nil. It records the
 // debug details of p in l. size runs before duplication, which weighs lines
 // by it, and ctx is checked before each of the expensive steps, duplication
-// and tokens. Errors are wrapped with p's import path.
+// and tokens. size, duplication and tokens share one fileCache, so each file
+// is opened at most once. Errors are wrapped with p's import path.
 func assemble(ctx context.Context, l *loaded, p *packages.Package, opts assembleOptions) (metrics.RawMetrics, error) {
 	imp := imports(l, p)
 	fi := fanIn(l, p)
@@ -38,21 +42,26 @@ func assemble(ctx context.Context, l *loaded, p *packages.Package, opts assemble
 	cx := complexity(l, p)
 	ts := testMetrics(l, p)
 	un := untestedExports(l, p)
-	sz, err := size(l, p)
+	next := opts.files
+	if next == nil {
+		next = osFiles{}
+	}
+	src := newFileCache(next)
+	sz, err := size(l, p, src)
 	if err != nil {
 		return metrics.RawMetrics{}, fmt.Errorf("extracting %s: %w", p.PkgPath, err)
 	}
 	if err := ctx.Err(); err != nil {
 		return metrics.RawMetrics{}, fmt.Errorf("extracting %s: %w", p.PkgPath, err)
 	}
-	dup, err := duplication(l, p, sz, opts.dup)
+	dup, err := duplication(l, p, src, sz, opts.dup)
 	if err != nil {
 		return metrics.RawMetrics{}, fmt.Errorf("extracting %s: %w", p.PkgPath, err)
 	}
 	if err := ctx.Err(); err != nil {
 		return metrics.RawMetrics{}, fmt.Errorf("extracting %s: %w", p.PkgPath, err)
 	}
-	tok, err := tokens(l, p, opts.counter)
+	tok, err := tokens(l, p, src, opts.counter)
 	if err != nil {
 		return metrics.RawMetrics{}, fmt.Errorf("extracting %s: %w", p.PkgPath, err)
 	}

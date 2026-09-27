@@ -80,7 +80,7 @@ func TestSizePerFile(t *testing.T) {
 	l := loadFixture(t)
 	for _, path := range l.paths {
 		t.Run(path, func(t *testing.T) {
-			got, err := size(l, l.pkgs[path])
+			got, err := size(l, l.pkgs[path], osFiles{})
 			if err != nil {
 				t.Fatalf("size: %v", err)
 			}
@@ -103,7 +103,7 @@ func BenchmarkSize(b *testing.B) {
 	l := loadFixture(b)
 	for b.Loop() {
 		for _, path := range l.paths {
-			if _, err := size(l, l.pkgs[path]); err != nil {
+			if _, err := size(l, l.pkgs[path], osFiles{}); err != nil {
 				b.Fatal(err)
 			}
 		}

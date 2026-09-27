@@ -3,7 +3,6 @@ package golang
 import (
 	"fmt"
 	"math"
-	"os"
 	"strings"
 
 	"github.com/pkoukk/tiktoken-go"
@@ -33,8 +32,9 @@ type tokenCounts struct {
 // options WithTokenizer and WithCharsPerToken choose between newRatioCounter
 // and newO200kCounter.
 type tokenCounter interface {
-	// Count returns the total tokens of the files at paths.
-	Count(paths []string) (int, error)
+	// Count returns the total tokens of the files at paths, taking their
+	// contents or lengths from src.
+	Count(src fileSource, paths []string) (int, error)
 	// Method names the counting method, for tokens_method.
 	Method() string
 }
@@ -42,9 +42,9 @@ type tokenCounter interface {
 // tokens computes tokens_est over p's non-test files and
 // tokens_est_with_tests over those plus the _test.go files of p's in-package
 // test variant and external test package. A file listed by both variants is
-// counted once.
-func tokens(l *loaded, p *packages.Package, c tokenCounter) (tokenCounts, error) {
-	est, err := c.Count(p.GoFiles)
+// counted once. File contents and lengths come from src.
+func tokens(l *loaded, p *packages.Package, src fileSource, c tokenCounter) (tokenCounts, error) {
+	est, err := c.Count(src, p.GoFiles)
 	if err != nil {
 		return tokenCounts{}, fmt.Errorf("counting tokens of %s: %w", p.PkgPath, err)
 	}
@@ -66,7 +66,7 @@ func tokens(l *loaded, p *packages.Package, c tokenCounter) (tokenCounts, error)
 	}
 	withTests := est
 	if len(all) > len(p.GoFiles) {
-		withTests, err = c.Count(all)
+		withTests, err = c.Count(src, all)
 		if err != nil {
 			return tokenCounts{}, fmt.Errorf("counting tokens of %s with tests: %w", p.PkgPath, err)
 		}
@@ -85,19 +85,21 @@ func newRatioCounter(charsPerToken float64) tokenCounter {
 	return ratioCounter{charsPerToken: charsPerToken}
 }
 
-// Count sums the sizes of the files at paths, then divides once by
-// charsPerToken and truncates (SPEC.md 6.5). It reads no file contents.
-func (r ratioCounter) Count(paths []string) (int, error) {
+// Count sums the lengths src reports for the files at paths, then divides
+// once by charsPerToken and truncates (SPEC.md 6.5). It reads no file
+// contents; through the extraction's shared cache, files already read cost
+// no system call.
+func (r ratioCounter) Count(src fileSource, paths []string) (int, error) {
 	if !(r.charsPerToken > 0) || math.IsInf(r.charsPerToken, 1) {
 		return 0, fmt.Errorf("chars per token %v: must be positive and finite", r.charsPerToken)
 	}
 	var total int64
 	for _, name := range paths {
-		fi, err := os.Stat(name)
+		n, err := src.length(name)
 		if err != nil {
 			return 0, fmt.Errorf("sizing %s: %w", name, err)
 		}
-		total += fi.Size()
+		total += n
 	}
 	return int(float64(total) / r.charsPerToken), nil
 }
@@ -127,12 +129,12 @@ func newO200kCounter() (tokenCounter, error) {
 	return o200kCounter{enc: enc}, nil
 }
 
-// Count reads each file at paths and sums its o200k_base token count.
-// Special-token text in a file is counted as ordinary text.
-func (o o200kCounter) Count(paths []string) (int, error) {
+// Count reads each file at paths through src and sums its o200k_base token
+// count. Special-token text in a file is counted as ordinary text.
+func (o o200kCounter) Count(src fileSource, paths []string) (int, error) {
 	total := 0
 	for _, name := range paths {
-		data, err := os.ReadFile(name)
+		data, err := src.read(name)
 		if err != nil {
 			return 0, fmt.Errorf("reading %s: %w", name, err)
 		}

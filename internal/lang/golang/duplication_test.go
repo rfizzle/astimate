@@ -459,13 +459,13 @@ b` + "`" + `
 func TestDupRejectsNonPositiveMinimum(t *testing.T) {
 	l := loadFixture(t)
 	p := l.pkgs[l.paths[0]]
-	sz, err := size(l, p)
+	sz, err := size(l, p, osFiles{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	opts := defaultDupOptions()
 	opts.minTokens = 0
-	if _, err := duplication(l, p, sz, opts); err == nil {
+	if _, err := duplication(l, p, osFiles{}, sz, opts); err == nil {
 		t.Error("duplication with minTokens 0: no error")
 	}
 }
@@ -473,11 +473,11 @@ func TestDupRejectsNonPositiveMinimum(t *testing.T) {
 func TestDuplicationDupesLocations(t *testing.T) {
 	l := loadFixture(t)
 	p := l.pkgs["example.com/fixture/dupes"]
-	sz, err := size(l, p)
+	sz, err := size(l, p, osFiles{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := duplication(l, p, sz, defaultDupOptions())
+	got, err := duplication(l, p, osFiles{}, sz, defaultDupOptions())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -506,11 +506,11 @@ func TestDuplicationNetHTTPUnderThreeSeconds(t *testing.T) {
 	p := pkgs[0]
 
 	begin := time.Now()
-	sz, err := size(l, p)
+	sz, err := size(l, p, osFiles{})
 	if err != nil {
 		t.Fatalf("size: %v", err)
 	}
-	got, err := duplication(l, p, sz, defaultDupOptions())
+	got, err := duplication(l, p, osFiles{}, sz, defaultDupOptions())
 	if err != nil {
 		t.Fatalf("duplication: %v", err)
 	}
@@ -536,13 +536,13 @@ func BenchmarkDuplication(b *testing.B) {
 			}
 			sizes := make(map[string]sizeCounts, len(l.paths))
 			for _, path := range l.paths {
-				if sizes[path], err = size(l, l.pkgs[path]); err != nil {
+				if sizes[path], err = size(l, l.pkgs[path], osFiles{}); err != nil {
 					b.Fatal(err)
 				}
 			}
 			for b.Loop() {
 				for _, path := range l.paths {
-					if _, err := duplication(l, l.pkgs[path], sizes[path], defaultDupOptions()); err != nil {
+					if _, err := duplication(l, l.pkgs[path], osFiles{}, sizes[path], defaultDupOptions()); err != nil {
 						b.Fatal(err)
 					}
 				}

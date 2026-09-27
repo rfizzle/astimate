@@ -420,7 +420,7 @@ func TestExtractO200kConcurrent(t *testing.T) {
 			t.Errorf("Extract(%s): %v", pkg, errs[i])
 			continue
 		}
-		want, err := exact.Count(l.pkgs[pkg].GoFiles)
+		want, err := exact.Count(osFiles{}, l.pkgs[pkg].GoFiles)
 		if err != nil {
 			t.Fatal(err)
 		}

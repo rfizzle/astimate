@@ -69,7 +69,6 @@ import (
 	"go/scanner"
 	"go/token"
 	"math"
-	"os"
 	"slices"
 	"strings"
 
@@ -156,10 +155,10 @@ type dupRepeat struct {
 }
 
 // duplication computes dup_blocks and duplication_pct for p from its
-// non-test, non-generated files, with sz the size metrics of p (its sloc is
-// the denominator of the percentage). See the file comment for the
-// algorithm.
-func duplication(l *loaded, p *packages.Package, sz sizeCounts, opts dupOptions) (dupCounts, error) {
+// non-test, non-generated files, read through src, with sz the size metrics
+// of p (its sloc is the denominator of the percentage). See the file comment
+// for the algorithm.
+func duplication(l *loaded, p *packages.Package, src fileSource, sz sizeCounts, opts dupOptions) (dupCounts, error) {
 	if opts.minTokens < 1 {
 		return dupCounts{}, fmt.Errorf("detecting duplication in %s: minimum of %d tokens is not positive", p.PkgPath, opts.minTokens)
 	}
@@ -173,11 +172,11 @@ func duplication(l *loaded, p *packages.Package, sz sizeCounts, opts dupOptions)
 		if tf == nil {
 			return dupCounts{}, fmt.Errorf("detecting duplication in %s: file not in file set", p.PkgPath)
 		}
-		src, err := os.ReadFile(tf.Name())
+		data, err := src.read(tf.Name())
 		if err != nil {
 			return dupCounts{}, fmt.Errorf("detecting duplication in %s: %w", p.PkgPath, err)
 		}
-		if err := s.scan(fs, tf.Name(), src, opts); err != nil {
+		if err := s.scan(fs, tf.Name(), data, opts); err != nil {
 			return dupCounts{}, fmt.Errorf("detecting duplication in %s: %w", p.PkgPath, err)
 		}
 	}
