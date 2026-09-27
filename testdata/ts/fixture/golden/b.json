@@ -1,15 +1,15 @@
 {
-  "files": 4,
-  "sloc": 14,
-  "largest_file_sloc": 6,
-  "tokens_est": 266,
-  "tokens_est_with_tests": 307,
+  "files": 5,
+  "sloc": 24,
+  "largest_file_sloc": 10,
+  "tokens_est": 344,
+  "tokens_est_with_tests": 384,
   "internal_imports": 2,
   "external_imports": 2,
   "stdlib_imports": 0,
   "fan_in": 0,
   "fan_in_tests": 0,
-  "exported_symbols": 3,
+  "exported_symbols": 8,
   "globals": 0,
   "init_funcs": 0,
   "max_nesting": 0,
@@ -22,5 +22,7 @@
   "test_funcs": 1,
   "has_tests": true,
   "untested_exports": 2,
-  "instability": 1
+  "instability": 1,
+  "abstractness": 0.2,
+  "main_sequence_distance": 0.2
 }

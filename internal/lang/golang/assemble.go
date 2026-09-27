@@ -3,7 +3,6 @@ package golang
 import (
 	"context"
 	"fmt"
-	"math"
 
 	"github.com/rfizzle/astimate/internal/metrics"
 	"golang.org/x/tools/go/packages"
@@ -97,9 +96,9 @@ func assemble(ctx context.Context, l *loaded, p *packages.Package, opts assemble
 	// from the unrounded ratios, so none carries float noise.
 	instability := metrics.Instability(fi.fanIn, imp.internal)
 	abstractness := metrics.Abstractness(sz.exports.interfaceTypes, sz.exports.types)
-	distance := roundRatio(metrics.MainSequenceDistance(abstractness, instability))
-	instability = roundRatio(instability)
-	abstractness = roundRatio(abstractness)
+	distance := metrics.RoundRatio(metrics.MainSequenceDistance(abstractness, instability))
+	instability = metrics.RoundRatio(instability)
+	abstractness = metrics.RoundRatio(abstractness)
 
 	l.setDetails(p.PkgPath, details{
 		untestedNames:    un.names,
@@ -143,21 +142,6 @@ func assemble(ctx context.Context, l *loaded, p *packages.Package, opts assemble
 		UsesReflect:          &op.reflect,
 		GeneratedFiles:       &op.generated,
 	}, nil
-}
-
-// ratioScale is 10 to the number of decimal places instability, abstractness
-// and main_sequence_distance are rounded to.
-const ratioScale = 1e3
-
-// roundRatio returns v rounded half away from zero to three decimal places,
-// or nil for a nil v, so a ratio reports 0.2, not 0.19999999999999996, and
-// 0, not 1.1e-16.
-func roundRatio(v *float64) *float64 {
-	if v == nil {
-		return nil
-	}
-	r := math.Round(*v*ratioScale) / ratioScale
-	return &r
 }
 
 // setDetails records d as the most recent details of the package at

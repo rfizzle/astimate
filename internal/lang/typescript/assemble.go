@@ -101,10 +101,14 @@ func assemble(m *module, p *pkg, opts assembleOptions) (metrics.RawMetrics, erro
 
 	// Martin's package metrics: Ca = fan_in and Ce = internal_imports;
 	// abstractness is exported interfaces over exported classes,
-	// interfaces, type aliases and enums. Reported, not gated.
-	r.Instability = metrics.Instability(r.FanIn, r.InternalImports)
-	r.Abstractness = metrics.Abstractness(interfaces, types)
-	r.MainSequenceDistance = metrics.MainSequenceDistance(r.Abstractness, r.Instability)
+	// interfaces, type aliases and enums. Reported, not gated. Each ratio
+	// is rounded to three decimal places, the distance computed from the
+	// unrounded ratios, so none carries float noise.
+	instability := metrics.Instability(r.FanIn, r.InternalImports)
+	abstractness := metrics.Abstractness(interfaces, types)
+	r.MainSequenceDistance = metrics.RoundRatio(metrics.MainSequenceDistance(abstractness, instability))
+	r.Instability = metrics.RoundRatio(instability)
+	r.Abstractness = metrics.RoundRatio(abstractness)
 
 	locs := make([]string, 0, len(dup.Locations))
 	for _, l := range dup.Locations {

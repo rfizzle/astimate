@@ -78,3 +78,26 @@ func TestMainSequenceDistance(t *testing.T) {
 		})
 	}
 }
+
+func TestRoundRatio(t *testing.T) {
+	tests := []struct {
+		name string
+		v    *float64
+		want *float64
+	}{
+		{name: "noise below, as |0.2 + 1 - 1|", v: ptr(0.19999999999999996), want: ptr(0.2)},
+		{name: "noise above, as 0.1 + 0.2", v: ptr(0.30000000000000004), want: ptr(0.3)},
+		{name: "noise around zero", v: ptr(1.1e-16), want: ptr(0.0)},
+		{name: "one third", v: ptr(1.0 / 3), want: ptr(0.333)},
+		{name: "half rounds away from zero", v: ptr(0.0625), want: ptr(0.063)},
+		{name: "exact", v: ptr(1.0), want: ptr(1.0)},
+		{name: "nil", v: nil, want: nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := RoundRatio(tt.v); optString(got) != optString(tt.want) {
+				t.Errorf("RoundRatio(%s) = %s, want %s", optString(tt.v), optString(got), optString(tt.want))
+			}
+		})
+	}
+}

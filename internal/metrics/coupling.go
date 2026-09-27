@@ -37,3 +37,19 @@ func MainSequenceDistance(abstractness, instability *float64) *float64 {
 	v := math.Abs(*abstractness + *instability - 1)
 	return &v
 }
+
+// ratioScale is 10 to the number of decimal places RoundRatio keeps.
+const ratioScale = 1e3
+
+// RoundRatio returns v rounded half away from zero to three decimal places,
+// or nil for a nil v, so a ratio reports 0.2, not 0.19999999999999996, and
+// 0, not 1.1e-16. Extractors round instability, abstractness and
+// main_sequence_distance with it, computing the distance from the unrounded
+// ratios.
+func RoundRatio(v *float64) *float64 {
+	if v == nil {
+		return nil
+	}
+	r := math.Round(*v*ratioScale) / ratioScale
+	return &r
+}

@@ -108,8 +108,11 @@ are the same on every checkout.
 - **instability** (v1): `internal_imports / (fan_in + internal_imports)`,
   null when both are 0.
 - **abstractness** (v1): exported interfaces over exported classes,
-  interfaces, type aliases and enums, null with none. Only `hub` exports
-  types.
+  interfaces, type aliases and enums, null with none. Only `hub`, `b` and
+  `trivial` export types.
+- Each ratio is rounded to three decimal places, and the distance is
+  computed from the unrounded ratios, so `b`'s distance reports 0.2, not
+  the 0.19999999999999996 that `|0.2 + 1 - 1|` gives in floating point.
 - **main_sequence_distance** (v1): `|abstractness + instability - 1|`, null
   when either is null.
 
@@ -162,17 +165,20 @@ One file, `a.ts`, 154 bytes. Imports `../hub`, which resolves to
 
 ## b
 
-Four non-test files: `b.ts` (143 bytes, 2 SLOC), `esm.mts` (238 bytes,
-6 SLOC), `common.cts` (118 bytes, 3 SLOC) and `rejected.ts` (355 bytes,
-3 SLOC). One test file, `esm.test.mts` (129 bytes). `types.d.mts` is a
+Five non-test files: `b.ts` (143 bytes, 2 SLOC), `esm.mts` (238 bytes,
+6 SLOC), `common.cts` (118 bytes, 3 SLOC), `rejected.ts` (355 bytes,
+3 SLOC) and `shapes.ts` (247 bytes, 10 SLOC). One test file, `esm.test.mts` (129 bytes). `types.d.mts` is a
 declaration file and counts nowhere.
 
 - `b.ts` SLOC: the import and the `export const limit = ...` line.
   `esm.mts`: three imports and `bounded` 3 lines. `common.cts`: `scale` 3
   lines. `rejected.ts`: three side-effect imports under a four-line
-  comment. `sloc=14`, `largest_file_sloc=6`.
-- `tokens_est = (143 + 238 + 118 + 355) / 3.2 = 854 / 3.2 = 266.9 -> 266`.
-- `tokens_est_with_tests = (854 + 129) / 3.2 = 983 / 3.2 = 307.2 -> 307`.
+  comment. `shapes.ts`: interface `Shape` 3 lines, type aliases `Point`
+  and `Id` 1 each, enum `Kind` 4, class `Plain` 1. `sloc=24`,
+  `largest_file_sloc=10`.
+- `tokens_est = (143 + 238 + 118 + 355 + 247) / 3.2 = 1101 / 3.2 = 344.1
+  -> 344`.
+- `tokens_est_with_tests = (1101 + 129) / 3.2 = 1230 / 3.2 = 384.4 -> 384`.
 - Imports: `@app/hub` (alias to `./hub`) and bare `hub` (resolved under the
   inherited `baseUrl` to `hub/index.ts`) are package `hub`;
   `@multi/trivial.js` is package `trivial` (see `trivial`); `./common.cjs`
@@ -185,12 +191,16 @@ declaration file and counts nowhere.
   it falls through to the npm package `@app/tested`.
   `internal_imports=2`, `external_imports=2`. Were `extends` not followed,
   there would be no `baseUrl` and `hub` would count as an external package.
-- `exported_symbols=3`: `limit`, `bounded`, `scale`.
+- `exported_symbols=8`: `limit`, `bounded`, `scale`, and `shapes.ts`'s
+  `Shape`, `Point`, `Id`, `Kind` and `Plain`.
 - Functions: `limit` (arrow function bound to a `const`), `bounded` and
-  `scale`, each scoring 0: `func_count=3`.
+  `scale`, each scoring 0: `func_count=3`. `shapes.ts` declares no
+  function, and `Plain` has no methods, so it adds no untested export.
 - `test_files=1`, `test_funcs=1` (`it("bounds")`). The test names
   `bounded`, so `untested_exports=2` (`limit`, `scale`).
-- instability `2 / (0 + 2) = 1`.
+- instability `2 / (0 + 2) = 1`; abstractness `1 / 5 = 0.2` (`Shape`
+  among `Shape`, `Point`, `Id`, `Kind` and `Plain`); main_sequence_distance
+  `|0.2 + 1 - 1| = 0.2`, the fixture's only ratio that is neither 0 nor 1.
 
 ## hub
 

@@ -159,6 +159,43 @@ func TestImportGraph(t *testing.T) {
 	check("c", "fan_in_tests", got["c"].FanInTests, 0)
 }
 
+// TestCouplingRatiosRounded checks that assemble rounds instability and
+// abstractness to three decimals and computes main_sequence_distance from
+// the unrounded ratios: |1/3 + 1/3 - 1| is 0.333, where the rounded ratios
+// would give 0.334.
+func TestCouplingRatiosRounded(t *testing.T) {
+	root := t.TempDir()
+	writeTree(t, root, map[string]string{
+		"package.json": "{}",
+		"p/p.ts":       "import { q } from \"../q/q\";\nexport interface I { n: number }\nexport type T = number;\nexport class C {}\nexport const v = q;\n",
+		"q/q.ts":       "export const q = 1;\n",
+		"r/r.ts":       "import { v } from \"../p/p\";\nexport const r = v;\n",
+		"s/s.ts":       "import { v } from \"../p/p\";\nexport const s = v;\n",
+	})
+	m, err := New().Extract(t.Context(), &metrics.ModuleContext{Root: root}, "p")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.FanIn != 2 || m.InternalImports != 1 {
+		t.Fatalf("fan_in, internal_imports = %d, %d, want 2, 1", m.FanIn, m.InternalImports)
+	}
+	for _, r := range []struct {
+		name string
+		v    *float64
+	}{
+		{"instability", m.Instability},
+		{"abstractness", m.Abstractness},
+		{"main_sequence_distance", m.MainSequenceDistance},
+	} {
+		switch {
+		case r.v == nil:
+			t.Errorf("%s = null, want 0.333", r.name)
+		case *r.v != 0.333:
+			t.Errorf("%s = %v, want 0.333", r.name, *r.v)
+		}
+	}
+}
+
 func TestDetails(t *testing.T) {
 	e := New()
 	mod := &metrics.ModuleContext{Root: fixtureRoot(t)}
