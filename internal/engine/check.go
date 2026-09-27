@@ -201,18 +201,29 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 	if src.file != nil {
 		warnTokenizerMismatch(t, src.file)
 	}
+	// base is loaded at most once, when selection or the comparison first
+	// needs it.
+	base := src.file
+	loadBase := func() (baseline.Baseline, error) {
+		if base == nil {
+			b, err := gitBaseline(ctx, t, src.ref, opts.Baselines)
+			if err != nil {
+				return nil, err
+			}
+			base = b
+		}
+		return base, nil
+	}
 	selected, deleted := opts.Packages, []string(nil)
 	if len(selected) == 0 {
-		selected, deleted, err = selectPackages(ctx, t, ht.Mod, head, src, opts.All, headOf(ht, opts))
+		selected, deleted, err = selectPackages(ctx, t, ht.Mod, head, src, opts.All, headOf(ht, opts), loadBase)
 		if err != nil {
 			return nil, nil, baseline.TreeRelative(err, tmp)
 		}
 	}
-	base := src.file
-	if base == nil && len(selected) > 0 {
+	if len(selected) > 0 {
 		// Nothing selected means nothing to compare; skip the second load.
-		base, err = gitBaseline(ctx, t, src.ref, opts.Baselines)
-		if err != nil {
+		if _, err := loadBase(); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -406,11 +417,11 @@ func gitBaseline(ctx context.Context, t *Target, ref string, cache *BaselineCach
 // changed file that can move every package, such as a TypeScript
 // tsconfig.json, selects every package too. A changed file that can move
 // its package's importers, such as a TypeScript declaration file, also
-// selects the packages importing that package in hm, the head module
-// (selectImporters). tree says whether the changes are those of the
-// working tree or of the index.
+// selects the packages importing that package in hm, the head module, and
+// in the baseline, which loadBase returns (selectImporters). tree says
+// whether the changes are those of the working tree or of the index.
 func selectPackages(ctx context.Context, t *Target, hm *metrics.ModuleContext, head []string, src baselineSource,
-	all bool, tree baseline.Head,
+	all bool, tree baseline.Head, loadBase func() (baseline.Baseline, error),
 ) (selected, deleted []string, err error) {
 	if all {
 		return head, nil, nil
@@ -450,8 +461,12 @@ func selectPackages(ctx context.Context, t *Target, hm *metrics.ModuleContext, h
 	for _, dir := range change.Packages {
 		changed[importPathOf(t.Mod.ModulePath, dir)] = true
 	}
-	if il, ok := t.Ext.(metrics.ImporterLister); ok && len(change.Contract) > 0 {
-		if err := selectImporters(ctx, il, hm, t.Mod.ModulePath, head, change.Contract, changed, logger); err != nil {
+	if il, ok := t.Ext.(metrics.ImporterLister); ok && len(change.Contract)+len(change.RemovedContract) > 0 {
+		base, err := loadBase()
+		if err != nil {
+			return nil, nil, err
+		}
+		if err := selectImporters(ctx, il, hm, t.Mod.ModulePath, head, change, base, changed, logger); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -463,34 +478,71 @@ func selectPackages(ctx context.Context, t *Target, hm *metrics.ModuleContext, h
 	return selected, change.Deleted, nil
 }
 
-// selectImporters adds to changed the import paths of the packages that
-// import a package of contract, the module-relative directories of the
-// changed packages whose change can move their importers' metrics
-// (baseline.Change.Contract), as il lists them in mod, the head module of
-// module path modPath. A package of contract that head, the import paths
-// the extractor lists, does not hold is skipped. Each package it adds is
-// logged at info level with the package it imports, so the output says why
-// a package no file of which changed was checked.
+// importerGraph is the reverse import graph a baseline recorded
+// (baseline.Baseline.Importers).
+type importerGraph interface {
+	// Importers returns the importers of pkg, and false when no graph was
+	// recorded.
+	Importers(pkg string) ([]string, bool)
+}
+
+// selectImporters adds to changed the import paths of the packages, among
+// head (the import paths the extractor lists), that import a package whose
+// change can move their importers' metrics. change names those packages by
+// module-relative directory: the importers of each package of
+// change.Contract that head holds are taken from il in mod, the head
+// module of module path modPath; the importers of each package of
+// change.Contract and change.RemovedContract are also taken from base, the
+// baseline's graph, so an edge that a removed or rewritten declaration
+// file resolved still selects its importer. Each package it adds is logged
+// at info level with the package it imports, the baseline's saying
+// "importer at baseline", so the output says why a package no file of
+// which changed was checked. When base is nil or records no graph and a
+// declaration file was removed, one info line says its former importers
+// are not selected.
 func selectImporters(ctx context.Context, il metrics.ImporterLister, mod *metrics.ModuleContext, modPath string,
-	head, contract []string, changed map[string]bool, logger *slog.Logger,
+	head []string, change baseline.Change, base importerGraph, changed map[string]bool, logger *slog.Logger,
 ) error {
-	for _, dir := range contract {
+	inHead := make(map[string]bool, len(head))
+	for _, pkg := range head {
+		inHead[pkg] = true
+	}
+	add := func(importers []string, dir, msg string) {
+		for _, imp := range importers {
+			if !inHead[imp] || changed[imp] {
+				continue
+			}
+			changed[imp] = true
+			logger.Info(msg, "package", modulePathRel(modPath, imp), "importer_of", dir)
+		}
+	}
+	for _, dir := range change.Contract {
 		pkg := importPathOf(modPath, dir)
-		if !slices.Contains(head, pkg) {
+		if !inHead[pkg] {
 			continue
 		}
 		importers, err := il.Importers(ctx, mod, pkg)
 		if err != nil {
 			return fmt.Errorf("listing the importers of %s: %w", dir, err)
 		}
-		for _, imp := range importers {
-			if changed[imp] {
-				continue
-			}
-			changed[imp] = true
-			logger.Info("selected as an importer of a package whose declarations changed",
-				"package", modulePathRel(modPath, imp), "importer_of", dir)
+		add(importers, dir, "selected as an importer of a package whose declarations changed")
+	}
+	dirs := slices.Concat(change.Contract, change.RemovedContract)
+	slices.Sort(dirs)
+	for _, dir := range slices.Compact(dirs) {
+		var importers []string
+		known := base != nil
+		if known {
+			importers, known = base.Importers(importPathOf(modPath, dir))
 		}
+		if !known {
+			if len(change.RemovedContract) > 0 {
+				logger.Info("the baseline records no import graph; the former importers of a removed declaration file are not selected",
+					"packages", strings.Join(change.RemovedContract, ","))
+			}
+			return nil
+		}
+		add(importers, dir, "selected as an importer at baseline of a package whose declarations changed")
 	}
 	return nil
 }

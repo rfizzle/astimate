@@ -18,7 +18,11 @@ import (
 // packageDirs returns the sorted, de-duplicated package directories that
 // sourceFiles finds among paths with the Go extractor's rules.
 func packageDirs(paths []string, prefix string) []string {
-	files := sourceFiles(paths, prefix, golang.New())
+	cps := make([]changedPath, 0, len(paths))
+	for _, p := range paths {
+		cps = append(cps, changedPath{path: p})
+	}
+	files := sourceFiles(cps, prefix, golang.New())
 	dirs := make([]string, 0, len(files.dirs))
 	for _, d := range files.dirs {
 		dirs = append(dirs, d.pkg)

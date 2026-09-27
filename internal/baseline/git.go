@@ -41,7 +41,9 @@ const cleanupTimeout = 30 * time.Second
 // When ext implements metrics.FunctionLister, Functions reports each
 // package's functions at the merge-base (CollectFunctions); when it
 // implements metrics.ModuleMetrics and metrics.ModuleDetailer, CrossBlocks
-// reports the module's cross-package blocks there (CollectCrossBlocks).
+// reports the module's cross-package blocks there (CollectCrossBlocks);
+// when it implements metrics.ImporterLister, Importers reports each
+// package's importers there (CollectImporters).
 // An extraction error names paths relative to the module root
 // (TreeRelative), not the temporary worktree.
 // When ext implements metrics.Forgetter, FromGit calls Forget on the
@@ -85,6 +87,11 @@ func FromGit(ctx context.Context, root, ref string, ext metrics.Extractor, modul
 	if _, isModule := ext.(metrics.ModuleMetrics); err == nil && isModule {
 		cross, crossKnown, err = CollectCrossBlocks(ctx, ext, mod)
 	}
+	var importers map[string][]string
+	importersKnown := false
+	if err == nil {
+		importers, importersKnown, err = CollectImporters(ctx, ext, mod, pkgs)
+	}
 	// The worktree is deleted on return, so nothing will ask for its load
 	// again; let an extractor that caches loads release it.
 	if f, ok := ext.(metrics.Forgetter); ok {
@@ -93,7 +100,10 @@ func FromGit(ctx context.Context, root, ref string, ext metrics.Extractor, modul
 	if err != nil {
 		return nil, fmt.Errorf("extracting baseline at %s: %w", sha, TreeRelative(err, modRoot))
 	}
-	return &snapshot{ref: sha, tokenizer: tokenizer, pkgs: pkgs, funcs: funcs, cross: cross, crossKnown: crossKnown}, nil
+	return &snapshot{
+		ref: sha, tokenizer: tokenizer, pkgs: pkgs, funcs: funcs, cross: cross, crossKnown: crossKnown,
+		importers: importers, importersKnown: importersKnown,
+	}, nil
 }
 
 // DefaultRef returns the first of origin/master, master, origin/main and main

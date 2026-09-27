@@ -35,6 +35,14 @@ type Baseline interface {
 	// named packages matches them against the blocks at head to tell which
 	// blocks are new.
 	CrossBlocks() ([]metrics.CrossBlock, bool)
+	// Importers returns the identifiers of the packages that imported pkg
+	// in the baseline, sorted, as metrics.ImporterLister listed them there
+	// (nil when pkg was not a package), and false when the baseline
+	// recorded no import graph: the extractor does not implement
+	// metrics.ImporterLister, or the baseline is a file. Changed-package
+	// detection selects a removed declaration file's former importers
+	// from it (SPEC.md 8.4).
+	Importers(pkg string) ([]string, bool)
 }
 
 // snapshot is the map-backed Baseline shared by the git and file sources.
@@ -48,6 +56,10 @@ type snapshot struct {
 	// whether they were recorded at all.
 	cross      []metrics.CrossBlock
 	crossKnown bool
+	// importers holds each package's importers; importersKnown says
+	// whether the import graph was recorded at all.
+	importers      map[string][]string
+	importersKnown bool
 	// migrated says a file stored the module row under the key used
 	// before metrics.ModuleRowID was reserved.
 	migrated bool
@@ -56,6 +68,11 @@ type snapshot struct {
 // CrossBlocks implements Baseline.
 func (s *snapshot) CrossBlocks() ([]metrics.CrossBlock, bool) {
 	return s.cross, s.crossKnown
+}
+
+// Importers implements Baseline.
+func (s *snapshot) Importers(pkg string) ([]string, bool) {
+	return s.importers[pkg], s.importersKnown
 }
 
 // Metrics implements Baseline.
@@ -138,6 +155,38 @@ func CollectFunctions(ctx context.Context, ext metrics.Extractor, mod *metrics.M
 		funcs[name] = fns
 	}
 	return funcs, nil
+}
+
+// CollectImporters lists, with ext's metrics.ImporterLister, the importers
+// of every package in pkgs except the module row, keyed like pkgs, leaving
+// out the packages nothing imports. Call it after Collect on the same mod,
+// so ext answers from the extraction it just did. It returns false, with
+// no error, when ext is not an ImporterLister, and stops at the first
+// listing error or when ctx is done.
+func CollectImporters(ctx context.Context, ext metrics.Extractor, mod *metrics.ModuleContext,
+	pkgs map[string]metrics.RawMetrics,
+) (map[string][]string, bool, error) {
+	il, ok := ext.(metrics.ImporterLister)
+	if !ok {
+		return nil, false, nil
+	}
+	importers := make(map[string][]string, len(pkgs))
+	for name := range pkgs {
+		if name == metrics.ModuleRowID {
+			continue
+		}
+		if err := ctx.Err(); err != nil {
+			return nil, false, fmt.Errorf("listing the importers of %s: %w", name, err)
+		}
+		from, err := il.Importers(ctx, mod, name)
+		if err != nil {
+			return nil, false, fmt.Errorf("listing the importers of %s: %w", name, err)
+		}
+		if len(from) > 0 {
+			importers[name] = from
+		}
+	}
+	return importers, true, nil
 }
 
 // CollectCrossBlocks returns, with ext's metrics.ModuleDetailer, every
