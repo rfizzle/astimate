@@ -1,0 +1,218 @@
+// Package metricstest verifies that a metrics.Extractor honors the contract
+// defined in package metrics, in the style of testing/fstest. Every language
+// extractor calls TestExtractor once from its own tests instead of writing
+// its own golden harness, and consumers that need an Extractor without a real
+// module (estimate, gate, CLI) use NewFake.
+package metricstest
+
+import (
+	"context"
+	"encoding/json"
+	"path/filepath"
+	"slices"
+	"testing"
+
+	"github.com/rfizzle/astimate/internal/metrics"
+)
+
+// unknownPackage is a package identifier no extractor should accept.
+const unknownPackage = "metricstest.invalid/no-such-package"
+
+// Fixture describes the module an implementation hands to TestExtractor.
+// Build one per language fixture, in the implementation's conformance test.
+type Fixture struct {
+	// Root is the module root the extractor must Detect and list packages
+	// under. It becomes ModuleContext.Root for every Extract call.
+	Root string
+	// Packages is the complete, sorted list of package identifiers Packages
+	// must return for Root. The cross-package invariants assume it covers the
+	// whole module.
+	Packages []string
+	// GoldenDir holds one <pkg>.json per entry of Packages, in the RawMetrics
+	// JSON encoding with v1 fields omitted or null, plus the COUNTING.md that
+	// explains how each value was derived. It is required.
+	GoldenDir string
+	// Update makes the golden subtest rewrite every golden from the
+	// extractor's output instead of comparing against the files on disk. Set
+	// it only from an explicit -update flag in the implementation's test,
+	// after an intentional counting change recorded in COUNTING.md; the
+	// default false never writes.
+	Update bool
+}
+
+// TestExtractor runs the metrics.Extractor contract against ext using fx.
+// An implementation calls it exactly once, from a test in its own package,
+// and keeps only language-specific unit tests locally. It checks Detect,
+// Packages, Validate on every Extract result, byte-identical determinism
+// across two module contexts, errors for an unknown package and a cancelled
+// context, module-wide invariants, and every golden in fx.GoldenDir.
+//
+// Implementations must check ctx.Err() at least once on every Extract call,
+// including calls served from ModuleContext.Cache, so that a cancelled
+// context always yields an error.
+func TestExtractor(t *testing.T, ext metrics.Extractor, fx Fixture) {
+	t.Helper()
+	if len(fx.Packages) == 0 {
+		t.Fatal("metricstest: Fixture.Packages is empty; list every package of the fixture module")
+	}
+	if fx.GoldenDir == "" {
+		t.Fatal("metricstest: Fixture.GoldenDir is empty; goldens are part of the contract")
+	}
+
+	t.Run("Detect", func(t *testing.T) {
+		if !ext.Detect(fx.Root) {
+			t.Errorf("Detect(%s) = false, want true", fx.Root)
+		}
+		if empty := t.TempDir(); ext.Detect(empty) {
+			t.Errorf("Detect(%s) = true on an empty directory, want false", empty)
+		}
+	})
+
+	t.Run("Packages", func(t *testing.T) { checkPackages(t, ext, fx) })
+
+	// Extract every package once with one shared module context, as a real
+	// invocation would. The results feed the remaining subtests.
+	mod := &metrics.ModuleContext{Root: fx.Root}
+	got := make(map[string]metrics.RawMetrics, len(fx.Packages))
+	ok := t.Run("Extract", func(t *testing.T) {
+		for _, pkg := range fx.Packages {
+			m, err := ext.Extract(t.Context(), mod, pkg)
+			if err != nil {
+				t.Errorf("Extract(%s): %v", pkg, err)
+				continue
+			}
+			got[pkg] = m
+		}
+	})
+	if !ok {
+		t.Fatal("metricstest: Extract failed; later subtests need every package")
+	}
+
+	t.Run("Extract/Validate", func(t *testing.T) {
+		for _, pkg := range fx.Packages {
+			m := got[pkg]
+			if err := m.Validate(); err != nil {
+				t.Errorf("%s: %v", pkg, err)
+			}
+		}
+	})
+
+	t.Run("Extract/Deterministic", func(t *testing.T) {
+		checkDeterministic(t, ext, fx, got)
+	})
+
+	t.Run("Extract/Unknown", func(t *testing.T) {
+		if _, err := ext.Extract(t.Context(), mod, unknownPackage); err == nil {
+			t.Errorf("Extract(%s) returned no error for an unknown package", unknownPackage)
+		}
+	})
+
+	t.Run("Extract/Cancelled", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		pkg := fx.Packages[0]
+		if _, err := ext.Extract(ctx, &metrics.ModuleContext{Root: fx.Root}, pkg); err == nil {
+			t.Errorf("Extract(%s) with a cancelled context and a fresh module context returned no error", pkg)
+		}
+		if _, err := ext.Extract(ctx, mod, pkg); err == nil {
+			t.Errorf("Extract(%s) with a cancelled context and a warm module context returned no error", pkg)
+		}
+	})
+
+	t.Run("Invariants", func(t *testing.T) { checkInvariants(t, fx.Packages, got) })
+
+	t.Run("Goldens", func(t *testing.T) { checkGoldens(t, fx, got) })
+}
+
+func checkPackages(t *testing.T, ext metrics.Extractor, fx Fixture) {
+	t.Helper()
+	first, err := ext.Packages(fx.Root)
+	if err != nil {
+		t.Fatalf("Packages(%s): %v", fx.Root, err)
+	}
+	if !slices.IsSorted(first) {
+		t.Errorf("Packages(%s) = %v, not sorted", fx.Root, first)
+	}
+	if !slices.Equal(first, fx.Packages) {
+		t.Errorf("Packages(%s) = %v, want %v", fx.Root, first, fx.Packages)
+	}
+	second, err := ext.Packages(fx.Root)
+	if err != nil {
+		t.Fatalf("Packages(%s) second call: %v", fx.Root, err)
+	}
+	if !slices.Equal(first, second) {
+		t.Errorf("Packages(%s) is unstable: first %v, then %v", fx.Root, first, second)
+	}
+}
+
+// checkDeterministic re-extracts every package with a fresh module context
+// and requires the JSON encoding to match the first run byte for byte.
+func checkDeterministic(t *testing.T, ext metrics.Extractor, fx Fixture, got map[string]metrics.RawMetrics) {
+	t.Helper()
+	mod := &metrics.ModuleContext{Root: fx.Root}
+	for _, pkg := range fx.Packages {
+		again, err := ext.Extract(t.Context(), mod, pkg)
+		if err != nil {
+			t.Errorf("Extract(%s) second run: %v", pkg, err)
+			continue
+		}
+		a, errA := json.Marshal(got[pkg])
+		b, errB := json.Marshal(again)
+		if errA != nil || errB != nil {
+			t.Errorf("%s: encoding metrics: %v, %v", pkg, errA, errB)
+			continue
+		}
+		if string(a) != string(b) {
+			t.Errorf("%s: Extract is not deterministic:\nfirst:  %s\nsecond: %s", pkg, a, b)
+		}
+	}
+}
+
+// checkInvariants checks relations that hold for any correct extractor and
+// need no golden. Fan-in and fan-out are two views of the same internal
+// import edges, so their module-wide sums agree.
+func checkInvariants(t *testing.T, pkgs []string, got map[string]metrics.RawMetrics) {
+	t.Helper()
+	var fanIn, fanOut int
+	for _, pkg := range pkgs {
+		m := got[pkg]
+		fanIn += m.FanIn
+		fanOut += m.InternalImports
+		if m.HasTests != (m.TestFuncs > 0) {
+			t.Errorf("%s: has_tests %v disagrees with test_funcs %d", pkg, m.HasTests, m.TestFuncs)
+		}
+		if m.LargestFileSLOC > m.SLOC {
+			t.Errorf("%s: largest_file_sloc %d exceeds sloc %d", pkg, m.LargestFileSLOC, m.SLOC)
+		}
+		if m.TokensEstWithTests < m.TokensEst {
+			t.Errorf("%s: tokens_est_with_tests %d is below tokens_est %d", pkg, m.TokensEstWithTests, m.TokensEst)
+		}
+	}
+	if fanIn != fanOut {
+		t.Errorf("module-wide sum(fan_in) %d != sum(internal_imports) %d; each internal import edge must count once on each side",
+			fanIn, fanOut)
+	}
+}
+
+func checkGoldens(t *testing.T, fx Fixture, got map[string]metrics.RawMetrics) {
+	t.Helper()
+	counting := filepath.Join(fx.GoldenDir, "COUNTING.md")
+	for _, pkg := range fx.Packages {
+		m := got[pkg]
+		if fx.Update {
+			if err := writeGolden(fx.GoldenDir, pkg, m); err != nil {
+				t.Errorf("%s: %v", pkg, err)
+			}
+			continue
+		}
+		want, err := LoadGolden(fx.GoldenDir, pkg)
+		if err != nil {
+			t.Errorf("%s: %v", pkg, err)
+			continue
+		}
+		for _, d := range diff(&want, &m) {
+			t.Errorf("%s: %s: golden %s, got %s (check %s before regenerating)",
+				pkg, d.field, d.golden, d.got, counting)
+		}
+	}
+}
