@@ -176,12 +176,19 @@ func TestClassifyBaseURLAndExtensions(t *testing.T) {
 
 func TestSourceCandidates(t *testing.T) {
 	cases := map[string][]string{
-		"a/x.js":  {"a/x.ts", "a/x.tsx", "a/x.d.ts"},
-		"a/x.jsx": {"a/x.tsx"},
-		"a/x.mjs": {"a/x.mts", "a/x.d.mts"},
-		"a/x.cjs": {"a/x.cts", "a/x.d.cts"},
-		"a/x.ts":  {},
-		"a/x":     {},
+		"a/x.js":    {"a/x.ts", "a/x.tsx", "a/x.d.ts"},
+		"a/x.jsx":   {"a/x.tsx", "a/x.ts", "a/x.d.ts"},
+		"a/x.mjs":   {"a/x.mts", "a/x.d.mts"},
+		"a/x.cjs":   {"a/x.cts", "a/x.d.cts"},
+		"a/x.ts":    {"a/x.ts", "a/x.tsx", "a/x.d.ts"},
+		"a/x.d.ts":  {"a/x.ts", "a/x.tsx", "a/x.d.ts"},
+		"a/x.tsx":   {"a/x.tsx", "a/x.ts", "a/x.d.ts"},
+		"a/x.mts":   {"a/x.mts", "a/x.d.mts"},
+		"a/x.d.mts": {"a/x.mts", "a/x.d.mts"},
+		"a/x.cts":   {"a/x.cts", "a/x.d.cts"},
+		"a/x.d.cts": {"a/x.cts", "a/x.d.cts"},
+		"a/x":       {},
+		"a/x.svg":   {},
 	}
 	for in, want := range cases {
 		if got := sourceCandidates(in); !slices.Equal(got, want) {
@@ -244,16 +251,33 @@ func TestResolveModule(t *testing.T) {
 		"mod.mjs":                 "",
 		"com.cjs":                 "",
 		"data.json.js":            "",
+		// tsc parity: a .jsx specifier falls back to .ts and .d.ts, a
+		// .ts one accepts .tsx, and a name is retried with an extension
+		// appended.
+		"jsxts.ts":      "",
+		"jsxdts.d.ts":   "",
+		"jsxpair.tsx":   "",
+		"jsxpair.ts":    "",
+		"onlytsx.tsx":   "",
+		"tsxts.ts":      "",
+		"dtsfirst.ts":   "",
+		"dtsfirst.d.ts": "",
+		"dotted.js.ts":  "",
+		"dotted.ts.tsx": "",
+		"real.ts":       "",
+		"real.js.ts":    "",
 	})
 	r := newResolver(root, nil, tsconfig{base: root})
 	cases := map[string]string{
-		"idx/ts":     "idx/ts/index.ts",
-		"idx/tsx":    "idx/tsx/index.tsx",
-		"idx/dts":    "idx/dts/index.d.ts",
-		"idx/mts":    "idx/mts/index.mts",
-		"idx/cts":    "idx/cts/index.cts",
-		"idx/dmts":   "idx/dmts/index.d.mts",
-		"idx/dcts":   "idx/dcts/index.d.cts",
+		"idx/ts":  "idx/ts/index.ts",
+		"idx/tsx": "idx/tsx/index.tsx",
+		"idx/dts": "idx/dts/index.d.ts",
+		// tsc resolves a directory as the extensionless name index, so
+		// it never finds the .mts and .cts forms.
+		"idx/mts":    "",
+		"idx/cts":    "",
+		"idx/dmts":   "",
+		"idx/dcts":   "",
 		"idx/none":   "",
 		"idx/js":     "",
 		"pj/typings": "pj/typings/lib/t.d.ts",
@@ -276,6 +300,19 @@ func TestResolveModule(t *testing.T) {
 		"esm":        "",
 		"esm.mts":    "esm.mts",
 		"nothing":    "",
+		// A .jsx specifier tries .tsx, then .ts, then .d.ts.
+		"jsxts.jsx":   "jsxts.ts",
+		"jsxdts.jsx":  "jsxdts.d.ts",
+		"jsxpair.jsx": "jsxpair.tsx",
+		// A .ts specifier also accepts .tsx; a .tsx one also .ts; a
+		// .d.ts one tries .ts first.
+		"onlytsx.ts":    "onlytsx.tsx",
+		"tsxts.tsx":     "tsxts.ts",
+		"dtsfirst.d.ts": "dtsfirst.ts",
+		// After the replaced extension, tsc appends one.
+		"dotted.js": "dotted.js.ts",
+		"dotted.ts": "dotted.ts.tsx",
+		"real.js":   "real.ts",
 	}
 	// The JavaScript pass, which classify runs under allowJs only after
 	// the TypeScript pass found nothing.
@@ -791,6 +828,11 @@ func TestClassifyAllowJS(t *testing.T) {
 		"vendor/v.js":          "export const v = 1;\n",
 		"src/app/data.json":    "{}",
 		"src/lib/data.json.js": "export const d = 1;\n",
+		// An installed typed package named lib, which node_modules is not
+		// modelled for: see the lib/widget cases.
+		"node_modules/lib/package.json": `{"types": "index.d.ts"}`,
+		"node_modules/lib/index.d.ts":   "export {};\n",
+		"node_modules/lib/widget.d.ts":  "export declare const w: number;\n",
 	}
 	const opts = `"baseUrl": "src", "paths": {"@l/*": ["lib/*"]}`
 	on := map[string]classified{
@@ -808,6 +850,10 @@ func TestClassifyAllowJS(t *testing.T) {
 		"../lib/missing":    {importNone, ""},
 		"lodash":            {importExternal, "lodash"},
 		"../lib/data.json":  {importInternal, "src/lib"},
+		// A deliberate difference from tsc, which picks the typed package
+		// node_modules/lib: a bare name resolving to a local JavaScript
+		// file under baseUrl is internal.
+		"lib/widget": {importInternal, "src/lib"},
 	}
 	off := map[string]classified{
 		"../lib/legacy.js":  {importNone, ""},
@@ -824,6 +870,7 @@ func TestClassifyAllowJS(t *testing.T) {
 		"../lib/missing":    {importNone, ""},
 		"lodash":            {importExternal, "lodash"},
 		"../lib/data.json":  {importNone, ""},
+		"lib/widget":        {importExternal, "lib"},
 	}
 	cases := []struct {
 		name  string

@@ -123,7 +123,10 @@ func newResolver(root string, pkgs map[string]*pkg, cfg tsconfig) *resolver {
 //     classified by the rules below as if no alias matched;
 //   - with a baseUrl, a non-relative specifier without the node: prefix
 //     that resolves to a file under baseUrl resolves there, as tsc tries
-//     baseUrl before node_modules; one that does not falls through;
+//     baseUrl before node_modules; one that does not falls through. As
+//     node_modules is not modelled, this holds too for a name resolving
+//     under allowJs only to a JavaScript file there, where tsc would take
+//     an installed typed package of that name instead;
 //   - a specifier with the node: prefix, or whose first segment is a Node
 //     built-in, is stdlib under the built-in's name;
 //   - any other specifier is bare and external under its package name, the
@@ -251,27 +254,26 @@ func (r *resolver) resolveDir(p string, ps pass) string {
 
 // resolveFile returns the file an import of the absolute path p names in
 // pass ps, or "" for none. In the TypeScript pass: p itself when it ends
-// in a TypeScript source or declaration extension, or in .json under
-// resolveJsonModule; the TypeScript counterparts of a JavaScript extension
-// (sourceCandidates); else p with .ts, .tsx or .d.ts appended. In the
-// JavaScript pass: nothing for those same TypeScript and JSON names; the
-// JavaScript files of a JavaScript extension (scriptCandidates); else p
-// with .js or .jsx appended.
+// in .json under resolveJsonModule; else the TypeScript files tsc tries
+// for p's extension (sourceCandidates), then, as tsc retries by appending
+// an extension, p with .ts, .tsx or .d.ts appended, so an extensionless
+// name gets only the appended forms and "a.js" may resolve to "a.js.ts".
+// In the JavaScript pass: nothing for TypeScript names or those same JSON
+// names; the JavaScript files of a JavaScript extension
+// (scriptCandidates); else p with .js or .jsx appended.
 func (r *resolver) resolveFile(p string, ps pass) string {
 	var candidates []string
-	own := hasTSExtension(p) || r.cfg.resolveJSON && strings.HasSuffix(p, ".json")
+	isJSON := r.cfg.resolveJSON && strings.HasSuffix(p, ".json")
 	switch {
-	case ps == passJS && own:
+	case ps == passJS && (isJSON || hasTSExtension(p)):
 	case ps == passJS && hasJSExtension(p):
 		candidates = scriptCandidates(p)
 	case ps == passJS:
 		candidates = []string{p + ".js", p + ".jsx"}
-	case own:
+	case isJSON:
 		candidates = []string{p}
-	case hasJSExtension(p):
-		candidates = sourceCandidates(p)
 	default:
-		candidates = []string{p + ".ts", p + ".tsx", p + ".d.ts"}
+		candidates = append(sourceCandidates(p), p+".ts", p+".tsx", p+".d.ts")
 	}
 	for _, c := range candidates {
 		if r.kindOf(c) == statFile {
@@ -282,14 +284,12 @@ func (r *resolver) resolveFile(p string, ps pass) string {
 }
 
 // resolveIndex returns the first index file in the absolute directory dir
-// for pass ps, or "" for none: in the TypeScript pass index.ts, index.tsx
-// and index.d.ts, then the .mts and .cts forms; in the JavaScript pass
-// index.js, then index.jsx.
+// for pass ps, or "" for none: in the TypeScript pass index.ts, index.tsx,
+// then index.d.ts; in the JavaScript pass index.js, then index.jsx. As in
+// tsc, which resolves a directory as the extensionless name "index", no
+// .mts or .cts form is tried.
 func (r *resolver) resolveIndex(dir string, ps pass) string {
-	names := []string{
-		"index.ts", "index.tsx", "index.d.ts",
-		"index.mts", "index.cts", "index.d.mts", "index.d.cts",
-	}
+	names := []string{"index.ts", "index.tsx", "index.d.ts"}
 	if ps == passJS {
 		names = []string{"index.js", "index.jsx"}
 	}
@@ -383,25 +383,39 @@ func hasJSExtension(p string) bool {
 }
 
 // sourceCandidates returns the TypeScript files tsc tries for an import of
-// p written with a JavaScript extension, in its order; nil for any other p.
+// p written with a TypeScript or JavaScript extension, in its order, by
+// replacing that extension (tsc's tryAddingExtensions): .ts, .tsx, .d.ts
+// for .ts, .d.ts and .js; .tsx, .ts, .d.ts for .tsx and .jsx; .mts, .d.mts
+// for .mts, .d.mts and .mjs; .cts, .d.cts for .cts, .d.cts and .cjs. It
+// returns no candidates for any other p.
 func sourceCandidates(p string) []string {
 	var exts []string
 	stem := p
 	for _, m := range []struct {
-		js   string
+		ext  string
 		exts []string
 	}{
+		// The declaration forms come before the extensions they end in,
+		// so the stem of a.d.ts is a, not a.d.
+		{".d.ts", []string{".ts", ".tsx", ".d.ts"}},
+		{".d.mts", []string{".mts", ".d.mts"}},
+		{".d.cts", []string{".cts", ".d.cts"}},
+		{".ts", []string{".ts", ".tsx", ".d.ts"}},
 		{".js", []string{".ts", ".tsx", ".d.ts"}},
-		{".jsx", []string{".tsx"}},
+		{".tsx", []string{".tsx", ".ts", ".d.ts"}},
+		{".jsx", []string{".tsx", ".ts", ".d.ts"}},
+		{".mts", []string{".mts", ".d.mts"}},
 		{".mjs", []string{".mts", ".d.mts"}},
+		{".cts", []string{".cts", ".d.cts"}},
 		{".cjs", []string{".cts", ".d.cts"}},
 	} {
-		if s, ok := strings.CutSuffix(p, m.js); ok {
+		if s, ok := strings.CutSuffix(p, m.ext); ok {
 			stem, exts = s, m.exts
 			break
 		}
 	}
-	out := make([]string, 0, len(exts))
+	// Room for the three forms resolveFile appends.
+	out := make([]string, 0, len(exts)+3)
 	for _, ext := range exts {
 		out = append(out, stem+ext)
 	}

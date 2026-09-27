@@ -23,6 +23,9 @@
 //     .json file it names, or under allowJs or checkJs, when no TypeScript
 //     file resolves, a JavaScript file) in another package of the module.
 //     JavaScript and JSON files add nothing to source metrics.
+//     node_modules is not modelled, so a bare name under baseUrl that
+//     resolves only to a local JavaScript file is internal even where tsc
+//     would pick an installed typed package of that name.
 //     Any other bare specifier, including one under baseUrl or matching an
 //     alias that resolves to no such file, is external, counted by npm
 //     package name, unless it names a Node built-in, which is counted as
