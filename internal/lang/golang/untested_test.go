@@ -49,6 +49,8 @@ func checkUntestedSrc(t *testing.T, files map[string]string) (*loaded, *packages
 			Defs:       make(map[*ast.Ident]types.Object),
 			Uses:       make(map[*ast.Ident]types.Object),
 			Selections: make(map[*ast.SelectorExpr]*types.Selection),
+			Instances:  make(map[*ast.Ident]types.Instance),
+			Types:      make(map[ast.Expr]types.TypeAndValue),
 		}
 		conf := types.Config{Importer: importer.Default()}
 		pkg, err := conf.Check(path, fset, fs, info)
@@ -85,6 +87,7 @@ func TestUntestedReferenceTable(t *testing.T) {
 		{"direct call", "Direct", true},
 		{"method value", "Counter.Inc", true},
 		{"interface dispatch", "Square.Area", true},
+		{"generic interface dispatch", "Box.Get", true},
 		{"embedded promotion", "Inner.Hello", true},
 		{"non-test reference only", "Never", false},
 	} {
@@ -174,7 +177,8 @@ func unexported() {}
 // TestUntestedInPackageDispatch covers interface and type-parameter
 // dispatch where the interface and the concrete type come from the
 // in-package test variant's own type-check, and an interface from another
-// package.
+// package, including generic receivers checked through the instantiations
+// the test holds.
 func TestUntestedInPackageDispatch(t *testing.T) {
 	l, p := checkUntestedSrc(t, map[string]string{
 		"u.go": `package u
@@ -200,6 +204,18 @@ func (Name) String() string { return "n" }
 type Other struct{}
 
 func (Other) Len() int { return 0 }
+
+type Ptr[T any] struct{}
+
+func (*Ptr[T]) Area() int { return 3 }
+
+type Gen[T any] struct{ v T }
+
+func (g Gen[T]) Area() T { return g.v }
+
+type Lone[T any] struct{}
+
+func (Lone[T]) Area() int { return 4 }
 `,
 		"u_test.go": `package u
 
@@ -216,13 +232,19 @@ func TestDispatch(t *testing.T) {
 	_ = area(Sq{})
 	var st fmt.Stringer = Name{}
 	_ = st.String()
+	_ = area(&Ptr[int]{})
+	_ = Gen[string]{}
 }
 `,
 	})
 	got := untestedExports(l, p)
 	// Blob.Area has the wrong signature for Shape; Other.Len is never used.
-	if want := []string{"Blob.Area", "Other.Len"}; got.untested != 2 || !slices.Equal(got.names, want) {
-		t.Errorf("untested = %d %v, want 2 %v", got.untested, got.names, want)
+	// Gen[string].Area returns a string, so the only instantiation the test
+	// holds does not implement Shape. Lone is never instantiated, so no
+	// value of it can reach Shape.Area even though its method matches.
+	want := []string{"Blob.Area", "Gen.Area", "Lone.Area", "Other.Len"}
+	if got.untested != len(want) || !slices.Equal(got.names, want) {
+		t.Errorf("untested = %d %v, want %d %v", got.untested, got.names, len(want), want)
 	}
 }
 

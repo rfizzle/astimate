@@ -36,3 +36,13 @@ func Wrapper() int { return Never() }
 
 // Never is referenced only from non-test code, which does not count.
 func Never() int { return 2 }
+
+// Getter is the generic interface Box is called through.
+type Getter[T any] interface{ Get() T }
+
+// Box is a generic type whose method a test reaches only through a Getter.
+type Box[T any] struct{ V T }
+
+// Get is called only through a Getter[string] holding a Box[string] in a
+// test, so it is checked against that instantiation, not the generic Box.
+func (b Box[T]) Get() T { return b.V }

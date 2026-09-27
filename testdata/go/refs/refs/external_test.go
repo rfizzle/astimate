@@ -12,3 +12,10 @@ func TestInterfaceDispatch(t *testing.T) {
 		t.Fatalf("Area() = %d, want 9", got)
 	}
 }
+
+func TestGenericInterfaceDispatch(t *testing.T) {
+	var g refs.Getter[string] = refs.Box[string]{V: "v"}
+	if got := g.Get(); got != "v" {
+		t.Fatalf("Get() = %q, want %q", got, "v")
+	}
+}

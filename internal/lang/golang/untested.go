@@ -46,7 +46,8 @@ type untestedCounts struct {
 // interface, or through a type parameter, resolves to the interface's
 // method instead; it marks every method of p with that name whose receiver
 // type T, or *T, implements the interface the selection is made on,
-// whichever package declares that interface.
+// whichever package declares that interface. When T is generic, the check
+// runs on each instantiation of T in the test files instead of on T itself.
 func untestedExports(l *loaded, p *packages.Package) untestedCounts {
 	var c untestedCounts
 	// marked holds every counted key, true once a test refers to it.
@@ -124,6 +125,9 @@ func markTestRefs(l *loaded, pkgPath string, tp *packages.Package, marked map[st
 	if scope == nil {
 		return
 	}
+	// insts holds tp's instantiations of generic types, built on the first
+	// dispatch that needs one.
+	var insts map[*types.TypeName][]types.Type
 	for sel, s := range tp.TypesInfo.Selections {
 		if s.Kind() == types.FieldVal || !inTest(sel.Sel.Pos()) {
 			continue
@@ -138,11 +142,62 @@ func markTestRefs(l *loaded, pkgPath string, tp *packages.Package, marked map[st
 			if marked[key] {
 				continue
 			}
-			if tn, ok := scope.Lookup(recv).(*types.TypeName); ok && implements(tn.Type(), iface) {
-				marked[key] = true
+			tn, ok := scope.Lookup(recv).(*types.TypeName)
+			if !ok {
+				continue
 			}
+			if !isGeneric(tn) {
+				marked[key] = implements(tn.Type(), iface)
+				continue
+			}
+			if insts == nil {
+				insts = instantiations(tp.TypesInfo, inTest)
+			}
+			marked[key] = slices.ContainsFunc(insts[tn], func(t types.Type) bool { return implements(t, iface) })
 		}
 	}
+}
+
+// isGeneric reports whether tn names a generic type, one with type
+// parameters.
+func isGeneric(tn *types.TypeName) bool {
+	n, ok := tn.Type().(*types.Named)
+	return ok && n.TypeParams().Len() > 0
+}
+
+// instantiations maps each generic type's name to its distinct
+// instantiations at positions for which inTest holds, from info's Instances
+// and from the types of expressions, which also catch a value of an
+// instantiated type returned by a call. A generic type's methods mention
+// its type parameters, so only an instantiation can implement an interface
+// over concrete types. Non-test files are skipped because a method
+// declaration's receiver, such as Box[T] in func (Box[T]) Get(), is itself
+// recorded as an instantiation. An instantiation that no test file names or
+// holds as an expression's type, such as one hidden behind an interface
+// returned by non-test code, is missed.
+func instantiations(info *types.Info, inTest func(token.Pos) bool) map[*types.TypeName][]types.Type {
+	m := make(map[*types.TypeName][]types.Type)
+	add := func(pos token.Pos, t types.Type) {
+		t = types.Unalias(t)
+		if ptr, ok := t.(*types.Pointer); ok {
+			t = types.Unalias(ptr.Elem())
+		}
+		n, ok := t.(*types.Named)
+		if !ok || n.TypeArgs().Len() == 0 || !inTest(pos) {
+			return
+		}
+		tn := n.Origin().Obj()
+		if !slices.ContainsFunc(m[tn], func(u types.Type) bool { return types.Identical(u, n) }) {
+			m[tn] = append(m[tn], n)
+		}
+	}
+	for id, inst := range info.Instances {
+		add(id.Pos(), inst.Type)
+	}
+	for e, tv := range info.Types {
+		add(e.Pos(), tv.Type)
+	}
+	return m
 }
 
 // scopeOf returns the scope of the package at pkgPath as tp sees it: tp's

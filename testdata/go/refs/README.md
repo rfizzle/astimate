@@ -12,6 +12,7 @@ these counts directly; there are no golden files.
 | `Counter.Inc` | method value `c.Inc`, then called (`refs_test.go`) | tested |
 | `Square.Area` | called through a `Shape` value (`external_test.go`, package `refs_test`) | tested |
 | `Inner.Hello` | promoted, called on an `Outer` value (`refs_test.go`) | tested |
+| `Box.Get` | method of generic `Box[T]`, called only through a `Getter[string]` holding a `Box[string]` (`external_test.go`); checked against that instantiation | tested |
 | `Wrapper` | not referenced; carries `//astimate:untested` | excluded |
 | `Never` | called only from `Wrapper`, a non-test file | untested |
 
