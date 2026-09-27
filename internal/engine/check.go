@@ -141,7 +141,8 @@ func (c *BaselineCache) get(key string, load func() (baseline.Baseline, error)) 
 // written before it existed, skips the module-wide rules with one info log
 // rather than treating the row as new. A check of opts.Packages carries the
 // row too, so a package's self-check (the MCP check_package tool) fails on
-// a cross-package copy made in it. A module row that fails to extract is
+// a cross-package copy made in it, but not on one between two other
+// packages (checkModule). A module row that fails to extract is
 // logged and returned in failed like a package.
 //
 // When t's extractor implements metrics.FunctionLister, each package's
@@ -226,7 +227,7 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 			"reason", "the baseline records no functions to diff; rewrite the baseline file with astimate baseline write")
 	}
 	if mm, ok := t.Ext.(metrics.ModuleMetrics); ok && len(selected) > 0 {
-		m, err := checkModule(ctx, ht, mm, base, src.file != nil, eff, gate.ForRow(eff.Thresholds, gate.ModuleRow))
+		m, err := checkModule(ctx, ht, mm, base, src.file != nil, opts.Packages, eff, gate.ForRow(eff.Thresholds, gate.ModuleRow))
 		if err != nil {
 			err = baseline.TreeRelative(err, tmp)
 			logger.Error("checking module row failed", "err", err)
@@ -440,13 +441,21 @@ func selectPackages(ctx context.Context, t *Target, head []string, src baselineS
 // the row's suggestions name no locations. It carries no baseline agent
 // passes, since its rebuild estimate is of an empty package.
 //
+// named are the packages a check of named packages checks
+// (CheckOptions.Packages); empty for any other check. When it is set and
+// t's extractor implements metrics.ModuleDetailer, the rules judge
+// dup_blocks_cross_pkg on the blocks blamed on those packages only
+// (blameNamed), so a copy between two other packages neither fails the
+// check nor appears in its findings; the row still reports the full count,
+// and the suggestion names the packages sharing each blamed block.
+//
 // fromFile says base was read from a baseline file. A file written before
 // the module row existed has none, and the blocks it would have counted
 // are not new: the rules are skipped for this run with one info log, and
 // the row's metrics are still reported. A baseline extracted from a commit
 // always has the row.
 func checkModule(ctx context.Context, t *Target, mm metrics.ModuleMetrics, base baseline.Baseline, fromFile bool,
-	eff config.Effective, rules []gate.Threshold,
+	named []string, eff config.Effective, rules []gate.Threshold,
 ) (report.CheckedPackage, error) {
 	m, err := mm.ModuleRow(ctx, t.Mod)
 	if err != nil {
@@ -464,10 +473,19 @@ func checkModule(ctx context.Context, t *Target, mm metrics.ModuleMetrics, base 
 	if err != nil {
 		return report.CheckedPackage{}, err
 	}
+	gm, blame := m, (*crossBlame)(nil)
+	if _, detailed := t.Ext.(metrics.ModuleDetailer); detailed && len(named) > 0 && len(rules) > 0 && m.DupBlocksCrossPkg != nil {
+		gm, blame = blameNamed(m, bm, base, names.CrossBlocks, named)
+	}
 	suggest := func(metric string, h float64, hm metrics.RawMetrics) string {
+		if blame != nil && metric == "dup_blocks_cross_pkg" {
+			if s := blame.suggestion(hm, t.Mod.ModulePath); s != "" {
+				return s
+			}
+		}
 		return score.MetricSuggestion(metric, h, hm, names)
 	}
-	res := gate.Evaluate(m, bm, rules, suggest)
+	res := gate.Evaluate(gm, bm, rules, suggest)
 	for _, n := range res.Notes {
 		logger.Info("rule skipped", "path", metrics.ModuleRowID, "metric", n.Metric, "reason", n.Text)
 	}
@@ -481,7 +499,11 @@ func checkModule(ctx context.Context, t *Target, mm metrics.ModuleMetrics, base 
 		AstimateVersion: t.Version,
 	})
 	report.ApplyGate(&r, base.Ref(), bm, &res)
-	locateCross(&r, names.CrossBlocks)
+	located := names.CrossBlocks
+	if blame != nil && len(blame.blocks) > 0 {
+		located = blame.blocks
+	}
+	locateCross(&r, located)
 	return report.CheckedPackage{Report: r}, nil
 }
 

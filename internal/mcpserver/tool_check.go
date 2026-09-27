@@ -25,8 +25,9 @@ const checkToolDescription = "Run the astimate quality gate on one Go package yo
 	"whether it got worse than its baseline. Call it on each package you changed before declaring " +
 	"the work done. A result with passed: false lists the violations to fix, each with a suggestion; " +
 	"fix them and call it again until it passes. Violations of module-wide rules, such as code " +
-	"copied between packages, are in the module block and fail the check too. Warnings do not " +
-	"fail the gate. Do not call it on " +
+	"newly copied between this package and another, are in the module block and fail the check " +
+	"too; their suggestion names the packages sharing each copy. Copies between two other " +
+	"packages do not fail it. Warnings do not fail the gate. Do not call it on " +
 	"packages you did not touch. The baseline is the merge-base of HEAD and the default branch " +
 	"unless base or baseline_file says otherwise. Before a partial commit, pass staged: true to " +
 	"judge what the git index holds rather than the working tree."
@@ -57,7 +58,9 @@ type CheckResult struct {
 	// Module is the module row's report (SPEC.md 8.1), package path
 	// "module", with its own violations, warnings and passed; absent when
 	// the extractor has no module row. A cross-package copy made in the
-	// checked package is a violation here, not in the package's report.
+	// checked package is a violation here, not in the package's report; a
+	// copy between two other packages is counted in its metrics but is not
+	// a violation (engine.Check with CheckOptions.Packages).
 	Module *report.Report `json:"module,omitempty"`
 }
 

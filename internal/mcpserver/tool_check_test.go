@@ -401,6 +401,103 @@ func TestCheckPackageModuleRow(t *testing.T) {
 	}
 }
 
+// sharedLabel is a function written into both hub and hidden: a
+// cross-package block between those two packages only.
+const sharedLabel = `
+
+func label(n int, unit string) string {
+	switch {
+	case n < 0:
+		return "negative " + unit
+	case n == 0:
+		return "no " + unit
+	case n < 10:
+		return "a few " + unit
+	case n < 100:
+		return "many " + unit
+	default:
+		return "countless " + unit
+	}
+}
+`
+
+// TestCheckPackageForeignCopy checks the fixture, committed on master and
+// already sharing one block between a and b, after a new copy between hub
+// and hidden, with a rule on dup_blocks_cross_pkg: the check of trivial,
+// which the copy does not touch, passes with the module row still counting
+// the copy, while the check of hub fails on the module row and names hub
+// and hidden as the packages sharing the new block.
+func TestCheckPackageForeignCopy(t *testing.T) {
+	if testing.Short() {
+		t.Skip("integration test: runs git and loads Go packages")
+	}
+	t.Parallel()
+
+	repo, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for dst, from := range map[string]string{"fixture": fixtureDir, "extmod": extmodDir} {
+		if err := os.CopyFS(filepath.Join(repo, dst), os.DirFS(from)); err != nil {
+			t.Fatalf("copying %s: %v", from, err)
+		}
+	}
+	gitIn(t, repo, "init", "-q", "-b", "master")
+	gitIn(t, repo, "add", "-A")
+	gitIn(t, repo, "commit", "-q", "--no-verify", "-m", "pristine fixture")
+	for _, pkg := range []string{"hub", "hidden"} {
+		path := filepath.Join(repo, "fixture", pkg, "label.go")
+		if err := os.WriteFile(path, []byte("package "+pkg+sharedLabel), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cs := newTestClient(t, Options{Config: crossPackageConfig(t), WorkDir: repo, Version: "test"})
+
+	tests := []struct {
+		pkg        string
+		wantPassed bool
+	}{
+		{pkg: "trivial", wantPassed: true},
+		{pkg: "hub"},
+	}
+	for _, tt := range tests {
+		res := callCheck(t, cs, map[string]any{"path": "fixture/" + tt.pkg, "base": "master"})
+		text := resultText(res)
+		if res.IsError {
+			t.Fatalf("%s: IsError = true, want a gate result; text:\n%s", tt.pkg, text)
+		}
+		m := decodeCheck(t, res).Module
+		if m == nil || m.Passed == nil {
+			t.Fatalf("%s: module block = %+v, want the gated module row", tt.pkg, m)
+		}
+		if n := m.Metrics.DupBlocksCrossPkg; n == nil || *n != 2 {
+			t.Errorf("%s: module dup_blocks_cross_pkg = %v, want the full count 2", tt.pkg, n)
+		}
+		var got []string
+		for _, v := range m.Violations {
+			got = append(got, v.Metric)
+		}
+		if tt.wantPassed {
+			if len(got) != 0 || !*m.Passed || !strings.HasPrefix(text, "PASSED") {
+				t.Errorf("%s: module violations = %v, passed %v, want none; text:\n%s", tt.pkg, got, *m.Passed, text)
+			}
+			continue
+		}
+		if !slices.Equal(got, []string{"dup_blocks_cross_pkg"}) || *m.Passed || !strings.HasPrefix(text, "FAILED") {
+			t.Fatalf("%s: module violations = %v, passed %v, want one dup_blocks_cross_pkg; text:\n%s",
+				tt.pkg, got, *m.Passed, text)
+		}
+		const shared = "shared by hidden and hub."
+		if !strings.Contains(m.Violations[0].Suggestion, shared) || !strings.Contains(text, shared) {
+			t.Errorf("%s: suggestion = %q, want it and the text to say %q; text:\n%s",
+				tt.pkg, m.Violations[0].Suggestion, shared, text)
+		}
+		if !strings.Contains(text, "dup_blocks_cross_pkg: 1 -> 2") {
+			t.Errorf("%s: text does not count one new block against the baseline:\n%s", tt.pkg, text)
+		}
+	}
+}
+
 // TestCheckPackageStaged checks the fixture, committed on master, with a
 // good change staged and a new global left unstaged in the same file:
 // staged: true judges the index and passes, while the working tree fails

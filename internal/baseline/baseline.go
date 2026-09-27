@@ -28,6 +28,13 @@ type Baseline interface {
 	// metrics.FunctionLister, or the baseline file predates function
 	// records. A file baseline's functions carry no File or Line.
 	Functions(pkg string) ([]metrics.FunctionInfo, bool)
+	// CrossBlocks returns the module's cross-package duplicate blocks as
+	// the baseline recorded them, and false when it recorded none: the
+	// extractor does not implement metrics.ModuleDetailer, or the baseline
+	// is a file, which stores only the module row's count. A check of
+	// named packages matches them against the blocks at head to tell which
+	// blocks are new.
+	CrossBlocks() ([]metrics.CrossBlock, bool)
 }
 
 // snapshot is the map-backed Baseline shared by the git and file sources.
@@ -37,6 +44,15 @@ type snapshot struct {
 	pkgs      map[string]metrics.RawMetrics
 	// funcs holds each package's functions; nil when none were recorded.
 	funcs map[string][]metrics.FunctionInfo
+	// cross holds the module's cross-package blocks; crossKnown says
+	// whether they were recorded at all.
+	cross      []metrics.CrossBlock
+	crossKnown bool
+}
+
+// CrossBlocks implements Baseline.
+func (s *snapshot) CrossBlocks() ([]metrics.CrossBlock, bool) {
+	return s.cross, s.crossKnown
 }
 
 // Metrics implements Baseline.
@@ -119,4 +135,20 @@ func CollectFunctions(ctx context.Context, ext metrics.Extractor, mod *metrics.M
 		funcs[name] = fns
 	}
 	return funcs, nil
+}
+
+// CollectCrossBlocks returns, with ext's metrics.ModuleDetailer, every
+// cross-package duplicate block of the module at mod, and false, with no
+// error, when ext does not implement it. Call it after Collect on the same
+// mod, so ext answers from the extraction it just did.
+func CollectCrossBlocks(ctx context.Context, ext metrics.Extractor, mod *metrics.ModuleContext) ([]metrics.CrossBlock, bool, error) {
+	d, ok := ext.(metrics.ModuleDetailer)
+	if !ok {
+		return nil, false, nil
+	}
+	det, err := d.ModuleDetails(ctx, mod)
+	if err != nil {
+		return nil, false, fmt.Errorf("naming the cross-package blocks of %s: %w", metrics.ModuleRowID, err)
+	}
+	return det.CrossBlocks, true, nil
 }

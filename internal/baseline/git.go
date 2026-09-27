@@ -39,7 +39,9 @@ const cleanupTimeout = 30 * time.Second
 // a module nested below the repository root. Ref reports the merge-base
 // commit and Tokenizer reports tokenizer, the method ext counts tokens with.
 // When ext implements metrics.FunctionLister, Functions reports each
-// package's functions at the merge-base (CollectFunctions).
+// package's functions at the merge-base (CollectFunctions); when it
+// implements metrics.ModuleMetrics and metrics.ModuleDetailer, CrossBlocks
+// reports the module's cross-package blocks there (CollectCrossBlocks).
 // An extraction error names paths relative to the module root
 // (TreeRelative), not the temporary worktree.
 // When ext implements metrics.Forgetter, FromGit calls Forget on the
@@ -78,6 +80,11 @@ func FromGit(ctx context.Context, root, ref string, ext metrics.Extractor, modul
 	if err == nil {
 		funcs, err = CollectFunctions(ctx, ext, mod, pkgs)
 	}
+	var cross []metrics.CrossBlock
+	crossKnown := false
+	if _, isModule := ext.(metrics.ModuleMetrics); err == nil && isModule {
+		cross, crossKnown, err = CollectCrossBlocks(ctx, ext, mod)
+	}
 	// The worktree is deleted on return, so nothing will ask for its load
 	// again; let an extractor that caches loads release it.
 	if f, ok := ext.(metrics.Forgetter); ok {
@@ -86,7 +93,7 @@ func FromGit(ctx context.Context, root, ref string, ext metrics.Extractor, modul
 	if err != nil {
 		return nil, fmt.Errorf("extracting baseline at %s: %w", sha, TreeRelative(err, modRoot))
 	}
-	return &snapshot{ref: sha, tokenizer: tokenizer, pkgs: pkgs, funcs: funcs}, nil
+	return &snapshot{ref: sha, tokenizer: tokenizer, pkgs: pkgs, funcs: funcs, cross: cross, crossKnown: crossKnown}, nil
 }
 
 // DefaultRef returns the first of origin/master, master, origin/main and main
