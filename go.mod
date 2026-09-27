@@ -3,6 +3,7 @@ module github.com/rfizzle/astimate
 go 1.27
 
 require (
+	github.com/uudashr/gocognit v1.2.1
 	golang.org/x/mod v0.41.0
 	golang.org/x/tools v0.50.0
 	gopkg.in/yaml.v3 v3.0.1
