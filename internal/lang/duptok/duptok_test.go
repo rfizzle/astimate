@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -373,5 +374,60 @@ func TestEmptyStream(t *testing.T) {
 	}
 	if got.Blocks != 0 || got.Pct != 0 {
 		t.Errorf("Count on an empty stream = %+v", got)
+	}
+}
+
+// blockKeys renders blocks as "tokens:[files]" with files sorted, in
+// sorted order, so blocks compare regardless of order.
+func blockKeys(bs []Block) []string {
+	out := make([]string, 0, len(bs))
+	for _, b := range bs {
+		f := make([]string, 0, len(b.Files))
+		for _, i := range b.Files {
+			f = append(f, strconv.Itoa(int(i)))
+		}
+		slices.Sort(f)
+		out = append(out, strconv.Itoa(b.Tokens)+":"+strings.Join(f, ","))
+	}
+	slices.Sort(out)
+	return out
+}
+
+func TestBlocks(t *testing.T) {
+	// Files 0 and 3 are the same 11 tokens; file 1 shares their first 10;
+	// files 2 and 4 share a 10-token literal table.
+	body := seq(10, 1, 2, Code, 3)
+	s := streamOf(t, body, seq(10, 1, 2, Code, 4), seq(10, 5, 6, Literal, 7), body, seq(10, 5, 6, Literal, 8))
+	if got := s.Files(); got != 5 {
+		t.Fatalf("Files = %d, want 5", got)
+	}
+	cases := []struct {
+		name string
+		opts Options
+		want []Block
+	}{
+		{"literal table dropped", Options{MinTokens: 5, IgnoreLiteralOnly: true}, []Block{{10, []int32{0, 1, 3}}, {11, []int32{0, 3}}}},
+		{"literal table kept", Options{MinTokens: 5}, []Block{{10, []int32{0, 1, 3}}, {11, []int32{0, 3}}, {10, []int32{2, 4}}}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := s.Blocks(tc.opts)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if g, w := blockKeys(got), blockKeys(tc.want); !slices.Equal(g, w) {
+				t.Errorf("Blocks = %v, want %v", g, w)
+			}
+			res, err := s.Count(tc.opts, 55)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if res.Blocks != len(got) {
+				t.Errorf("Count found %d blocks, Blocks %d", res.Blocks, len(got))
+			}
+		})
+	}
+	if _, err := s.Blocks(Options{}); err == nil {
+		t.Error("Blocks with MinTokens 0 returned no error")
 	}
 }

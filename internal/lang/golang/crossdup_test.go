@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rfizzle/astimate/internal/lang/duptok"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"golang.org/x/tools/go/packages"
 )
@@ -116,16 +117,17 @@ func TestCrossPackageAttribution(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			opts := defaultDupOptions()
-			s := newDupStream()
+			var s duptok.Stream
+			z := newDupTokenizer(opts)
 			fs := token.NewFileSet()
 			filePkg := make([]int32, 0, len(tc.files))
 			for i, f := range tc.files {
-				if err := s.scan(fs, "f"+strconv.Itoa(i)+".go", []byte(f.src), opts); err != nil {
+				if err := z.scan(fs, "f"+strconv.Itoa(i)+".go", []byte(f.src), &s); err != nil {
 					t.Fatalf("scan: %v", err)
 				}
 				filePkg = append(filePkg, f.pkg)
 			}
-			blocks, perPkg, err := s.crossPackage(filePkg, tc.npkg, opts)
+			blocks, perPkg, err := crossPackage(&s, filePkg, tc.npkg, opts)
 			if err != nil {
 				t.Fatalf("crossPackage: %v", err)
 			}
@@ -136,12 +138,17 @@ func TestCrossPackageAttribution(t *testing.T) {
 	}
 
 	t.Run("package table must cover the stream", func(t *testing.T) {
-		s := newDupStream()
-		if err := s.scan(token.NewFileSet(), "f.go", []byte("package a\n"), defaultDupOptions()); err != nil {
+		var s duptok.Stream
+		if err := newDupTokenizer(defaultDupOptions()).scan(token.NewFileSet(), "f.go", []byte("package a\n"), &s); err != nil {
 			t.Fatal(err)
 		}
-		if _, _, err := s.crossPackage(nil, 1, defaultDupOptions()); err == nil {
+		if _, _, err := crossPackage(&s, nil, 1, defaultDupOptions()); err == nil {
 			t.Error("crossPackage with no package table returned no error")
+		}
+		bad := defaultDupOptions()
+		bad.minTokens = 0
+		if _, _, err := crossPackage(&s, []int32{0}, 1, bad); err == nil {
+			t.Error("crossPackage with minTokens 0 returned no error")
 		}
 	})
 }

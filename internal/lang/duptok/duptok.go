@@ -2,22 +2,54 @@
 // (SPEC.md section 6.3), independently of the language the tokens came
 // from. An extractor scans each non-test file of a package into a Stream,
 // one int32 code and one Class per token, and Count returns dup_blocks,
-// duplication_pct and the location of every occurrence.
+// duplication_pct and the location of every occurrence; Blocks returns the
+// files each block occurs in, for passes such as the Go extractor's
+// cross-package count that attribute blocks rather than measure coverage.
 //
-// The finder is the one internal/lang/golang uses, adapted to abstract
-// token classes: a suffix array over the stream built by prefix doubling
-// with counting sorts, the LCP array by Kasai's algorithm, and a single
-// sweep that keeps each maximal repeat of at least MinTokens codes that is
-// not wholly inside an occurrence of a longer repeat. See the file comment
-// of internal/lang/golang/duplication.go for the derivation. Each file is
-// followed by a separator code unique in the stream, so no repeat crosses a
-// file boundary.
+// Stream. Each file is followed by a separator code, SeparatorBase plus the
+// file's index. Separators are unique in the stream and above every token
+// code, so no common prefix of two suffixes, and so no repeat, can run
+// across a file boundary. Because every token is exactly one code, a match
+// can never start or end inside a token.
+//
+// Finder. A suffix array over the int32 stream is built by prefix doubling
+// with counting sorts (O(n log n)), then the LCP array by Kasai's
+// algorithm. index/suffixarray was considered and not used: it indexes
+// bytes and only answers lookups, it does not expose the sorted suffixes or
+// their common prefix lengths that maximal-repeat enumeration needs. A
+// rolling hash would need verification and a separate maximality pass; the
+// suffix array gives both exactly.
+//
+// A maximal repeat is a sequence occurring at least twice that cannot be
+// extended left or right with all occurrences agreeing; in the suffix array
+// it is an LCP interval whose occurrences are not all preceded by the same
+// code. SPEC.md merging drops a maximal repeat each of whose occurrences
+// lies inside an occurrence of a longer repeat (nested repeats, and the
+// shorter periods of a tandem run); the survivors are the duplicate blocks.
+//
+// Enumerating every maximal repeat and testing containment occurrence by
+// occurrence is quadratic on long periodic runs such as literal tables, so
+// the survivors are found directly. Let L(q) be the longest repeat starting
+// at stream position q (the larger LCP with q's two suffix-array
+// neighbours). An occurrence [q, q+l) lies inside a longer repeat exactly
+// when l < L(q) or some q' < q has q'+L(q') >= q+l, since any repeated
+// segment extends to an occurrence of a maximal repeat at least as long.
+// So, sweeping q upwards with reach = max(q'+L(q')) over q' < q, a position
+// with L(q) >= MinTokens and q+L(q) > reach starts an occurrence of a
+// surviving block: the sequence of length L(q) at q, which is then
+// left-maximal too (otherwise q-1 would reach as far). Its LCP interval,
+// found from previous and next smaller LCP values, gives all its
+// occurrences; blocks are the distinct intervals. Everything after the
+// suffix array is linear. The occurrences of the blocks, overlapping or
+// not, are unioned for coverage; every shorter repeat lies inside them, so
+// the union is the same as over all repeats.
 //
 // Literal-only blocks. With Options.IgnoreLiteralOnly, a surviving block
 // whose every token is of class Literal or Punct is dropped before
 // counting; with Options.FoldSigns a token of class Sign counts as part of
-// the literal after it. The language decides which tokens belong to which
-// class; the rule itself is language-agnostic.
+// the literal after it. The rule runs after merging, so a block that holds
+// a literal table next to code is kept whole. The language decides which
+// tokens belong to which class; the rule itself is language-agnostic.
 //
 // Coverage. A line is covered when a token of any occurrence of any block
 // starts or ends on it, or lies between, and counts only when the language
@@ -139,19 +171,71 @@ func (s *Stream) EndFile(name string, code []bool) {
 	s.last = append(s.last, 0)
 }
 
+// Files returns the number of files closed by EndFile.
+func (s *Stream) Files() int {
+	return len(s.files)
+}
+
 // Count finds the duplicate blocks of the stream under opts and returns
 // their count, their coverage as a percentage of sloc, and their
 // locations. Tokens added after the last EndFile are ignored.
 func (s *Stream) Count(opts Options, sloc int) (Result, error) {
+	sa, reps, err := s.find(opts)
+	if err != nil {
+		return Result{}, err
+	}
+	return s.count(sa, reps, sloc), nil
+}
+
+// Block is one duplicate block as Blocks reports it.
+type Block struct {
+	// Tokens is the length of the block in tokens.
+	Tokens int
+	// Files holds, for each occurrence of the block, the index of the file
+	// it lies in, counting files from 0 in EndFile order. Occurrences are
+	// in no particular order, and a file holding several occurrences
+	// appears once per occurrence.
+	Files []int32
+}
+
+// Blocks finds the duplicate blocks of the stream under opts, the same
+// blocks Count counts, and returns the files each occurs in, in no
+// particular order of blocks. Tokens added after the last EndFile are
+// ignored.
+func (s *Stream) Blocks(opts Options) ([]Block, error) {
+	sa, reps, err := s.find(opts)
+	if err != nil {
+		return nil, err
+	}
+	total := 0
+	for _, r := range reps {
+		total += int(r.rb - r.lb + 1)
+	}
+	files := make([]int32, 0, total)
+	out := make([]Block, 0, len(reps))
+	for _, r := range reps {
+		start := len(files)
+		for _, p := range sa[r.lb : r.rb+1] {
+			files = append(files, s.file[p])
+		}
+		out = append(out, Block{Tokens: int(r.n), Files: files[start:len(files):len(files)]})
+	}
+	return out, nil
+}
+
+// find returns the suffix array of the stream and its duplicate blocks
+// under opts: the maximal repeats that survive merging, less the
+// literal-only ones when opts.IgnoreLiteralOnly is set.
+func (s *Stream) find(opts Options) (sa []int32, reps []repeat, err error) {
 	if opts.MinTokens < 1 {
-		return Result{}, fmt.Errorf("finding duplicates: minimum of %d tokens is not positive", opts.MinTokens)
+		return nil, nil, fmt.Errorf("finding duplicates: minimum of %d tokens is not positive", opts.MinTokens)
 	}
 	s.trim()
-	sa, reps := find(s.codes, opts.MinTokens)
+	sa, reps = find(s.codes, opts.MinTokens)
 	if opts.IgnoreLiteralOnly {
 		reps = s.dropLiteralOnly(sa, reps, opts.FoldSigns)
 	}
-	return s.count(sa, reps, sloc), nil
+	return sa, reps, nil
 }
 
 // trim drops tokens added after the last separator, so the stream ends

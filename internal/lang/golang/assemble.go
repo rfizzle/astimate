@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/rfizzle/astimate/internal/lang/duptok"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"golang.org/x/tools/go/packages"
 )
@@ -25,7 +26,7 @@ type assembleOptions struct {
 // every function's complexity and fingerprint for the baseline diff.
 type details struct {
 	untestedNames, untestedExcluded []string
-	dupLocations                    []dupLocation
+	dupLocations                    []duptok.Location
 	blank, dot                      []string
 	tokensMethod                    string
 	functions                       []funcComplexity
@@ -103,7 +104,7 @@ func assemble(ctx context.Context, l *loaded, p *packages.Package, opts assemble
 	l.setDetails(p.PkgPath, details{
 		untestedNames:    un.names,
 		untestedExcluded: un.excluded,
-		dupLocations:     dup.locations,
+		dupLocations:     dup.Locations,
 		blank:            imp.blank,
 		dot:              imp.dot,
 		tokensMethod:     tok.method,
@@ -127,8 +128,8 @@ func assemble(ctx context.Context, l *loaded, p *packages.Package, opts assemble
 		CognitiveTotal:     cx.cognitiveTotal,
 		CognitiveP90:       cx.cognitiveP90,
 		FuncCount:          cx.funcCount,
-		DupBlocks:          dup.blocks,
-		DuplicationPct:     dup.pct,
+		DupBlocks:          dup.Blocks,
+		DuplicationPct:     dup.Pct,
 		TestFiles:          ts.testFiles,
 		TestFuncs:          ts.testFuncs,
 		HasTests:           ts.hasTests,

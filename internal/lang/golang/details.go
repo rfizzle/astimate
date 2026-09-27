@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strconv"
 
+	"github.com/rfizzle/astimate/internal/lang/duptok"
 	"github.com/rfizzle/astimate/internal/metrics"
 )
 
@@ -105,6 +106,6 @@ func relFile(dir, file string) string {
 // relLocation renders loc as "file:start-end" with file relative to dir, in
 // slash form. It falls back to the base name when dir is empty or the file
 // cannot be related to it.
-func relLocation(dir string, loc dupLocation) string {
-	return relFile(dir, loc.file) + ":" + strconv.Itoa(loc.startLine) + "-" + strconv.Itoa(loc.endLine)
+func relLocation(dir string, loc duptok.Location) string {
+	return relFile(dir, loc.File) + ":" + strconv.Itoa(loc.StartLine) + "-" + strconv.Itoa(loc.EndLine)
 }

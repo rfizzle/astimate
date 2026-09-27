@@ -4,21 +4,22 @@ package golang
 //
 // Stream. Every module package, in import path order, contributes its
 // non-test, non-generated files to one normalized stream, scanned exactly
-// as duplication scans one package's (see duplication.go). Each file is
-// followed by its own separator, dupSeparatorBase plus the file's index in
-// the whole stream, so no match crosses a file boundary, let alone a
-// package boundary; a side table maps each file index to its package, which
-// is what attributes an occurrence to a package. Cross-package means within
-// one module; repeats across modules or repositories are out of scope.
+// as duplication scans one package's (see duplication.go), into one
+// duptok.Stream. duptok follows each file with its own separator, so no
+// match crosses a file boundary, let alone a package boundary; a side table
+// maps each file index to its package, which is what attributes an
+// occurrence to a package. Cross-package means within one module; repeats
+// across modules or repositories are out of scope.
 //
-// Finder. The same suffix-array finder and the same merging and
-// literal-only rules run over the module stream, so a block is an exact
-// normalized repeat of at least duplication.min_tokens under the same
-// options as dup_blocks. A block is cross-package when its occurrences lie
-// in two or more packages. It counts once in dup_blocks_cross_pkg of each
-// package it touches, however many of its occurrences that package holds,
-// and once in the module row's dup_blocks_cross_pkg, which counts distinct
-// blocks rather than summing the packages.
+// Finder. The same duptok finder and the same merging and literal-only
+// rules run over the module stream, through duptok.Stream.Blocks, so a
+// block is an exact normalized repeat of at least duplication.min_tokens
+// under the same options as dup_blocks. A block is cross-package when its
+// occurrences lie in two or more packages. It counts once in
+// dup_blocks_cross_pkg of each package it touches, however many of its
+// occurrences that package holds, and once in the module row's
+// dup_blocks_cross_pkg, which counts distinct blocks rather than summing
+// the packages.
 //
 // Relation to dup_blocks. dup_blocks is computed per package, from that
 // package's stream alone, exactly as it would be without this pass; the
@@ -38,6 +39,8 @@ import (
 	"fmt"
 	"go/token"
 	"sync"
+
+	"github.com/rfizzle/astimate/internal/lang/duptok"
 )
 
 // crossDup is the cross-package duplication of one module load.
@@ -97,19 +100,20 @@ func computeCrossDup(l *loaded, src fileSource, opts dupOptions) (crossDup, erro
 	if opts.minTokens < 1 {
 		return crossDup{}, fmt.Errorf("detecting cross-package duplication: minimum of %d tokens is not positive", opts.minTokens)
 	}
-	s := newDupStream()
+	var s duptok.Stream
+	z := newDupTokenizer(opts)
 	fs := token.NewFileSet()
 	filePkg := make([]int32, 0, len(l.paths))
 	for i, path := range l.paths {
-		before := len(s.files)
-		if err := s.appendPackage(fs, l, l.pkgs[path], src, opts); err != nil {
+		before := s.Files()
+		if err := z.appendPackage(fs, l, l.pkgs[path], src, &s); err != nil {
 			return crossDup{}, fmt.Errorf("detecting cross-package duplication in %s: %w", path, err)
 		}
-		for range len(s.files) - before {
+		for range s.Files() - before {
 			filePkg = append(filePkg, int32(i))
 		}
 	}
-	blocks, perPkg, err := s.crossPackage(filePkg, len(l.paths), opts)
+	blocks, perPkg, err := crossPackage(&s, filePkg, len(l.paths), opts)
 	if err != nil {
 		return crossDup{}, fmt.Errorf("detecting cross-package duplication: %w", err)
 	}
@@ -128,20 +132,23 @@ func computeCrossDup(l *loaded, src fileSource, opts dupOptions) (crossDup, erro
 // of such blocks and, per package index, how many of them touch that
 // package; a block counts once per package however many of its occurrences
 // the package holds.
-func (s *dupStream) crossPackage(filePkg []int32, npkg int, opts dupOptions) (blocks int, perPkg []int, err error) {
-	if len(filePkg) != len(s.files) {
+func crossPackage(s *duptok.Stream, filePkg []int32, npkg int, opts dupOptions) (blocks int, perPkg []int, err error) {
+	if len(filePkg) != s.Files() {
 		return 0, nil, errors.New("package table does not cover every file")
 	}
+	found, err := s.Blocks(opts.finder())
+	if err != nil {
+		return 0, nil, err
+	}
 	perPkg = make([]int, npkg)
-	sa, reps := s.find(opts)
 	// last[k] is the block index that last touched package k, plus one, so
 	// each block counts a package once without a per-block set.
 	last := make([]int, npkg)
 	touched := make([]int32, 0, 4)
-	for bi, r := range reps {
+	for bi, b := range found {
 		touched = touched[:0]
-		for _, pos := range sa[r.lb : r.rb+1] {
-			k := filePkg[s.file[pos]]
+		for _, f := range b.Files {
+			k := filePkg[f]
 			if last[k] != bi+1 {
 				last[k] = bi + 1
 				touched = append(touched, k)

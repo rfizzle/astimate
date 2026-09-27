@@ -41,7 +41,10 @@ identifiers and literals normalized, `dup_ignore_literal_only` on.
 
 `TestDupMeasureStdlibRefinements` in
 `internal/lang/golang/duplication_test.go`, skipped unless
-`ASTIMATE_MEASURE_STDLIB=1`:
+`ASTIMATE_MEASURE_STDLIB=1`. The test built its variants from the Go
+extractor's own token stream, which was removed when Go duplication moved
+onto the shared finder in `internal/lang/duptok`; to rerun it, check out
+commit `a8d3002`, the last one that has it:
 
 ```
 ASTIMATE_MEASURE_STDLIB=1 go test ./internal/lang/golang/ -run TestDupMeasureStdlibRefinements -v -count=1
