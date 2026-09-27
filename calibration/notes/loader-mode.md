@@ -86,3 +86,45 @@ build cache also compiles the standard library and module dependencies once.
 
 Ship it: drop `NeedDeps` from `loadMode`. Every metric is unchanged, and a
 load allocates 94-98% less and takes about half the time on a warm cache.
+
+## Follow-up: export data that cannot be built
+
+Date: 2026-09-27, same machine.
+
+`go list -export` needs a C compiler for cgo packages and a writable
+`GOCACHE`. Observed with `testdata/go/cgo` (package `native` imports `"C"`,
+package `user` imports `native`), in both the current mode and with
+`NeedDeps` added back:
+
+- No C compiler (`CGO_ENABLED=1`, `CC` a missing path): the cgo package in the
+  module fails with `could not import C (no metadata for C)` in both modes, so
+  falling back to `NeedDeps` cannot help; type-checking a cgo package from
+  source needs cgo's output too. The load error now names the cause:
+  `cgo package example.com/cgo/native needs a C compiler (CC=...)`, wrapped
+  over the original error.
+- A cgo package outside the module, with no C compiler or with cgo disabled:
+  the load already works. go/packages type-checks any dependency whose export
+  data `go list` could not build from source instead, and that dependency's
+  own errors do not fail the load.
+- `CGO_ENABLED=0`, which the go command also picks when no C compiler is on
+  `PATH`: build constraints drop `native`, and `user` fails with
+  `undefined: native.Add`. The error now names the cause:
+  `dependency example.com/cgo/native uses cgo, which is disabled (CGO_ENABLED=0, ...)`.
+- Read-only `GOCACHE`: every load fails in both modes. An empty cache fails
+  in `go list` itself; a populated cache fails on the first cache miss, as a
+  list error on a module package or on a `./...` pseudo-package, which used to
+  surface as the misleading `no Go packages in module`. Both now read
+  `the Go build cache must be writable (GOCACHE=...)`.
+
+`BenchmarkLoadAfterEdit` appends an exported function to the fixture's `hub`
+before each timed load, so `go list -export` recompiles `hub` and its
+importers every time, the load an agent's edit loop hits. 6 runs each,
+median [min..max]:
+
+| Benchmark | time/op | B/op | allocs/op |
+|---|---|---|---|
+| LoadFixture | 203.9 ms [180.8..227.4] | 5.19 MiB | 42.6k |
+| LoadAfterEdit | 231.2 ms [222.0..320.5] | 5.19 MiB | 42.7k |
+
+The recompile adds about 13% (27 ms) on the fixture; the extractor's own
+allocations do not change, since the recompile runs in the `go list` child.
