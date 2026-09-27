@@ -427,9 +427,11 @@ func selectPackages(ctx context.Context, t *Target, head []string, src baselineS
 // and rules, the configured thresholds that apply to the module row, as
 // checkPackage does for a package, and builds its report under package
 // path metrics.ModuleRowID with eff, the configuration of t's language.
-// The row's suggestions name no functions or locations, and it carries no
-// baseline agent passes, since its rebuild estimate is of an empty
-// package.
+// When t's extractor implements metrics.ModuleDetailer, the
+// dup_blocks_cross_pkg suggestion names where the first shared block lives
+// and its findings are located on the block's first occurrence; otherwise
+// the row's suggestions name no locations. It carries no baseline agent
+// passes, since its rebuild estimate is of an empty package.
 //
 // fromFile says base was read from a baseline file. A file written before
 // the module row existed has none, and the blocks it would have counted
@@ -451,8 +453,12 @@ func checkModule(ctx context.Context, t *Target, mm metrics.ModuleMetrics, base 
 		logger.Info("baseline file has no module row; module-wide rules skipped; run `astimate baseline write` to add it")
 		rules = nil
 	}
+	names, err := moduleNames(ctx, t.Ext, t.Mod)
+	if err != nil {
+		return report.CheckedPackage{}, err
+	}
 	suggest := func(metric string, h float64, hm metrics.RawMetrics) string {
-		return score.MetricSuggestion(metric, h, hm, score.Names{})
+		return score.MetricSuggestion(metric, h, hm, names)
 	}
 	res := gate.Evaluate(m, bm, rules, suggest)
 	for _, n := range res.Notes {
@@ -468,7 +474,40 @@ func checkModule(ctx context.Context, t *Target, mm metrics.ModuleMetrics, base 
 		AstimateVersion: t.Version,
 	})
 	report.ApplyGate(&r, base.Ref(), bm, &res)
+	locateCross(&r, names.CrossBlocks)
 	return report.CheckedPackage{Report: r}, nil
+}
+
+// moduleNames returns the names behind the module row's counts for
+// suggestions when ext implements metrics.ModuleDetailer, and the zero
+// score.Names otherwise.
+func moduleNames(ctx context.Context, ext metrics.Extractor, mod *metrics.ModuleContext) (score.Names, error) {
+	d, ok := ext.(metrics.ModuleDetailer)
+	if !ok {
+		return score.Names{}, nil
+	}
+	det, err := d.ModuleDetails(ctx, mod)
+	if err != nil {
+		return score.Names{}, fmt.Errorf("naming suggestions for %s: %w", metrics.ModuleRowID, err)
+	}
+	return score.Names{CrossBlocks: det.CrossBlocks}, nil
+}
+
+// locateCross locates r's dup_blocks_cross_pkg findings on the first
+// occurrence of the first of blocks, the one their suggestion names first,
+// so a renderer can annotate that file and line.
+func locateCross(r *report.Report, blocks []metrics.CrossBlock) {
+	if len(blocks) == 0 || len(blocks[0].Occurrences) == 0 {
+		return
+	}
+	o := blocks[0].Occurrences[0]
+	for _, fs := range [][]report.Finding{r.Violations, r.Warnings} {
+		for i := range fs {
+			if fs[i].Metric == "dup_blocks_cross_pkg" {
+				fs[i].File, fs[i].Line = o.File, o.StartLine
+			}
+		}
+	}
 }
 
 // checkPackage extracts pkg at head, fills changed_func_cognitive_max from

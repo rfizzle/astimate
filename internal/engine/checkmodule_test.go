@@ -280,7 +280,18 @@ func TestCheckCrossPackageCopyOneFinding(t *testing.T) {
 	}
 	want := []finding{{metrics.ModuleRowID, "dup_blocks_cross_pkg"}}
 	if !slices.Equal(got, want) {
-		t.Errorf("violations = %v, want exactly %v", got, want)
+		t.Fatalf("violations = %v, want exactly %v", got, want)
+	}
+	// The finding names both copies, a.Checksum and b.Digest, and is
+	// located on the first for the GitHub annotation.
+	v := c.Module.Report.Violations[0]
+	const suggestion = "1 duplicate block is shared with other packages; " +
+		"extract the shared block in a/a.go:7-19 and b/b.go:13-25 into one package."
+	if v.Suggestion != suggestion {
+		t.Errorf("suggestion = %q, want %q", v.Suggestion, suggestion)
+	}
+	if v.File != "a/a.go" || v.Line != 7 {
+		t.Errorf("violation located at %q line %d, want a/a.go line 7", v.File, v.Line)
 	}
 }
 

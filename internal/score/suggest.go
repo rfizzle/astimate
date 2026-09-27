@@ -31,6 +31,10 @@ type Names struct {
 	// since the baseline, the one changed_func_cognitive_max reports, with
 	// its location when known, for example "Parser.next (parse.go:40)".
 	ChangedFunction string
+	// CrossBlocks lists the cross-package duplicate blocks behind
+	// dup_blocks_cross_pkg, first occurrence first, with files relative to
+	// the module root.
+	CrossBlocks []metrics.CrossBlock
 }
 
 // DriverSuggestions returns one suggestion per driver of r, in driver order,
@@ -122,10 +126,7 @@ func MetricSuggestion(metric string, head float64, m metrics.RawMetrics, n Names
 	case "has_tests":
 		return "The package has " + strconv.Itoa(m.SLOC) + " source lines and no tests; add tests that pin its behavior."
 	case "dup_blocks_cross_pkg":
-		if int(head) == 1 {
-			return "1 duplicate block is shared with other packages; extract it into one place."
-		}
-		return strconv.Itoa(int(head)) + " duplicate blocks are shared with other packages; extract them into one place."
+		return crossSentence(int(head), n.CrossBlocks)
 	case "uses_cgo":
 		return "The package imports \"C\"; cgo code is opaque to Go analysis and needs a C toolchain to build, so keep it behind a narrow Go API."
 	case "uses_reflect":
@@ -145,6 +146,53 @@ func dupSentence(blocks int, pct string, locations []string) string {
 		s += ", starting with " + locations[0]
 	}
 	return s + "."
+}
+
+// crossSentence renders the cross-package duplication template for n
+// blocks. When blocks names any, it cites the first block's first
+// occurrence and its first occurrence in another package, so the sentence
+// names both sides of the copy.
+func crossSentence(n int, blocks []metrics.CrossBlock) string {
+	s := count(n, "duplicate block is", "duplicate blocks are") + " shared with other packages; "
+	where := crossPair(blocks)
+	switch {
+	case where == "" && n == 1:
+		return s + "extract it into one place."
+	case where == "":
+		return s + "extract them into one place."
+	case n == 1:
+		return s + "extract the shared block in " + where + " into one package."
+	default:
+		return s + "extract each into one package, starting with the block in " + where + "."
+	}
+}
+
+// crossPair renders the first occurrence of the first of blocks and its
+// first occurrence in another package as "a/a.go:12-40 and b/b.go:8-36",
+// followed by "(and N more)" for further occurrences, or "" when blocks
+// names no pair.
+func crossPair(blocks []metrics.CrossBlock) string {
+	if len(blocks) == 0 || len(blocks[0].Occurrences) < 2 {
+		return ""
+	}
+	occ := blocks[0].Occurrences
+	first, second := occ[0], occ[1]
+	for _, o := range occ[1:] {
+		if o.Package != first.Package {
+			second = o
+			break
+		}
+	}
+	s := occurrenceText(first) + " and " + occurrenceText(second)
+	if more := len(occ) - 2; more > 0 {
+		s += " (and " + strconv.Itoa(more) + " more)"
+	}
+	return s
+}
+
+// occurrenceText renders o as "file:start-end".
+func occurrenceText(o metrics.Occurrence) string {
+	return o.File + ":" + strconv.Itoa(o.StartLine) + "-" + strconv.Itoa(o.EndLine)
 }
 
 // untestedSentence renders the untested-exports template for n exports,

@@ -393,6 +393,11 @@ func blockKeys(bs []Block) []string {
 	return out
 }
 
+// locationKey renders loc as "file:start-end".
+func locationKey(loc Location) string {
+	return loc.File + ":" + strconv.Itoa(loc.StartLine) + "-" + strconv.Itoa(loc.EndLine)
+}
+
 func TestBlocks(t *testing.T) {
 	// Files 0 and 3 are the same 11 tokens; file 1 shares their first 10;
 	// files 2 and 4 share a 10-token literal table.
@@ -406,8 +411,12 @@ func TestBlocks(t *testing.T) {
 		opts Options
 		want []Block
 	}{
-		{"literal table dropped", Options{MinTokens: 5, IgnoreLiteralOnly: true}, []Block{{10, []int32{0, 1, 3}}, {11, []int32{0, 3}}}},
-		{"literal table kept", Options{MinTokens: 5}, []Block{{10, []int32{0, 1, 3}}, {11, []int32{0, 3}}, {10, []int32{2, 4}}}},
+		{"literal table dropped", Options{MinTokens: 5, IgnoreLiteralOnly: true}, []Block{
+			{Tokens: 10, Files: []int32{0, 1, 3}}, {Tokens: 11, Files: []int32{0, 3}},
+		}},
+		{"literal table kept", Options{MinTokens: 5}, []Block{
+			{Tokens: 10, Files: []int32{0, 1, 3}}, {Tokens: 11, Files: []int32{0, 3}}, {Tokens: 10, Files: []int32{2, 4}},
+		}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -424,6 +433,29 @@ func TestBlocks(t *testing.T) {
 			}
 			if res.Blocks != len(got) {
 				t.Errorf("Count found %d blocks, Blocks %d", res.Blocks, len(got))
+			}
+			// Each block's locations parallel its files and, together, are
+			// the occurrences Count locates.
+			var locs []string
+			for _, b := range got {
+				if len(b.Locations) != len(b.Files) {
+					t.Fatalf("block of %d tokens has %d locations for %d files", b.Tokens, len(b.Locations), len(b.Files))
+				}
+				for i, loc := range b.Locations {
+					if want := "f" + strconv.Itoa(int(b.Files[i])); loc.File != want {
+						t.Errorf("location %d of a %d-token block is in %s, want %s", i, b.Tokens, loc.File, want)
+					}
+					locs = append(locs, locationKey(loc))
+				}
+			}
+			var want []string
+			for _, loc := range res.Locations {
+				want = append(want, locationKey(loc))
+			}
+			slices.Sort(locs)
+			slices.Sort(want)
+			if !slices.Equal(locs, want) {
+				t.Errorf("Blocks locations = %v, Count locations %v", locs, want)
 			}
 		})
 	}

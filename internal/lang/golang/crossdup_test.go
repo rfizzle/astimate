@@ -1,8 +1,10 @@
 package golang
 
 import (
+	"context"
 	"go/token"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -131,8 +133,8 @@ func TestCrossPackageAttribution(t *testing.T) {
 			if err != nil {
 				t.Fatalf("crossPackage: %v", err)
 			}
-			if blocks != tc.wantBlocks || !slices.Equal(perPkg, tc.wantPerPkg) {
-				t.Errorf("blocks, perPkg = %d, %v, want %d, %v", blocks, perPkg, tc.wantBlocks, tc.wantPerPkg)
+			if len(blocks) != tc.wantBlocks || !slices.Equal(perPkg, tc.wantPerPkg) {
+				t.Errorf("blocks, perPkg = %d, %v, want %d, %v", len(blocks), perPkg, tc.wantBlocks, tc.wantPerPkg)
 			}
 		})
 	}
@@ -163,8 +165,8 @@ func TestCrossDuplicationFixture(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := map[string]int{"example.com/fixture/a": 1, "example.com/fixture/b": 1}
-	if got.blocks != 1 || len(got.perPkg) != len(want) {
-		t.Fatalf("blocks, perPkg = %d, %v, want 1, %v", got.blocks, got.perPkg, want)
+	if len(got.blocks) != 1 || len(got.perPkg) != len(want) {
+		t.Fatalf("blocks, perPkg = %d, %v, want 1, %v", len(got.blocks), got.perPkg, want)
 	}
 	for path, n := range want {
 		if got.perPkg[path] != n {
@@ -172,14 +174,14 @@ func TestCrossDuplicationFixture(t *testing.T) {
 		}
 	}
 	again, err := crossDuplication(l, failing{}, defaultDupOptions())
-	if err != nil || again.blocks != got.blocks {
-		t.Errorf("second call = %d, %v, want the memoized %d without reading", again.blocks, err, got.blocks)
+	if err != nil || len(again.blocks) != len(got.blocks) {
+		t.Errorf("second call = %d, %v, want the memoized %d without reading", len(again.blocks), err, len(got.blocks))
 	}
 	short := defaultDupOptions()
 	short.minTokens = 1000
 	other, err := crossDuplication(l, osFiles{}, short)
-	if err != nil || other.blocks != 0 {
-		t.Errorf("with min_tokens 1000 = %d, %v, want 0: options must not share a memo", other.blocks, err)
+	if err != nil || len(other.blocks) != 0 {
+		t.Errorf("with min_tokens 1000 = %d, %v, want 0: options must not share a memo", len(other.blocks), err)
 	}
 	bad := defaultDupOptions()
 	bad.minTokens = 0
@@ -228,6 +230,66 @@ func TestModuleRow(t *testing.T) {
 	}
 	if sum != 2 {
 		t.Errorf("sum of per-package dup_blocks_cross_pkg = %d, want 2", sum)
+	}
+}
+
+// fixtureCrossBlock is the fixture's one cross-package block: a.Checksum
+// and its copy b.Digest.
+func fixtureCrossBlock() []metrics.CrossBlock {
+	return []metrics.CrossBlock{{Occurrences: []metrics.Occurrence{
+		{Package: "example.com/fixture/a", File: "a/a.go", StartLine: 7, EndLine: 19},
+		{Package: "example.com/fixture/b", File: "b/b.go", StartLine: 13, EndLine: 25},
+	}}}
+}
+
+// TestModuleDetails checks that the module row's details name every
+// cross-package block of the fixture with files relative to the module
+// root.
+func TestModuleDetails(t *testing.T) {
+	var ext metrics.Extractor = New()
+	md, ok := ext.(metrics.ModuleDetailer)
+	if !ok {
+		t.Fatal("the Go extractor does not implement metrics.ModuleDetailer")
+	}
+	mod := &metrics.ModuleContext{Root: fixtureRoot(t)}
+	got, err := md.ModuleDetails(t.Context(), mod)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got.CrossBlocks, fixtureCrossBlock()) {
+		t.Errorf("CrossBlocks = %+v, want %+v", got.CrossBlocks, fixtureCrossBlock())
+	}
+	// The result is a copy: changing it leaves the memoized pass intact.
+	got.CrossBlocks[0].Occurrences[0].File = "changed"
+	again, err := md.ModuleDetails(t.Context(), mod)
+	if err != nil || !reflect.DeepEqual(again.CrossBlocks, fixtureCrossBlock()) {
+		t.Errorf("second ModuleDetails = %+v, %v, want the fixture block unchanged", again.CrossBlocks, err)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if _, err := md.ModuleDetails(ctx, mod); err == nil {
+		t.Error("ModuleDetails with a cancelled context returned no error")
+	}
+}
+
+// TestDetailsCrossBlocks checks that a package's details list the
+// cross-package blocks touching it, with every occurrence, and that a
+// package no block touches lists none.
+func TestDetailsCrossBlocks(t *testing.T) {
+	e := New()
+	mod := &metrics.ModuleContext{Root: fixtureRoot(t)}
+	for _, pkg := range fixturePackages() {
+		d, err := e.Details(t.Context(), mod, pkg)
+		if err != nil {
+			t.Fatalf("Details(%s): %v", pkg, err)
+		}
+		var want []metrics.CrossBlock
+		if pkg == "example.com/fixture/a" || pkg == "example.com/fixture/b" {
+			want = fixtureCrossBlock()
+		}
+		if !reflect.DeepEqual(d.CrossBlocks, want) {
+			t.Errorf("%s: CrossBlocks = %+v, want %+v", pkg, d.CrossBlocks, want)
+		}
 	}
 }
 

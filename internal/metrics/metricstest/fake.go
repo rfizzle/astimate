@@ -124,7 +124,20 @@ func (f *fake) detailsOf(ctx context.Context, _ *metrics.ModuleContext, pkg stri
 		UntestedExports:  slices.Clone(d.UntestedExports),
 		UntestedExcluded: slices.Clone(d.UntestedExcluded),
 		DupLocations:     slices.Clone(d.DupLocations),
+		CrossBlocks:      cloneCrossBlocks(d.CrossBlocks),
 	}, nil
+}
+
+// cloneCrossBlocks returns a deep copy of bs, nil when bs is.
+func cloneCrossBlocks(bs []metrics.CrossBlock) []metrics.CrossBlock {
+	if bs == nil {
+		return nil
+	}
+	out := make([]metrics.CrossBlock, len(bs))
+	for i, b := range bs {
+		out[i] = metrics.CrossBlock{Occurrences: slices.Clone(b.Occurrences)}
+	}
+	return out
 }
 
 func (f *fake) Language() string { return f.lang }

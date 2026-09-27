@@ -92,6 +92,14 @@ type Finding struct {
 	Limit string `json:"limit"`
 	// Suggestion is the fix sentence.
 	Suggestion string `json:"suggestion"`
+	// File and Line locate the finding, for renderers that annotate a
+	// file, such as the module row's dup_blocks_cross_pkg finding on the
+	// first occurrence of the first shared block: File is relative to the
+	// module root in slash form and Line is 1-based. Empty when the finding
+	// has no location; a package finding is located by its package path.
+	// Neither is part of the SPEC.md 10.2 schema.
+	File string `json:"-"`
+	Line int    `json:"-"`
 }
 
 // Input is everything Build composes a report from.

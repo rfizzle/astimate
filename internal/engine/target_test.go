@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"testing"
 
@@ -122,10 +123,15 @@ func TestSuggestionNames(t *testing.T) {
 
 	const root = "/fake/module"
 	pkgs := map[string]metrics.RawMetrics{"p": {UntestedExports: 1, DupBlocks: 1}}
+	cross := []metrics.CrossBlock{{Occurrences: []metrics.Occurrence{
+		{Package: "p", File: "p/p.go", StartLine: 3, EndLine: 9},
+		{Package: "q", File: "q/q.go", StartLine: 1, EndLine: 7},
+	}}}
 	details := map[string]metrics.Details{"p": {
 		UntestedExports:  []string{"Parse"},
 		UntestedExcluded: []string{"Legacy"},
 		DupLocations:     []string{"p.go:3-9", "q.go:1-7"},
+		CrossBlocks:      cross,
 	}}
 	tests := []struct {
 		name string
@@ -133,7 +139,7 @@ func TestSuggestionNames(t *testing.T) {
 		want score.Names
 	}{
 		{name: "detailer", ext: metricstest.NewFake("fake", root, pkgs, metricstest.WithDetails(details)),
-			want: score.Names{UntestedExports: []string{"Parse"}, DupLocations: []string{"p.go:3-9", "q.go:1-7"}}},
+			want: score.Names{UntestedExports: []string{"Parse"}, DupLocations: []string{"p.go:3-9", "q.go:1-7"}, CrossBlocks: cross}},
 		{name: "counts only", ext: metricstest.NewFake("fake", root, pkgs)},
 	}
 	for _, tt := range tests {
@@ -146,7 +152,8 @@ func TestSuggestionNames(t *testing.T) {
 				t.Fatalf("suggestionNames: %v", err)
 			}
 			if !slices.Equal(got.UntestedExports, tt.want.UntestedExports) ||
-				!slices.Equal(got.DupLocations, tt.want.DupLocations) {
+				!slices.Equal(got.DupLocations, tt.want.DupLocations) ||
+				!reflect.DeepEqual(got.CrossBlocks, tt.want.CrossBlocks) {
 				t.Errorf("suggestionNames = %+v, want %+v", got, tt.want)
 			}
 		})

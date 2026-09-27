@@ -88,6 +88,28 @@ func TestCheckModuleRow(t *testing.T) {
 			t.Errorf("github =\n%s\nwant it to start with\n%s", buf.String(), want)
 		}
 	})
+	t.Run("github located", func(t *testing.T) {
+		t.Parallel()
+		c := moduleCheck()
+		c.Module.Report.Violations[0].File, c.Module.Report.Violations[0].Line = "a/a,b.go", 12
+		var buf bytes.Buffer
+		if err := WriteGitHub(&buf, c); err != nil {
+			t.Fatal(err)
+		}
+		want := "::error file=a/a%2Cb.go,line=12::module: dup_blocks_cross_pkg: 1 -> 2, max_delta +0. Extract them.\n" +
+			"::error file=internal/billing::dup_blocks: 1 -> 3"
+		if !strings.HasPrefix(buf.String(), want) {
+			t.Errorf("github =\n%s\nwant it to start with\n%s", buf.String(), want)
+		}
+		// The location is for annotations only: JSON keeps the 10.2 shape.
+		var js bytes.Buffer
+		if err := WriteCheckJSON(&js, c); err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(js.String(), "a/a,b.go") {
+			t.Errorf("json carries the annotation location:\n%s", js.String())
+		}
+	})
 	t.Run("hook and failed", func(t *testing.T) {
 		t.Parallel()
 		c := passingCheck()

@@ -30,24 +30,34 @@ package golang
 // package, and once in dup_blocks_cross_pkg for the copy elsewhere.
 //
 // Cost. The pass runs once per load and duplication options, on the first
-// Extract or ModuleRow that needs it, and its counts, not the file bytes,
-// are memoized on loaded. It is not run for the standard-library loads,
-// which are not modules: dup_blocks_cross_pkg is null there.
+// Extract or ModuleRow that needs it, and its counts and the locations of
+// the cross-package blocks, not the file bytes, are memoized on loaded, so
+// Details and ModuleDetails name the blocks without reading a file again.
+// It is not run for the standard-library loads, which are not modules:
+// dup_blocks_cross_pkg is null there.
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"go/token"
+	"path"
+	"slices"
+	"strings"
 	"sync"
 
 	"github.com/rfizzle/astimate/internal/lang/duptok"
+	"github.com/rfizzle/astimate/internal/metrics"
 )
 
 // crossDup is the cross-package duplication of one module load.
 type crossDup struct {
-	// blocks is the number of distinct duplicate blocks whose occurrences
-	// lie in two or more packages: the module row's dup_blocks_cross_pkg.
-	blocks int
+	// blocks are the distinct duplicate blocks whose occurrences lie in two
+	// or more packages, in order of first occurrence, each occurrence named
+	// by package import path and file relative to the module root. Its
+	// length is the module row's dup_blocks_cross_pkg. Shared read-only;
+	// callers clone before handing it out.
+	blocks []metrics.CrossBlock
 	// perPkg maps a package's import path to the number of those blocks
 	// with an occurrence in it; a package with none is absent.
 	perPkg map[string]int
@@ -104,20 +114,20 @@ func computeCrossDup(l *loaded, src fileSource, opts dupOptions) (crossDup, erro
 	z := newDupTokenizer(opts)
 	fs := token.NewFileSet()
 	filePkg := make([]int32, 0, len(l.paths))
-	for i, path := range l.paths {
+	for i, ip := range l.paths {
 		before := s.Files()
-		if err := z.appendPackage(fs, l, l.pkgs[path], src, &s); err != nil {
-			return crossDup{}, fmt.Errorf("detecting cross-package duplication in %s: %w", path, err)
+		if err := z.appendPackage(fs, l, l.pkgs[ip], src, &s); err != nil {
+			return crossDup{}, fmt.Errorf("detecting cross-package duplication in %s: %w", ip, err)
 		}
 		for range s.Files() - before {
 			filePkg = append(filePkg, int32(i))
 		}
 	}
-	blocks, perPkg, err := crossPackage(&s, filePkg, len(l.paths), opts)
+	found, perPkg, err := crossPackage(&s, filePkg, len(l.paths), opts)
 	if err != nil {
 		return crossDup{}, fmt.Errorf("detecting cross-package duplication: %w", err)
 	}
-	c := crossDup{blocks: blocks, perPkg: make(map[string]int)}
+	c := crossDup{blocks: crossBlocks(l, found, filePkg), perPkg: make(map[string]int)}
 	for i, n := range perPkg {
 		if n > 0 {
 			c.perPkg[l.paths[i]] = n
@@ -126,19 +136,63 @@ func computeCrossDup(l *loaded, src fileSource, opts dupOptions) (crossDup, erro
 	return c, nil
 }
 
-// crossPackage finds the duplicate blocks of s under opts and counts those
+// crossBlocks names the occurrences of the cross-package blocks found in
+// the module stream of l, whose file i belongs to package l.paths[filePkg[i]],
+// by package import path and file relative to the module root. Occurrences
+// are sorted by package, file and line, and blocks by first occurrence.
+func crossBlocks(l *loaded, found []duptok.Block, filePkg []int32) []metrics.CrossBlock {
+	if len(found) == 0 {
+		return nil
+	}
+	// dirs[k] is the directory of package k relative to the module root,
+	// in slash form: its import path less the module path.
+	dirs := make([]string, len(l.paths))
+	for k, p := range l.paths {
+		dirs[k] = strings.TrimPrefix(strings.TrimPrefix(p, l.modulePath), "/")
+	}
+	out := make([]metrics.CrossBlock, 0, len(found))
+	for _, b := range found {
+		occ := make([]metrics.Occurrence, len(b.Files))
+		for i, f := range b.Files {
+			k := filePkg[f]
+			loc := b.Locations[i]
+			occ[i] = metrics.Occurrence{
+				Package:   l.paths[k],
+				File:      path.Join(dirs[k], relFile(l.pkgs[l.paths[k]].Dir, loc.File)),
+				StartLine: loc.StartLine,
+				EndLine:   loc.EndLine,
+			}
+		}
+		slices.SortFunc(occ, compareOccurrence)
+		out = append(out, metrics.CrossBlock{Occurrences: occ})
+	}
+	slices.SortFunc(out, func(a, b metrics.CrossBlock) int {
+		return cmp.Or(compareOccurrence(a.Occurrences[0], b.Occurrences[0]),
+			cmp.Compare(len(a.Occurrences), len(b.Occurrences)))
+	})
+	return out
+}
+
+// compareOccurrence orders occurrences by package, file, first line and
+// last line.
+func compareOccurrence(a, b metrics.Occurrence) int {
+	return cmp.Or(cmp.Compare(a.Package, b.Package), cmp.Compare(a.File, b.File),
+		cmp.Compare(a.StartLine, b.StartLine), cmp.Compare(a.EndLine, b.EndLine))
+}
+
+// crossPackage finds the duplicate blocks of s under opts and keeps those
 // whose occurrences lie in two or more packages, where filePkg[i] is the
-// package index, below npkg, of the stream's file i. It returns the number
-// of such blocks and, per package index, how many of them touch that
-// package; a block counts once per package however many of its occurrences
-// the package holds.
-func crossPackage(s *duptok.Stream, filePkg []int32, npkg int, opts dupOptions) (blocks int, perPkg []int, err error) {
+// package index, below npkg, of the stream's file i. It returns those
+// blocks and, per package index, how many of them touch that package; a
+// block counts once per package however many of its occurrences the
+// package holds.
+func crossPackage(s *duptok.Stream, filePkg []int32, npkg int, opts dupOptions) (cross []duptok.Block, perPkg []int, err error) {
 	if len(filePkg) != s.Files() {
-		return 0, nil, errors.New("package table does not cover every file")
+		return nil, nil, errors.New("package table does not cover every file")
 	}
 	found, err := s.Blocks(opts.finder())
 	if err != nil {
-		return 0, nil, err
+		return nil, nil, err
 	}
 	perPkg = make([]int, npkg)
 	// last[k] is the block index that last touched package k, plus one, so
@@ -157,10 +211,24 @@ func crossPackage(s *duptok.Stream, filePkg []int32, npkg int, opts dupOptions) 
 		if len(touched) < 2 {
 			continue
 		}
-		blocks++
+		cross = append(cross, b)
 		for _, k := range touched {
 			perPkg[k]++
 		}
 	}
-	return blocks, perPkg, nil
+	return cross, perPkg, nil
+}
+
+// crossBlocksOf returns deep copies of the blocks of c with an occurrence
+// in the package with import path pkg, or every block when pkg is empty;
+// nil when there are none.
+func crossBlocksOf(c crossDup, pkg string) []metrics.CrossBlock {
+	var out []metrics.CrossBlock
+	for _, b := range c.blocks {
+		if pkg != "" && !slices.ContainsFunc(b.Occurrences, func(o metrics.Occurrence) bool { return o.Package == pkg }) {
+			continue
+		}
+		out = append(out, metrics.CrossBlock{Occurrences: slices.Clone(b.Occurrences)})
+	}
+	return out
 }

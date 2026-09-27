@@ -2,6 +2,7 @@ package golang
 
 import (
 	"context"
+	"fmt"
 	"go/token"
 	"path/filepath"
 	"slices"
@@ -11,12 +12,13 @@ import (
 	"github.com/rfizzle/astimate/internal/metrics"
 )
 
-// Details returns the names behind untested_exports and the duplicate block
-// locations of the package with import path pkg, from the details its most
-// recent Extract on mod recorded. When nothing is recorded it runs Extract
+// Details returns the names behind untested_exports, the duplicate block
+// locations and the cross-package blocks touching the package with import
+// path pkg, from the details its most recent Extract on mod recorded and
+// the memoized cross-package pass. When nothing is recorded it runs Extract
 // first, so it fails exactly when Extract would.
 func (e *Extractor) Details(ctx context.Context, mod *metrics.ModuleContext, pkg string) (metrics.Details, error) {
-	d, _, dir, err := e.recorded(ctx, mod, pkg)
+	d, l, dir, err := e.recorded(ctx, mod, pkg)
 	if err != nil {
 		return metrics.Details{}, err
 	}
@@ -24,10 +26,21 @@ func (e *Extractor) Details(ctx context.Context, mod *metrics.ModuleContext, pkg
 	for _, loc := range d.dupLocations {
 		locs = append(locs, relLocation(dir, loc))
 	}
+	var cross []metrics.CrossBlock
+	if crossApplies(l) {
+		// Extract has run the cross-package pass for e.dup, so this is the
+		// memoized result and reads no file.
+		c, err := crossDuplication(l, osFiles{}, e.dup)
+		if err != nil {
+			return metrics.Details{}, fmt.Errorf("details of %s: %w", pkg, err)
+		}
+		cross = crossBlocksOf(c, pkg)
+	}
 	return metrics.Details{
 		UntestedExports:  slices.Clone(d.untestedNames),
 		UntestedExcluded: slices.Clone(d.untestedExcluded),
 		DupLocations:     locs,
+		CrossBlocks:      cross,
 	}, nil
 }
 

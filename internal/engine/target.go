@@ -298,5 +298,5 @@ func suggestionNames(ctx context.Context, ext metrics.Extractor, mod *metrics.Mo
 	if err != nil {
 		return score.Names{}, fmt.Errorf("naming suggestions for %s: %w", pkg, err)
 	}
-	return score.Names{UntestedExports: det.UntestedExports, DupLocations: det.DupLocations}, nil
+	return score.Names{UntestedExports: det.UntestedExports, DupLocations: det.DupLocations, CrossBlocks: det.CrossBlocks}, nil
 }

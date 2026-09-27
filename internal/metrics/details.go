@@ -17,6 +17,36 @@ type Details struct {
 	// rendered "file:start-end" with file relative to the package directory
 	// and start and end the first and last lines of the occurrence.
 	DupLocations []string
+	// CrossBlocks lists the cross-package duplicate blocks behind
+	// dup_blocks_cross_pkg, each with all its occurrences, in whichever
+	// package they lie. For a package (Detailer) it holds the blocks that
+	// touch the package, so its length equals the package's
+	// dup_blocks_cross_pkg; for the module row (ModuleDetailer) it holds
+	// every cross-package block of the module, so its length equals the
+	// row's dup_blocks_cross_pkg. Blocks are in order of first occurrence.
+	// Nil when there are none or the implementation does not compute them.
+	CrossBlocks []CrossBlock
+}
+
+// CrossBlock is one duplicate block whose occurrences lie in two or more
+// packages of a module.
+type CrossBlock struct {
+	// Occurrences are the block's occurrences, at least two, in order of
+	// package identifier, then file, then line.
+	Occurrences []Occurrence
+}
+
+// Occurrence is one occurrence of a duplicate block.
+type Occurrence struct {
+	// Package is the native identifier of the package holding the
+	// occurrence, as Extractor.Packages lists it.
+	Package string
+	// File is the file holding the occurrence, relative to the module root
+	// in slash form.
+	File string
+	// StartLine and EndLine are the first and last 1-based lines holding
+	// the occurrence's tokens.
+	StartLine, EndLine int
 }
 
 // Detailer is an optional interface an Extractor implements when it can name
@@ -28,4 +58,15 @@ type Detailer interface {
 	// when nothing is recorded for pkg yet. It fails for a package Extract
 	// would reject.
 	Details(ctx context.Context, mod *ModuleContext, pkg string) (Details, error)
+}
+
+// ModuleDetailer is an optional interface an Extractor that implements
+// ModuleMetrics implements when it can name what the module row's counts
+// refer to. Callers type-assert an Extractor to it and fall back to counts
+// alone when the assertion fails.
+type ModuleDetailer interface {
+	// ModuleDetails returns the details of the module row of the module
+	// described by mod: today only CrossBlocks, every cross-package block
+	// behind the row's dup_blocks_cross_pkg. It fails when ModuleRow would.
+	ModuleDetails(ctx context.Context, mod *ModuleContext) (Details, error)
 }

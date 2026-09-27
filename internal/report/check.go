@@ -312,8 +312,11 @@ func WriteHook(w, warnings io.Writer, c *Check) error {
 // "::error file=<dir>::" annotation per violation and one
 // "::warning file=<dir>::" per warning, package by package, with the
 // property and message escaped per the workflow-command rules. The module
-// row's findings come first, with no file, since the module row has no
-// directory, and their message leads with "module: ".
+// row's findings come first, and their message leads with "module: ". The
+// module row has no directory: a finding of it with a location
+// (Finding.File and Line, as the dup_blocks_cross_pkg finding has when the
+// extractor names the shared blocks) is annotated "file=<file>,line=<line>"
+// on it, and one without carries no file.
 func WriteGitHub(w io.Writer, c *Check) error {
 	bw := bufio.NewWriter(w)
 	for _, p := range c.rows() {
@@ -323,16 +326,31 @@ func WriteGitHub(w io.Writer, c *Check) error {
 			prop, lead = "", r.PackagePath+": "
 		}
 		for j := range r.Violations {
-			_, _ = bw.WriteString("::error" + prop + "::" + escapeData(lead+findingText(&r.Violations[j])) + "\n")
+			f := &r.Violations[j]
+			_, _ = bw.WriteString("::error" + findingProperty(prop, f) + "::" + escapeData(lead+findingText(f)) + "\n")
 		}
 		for j := range r.Warnings {
-			_, _ = bw.WriteString("::warning" + prop + "::" + escapeData(lead+findingText(&r.Warnings[j])) + "\n")
+			f := &r.Warnings[j]
+			_, _ = bw.WriteString("::warning" + findingProperty(prop, f) + "::" + escapeData(lead+findingText(f)) + "\n")
 		}
 	}
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("writing github annotations: %w", err)
 	}
 	return nil
+}
+
+// findingProperty returns the annotation properties of f: its own file and
+// line when it has a location, and prop, its row's, otherwise.
+func findingProperty(prop string, f *Finding) string {
+	if f.File == "" {
+		return prop
+	}
+	s := " file=" + escapeProperty(f.File)
+	if f.Line > 0 {
+		s += ",line=" + strconv.Itoa(f.Line)
+	}
+	return s
 }
 
 // escapeData escapes a workflow-command message: %, \r and \n.

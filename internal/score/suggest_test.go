@@ -327,3 +327,43 @@ func TestMetricSuggestionV1Templates(t *testing.T) {
 		}
 	}
 }
+
+// TestMetricSuggestionCrossBlocks checks that the dup_blocks_cross_pkg
+// template names both sides of the first shared block when the names carry
+// it: the first occurrence and the first in another package.
+func TestMetricSuggestionCrossBlocks(t *testing.T) {
+	t.Parallel()
+
+	occ := func(pkg, file string, start, end int) metrics.Occurrence {
+		return metrics.Occurrence{Package: pkg, File: file, StartLine: start, EndLine: end}
+	}
+	pair := []metrics.CrossBlock{
+		{Occurrences: []metrics.Occurrence{occ("m/a", "a/a.go", 12, 40), occ("m/b", "b/b.go", 8, 36)}},
+		{Occurrences: []metrics.Occurrence{occ("m/c", "c/c.go", 1, 9), occ("m/d", "d/d.go", 2, 10)}},
+	}
+	tests := []struct {
+		name   string
+		head   float64
+		blocks []metrics.CrossBlock
+		want   string
+	}{
+		{"one block", 1, pair[:1],
+			"1 duplicate block is shared with other packages; extract the shared block in a/a.go:12-40 and b/b.go:8-36 into one package."},
+		{"several blocks cite the first", 2, pair,
+			"2 duplicate blocks are shared with other packages; extract each into one package, starting with the block in a/a.go:12-40 and b/b.go:8-36."},
+		{"second copy in the same package is skipped", 1, []metrics.CrossBlock{{Occurrences: []metrics.Occurrence{
+			occ("m/a", "a/a.go", 12, 40), occ("m/a", "a/z.go", 3, 31), occ("m/b", "b/b.go", 8, 36),
+		}}},
+			"1 duplicate block is shared with other packages; extract the shared block in a/a.go:12-40 and b/b.go:8-36 (and 1 more) into one package."},
+		{"no names", 1, nil, "1 duplicate block is shared with other packages; extract it into one place."},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := MetricSuggestion("dup_blocks_cross_pkg", tt.head, metrics.RawMetrics{}, Names{CrossBlocks: tt.blocks})
+			if got != tt.want {
+				t.Errorf("MetricSuggestion = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}

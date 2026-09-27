@@ -165,19 +165,42 @@ func (e *Extractor) Extract(ctx context.Context, mod *metrics.ModuleContext, pkg
 // occurrences lie in two or more of the module's packages. It shares the
 // load and the memoized cross-package pass with Extract.
 func (e *Extractor) ModuleRow(ctx context.Context, mod *metrics.ModuleContext) (metrics.RawMetrics, error) {
-	l, err := e.cached(ctx, mod)
+	cross, err := e.moduleCross(ctx, mod)
 	if err != nil {
 		return metrics.RawMetrics{}, err
 	}
+	n := len(cross.blocks)
+	return metrics.RawMetrics{DupBlocksCrossPkg: &n}, nil
+}
+
+// ModuleDetails returns the details of the module row of the module at
+// mod.Root (metrics.ModuleDetailer): every cross-package duplicate block
+// counted by the row's dup_blocks_cross_pkg, with all its occurrences. It
+// shares the memoized cross-package pass with ModuleRow and Extract, so it
+// reads no file once either has run, and fails when ModuleRow would.
+func (e *Extractor) ModuleDetails(ctx context.Context, mod *metrics.ModuleContext) (metrics.Details, error) {
+	cross, err := e.moduleCross(ctx, mod)
+	if err != nil {
+		return metrics.Details{}, err
+	}
+	return metrics.Details{CrossBlocks: crossBlocksOf(cross, "")}, nil
+}
+
+// moduleCross returns the memoized cross-package duplication of the module
+// at mod.Root, loading the module and running the pass on first use.
+func (e *Extractor) moduleCross(ctx context.Context, mod *metrics.ModuleContext) (crossDup, error) {
+	l, err := e.cached(ctx, mod)
+	if err != nil {
+		return crossDup{}, err
+	}
 	if err := ctx.Err(); err != nil {
-		return metrics.RawMetrics{}, fmt.Errorf("extracting %s: %w", metrics.ModuleRowID, err)
+		return crossDup{}, fmt.Errorf("extracting %s: %w", metrics.ModuleRowID, err)
 	}
 	cross, err := crossDuplication(l, osFiles{}, e.dup)
 	if err != nil {
-		return metrics.RawMetrics{}, fmt.Errorf("extracting %s: %w", metrics.ModuleRowID, err)
+		return crossDup{}, fmt.Errorf("extracting %s: %w", metrics.ModuleRowID, err)
 	}
-	n := cross.blocks
-	return metrics.RawMetrics{DupBlocksCrossPkg: &n}, nil
+	return cross, nil
 }
 
 // counter returns the token counter the tokenizer option selects. The o200k

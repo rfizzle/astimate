@@ -3,8 +3,9 @@
 // from. An extractor scans each non-test file of a package into a Stream,
 // one int32 code and one Class per token, and Count returns dup_blocks,
 // duplication_pct and the location of every occurrence; Blocks returns the
-// files each block occurs in, for passes such as the Go extractor's
-// cross-package count that attribute blocks rather than measure coverage.
+// files and locations of each block's occurrences, for passes such as the
+// Go extractor's cross-package count that attribute blocks rather than
+// measure coverage.
 //
 // Stream. Each file is followed by a separator code, SeparatorBase plus the
 // file's index. Separators are unique in the stream and above every token
@@ -196,12 +197,15 @@ type Block struct {
 	// in no particular order, and a file holding several occurrences
 	// appears once per occurrence.
 	Files []int32
+	// Locations holds the location of each occurrence, in the same order
+	// as Files: Locations[i] lies in file Files[i].
+	Locations []Location
 }
 
 // Blocks finds the duplicate blocks of the stream under opts, the same
-// blocks Count counts, and returns the files each occurs in, in no
-// particular order of blocks. Tokens added after the last EndFile are
-// ignored.
+// blocks Count counts, and returns the files and locations of each block's
+// occurrences, in no particular order of blocks. Tokens added after the
+// last EndFile are ignored.
 func (s *Stream) Blocks(opts Options) ([]Block, error) {
 	sa, reps, err := s.find(opts)
 	if err != nil {
@@ -212,13 +216,16 @@ func (s *Stream) Blocks(opts Options) ([]Block, error) {
 		total += int(r.rb - r.lb + 1)
 	}
 	files := make([]int32, 0, total)
+	locs := make([]Location, 0, total)
 	out := make([]Block, 0, len(reps))
 	for _, r := range reps {
 		start := len(files)
 		for _, p := range sa[r.lb : r.rb+1] {
 			files = append(files, s.file[p])
+			locs = append(locs, s.location(p, r.n))
 		}
-		out = append(out, Block{Tokens: int(r.n), Files: files[start:len(files):len(files)]})
+		end := len(files)
+		out = append(out, Block{Tokens: int(r.n), Files: files[start:end:end], Locations: locs[start:end:end]})
 	}
 	return out, nil
 }
@@ -304,12 +311,7 @@ func (s *Stream) count(sa []int32, reps []repeat, sloc int) Result {
 		for _, p := range b.pos {
 			diff[p]++
 			diff[p+b.n]--
-			end := p + b.n - 1
-			res.Locations = append(res.Locations, Location{
-				File:      s.files[s.file[p]].name,
-				StartLine: int(s.line[p]),
-				EndLine:   int(s.last[end]),
-			})
+			res.Locations = append(res.Locations, s.location(p, b.n))
 		}
 	}
 
@@ -338,6 +340,16 @@ func (s *Stream) count(sa []int32, reps []repeat, sloc int) Result {
 	}
 	res.Pct = Percent(lines, sloc)
 	return res
+}
+
+// location returns the location of the occurrence of n tokens starting at
+// stream position p.
+func (s *Stream) location(p, n int32) Location {
+	return Location{
+		File:      s.files[s.file[p]].name,
+		StartLine: int(s.line[p]),
+		EndLine:   int(s.last[p+n-1]),
+	}
 }
 
 // Percent returns covered / sloc * 100 rounded to one decimal, or 0 when
