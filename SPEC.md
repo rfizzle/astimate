@@ -111,7 +111,7 @@ type Extractor interface {
 }
 ```
 
-**Testing pattern.** The contract is defined once in `internal/metrics` and verified once by a conformance suite in `internal/metrics/metricstest`, an importable non-test package in the style of `testing/fstest`. It exports `TestExtractor(t, ext, fixture)`, which checks detection, package listing, validation, determinism, error handling, cross-package invariants (the module-wide sum of `fan_in` equals the sum of `internal_imports`; `has_tests` agrees with `test_funcs`) and golden comparison against `testdata/<lang>/fixture/golden/*.json`. Every language extractor's own tests call it once; language-specific unit tests (import path rules, statement kinds, tokenizer normalization) stay in the nested package. `metricstest` also exports a fake extractor built from a map of `RawMetrics`, so the estimate, gate and CLI can be tested without loading a real module.
+**Testing pattern.** The contract is defined once in `internal/metrics` and verified once by a conformance suite in `internal/metrics/metricstest`, an importable non-test package in the style of `testing/fstest`. It exports `TestExtractor(t, ext, fixture)`, which checks detection, package listing, validation, determinism, error handling, cross-package invariants (the module-wide sum of `fan_in` equals the sum of `internal_imports`; `has_tests` agrees with `test_funcs`) and golden comparison against `testdata/<lang>/fixture/golden/*.json`. Every language extractor's own tests call it once; language-specific unit tests (import path rules, statement kinds, tokenizer normalization) stay in the nested package. `metricstest` also exports a fake extractor built from a map of `RawMetrics`, so the estimate, gate and CLI can be tested without loading a real module. `Packages` returns the language's native package identifier (Go: the full import path); golden files are named by that identifier with the module path prefix removed, so `example.com/fixture/a` is `golden/a.json` and the root package is `golden/root.json`.
 
 ## 6. Raw metrics
 
@@ -324,6 +324,8 @@ astimate version
 ```
 
 Exit codes: 0 success or gate passed, 1 usage error, 2 analysis failure, 3 gate failed. Logs go to stderr only.
+
+Config resolution: `--config <path>`, then `./astimate.yaml`, then the embedded default. A user config must be complete; missing fields are errors rather than being filled from the default, and `config init` writes a complete file to start from.
 
 ## 10. MCP server
 
