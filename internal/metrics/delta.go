@@ -54,12 +54,18 @@ type MetricDeltas struct {
 	// UntestedExports is the change in untested_exports.
 	UntestedExports int `json:"untested_exports"`
 
-	// ConcreteParamRatio is the change in concrete_param_ratio, nil when head
-	// did not compute it.
-	ConcreteParamRatio *float64 `json:"concrete_param_ratio"`
 	// DupBlocksCrossPkg is the change in dup_blocks_cross_pkg, nil when head
 	// did not compute it.
 	DupBlocksCrossPkg *int `json:"dup_blocks_cross_pkg"`
+	// Instability is the change in instability, nil when head did not
+	// compute it.
+	Instability *float64 `json:"instability"`
+	// Abstractness is the change in abstractness, nil when head did not
+	// compute it.
+	Abstractness *float64 `json:"abstractness"`
+	// MainSequenceDistance is the change in main_sequence_distance, nil when
+	// head did not compute it.
+	MainSequenceDistance *float64 `json:"main_sequence_distance"`
 	// UsesCgo is the change in uses_cgo as -1, 0 or +1, nil when head did not
 	// compute it.
 	UsesCgo *int `json:"uses_cgo"`
@@ -104,8 +110,10 @@ func (m *RawMetrics) Delta(base RawMetrics) MetricDeltas {
 		TestFuncs:               m.TestFuncs - base.TestFuncs,
 		HasTests:                boolInt(m.HasTests) - boolInt(base.HasTests),
 		UntestedExports:         m.UntestedExports - base.UntestedExports,
-		ConcreteParamRatio:      deltaOpt(m.ConcreteParamRatio, base.ConcreteParamRatio),
 		DupBlocksCrossPkg:       deltaOpt(m.DupBlocksCrossPkg, base.DupBlocksCrossPkg),
+		Instability:             deltaOpt(m.Instability, base.Instability),
+		Abstractness:            deltaOpt(m.Abstractness, base.Abstractness),
+		MainSequenceDistance:    deltaOpt(m.MainSequenceDistance, base.MainSequenceDistance),
 		UsesCgo:                 deltaOptBool(m.UsesCgo, base.UsesCgo),
 		UsesReflect:             deltaOptBool(m.UsesReflect, base.UsesReflect),
 		GeneratedFiles:          deltaOpt(m.GeneratedFiles, base.GeneratedFiles),
@@ -165,10 +173,14 @@ func (d *MetricDeltas) Value(name string) (float64, bool) {
 		return float64(d.HasTests), true
 	case "untested_exports":
 		return float64(d.UntestedExports), true
-	case "concrete_param_ratio":
-		return optFloat(d.ConcreteParamRatio)
 	case "dup_blocks_cross_pkg":
 		return optInt(d.DupBlocksCrossPkg)
+	case "instability":
+		return optFloat(d.Instability)
+	case "abstractness":
+		return optFloat(d.Abstractness)
+	case "main_sequence_distance":
+		return optFloat(d.MainSequenceDistance)
 	case "uses_cgo":
 		return optInt(d.UsesCgo)
 	case "uses_reflect":

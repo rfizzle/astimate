@@ -21,5 +21,6 @@
   "test_files": 3,
   "test_funcs": 4,
   "has_tests": true,
-  "untested_exports": 0
+  "untested_exports": 0,
+  "instability": 1
 }

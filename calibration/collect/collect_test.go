@@ -73,6 +73,20 @@ func TestCollectModule(t *testing.T) {
 				if r.Module != tt.module || r.Commit != commit || !strings.HasPrefix(r.Package, tt.module) {
 					t.Errorf("row identifiers %q %q %q", r.Module, r.Commit, r.Package)
 				}
+				// The coupling metrics ride along in the metrics object so
+				// the calibration report can show their distribution.
+				var metricKeys map[string]json.RawMessage
+				if err := json.Unmarshal(got["metrics"], &metricKeys); err != nil {
+					t.Fatal(err)
+				}
+				for _, k := range []string{"instability", "abstractness", "main_sequence_distance"} {
+					if _, ok := metricKeys[k]; !ok {
+						t.Errorf("row %s metrics lack %q", r.Package, k)
+					}
+				}
+				if r.Package == "example.com/fixture/hub" && (r.Metrics.Instability == nil || *r.Metrics.Instability != 0) {
+					t.Errorf("hub instability = %v, want 0", r.Metrics.Instability)
+				}
 				pkgs = append(pkgs, r.Package)
 			}
 			if !slices.Contains(pkgs, tt.wantPkg) {

@@ -14,16 +14,19 @@ type sizeCounts struct {
 	files           int
 	sloc            int
 	largestFileSLOC int
-	exportedSymbols int
+	// exports holds exported_symbols and the exported type counts that
+	// abstractness is computed from.
+	exports exportCounts
 	// perFile maps the absolute filename of each non-test file to its SLOC,
 	// for metrics that weigh lines per file, such as duplication coverage.
 	perFile map[string]int
 }
 
 // size computes files, sloc, largest_file_sloc and exported_symbols for p
-// from its non-test files, read through src to count source lines. It
-// iterates sourceSyntax, the trees of p.GoFiles, so for a cgo package too
-// perFile has one entry per counted file.
+// from its non-test files, with the exported type counts behind
+// abstractness, read through src to count source lines. It iterates
+// sourceSyntax, the trees of p.GoFiles, so for a cgo package too perFile has
+// one entry per counted file.
 func size(l *loaded, p *packages.Package, src fileSource) (sizeCounts, error) {
 	c := sizeCounts{
 		files:   len(p.GoFiles),
@@ -42,7 +45,7 @@ func size(l *loaded, p *packages.Package, src fileSource) (sizeCounts, error) {
 		c.perFile[tf.Name()] = n
 		c.sloc += n
 		c.largestFileSLOC = max(c.largestFileSLOC, n)
-		c.exportedSymbols += exportedSymbols(f)
+		c.exports.add(exportedSymbols(f))
 	}
 	return c, nil
 }
@@ -93,41 +96,71 @@ func isSpace(b byte) bool {
 	return b == ' ' || b == '\t' || b == '\r' || b == '\v' || b == '\f'
 }
 
+// exportCounts holds the exported declarations of one file or package.
+type exportCounts struct {
+	// symbols is exported_symbols: funcs, methods, types, vars and consts.
+	symbols int
+	// types counts exported type specs, aliases included.
+	types int
+	// interfaceTypes counts the exported type specs whose type expression
+	// is an interface literal.
+	interfaceTypes int
+}
+
+// add accumulates o into c.
+func (c *exportCounts) add(o exportCounts) {
+	c.symbols += o.symbols
+	c.types += o.types
+	c.interfaceTypes += o.interfaceTypes
+}
+
 // exportedSymbols counts the exported top-level funcs, types, var and const
 // names, and exported methods on any receiver, exported or not, declared in
-// f. Struct fields and interface methods are not counted.
-func exportedSymbols(f *ast.File) int {
-	n := 0
+// f, with the exported types among them and the interface types among those.
+// Struct fields and interface methods are not counted.
+func exportedSymbols(f *ast.File) exportCounts {
+	var c exportCounts
 	for _, d := range f.Decls {
 		switch d := d.(type) {
 		case *ast.FuncDecl:
 			if d.Name.IsExported() {
-				n++
+				c.symbols++
 			}
 		case *ast.GenDecl:
 			for _, s := range d.Specs {
-				n += exportedInSpec(s)
+				c.add(exportedInSpec(s))
 			}
 		}
 	}
-	return n
+	return c
 }
 
 // exportedInSpec counts the exported names a type, var or const spec
 // declares. Import specs declare none.
-func exportedInSpec(s ast.Spec) int {
-	n := 0
+//
+// An exported type spec is an interface type when its type expression is an
+// interface literal, generic and constraint interfaces included. The test is
+// syntactic, so an alias of an interface literal (type I = interface{ M() })
+// counts, while an alias or definition naming another type, such as
+// type R = io.Reader or type R io.Reader, does not, even when that type is an
+// interface: resolving it would need type information for one ratio's input.
+func exportedInSpec(s ast.Spec) exportCounts {
+	var c exportCounts
 	switch s := s.(type) {
 	case *ast.TypeSpec:
 		if s.Name.IsExported() {
-			n++
+			c.symbols++
+			c.types++
+			if _, ok := s.Type.(*ast.InterfaceType); ok {
+				c.interfaceTypes++
+			}
 		}
 	case *ast.ValueSpec:
 		for _, name := range s.Names {
 			if name.IsExported() {
-				n++
+				c.symbols++
 			}
 		}
 	}
-	return n
+	return c
 }

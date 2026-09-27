@@ -53,22 +53,28 @@ func TestExportedSymbols(t *testing.T) {
 	cases := []struct {
 		name string
 		src  string
-		want int
+		want exportCounts
 	}{
-		{"func", "package p\nfunc F() {}\nfunc f() {}\n", 1},
-		{"type", "package p\ntype T int\ntype t int\ntype (\n\tU int\n\tu int\n)\n", 2},
-		{"var names", "package p\nvar A, b, C = 1, 2, 3\nvar (\n\tD int\n\t_ int\n)\n", 3},
-		{"const names", "package p\nconst (\n\tX = iota\n\tY\n\tz\n)\n", 2},
-		{"method on exported type", "package p\ntype T struct{}\nfunc (T) M() {}\nfunc (*T) m() {}\n", 2},
-		{"method on unexported type", "package p\ntype t struct{}\nfunc (t) M() {}\nfunc (*t) N() {}\n", 2},
-		{"fields and interface methods", "package p\ntype s struct{ F int }\ntype i interface{ M() }\n", 0},
-		{"imports", "package p\nimport Fmt \"fmt\"\nvar _ = Fmt.Sprint\n", 0},
+		{"func", "package p\nfunc F() {}\nfunc f() {}\n", exportCounts{symbols: 1}},
+		{"type", "package p\ntype T int\ntype t int\ntype (\n\tU int\n\tu int\n)\n", exportCounts{symbols: 2, types: 2}},
+		{"var names", "package p\nvar A, b, C = 1, 2, 3\nvar (\n\tD int\n\t_ int\n)\n", exportCounts{symbols: 3}},
+		{"const names", "package p\nconst (\n\tX = iota\n\tY\n\tz\n)\n", exportCounts{symbols: 2}},
+		{"method on exported type", "package p\ntype T struct{}\nfunc (T) M() {}\nfunc (*T) m() {}\n", exportCounts{symbols: 2, types: 1}},
+		{"method on unexported type", "package p\ntype t struct{}\nfunc (t) M() {}\nfunc (*t) N() {}\n", exportCounts{symbols: 2}},
+		{"fields and interface methods", "package p\ntype s struct{ F int }\ntype i interface{ M() }\n", exportCounts{}},
+		{"imports", "package p\nimport Fmt \"fmt\"\nvar _ = Fmt.Sprint\n", exportCounts{}},
+		{"only exported type is an interface", "package p\ntype I interface{ M() }\ntype s struct{}\n", exportCounts{symbols: 1, types: 1, interfaceTypes: 1}},
+		{"interface and struct", "package p\ntype (\n\tI interface{ M() }\n\tS struct{}\n)\n", exportCounts{symbols: 2, types: 2, interfaceTypes: 1}},
+		{"generic and constraint interfaces", "package p\ntype G[T any] interface{ Get() T }\ntype N interface{ ~int | ~float64 }\n", exportCounts{symbols: 2, types: 2, interfaceTypes: 2}},
+		{"alias of interface literal", "package p\ntype A = interface{ M() }\n", exportCounts{symbols: 1, types: 1, interfaceTypes: 1}},
+		{"alias of named interface", "package p\nimport \"io\"\ntype R = io.Reader\n", exportCounts{symbols: 1, types: 1}},
+		{"definition from named interface", "package p\nimport \"io\"\ntype R io.Reader\n", exportCounts{symbols: 1, types: 1}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			_, f := parseForSize(t, tc.src)
 			if got := exportedSymbols(f); got != tc.want {
-				t.Errorf("exportedSymbols = %d, want %d", got, tc.want)
+				t.Errorf("exportedSymbols = %+v, want %+v", got, tc.want)
 			}
 		})
 	}

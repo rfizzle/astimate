@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/gate"
+	"github.com/rfizzle/astimate/internal/metrics"
 )
 
 func TestDefault(t *testing.T) {
@@ -240,6 +241,59 @@ func TestParseEmpty(t *testing.T) {
 
 	if _, err := Parse(nil); err == nil {
 		t.Fatal("Parse(nil) error = nil, want error")
+	}
+}
+
+// TestDefaultGatesMatchExplanations checks that metrics.Explain's Gated flag
+// names exactly the metrics the embedded default thresholds, so the reported
+// but ungated coupling metrics stay out of the default.
+func TestDefaultGatesMatchExplanations(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := Parse(Default())
+	if err != nil {
+		t.Fatalf("Parse(Default()) error = %v", err)
+	}
+	gated := map[string]bool{}
+	for _, th := range cfg.Thresholds {
+		gated[th.Metric] = true
+	}
+	for _, name := range metrics.MetricNames() {
+		e, ok := metrics.Explain(name)
+		if !ok {
+			t.Errorf("Explain(%q) has no entry", name)
+			continue
+		}
+		if e.Gated != gated[name] {
+			t.Errorf("Explain(%q).Gated = %v, default thresholds gate it: %v", name, e.Gated, gated[name])
+		}
+	}
+	for _, name := range []string{"instability", "abstractness", "main_sequence_distance"} {
+		if gated[name] || strings.Contains(string(Default()), name) {
+			t.Errorf("default configuration references %s, which is reported only", name)
+		}
+	}
+}
+
+// TestParseAcceptsCouplingMetrics checks that the coupling metrics are known
+// metric names, so a user config may still gate them, and that the removed
+// concrete_param_ratio is not.
+func TestParseAcceptsCouplingMetrics(t *testing.T) {
+	t.Parallel()
+
+	rule := func(name string) string {
+		return "  - metric: " + name + "\n    kind: capacity\n    max: 0.9\n"
+	}
+	for _, name := range []string{"instability", "abstractness", "main_sequence_distance"} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			if _, err := Parse(append(Default(), rule(name)...)); err != nil {
+				t.Errorf("Parse() with a %s threshold error = %v, want nil", name, err)
+			}
+		})
+	}
+	if _, err := Parse(append(Default(), rule("concrete_param_ratio")...)); err == nil {
+		t.Error("Parse() accepted a threshold on the removed concrete_param_ratio")
 	}
 }
 

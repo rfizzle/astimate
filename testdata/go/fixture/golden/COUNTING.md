@@ -1,11 +1,14 @@
 # How the fixture goldens were counted
 
 Each `<pkg>.json` in this directory holds every v0 field from `SPEC.md`
-section 6 for one package of the `example.com/fixture` module. The values
+section 6 for one package of the `example.com/fixture` module, plus each v1
+field the extractor computes that is non-null for that package. The values
 were counted by hand from the source, then re-derived independently: a
 throwaway `go/ast` + `go/scanner` script for sizes, imports, declarations and
 duplication, `wc -c` for bytes, and golangci-lint's `gocognit` (min complexity
-0) for cognitive complexity. All three agreed with the hand counts.
+0) for cognitive complexity. All three agreed with the hand counts. A v1 field
+missing from a golden is not compared, so a null value cannot be expressed
+here; `internal/lang/golang/assemble_test.go` checks the null cases.
 
 If you edit any `.go` file under `testdata/go/fixture`, the byte-derived
 fields (`tokens_est`, `tokens_est_with_tests`) and possibly line counts change.
@@ -78,6 +81,15 @@ are the same on every checkout.
 - **has_tests**: `test_funcs > 0`.
 - **untested_exports**: exported funcs and methods with no reference from any
   test file of the package (section 6.4).
+- **instability** (v1): `internal_imports / (fan_in + internal_imports)`,
+  null when both are 0. Present in a golden only when non-null: `hub` is 0
+  (fan-in 4, fan-out 0); `a`, `b`, `hidden` and `tested` are 1 (fan-in 0,
+  fan-out 1); `dupes` and `trivial` have no internal edges and are null.
+- **abstractness** (v1): exported interface types over exported types, null
+  with no exported types. No fixture package exports a type (`dupes`' `tally`
+  is unexported), so it is null everywhere and absent from every golden.
+- **main_sequence_distance** (v1): `|abstractness + instability - 1|`, null
+  when either is null, so null everywhere in the fixture.
 
 ## trivial
 
@@ -127,6 +139,7 @@ in `tokens_est`.
 - `max_nesting=1` (the `if` statements in `Clamp`).
 - `exported_symbols=3` (`Normalize`, `Clamp`, `Twice`; `double` is
   unexported). No test files, so `untested_exports=3`.
+- `instability = 0 / (4 + 0) = 0`: the most stable package in the fixture.
 
 ## tested
 

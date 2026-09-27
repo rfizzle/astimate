@@ -221,13 +221,15 @@ func randomMetrics(rng *rand.Rand) metrics.RawMetrics {
 		UntestedExports:    rng.IntN(exported + 1),
 	}
 	if rng.IntN(2) == 0 {
-		ratio := rng.Float64()
 		cross := rng.IntN(5)
 		cgo, reflect := rng.IntN(2) == 0, rng.IntN(2) == 0
 		gen := rng.IntN(3)
 		cov := math.Round(rng.Float64()*1000) / 10
 		changed := rng.IntN(30)
-		m.ConcreteParamRatio, m.DupBlocksCrossPkg = &ratio, &cross
+		m.DupBlocksCrossPkg = &cross
+		m.Instability = metrics.Instability(m.FanIn, m.InternalImports)
+		m.Abstractness = metrics.Abstractness(rng.IntN(5), rng.IntN(5)+4)
+		m.MainSequenceDistance = metrics.MainSequenceDistance(m.Abstractness, m.Instability)
 		m.UsesCgo, m.UsesReflect, m.GeneratedFiles = &cgo, &reflect, &gen
 		m.CoveragePct, m.ChangedFuncCognitiveMax = &cov, &changed
 	}

@@ -267,7 +267,9 @@ func TestEstimateIgnoresV1Fields(t *testing.T) {
 	ratio, pct := 0.7, 12.5
 	dup, gen := 4, 2
 	yes := true
-	withV1.ConcreteParamRatio = &ratio
+	withV1.Instability = &ratio
+	withV1.Abstractness = &ratio
+	withV1.MainSequenceDistance = &ratio
 	withV1.DupBlocksCrossPkg = &dup
 	withV1.UsesCgo = &yes
 	withV1.UsesReflect = &yes

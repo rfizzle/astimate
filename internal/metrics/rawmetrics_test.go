@@ -13,6 +13,14 @@ import (
 
 func ptr[T any](v T) *T { return &v }
 
+// v1Names lists the v1 fields, the ones that are null until computed.
+func v1Names() []string {
+	return []string{
+		"dup_blocks_cross_pkg", "instability", "abstractness", "main_sequence_distance",
+		"uses_cgo", "uses_reflect", "generated_files", "coverage_pct", "changed_func_cognitive_max",
+	}
+}
+
 // fullMetrics returns a record with every field set to a distinct non-zero
 // value so a dropped or swapped field shows up in comparisons.
 func fullMetrics() RawMetrics {
@@ -40,8 +48,10 @@ func fullMetrics() RawMetrics {
 		TestFuncs:               21,
 		HasTests:                true,
 		UntestedExports:         22,
-		ConcreteParamRatio:      ptr(0.25),
 		DupBlocksCrossPkg:       ptr(23),
+		Instability:             ptr(0.25),
+		Abstractness:            ptr(0.625),
+		MainSequenceDistance:    ptr(0.125),
 		UsesCgo:                 ptr(true),
 		UsesReflect:             ptr(false),
 		GeneratedFiles:          ptr(24),
@@ -109,10 +119,7 @@ func TestRawMetricsV1NullWhenNotComputed(t *testing.T) {
 	if err := json.Unmarshal(data, &fields); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	v1 := []string{
-		"concrete_param_ratio", "dup_blocks_cross_pkg", "uses_cgo", "uses_reflect",
-		"generated_files", "coverage_pct", "changed_func_cognitive_max",
-	}
+	v1 := v1Names()
 	for _, name := range v1 {
 		if got := string(fields[name]); got != "null" {
 			t.Errorf("%s = %s, want null", name, got)
@@ -153,9 +160,7 @@ func TestRawMetricsValue(t *testing.T) {
 			}
 			var zero RawMetrics
 			_, ok = zero.Value(name)
-			isV1 := name == "concrete_param_ratio" || name == "dup_blocks_cross_pkg" ||
-				name == "uses_cgo" || name == "uses_reflect" || name == "generated_files" ||
-				name == "coverage_pct" || name == "changed_func_cognitive_max"
+			isV1 := slices.Contains(v1Names(), name)
 			if ok == isV1 {
 				t.Errorf("zero Value(%q) ok = %v, want %v", name, ok, !isV1)
 			}
@@ -184,9 +189,13 @@ func TestRawMetricsValidate(t *testing.T) {
 		{name: "duplication NaN", mutate: func(m *RawMetrics) { m.DuplicationPct = math.NaN() }, wantErr: "duplication_pct"},
 		{name: "duplication at 100", mutate: func(m *RawMetrics) { m.DuplicationPct = 100 }},
 		{name: "coverage above 100", mutate: func(m *RawMetrics) { m.CoveragePct = ptr(101.0) }, wantErr: "coverage_pct"},
-		{name: "ratio above 1", mutate: func(m *RawMetrics) { m.ConcreteParamRatio = ptr(1.01) }, wantErr: "concrete_param_ratio"},
-		{name: "ratio negative", mutate: func(m *RawMetrics) { m.ConcreteParamRatio = ptr(-0.5) }, wantErr: "concrete_param_ratio"},
-		{name: "ratio at bounds", mutate: func(m *RawMetrics) { m.ConcreteParamRatio = ptr(1.0); m.CoveragePct = ptr(0.0) }},
+		{name: "instability above 1", mutate: func(m *RawMetrics) { m.Instability = ptr(1.01) }, wantErr: "instability"},
+		{name: "abstractness negative", mutate: func(m *RawMetrics) { m.Abstractness = ptr(-0.5) }, wantErr: "abstractness"},
+		{name: "distance NaN", mutate: func(m *RawMetrics) { m.MainSequenceDistance = ptr(math.NaN()) }, wantErr: "main_sequence_distance"},
+		{name: "ratios at bounds", mutate: func(m *RawMetrics) {
+			m.Instability, m.Abstractness, m.MainSequenceDistance = ptr(1.0), ptr(0.0), ptr(1.0)
+			m.CoveragePct = ptr(0.0)
+		}},
 		{name: "largest file above sloc", mutate: func(m *RawMetrics) { m.LargestFileSLOC = m.SLOC + 1 }, wantErr: "largest_file_sloc"},
 		{name: "tokens with tests below tokens", mutate: func(m *RawMetrics) { m.TokensEstWithTests = m.TokensEst - 1 }, wantErr: "tokens_est_with_tests"},
 	}

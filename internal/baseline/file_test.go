@@ -18,7 +18,7 @@ func TestFileRoundTrip(t *testing.T) {
 	ratio := 0.25
 	pkgs := map[string]metrics.RawMetrics{
 		"example.com/m/a": {Files: 2, SLOC: 40, Globals: 1, DuplicationPct: 12.5, HasTests: true},
-		"example.com/m/b": {Files: 1, SLOC: 7, ConcreteParamRatio: &ratio},
+		"example.com/m/b": {Files: 1, SLOC: 7, Instability: &ratio},
 	}
 	dir := t.TempDir()
 	path := filepath.Join(dir, "baseline.json")

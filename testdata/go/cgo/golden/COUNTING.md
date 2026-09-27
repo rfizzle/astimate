@@ -1,7 +1,7 @@
 # How the cgo goldens were counted
 
-`native.json` and `user.json` hold every v0 field from `SPEC.md` section 6
-for the two packages of the `example.com/cgo` module. They are counted by
+`native.json` and `user.json` hold every v0 field from `SPEC.md` section 6,
+plus the non-null v1 field `instability`, for the two packages of the `example.com/cgo` module. They are counted by
 hand from `native/native.go`, `native/native_test.go` and `user/user.go`
 with the rules in `../../fixture/golden/COUNTING.md`, and describe the source
 files only. With a working C compiler, go/packages hands the extractor the
@@ -51,6 +51,8 @@ the same change. Do not regenerate goldens from the extractor.
 - **test_files** 1 (`native_test.go`, package `native`), **test_funcs** 1
   (`TestAdd`), **has_tests** true, **untested_exports** 0: `TestAdd` calls
   `Add`. The test file's `testing` import is not counted in the imports.
+- **instability** 0: fan-in 1, fan-out 0. No exported types, so
+  **abstractness** and **main_sequence_distance** are null and absent.
 
 ## user
 
@@ -69,3 +71,5 @@ blank.
 - **dup_blocks** 0, **duplication_pct** 0.
 - **test_files** 0, **test_funcs** 0, **has_tests** false,
   **untested_exports** 1 (`Sum`).
+- **instability** 1: fan-in 0, fan-out 1. No exported types, so
+  **abstractness** and **main_sequence_distance** are null and absent.

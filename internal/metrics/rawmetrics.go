@@ -41,8 +41,9 @@ type RawMetrics struct {
 	CognitiveP90 int `json:"cognitive_p90"`
 	// FuncCount is the number of functions and methods in non-test files.
 	FuncCount int `json:"func_count"`
-	// DupBlocks counts duplicate token sequences of at least dup_min_tokens
-	// (default 40) within the package; see SPEC.md 6.3.
+	// DupBlocks counts duplicate token sequences of at least
+	// duplication.min_tokens (default 40) within the package; see SPEC.md
+	// 6.3.
 	DupBlocks int `json:"dup_blocks"`
 	// DuplicationPct is the share of non-test SLOC covered by a duplicate
 	// block, as a percentage in [0, 100].
@@ -57,13 +58,21 @@ type RawMetrics struct {
 	// any test file in the package; see SPEC.md 6.4.
 	UntestedExports int `json:"untested_exports"`
 
-	// ConcreteParamRatio is the share of exported-function params typed as
-	// struct or pointer-to-struct from another package versus interface, in
-	// [0, 1]. Nil when not computed (v1).
-	ConcreteParamRatio *float64 `json:"concrete_param_ratio"`
 	// DupBlocksCrossPkg counts duplicate blocks shared with other packages in
 	// the module. Nil when not computed (v1).
 	DupBlocksCrossPkg *int `json:"dup_blocks_cross_pkg"`
+	// Instability is Martin's instability Ce / (Ca + Ce) with Ca = fan_in and
+	// Ce = internal_imports, in [0, 1]. Nil when both are 0 or when not
+	// computed (v1). Reported, not gated.
+	Instability *float64 `json:"instability"`
+	// Abstractness is exported interface types over all exported types, in
+	// [0, 1]. Nil with no exported types or when not computed (v1). Reported,
+	// not gated.
+	Abstractness *float64 `json:"abstractness"`
+	// MainSequenceDistance is |abstractness + instability - 1|, in [0, 1].
+	// Nil when either input is nil (v1). Reported, not gated: idiomatic Go
+	// leaf packages sit near 1 by design.
+	MainSequenceDistance *float64 `json:"main_sequence_distance"`
 	// UsesCgo reports whether the package imports "C". Nil when not computed
 	// (v1).
 	UsesCgo *bool `json:"uses_cgo"`
@@ -109,8 +118,10 @@ func MetricNames() []string {
 		"test_funcs",
 		"has_tests",
 		"untested_exports",
-		"concrete_param_ratio",
 		"dup_blocks_cross_pkg",
+		"instability",
+		"abstractness",
+		"main_sequence_distance",
 		"uses_cgo",
 		"uses_reflect",
 		"generated_files",
@@ -170,10 +181,14 @@ func (m *RawMetrics) Value(name string) (float64, bool) {
 		return boolValue(m.HasTests), true
 	case "untested_exports":
 		return float64(m.UntestedExports), true
-	case "concrete_param_ratio":
-		return optFloat(m.ConcreteParamRatio)
 	case "dup_blocks_cross_pkg":
 		return optInt(m.DupBlocksCrossPkg)
+	case "instability":
+		return optFloat(m.Instability)
+	case "abstractness":
+		return optFloat(m.Abstractness)
+	case "main_sequence_distance":
+		return optFloat(m.MainSequenceDistance)
 	case "uses_cgo":
 		return optBool(m.UsesCgo)
 	case "uses_reflect":

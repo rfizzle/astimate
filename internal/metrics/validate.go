@@ -50,11 +50,17 @@ func (m *RawMetrics) Validate() error {
 	count("test_files", m.TestFiles)
 	count("test_funcs", m.TestFuncs)
 	count("untested_exports", m.UntestedExports)
-	if m.ConcreteParamRatio != nil {
-		bounded("concrete_param_ratio", *m.ConcreteParamRatio, 1)
-	}
 	if m.DupBlocksCrossPkg != nil {
 		count("dup_blocks_cross_pkg", *m.DupBlocksCrossPkg)
+	}
+	if m.Instability != nil {
+		bounded("instability", *m.Instability, 1)
+	}
+	if m.Abstractness != nil {
+		bounded("abstractness", *m.Abstractness, 1)
+	}
+	if m.MainSequenceDistance != nil {
+		bounded("main_sequence_distance", *m.MainSequenceDistance, 1)
 	}
 	if m.GeneratedFiles != nil {
 		count("generated_files", *m.GeneratedFiles)

@@ -30,7 +30,9 @@ type details struct {
 }
 
 // assemble computes every v0 metric of p in l and maps it into RawMetrics by
-// its SPEC.md section 6 name, leaving the v1 fields nil. It records the
+// its SPEC.md section 6 name, with the v1 fields instability, abstractness
+// and main_sequence_distance derived from them; those are nil when
+// undefined, and the other v1 fields are left nil. It records the
 // debug details of p in l. size runs before duplication, which weighs lines
 // by it, and ctx is checked before each of the expensive steps, duplication
 // and tokens. size, duplication and tokens share one fileCache, so each file
@@ -66,6 +68,12 @@ func assemble(ctx context.Context, l *loaded, p *packages.Package, opts assemble
 		return metrics.RawMetrics{}, fmt.Errorf("extracting %s: %w", p.PkgPath, err)
 	}
 
+	// Martin's package metrics, from the fan-in, import and size results
+	// above: Ca = fan_in and Ce = internal_imports, both module-internal
+	// edges only. Reported, not gated.
+	instability := metrics.Instability(fi.fanIn, imp.internal)
+	abstractness := metrics.Abstractness(sz.exports.interfaceTypes, sz.exports.types)
+
 	l.setDetails(p.PkgPath, details{
 		untestedNames:    un.names,
 		untestedExcluded: un.excluded,
@@ -85,7 +93,7 @@ func assemble(ctx context.Context, l *loaded, p *packages.Package, opts assemble
 		StdlibImports:      imp.stdlib,
 		FanIn:              fi.fanIn,
 		FanInTests:         fi.fanInTests,
-		ExportedSymbols:    sz.exportedSymbols,
+		ExportedSymbols:    sz.exports.symbols,
 		Globals:            gl.globals,
 		InitFuncs:          gl.initFuncs,
 		MaxNesting:         cx.maxNesting,
@@ -98,6 +106,10 @@ func assemble(ctx context.Context, l *loaded, p *packages.Package, opts assemble
 		TestFuncs:          ts.testFuncs,
 		HasTests:           ts.hasTests,
 		UntestedExports:    un.untested,
+
+		Instability:          instability,
+		Abstractness:         abstractness,
+		MainSequenceDistance: metrics.MainSequenceDistance(abstractness, instability),
 	}, nil
 }
 

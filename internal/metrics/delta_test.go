@@ -56,6 +56,7 @@ func TestDeltaIncreasedAndDecreased(t *testing.T) {
 	head.UsesReflect = ptr(true)
 	head.CoveragePct = ptr(*base.CoveragePct - 10)
 	head.GeneratedFiles = ptr(*base.GeneratedFiles + 4)
+	head.Instability = ptr(*base.Instability + 0.5)
 
 	d := head.Delta(base)
 	want := map[string]float64{
@@ -67,6 +68,7 @@ func TestDeltaIncreasedAndDecreased(t *testing.T) {
 		"uses_reflect":     1,
 		"coverage_pct":     -10,
 		"generated_files":  4,
+		"instability":      0.5,
 	}
 	for _, name := range MetricNames() {
 		got, ok := d.Value(name)
@@ -99,10 +101,7 @@ func TestDeltaV1NotComputedAtHeadIsNull(t *testing.T) {
 	if err := json.Unmarshal(data, &fields); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	for _, name := range []string{
-		"concrete_param_ratio", "dup_blocks_cross_pkg", "uses_cgo", "uses_reflect",
-		"generated_files", "coverage_pct", "changed_func_cognitive_max",
-	} {
+	for _, name := range v1Names() {
 		if got := string(fields[name]); got != "null" {
 			t.Errorf("%s = %s, want null", name, got)
 		}
