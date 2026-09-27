@@ -28,12 +28,12 @@ Install the snippet in a scratch repository, have the agent add an untested expo
 
 | Field | Value |
 | --- | --- |
-| Claude Code version (`claude --version`) | _not yet run_ |
-| Date | _not yet run_ |
-| Hooks reference matches the contract above | _yes / no, with differences_ |
-| Degraded change blocked, violation text shown to the agent | _yes / no_ |
-| Agent allowed to stop on the second attempt (`stop_hook_active` read by `astimate check`) | _yes / no_ |
-| Checked by | |
+| Claude Code version (`claude --version`) | 2.1.283 |
+| Date | 2026-09-28 |
+| Hooks reference matches the contract above | Behavior matched: the block decision on exit 0 prevented the stop and its `reason` was shown to the agent, which continued and reported the violation. The reference text itself was not compared line by line. |
+| Degraded change blocked, violation text shown to the agent | Yes. The agent (Sonnet 5) added `Kind.String()` to `internal/gate` without a test; the Stop hook, installed from this repository's shared `.claude/settings.json`, showed `untested_exports: 0 -> 1, max_delta +0. 1 exported function has no test (Kind.String); a rebuild would have to reverse-engineer its behavior.` and the agent asked how to proceed instead of stopping. Claude Code labels the blocked stop "Stop hook error" in its transcript. |
+| Agent allowed to stop on the second attempt (`stop_hook_active` read by `astimate check`) | _pending: leave the violation in place and let the agent try to finish once more_ |
+| Checked by | Coleton Pierson |
 
 ## Pre-commit hook
 
