@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "astimate check \"$CLAUDE_PROJECT_DIR\" --format hook --base master",
+            "timeout": 300
+          }
+        ]
+      }
+    ]
+  }
+}

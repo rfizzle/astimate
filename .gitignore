@@ -14,5 +14,6 @@ coverage.*
 .vscode/
 *.swp
 
-# Agent worktrees
-.claude/
+# Agent worktrees (the shared hook settings in .claude/settings.json are tracked)
+.claude/worktrees/
+.claude/settings.local.json
