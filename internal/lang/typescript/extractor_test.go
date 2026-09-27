@@ -189,8 +189,8 @@ func TestDetails(t *testing.T) {
 			}
 		})
 	}
-	if _, err := e.Details(t.Context(), mod, "nope"); !errors.Is(err, ErrUnknownPackage) {
-		t.Errorf("Details of an unknown package = %v, want ErrUnknownPackage", err)
+	if _, err := e.Details(t.Context(), mod, "nope"); !errors.Is(err, metrics.ErrUnknownPackage) {
+		t.Errorf("Details of an unknown package = %v, want metrics.ErrUnknownPackage", err)
 	}
 }
 
@@ -202,8 +202,8 @@ func TestExtractErrors(t *testing.T) {
 		pkg  string
 		is   error
 	}{
-		{"unknown package", New(), "nope", ErrUnknownPackage},
-		{"unknown tokenizer", New(WithTokenizer("bpe")), "trivial", ErrUnknownTokenizer},
+		{"unknown package", New(), "nope", metrics.ErrUnknownPackage},
+		{"unknown tokenizer", New(WithTokenizer("bpe")), "trivial", metrics.ErrUnknownTokenizer},
 		{"zero chars per token", New(WithCharsPerToken(0)), "trivial", nil},
 		{"infinite chars per token", New(WithCharsPerToken(math.Inf(1))), "trivial", nil},
 		{"zero minimum tokens", New(WithDuplication(0, true, true)), "trivial", nil},

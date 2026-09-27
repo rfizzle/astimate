@@ -14,14 +14,6 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-// ErrUnknownPackage is returned by Extract when the requested import path is
-// not a non-test package of the module.
-var ErrUnknownPackage = errors.New("unknown package")
-
-// ErrUnknownTokenizer is returned by Extract when WithTokenizer named a
-// tokenizer other than "est" or "o200k".
-var ErrUnknownTokenizer = errors.New("unknown tokenizer")
-
 // Extractor computes RawMetrics for Go modules. It loads each module root at
 // most once and shares the result across Packages and Extract. Construct it
 // with New. It is safe for concurrent use.
@@ -69,7 +61,7 @@ func WithCharsPerToken(ratio float64) Option {
 // WithTokenizer selects how tokens_est is counted: "est" (the default)
 // divides file bytes by the chars-per-token ratio, "o200k" counts exactly
 // with the o200k_base encoding, offline. Any other name makes Extract return
-// an error wrapping ErrUnknownTokenizer.
+// an error wrapping metrics.ErrUnknownTokenizer.
 func WithTokenizer(name string) Option {
 	return func(e *Extractor) { e.tokenizer = name }
 }
@@ -146,8 +138,8 @@ func (e *Extractor) Packages(root string) ([]string, error) {
 // changed_func_cognitive_max are left nil. The module is loaded on the
 // first call for its root and cached in mod.Cache. An import path that is not
 // a non-test package of the module yields an error wrapping
-// ErrUnknownPackage, and an unknown tokenizer one wrapping
-// ErrUnknownTokenizer.
+// metrics.ErrUnknownPackage, and an unknown tokenizer one wrapping
+// metrics.ErrUnknownTokenizer.
 func (e *Extractor) Extract(ctx context.Context, mod *metrics.ModuleContext, pkg string) (metrics.RawMetrics, error) {
 	l, err := e.cached(ctx, mod)
 	if err != nil {
@@ -158,7 +150,7 @@ func (e *Extractor) Extract(ctx context.Context, mod *metrics.ModuleContext, pkg
 	}
 	p, ok := l.pkgs[pkg]
 	if !ok {
-		return metrics.RawMetrics{}, fmt.Errorf("extracting %s: %w", pkg, ErrUnknownPackage)
+		return metrics.RawMetrics{}, fmt.Errorf("extracting %s: %w", pkg, metrics.ErrUnknownPackage)
 	}
 	counter, err := e.counter()
 	if err != nil {
@@ -198,7 +190,7 @@ func (e *Extractor) counter() (tokenCounter, error) {
 		e.o200kOnce.Do(func() { e.o200k, e.o200kErr = newO200kCounter() })
 		return e.o200k, e.o200kErr
 	default:
-		return nil, fmt.Errorf("%w %q: want %q or %q", ErrUnknownTokenizer, e.tokenizer, methodEst, methodO200k)
+		return nil, fmt.Errorf("%w %q: want %q or %q", metrics.ErrUnknownTokenizer, e.tokenizer, methodEst, methodO200k)
 	}
 }
 

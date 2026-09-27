@@ -33,7 +33,7 @@ const stdAllModulePath = "std/..."
 // fan_in_tests are 0, since no other standard-library package is in the
 // load; ExtractStdlibAll measures those. It returns an error when the load
 // fails, which is how a toolchain without usable GOROOT sources shows, and
-// one wrapping ErrUnknownPackage when the load yields no package at
+// one wrapping metrics.ErrUnknownPackage when the load yields no package at
 // importPath.
 func ExtractStdlib(ctx context.Context, importPath string, opts ...Option) (metrics.RawMetrics, error) {
 	e := New(opts...)
@@ -54,7 +54,7 @@ func ExtractStdlib(ctx context.Context, importPath string, opts ...Option) (metr
 	}
 	p, ok := l.pkgs[importPath]
 	if !ok {
-		return metrics.RawMetrics{}, fmt.Errorf("extracting %s: %w", importPath, ErrUnknownPackage)
+		return metrics.RawMetrics{}, fmt.Errorf("extracting %s: %w", importPath, metrics.ErrUnknownPackage)
 	}
 	l.modulePath = stdModulePath
 	l.fset = cfg.Fset

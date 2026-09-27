@@ -245,8 +245,8 @@ func TestExtractErrors(t *testing.T) {
 	for _, pkg := range []string{"example.com/fixture/nope", "example.com/fixture/tested_test", "fmt", "example.com/fixture/tested.test"} {
 		t.Run(pkg, func(t *testing.T) {
 			_, err := e.Extract(t.Context(), mod, pkg)
-			if !errors.Is(err, ErrUnknownPackage) {
-				t.Fatalf("Extract error = %v, want ErrUnknownPackage", err)
+			if !errors.Is(err, metrics.ErrUnknownPackage) {
+				t.Fatalf("Extract error = %v, want metrics.ErrUnknownPackage", err)
 			}
 			if !strings.Contains(err.Error(), pkg) {
 				t.Fatalf("error %q does not name %s", err, pkg)
@@ -398,8 +398,8 @@ func TestExtractOptions(t *testing.T) {
 	})
 	t.Run("unknown tokenizer", func(t *testing.T) {
 		_, err := New(WithTokenizer("cl100k")).Extract(t.Context(), &metrics.ModuleContext{Root: root}, hub)
-		if !errors.Is(err, ErrUnknownTokenizer) || !strings.Contains(err.Error(), "cl100k") {
-			t.Errorf("Extract error = %v, want ErrUnknownTokenizer naming cl100k", err)
+		if !errors.Is(err, metrics.ErrUnknownTokenizer) || !strings.Contains(err.Error(), "cl100k") {
+			t.Errorf("Extract error = %v, want metrics.ErrUnknownTokenizer naming cl100k", err)
 		}
 	})
 	t.Run("dup min tokens", func(t *testing.T) {

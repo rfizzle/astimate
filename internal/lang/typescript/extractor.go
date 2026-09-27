@@ -14,14 +14,6 @@ import (
 	"github.com/rfizzle/astimate/internal/metrics"
 )
 
-// ErrUnknownPackage is returned by Extract when the requested identifier is
-// not a package of the module.
-var ErrUnknownPackage = errors.New("unknown package")
-
-// ErrUnknownTokenizer is returned by Extract when WithTokenizer named a
-// tokenizer other than "est" or "o200k".
-var ErrUnknownTokenizer = errors.New("unknown tokenizer")
-
 // Token counting methods. They match the values of the --tokenizer flag.
 const (
 	methodEst   = "est"
@@ -81,7 +73,7 @@ func WithDuplication(minTokens int, ignoreLiteralOnly, foldSigns bool) Option {
 // WithTokenizer selects how tokens_est is counted: "est" (the default)
 // divides file bytes by the chars-per-token ratio, "o200k" counts exactly
 // with the o200k_base encoding, offline. Any other name makes Extract return
-// an error wrapping ErrUnknownTokenizer.
+// an error wrapping metrics.ErrUnknownTokenizer.
 func WithTokenizer(name string) Option {
 	return func(e *Extractor) { e.tokenizer = name }
 }
@@ -133,8 +125,8 @@ func (e *Extractor) Packages(root string) ([]string, error) {
 // the other v1 fields, which need type information or a toolchain, are
 // left nil. The module is parsed on the first call for its root and cached
 // in mod.Cache. An identifier Packages does not list yields an error
-// wrapping ErrUnknownPackage, and an unknown tokenizer one wrapping
-// ErrUnknownTokenizer.
+// wrapping metrics.ErrUnknownPackage, and an unknown tokenizer one wrapping
+// metrics.ErrUnknownTokenizer.
 func (e *Extractor) Extract(ctx context.Context, mod *metrics.ModuleContext, pkg string) (metrics.RawMetrics, error) {
 	m, err := e.cached(ctx, mod)
 	if err != nil {
@@ -145,7 +137,7 @@ func (e *Extractor) Extract(ctx context.Context, mod *metrics.ModuleContext, pkg
 	}
 	p, ok := m.pkgs[pkg]
 	if !ok {
-		return metrics.RawMetrics{}, fmt.Errorf("extracting %s: %w", pkg, ErrUnknownPackage)
+		return metrics.RawMetrics{}, fmt.Errorf("extracting %s: %w", pkg, metrics.ErrUnknownPackage)
 	}
 	if err := e.checkTokenizer(); err != nil {
 		return metrics.RawMetrics{}, fmt.Errorf("extracting %s: %w", pkg, err)
@@ -163,7 +155,7 @@ func (e *Extractor) checkTokenizer() error {
 	case methodEst, methodO200k:
 		return nil
 	default:
-		return fmt.Errorf("%w %q: want %q or %q", ErrUnknownTokenizer, e.tokenizer, methodEst, methodO200k)
+		return fmt.Errorf("%w %q: want %q or %q", metrics.ErrUnknownTokenizer, e.tokenizer, methodEst, methodO200k)
 	}
 }
 

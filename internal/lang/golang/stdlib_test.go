@@ -57,7 +57,7 @@ func TestExtractStdlibFailures(t *testing.T) {
 		opts       []Option
 		want       error // nil means any non-nil error
 	}{
-		{"unknown tokenizer", t.Context(), "errors", []Option{WithTokenizer("cl100k")}, ErrUnknownTokenizer},
+		{"unknown tokenizer", t.Context(), "errors", []Option{WithTokenizer("cl100k")}, metrics.ErrUnknownTokenizer},
 		{"cancelled", cancelled, "errors", nil, context.Canceled},
 		{"no such package", t.Context(), "astimate/no/such/package", nil, nil},
 	}
@@ -192,7 +192,7 @@ func TestExtractStdlibAllFailures(t *testing.T) {
 		opts []Option
 		want error
 	}{
-		{"unknown tokenizer", t.Context(), []Option{WithTokenizer("cl100k")}, ErrUnknownTokenizer},
+		{"unknown tokenizer", t.Context(), []Option{WithTokenizer("cl100k")}, metrics.ErrUnknownTokenizer},
 		{"cancelled", cancelled, nil, context.Canceled},
 	}
 	for _, tt := range tests {

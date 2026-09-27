@@ -52,7 +52,7 @@ func TestDetailsUnknownPackage(t *testing.T) {
 	e := New()
 	mod := &metrics.ModuleContext{Root: fixtureRoot(t)}
 	_, err := e.Details(t.Context(), mod, "example.com/fixture/absent")
-	if !errors.Is(err, ErrUnknownPackage) {
-		t.Errorf("Details error = %v, want it to wrap ErrUnknownPackage", err)
+	if !errors.Is(err, metrics.ErrUnknownPackage) {
+		t.Errorf("Details error = %v, want it to wrap metrics.ErrUnknownPackage", err)
 	}
 }

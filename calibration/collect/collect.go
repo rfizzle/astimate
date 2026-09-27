@@ -136,7 +136,7 @@ func collectStdlib(ctx context.Context, pkgs []string, goVersion string, cfg *co
 		if !ok {
 			err := errs[pkg]
 			if err == nil {
-				err = fmt.Errorf("extracting %s: %w", pkg, golang.ErrUnknownPackage)
+				err = fmt.Errorf("extracting %s: %w", pkg, metrics.ErrUnknownPackage)
 			}
 			logger.Error("extracting package failed", "package", pkg, "err", err)
 			failed = append(failed, packageFailure{Package: pkg, Err: err.Error()})
