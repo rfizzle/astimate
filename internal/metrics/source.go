@@ -45,4 +45,11 @@ type SourceFile struct {
 	// package the file belongs to ("." for the module root) when Kind is
 	// PackageSource or MemberSource, and empty otherwise.
 	Package string
+	// Contract reports that a change to the file can move the metrics of
+	// the packages importing Package, not only Package's own, such as a
+	// TypeScript declaration file, which can turn an import of it from
+	// external into internal. A change then also selects Package's
+	// importers in the head tree (ImporterLister). Only meaningful when
+	// Kind is PackageSource or MemberSource.
+	Contract bool
 }

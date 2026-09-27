@@ -28,6 +28,12 @@ type Change struct {
 	// head tree: packages removed or renamed away since the merge-base.
 	// Callers report them in a summary line, never as violations. Sorted.
 	Deleted []string
+	// Contract are the packages of Packages that a changed file sc marks
+	// metrics.SourceFile.Contract belongs to, such as one holding a new
+	// TypeScript declaration file: the change can move their importers'
+	// metrics too, so callers also check the packages importing them at
+	// head (metrics.ImporterLister). Sorted.
+	Contract []string
 	// All reports that a changed file can move every package's metrics,
 	// such as configuration that import resolution reads; callers then
 	// check every package. Packages and Deleted are filled regardless.
@@ -111,12 +117,16 @@ func ChangedPackages(ctx context.Context, root, mergeBase string, sc metrics.Sou
 		switch {
 		case has:
 			c.Packages = append(c.Packages, d.pkg)
+			if d.contract {
+				c.Contract = append(c.Contract, d.pkg)
+			}
 		case d.defines:
 			c.Deleted = append(c.Deleted, d.pkg)
 		}
 	}
 	c.Packages = slices.Compact(c.Packages)
 	c.Deleted = slices.Compact(c.Deleted)
+	c.Contract = slices.Compact(c.Contract)
 	return c, nil
 }
 
@@ -177,6 +187,9 @@ type changedDir struct {
 	// defines reports that one of the files makes pkg a package
 	// (metrics.PackageSource), so pkg is deleted when it holds none.
 	defines bool
+	// contract reports that one of the files is marked
+	// metrics.SourceFile.Contract, so pkg's importers are checked too.
+	contract bool
 }
 
 // changedFiles are a module's changed source files, grouped.
@@ -224,6 +237,7 @@ func sourceFiles(paths []string, prefix string, sc metrics.SourceClassifier) cha
 			out.dirs = append(out.dirs, key)
 		}
 		out.dirs[i].defines = out.dirs[i].defines || sf.Kind == metrics.PackageSource
+		out.dirs[i].contract = out.dirs[i].contract || sf.Contract
 	}
 	slices.SortFunc(out.dirs, func(a, b changedDir) int {
 		if c := strings.Compare(a.pkg, b.pkg); c != 0 {

@@ -8,6 +8,7 @@ package metricstest
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"math"
 	"path/filepath"
 	"slices"
@@ -63,6 +64,10 @@ type Fixture struct {
 // also implements the optional metrics.Detailer, it checks that Details
 // succeeds for every package after Extract and names as many untested
 // exports as untested_exports counts. When ext also implements the optional
+// metrics.ImporterLister, it checks that Importers lists, for every package,
+// sorted distinct packages of the fixture other than the package itself, as
+// many as fan_in counts, and fails for an unknown package with
+// metrics.ErrUnknownPackage. When ext also implements the optional
 // metrics.ModuleMetrics, it checks the module row: it validates, no package
 // collides with metrics.ModuleRowID, its v0 fields are zero and its v1
 // fields null except the module-wide dup_blocks_cross_pkg, it is
@@ -147,6 +152,10 @@ func TestExtractor(t *testing.T, ext metrics.Extractor, fx Fixture) {
 
 	if d, ok := ext.(metrics.Detailer); ok {
 		t.Run("Details", func(t *testing.T) { checkDetails(t, d, mod, fx.Packages, got) })
+	}
+
+	if il, ok := ext.(metrics.ImporterLister); ok {
+		t.Run("Importers", func(t *testing.T) { checkImporters(t, il, mod, fx.Packages, got) })
 	}
 
 	// The module row is optional: an extractor without ModuleMetrics, such
@@ -304,6 +313,34 @@ func checkDetails(t *testing.T, d metrics.Detailer, mod *metrics.ModuleContext, 
 			t.Errorf("%s: Details names %d untested exports %q, want untested_exports %d",
 				pkg, n, det.UntestedExports, want)
 		}
+	}
+}
+
+// checkImporters checks that il lists, for every package, sorted distinct
+// packages of pkgs other than the package itself, as many as its fan_in,
+// and rejects an unknown package with metrics.ErrUnknownPackage.
+func checkImporters(t *testing.T, il metrics.ImporterLister, mod *metrics.ModuleContext, pkgs []string, got map[string]metrics.RawMetrics) {
+	t.Helper()
+	for _, pkg := range pkgs {
+		imp, err := il.Importers(t.Context(), mod, pkg)
+		if err != nil {
+			t.Errorf("Importers(%s): %v", pkg, err)
+			continue
+		}
+		if !slices.IsSorted(imp) || len(slices.Compact(slices.Clone(imp))) != len(imp) {
+			t.Errorf("Importers(%s) = %q, want sorted and distinct", pkg, imp)
+		}
+		for _, from := range imp {
+			if from == pkg || !slices.Contains(pkgs, from) {
+				t.Errorf("Importers(%s) lists %q, want another package of the fixture", pkg, from)
+			}
+		}
+		if n, want := len(imp), got[pkg].FanIn; n != want {
+			t.Errorf("%s: Importers lists %d packages %q, want fan_in %d", pkg, n, imp, want)
+		}
+	}
+	if _, err := il.Importers(t.Context(), mod, unknownPackage); !errors.Is(err, metrics.ErrUnknownPackage) {
+		t.Errorf("Importers(%s) error = %v, want metrics.ErrUnknownPackage", unknownPackage, err)
 	}
 }
 

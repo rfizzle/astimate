@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 	"path"
@@ -202,7 +203,7 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 	}
 	selected, deleted := opts.Packages, []string(nil)
 	if len(selected) == 0 {
-		selected, deleted, err = selectPackages(ctx, t, head, src, opts.All, headOf(ht, opts))
+		selected, deleted, err = selectPackages(ctx, t, ht.Mod, head, src, opts.All, headOf(ht, opts))
 		if err != nil {
 			return nil, nil, baseline.TreeRelative(err, tmp)
 		}
@@ -394,9 +395,12 @@ func gitBaseline(ctx context.Context, t *Target, ref string, cache *BaselineCach
 // for example outside a repository, and an extractor that does not
 // implement metrics.SourceClassifier select every package and say so. A
 // changed file that can move every package, such as a TypeScript
-// tsconfig.json, selects every package too. tree says whether the changes
-// are those of the working tree or of the index.
-func selectPackages(ctx context.Context, t *Target, head []string, src baselineSource,
+// tsconfig.json, selects every package too. A changed file that can move
+// its package's importers, such as a TypeScript declaration file, also
+// selects the packages importing that package in hm, the head module
+// (selectImporters). tree says whether the changes are those of the
+// working tree or of the index.
+func selectPackages(ctx context.Context, t *Target, hm *metrics.ModuleContext, head []string, src baselineSource,
 	all bool, tree baseline.Head,
 ) (selected, deleted []string, err error) {
 	if all {
@@ -437,12 +441,49 @@ func selectPackages(ctx context.Context, t *Target, head []string, src baselineS
 	for _, dir := range change.Packages {
 		changed[importPathOf(t.Mod.ModulePath, dir)] = true
 	}
+	if il, ok := t.Ext.(metrics.ImporterLister); ok && len(change.Contract) > 0 {
+		if err := selectImporters(ctx, il, hm, t.Mod.ModulePath, head, change.Contract, changed, logger); err != nil {
+			return nil, nil, err
+		}
+	}
 	for _, pkg := range head {
 		if changed[pkg] {
 			selected = append(selected, pkg)
 		}
 	}
 	return selected, change.Deleted, nil
+}
+
+// selectImporters adds to changed the import paths of the packages that
+// import a package of contract, the module-relative directories of the
+// changed packages whose change can move their importers' metrics
+// (baseline.Change.Contract), as il lists them in mod, the head module of
+// module path modPath. A package of contract that head, the import paths
+// the extractor lists, does not hold is skipped. Each package it adds is
+// logged at info level with the package it imports, so the output says why
+// a package no file of which changed was checked.
+func selectImporters(ctx context.Context, il metrics.ImporterLister, mod *metrics.ModuleContext, modPath string,
+	head, contract []string, changed map[string]bool, logger *slog.Logger,
+) error {
+	for _, dir := range contract {
+		pkg := importPathOf(modPath, dir)
+		if !slices.Contains(head, pkg) {
+			continue
+		}
+		importers, err := il.Importers(ctx, mod, pkg)
+		if err != nil {
+			return fmt.Errorf("listing the importers of %s: %w", dir, err)
+		}
+		for _, imp := range importers {
+			if changed[imp] {
+				continue
+			}
+			changed[imp] = true
+			logger.Info("selected as an importer of a package whose declarations changed",
+				"package", modulePathRel(modPath, imp), "importer_of", dir)
+		}
+	}
+	return nil
 }
 
 // checkModule builds the module-level row of t's module with mm, evaluates

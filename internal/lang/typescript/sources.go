@@ -1,7 +1,10 @@
 package typescript
 
 import (
+	"context"
+	"fmt"
 	"path"
+	"slices"
 	"strings"
 
 	"github.com/rfizzle/astimate/internal/metrics"
@@ -10,8 +13,10 @@ import (
 // ClassifyFile implements metrics.SourceClassifier with the counting rules
 // of SPEC.md 13.1. A .ts, .tsx, .mts or .cts file belongs to the package
 // packageOf names: a source file makes it a package, while a test file or
-// a declaration file only belongs to it (a declaration file counts nowhere
-// but can change where imports resolve). The root package.json and any
+// a declaration file only belongs to it. A declaration file counts nowhere
+// but can change where other packages' imports resolve, so it is marked
+// Contract and the package's importers are selected too. The root
+// package.json and any
 // tsconfig*.json, which the root tsconfig.json may extend, can change the
 // resolution of every package's imports. Files under node_modules, dist,
 // build or a dot-prefixed directory, and everything else, move nothing.
@@ -33,7 +38,7 @@ func (e *Extractor) ClassifyFile(rel string) metrics.SourceFile {
 	case isSourceName(name) && !isTestPath(rel):
 		return metrics.SourceFile{Kind: metrics.PackageSource, Package: packageOf(rel)}
 	case isTypeScriptName(name):
-		return metrics.SourceFile{Kind: metrics.MemberSource, Package: packageOf(rel)}
+		return metrics.SourceFile{Kind: metrics.MemberSource, Package: packageOf(rel), Contract: isDeclarationName(name)}
 	}
 	return metrics.SourceFile{}
 }
@@ -53,4 +58,40 @@ func isTypeScriptName(name string) bool {
 		}
 	}
 	return false
+}
+
+// isDeclarationName reports whether a file named name is a declaration
+// file: it ends in .d.ts, .d.mts or .d.cts.
+func isDeclarationName(name string) bool {
+	for _, ext := range []string{".d.ts", ".d.mts", ".d.cts"} {
+		if strings.HasSuffix(name, ext) {
+			return true
+		}
+	}
+	return false
+}
+
+// Importers implements metrics.ImporterLister: the sorted identifiers of
+// the packages whose non-test files import package pkg, the edges fan_in
+// counts, from the module's parse, the one Extract reads. An identifier
+// Packages does not list yields an error wrapping
+// metrics.ErrUnknownPackage.
+func (e *Extractor) Importers(ctx context.Context, mod *metrics.ModuleContext, pkg string) ([]string, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("importers of %s: %w", pkg, err)
+	}
+	m, err := e.cached(ctx, mod)
+	if err != nil {
+		return nil, err
+	}
+	p, ok := m.pkgs[pkg]
+	if !ok {
+		return nil, fmt.Errorf("importers of %s: %w", pkg, metrics.ErrUnknownPackage)
+	}
+	out := make([]string, 0, len(p.fanIn))
+	for id := range p.fanIn {
+		out = append(out, id)
+	}
+	slices.Sort(out)
+	return out, nil
 }

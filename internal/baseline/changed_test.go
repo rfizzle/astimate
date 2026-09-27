@@ -303,11 +303,12 @@ func newTSChangeRepo(t *testing.T) (*testRepo, string) {
 func TestChangedPackagesTypeScript(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		name        string
-		change      func(r *testRepo)
-		wantPkgs    []string
-		wantDeleted []string
-		wantAll     bool
+		name         string
+		change       func(r *testRepo)
+		wantPkgs     []string
+		wantDeleted  []string
+		wantContract []string
+		wantAll      bool
 	}{
 		{
 			name:   "no change",
@@ -329,9 +330,25 @@ func TestChangedPackagesTypeScript(t *testing.T) {
 			wantPkgs: []string{"a"},
 		},
 		{
-			name:     "declaration file",
-			change:   func(r *testRepo) { r.write("a/types.d.ts", "export type A = string;\n") },
-			wantPkgs: []string{"a"},
+			name:         "declaration file selects the package's importers too",
+			change:       func(r *testRepo) { r.write("a/types.d.ts", "export type A = string;\n") },
+			wantPkgs:     []string{"a"},
+			wantContract: []string{"a"},
+		},
+		{
+			name: "declaration and source files of one package",
+			change: func(r *testRepo) {
+				r.write("a/types.d.mts", "export type A = string;\n")
+				r.write("a/__tests__/env.d.ts", "export {};\n")
+				r.write("a/a.ts", "export const a = 2;\n")
+				r.write("b/b.ts", "export const b = 2;\n")
+			},
+			wantPkgs:     []string{"a", "b"},
+			wantContract: []string{"a"},
+		},
+		{
+			name:   "declaration file in a directory with no package",
+			change: func(r *testRepo) { r.write("types/global.d.ts", "export {};\n") },
 		},
 		{
 			name:   "test file in a directory with no package",
@@ -397,6 +414,9 @@ func TestChangedPackagesTypeScript(t *testing.T) {
 			}
 			if !slices.Equal(got.Deleted, tt.wantDeleted) {
 				t.Errorf("Deleted = %q, want %q", got.Deleted, tt.wantDeleted)
+			}
+			if !slices.Equal(got.Contract, tt.wantContract) {
+				t.Errorf("Contract = %q, want %q", got.Contract, tt.wantContract)
 			}
 			if got.All != tt.wantAll {
 				t.Errorf("All = %v, want %v", got.All, tt.wantAll)
