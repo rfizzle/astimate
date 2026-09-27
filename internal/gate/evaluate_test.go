@@ -161,6 +161,50 @@ func TestEvaluateRules(t *testing.T) {
 			}},
 		},
 		{
+			name:  "capacity legacy over max unchanged warns",
+			head:  metrics.RawMetrics{TokensEst: 81000},
+			base:  &metrics.RawMetrics{TokensEst: 81000},
+			rules: []gate.Threshold{capacity("tokens_est", 80000, 0.75)},
+			want: gate.Result{Passed: true, Warnings: []gate.Warning{
+				{Metric: "tokens_est", Base: 81000, Head: 81000, HasBase: true, Limit: "max 80000", Suggestion: "over the 80000 ceiling (unchanged since baseline); plan a split."},
+			}},
+		},
+		{
+			name:  "capacity legacy over max shrinking but still over warns",
+			head:  metrics.RawMetrics{TokensEst: 80500},
+			base:  &metrics.RawMetrics{TokensEst: 81000},
+			rules: []gate.Threshold{capacity("tokens_est", 80000, 0.75)},
+			want: gate.Result{Passed: true, Warnings: []gate.Warning{
+				{Metric: "tokens_est", Base: 81000, Head: 80500, HasBase: true, Limit: "max 80000", Suggestion: "over the 80000 ceiling (unchanged since baseline); plan a split."},
+			}},
+		},
+		{
+			name:  "capacity legacy over max shrinking to max passes with a warning",
+			head:  metrics.RawMetrics{TokensEst: 80000},
+			base:  &metrics.RawMetrics{TokensEst: 81000},
+			rules: []gate.Threshold{capacity("tokens_est", 80000, 0.75)},
+			want: gate.Result{Passed: true, Warnings: []gate.Warning{
+				{Metric: "tokens_est", Base: 81000, Head: 80000, HasBase: true, Limit: "max 80000", Suggestion: "at 100% of the 80000 ceiling; plan a split before the next feature."},
+			}},
+		},
+		{
+			name:  "capacity legacy over max growing fails",
+			head:  metrics.RawMetrics{TokensEst: 82000},
+			base:  &metrics.RawMetrics{TokensEst: 81000},
+			rules: []gate.Threshold{capacity("tokens_est", 80000, 0.75)},
+			want: gate.Result{Violations: []gate.Violation{
+				{Metric: "tokens_est", Base: 81000, Head: 82000, HasBase: true, Limit: "max 80000"},
+			}},
+		},
+		{
+			name:  "capacity new package over max fails",
+			head:  metrics.RawMetrics{TokensEst: 81000},
+			rules: []gate.Threshold{capacity("tokens_est", 80000, 0.75)},
+			want: gate.Result{Violations: []gate.Violation{
+				{Metric: "tokens_est", Head: 81000, Limit: "max 80000"},
+			}},
+		},
+		{
 			name:  "capacity doubled under max",
 			head:  metrics.RawMetrics{TokensEst: 20000},
 			base:  &metrics.RawMetrics{TokensEst: 10000},
@@ -384,6 +428,23 @@ func TestEvaluateOrderingAndSuggestions(t *testing.T) {
 	}
 	if len(calls) != 5 {
 		t.Errorf("suggester called for %v, want one call per finding", calls)
+	}
+}
+
+func TestEvaluateUnchangedOverCeilingSuggestion(t *testing.T) {
+	t.Parallel()
+
+	head := metrics.RawMetrics{SLOC: 7000}
+	base := head
+	suggest := func(metric string, h float64, _ metrics.RawMetrics) string {
+		return "split " + metric + " at " + strconv.FormatFloat(h, 'f', -1, 64) + "."
+	}
+	got := gate.Evaluate(head, &base, []gate.Threshold{capacity("sloc", 6000, 0.75)}, suggest)
+	want := gate.Result{Passed: true, Warnings: []gate.Warning{
+		{Metric: "sloc", Base: 7000, Head: 7000, HasBase: true, Limit: "max 6000", Suggestion: "over the 6000 ceiling (unchanged since baseline); plan a split. split sloc at 7000."},
+	}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Evaluate() =\n%+v\nwant\n%+v", got, want)
 	}
 }
 

@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -506,30 +505,17 @@ func violations(res gate.Result) string {
 }
 
 // identicalTrees evaluates n random records against themselves as baseline
-// and returns an error for the first that violates rules. The one violation
-// SPEC.md 8.1 allows is a capacity ceiling the baseline already breached:
-// capacity rules are absolute and carry no delta, so an unchanged package
-// over its max still fails them. Density rules (delta 0 within a
-// non-negative max_delta, max not introduced) and requirements (sloc did not
-// grow) must never fire.
+// and returns an error for the first that violates rules. Per SPEC.md 8.1 no
+// rule may fire: density deltas are 0 within a non-negative max_delta, no
+// density or capacity max was introduced (a ceiling the baseline already
+// breached is a warning), and requirements apply only when sloc grew.
 func identicalTrees(rng *rand.Rand, rules []gate.Threshold, n int) error {
-	ceiling := map[string]float64{}
-	for _, r := range rules {
-		if r.Kind == gate.Capacity && r.Max != nil {
-			ceiling[r.Metric] = *r.Max
-		}
-	}
 	for i := range n {
 		head := randomMetrics(rng)
 		base := head
 		res := gate.Evaluate(head, &base, rules, nil)
-		unexpected := res
-		unexpected.Violations = slices.DeleteFunc(slices.Clone(res.Violations), func(v gate.Violation) bool {
-			limit, ok := ceiling[v.Metric]
-			return ok && v.Head > limit && v.Limit == "max "+strconv.FormatFloat(limit, 'f', -1, 64)
-		})
-		if len(unexpected.Violations) > 0 {
-			return fmt.Errorf("draw %d: identical head and baseline violate: %s", i, violations(unexpected))
+		if len(res.Violations) > 0 {
+			return fmt.Errorf("draw %d: identical head and baseline violate: %s", i, violations(res))
 		}
 	}
 	return nil

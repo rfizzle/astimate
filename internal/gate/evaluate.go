@@ -71,9 +71,11 @@ type Suggester func(metric string, head float64, m metrics.RawMetrics) string
 // for rules with RatchetFromZero set. Density rules fail when head minus base
 // exceeds MaxDelta, or when head exceeds Max and either there is no baseline
 // value or head rose above it, so an unchanged or improved legacy value over
-// Max passes. Capacity rules fail above Max and warn at or above WarnAt of
-// Max. Requirement rules fail when the metric's boolean disagrees with
-// Require while When holds and the package is new or its sloc grew. A rule
+// Max passes. Capacity rules fail above Max under the same condition, warn
+// when an unchanged or improved legacy value is still above Max, and warn at
+// or above WarnAt of Max. Requirement rules fail when the metric's boolean
+// disagrees with Require while When holds and the package is new or its sloc
+// grew. A rule
 // whose metric is unknown or not computed at head is skipped, which also
 // covers rebuild outputs the config loader already rejects; a v1 metric
 // computed at head but null at base skips only its delta rule and adds a
@@ -146,7 +148,14 @@ func (e *evaluator) capacity(r Threshold, h float64) {
 	limit := *r.Max
 	b, hasBase, _ := e.baseValue(r.Metric)
 	if h > limit+epsilon {
-		e.res.Violations = append(e.res.Violations, e.finding(r.Metric, b, h, hasBase, "max "+num(limit)))
+		// As with a density max, the ceiling fails only what a change
+		// introduced; a legacy value already over it that did not rise is
+		// reported so the split still gets planned.
+		if !hasBase || h > b+epsilon {
+			e.res.Violations = append(e.res.Violations, e.finding(r.Metric, b, h, hasBase, "max "+num(limit)))
+			return
+		}
+		e.warn(r.Metric, b, h, hasBase, limit, "over the "+num(limit)+" ceiling (unchanged since baseline); plan a split.")
 		return
 	}
 	warnAt := r.WarnAt
@@ -156,9 +165,14 @@ func (e *evaluator) capacity(r Threshold, h float64) {
 	if h < warnAt*limit-epsilon {
 		return
 	}
-	w := e.finding(r.Metric, b, h, hasBase, "max "+num(limit))
 	pct := strconv.Itoa(int(math.Floor(h / limit * 100)))
-	text := "at " + pct + "% of the " + num(limit) + " ceiling; plan a split before the next feature."
+	e.warn(r.Metric, b, h, hasBase, limit, "at "+pct+"% of the "+num(limit)+" ceiling; plan a split before the next feature.")
+}
+
+// warn records a capacity warning whose suggestion is text followed by the
+// Suggester's sentence, if any.
+func (e *evaluator) warn(metric string, b, h float64, hasBase bool, limit float64, text string) {
+	w := e.finding(metric, b, h, hasBase, "max "+num(limit))
 	if w.Suggestion != "" {
 		text += " " + w.Suggestion
 	}
