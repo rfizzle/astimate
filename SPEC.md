@@ -143,7 +143,7 @@ Every field is reported in output. *(v0)* fields are required for the first rele
 | `test_funcs` | int | `Test*`, `Benchmark*`, `Fuzz*`, `Example*` functions | v0 |
 | `has_tests` | bool | `test_funcs > 0` | v0 |
 | `untested_exports` | int | Exported funcs and methods not referenced from any test file in the package; see 6.4 | v0 |
-| `dup_blocks_cross_pkg` | int | Duplicate blocks shared with other packages in the module (exact normalized repeats; also reported on a module-level row for gating) | v1 |
+| `dup_blocks_cross_pkg` | int | Duplicate blocks shared with other packages in the module: exact normalized repeats found over one module-wide stream of non-test, non-generated files, counted once in each package they touch; `dup_blocks` is computed per package and never includes them, and a sequence repeated within a package and also copied elsewhere counts in both. Null for standard-library loads, which are not modules. Also reported on a module-level row for gating (8.1) | v1 |
 | `instability` | float | Martin instability `Ce / (Ca + Ce)` with `Ca = fan_in`, `Ce = internal_imports`; null when both are 0 | v1 |
 | `abstractness` | float | Exported interface types over all exported types; null with no exported types | v1 |
 | `main_sequence_distance` | float | `|abstractness + instability - 1|`; reported, not gated, since idiomatic Go leaf packages sit near 1 by design | v1 |
@@ -180,6 +180,7 @@ Rules that the section 6 table leaves implicit, fixed here so goldens and implem
 - `globals` counts names, not specs or blocks: `var a, b = 1, 2` is 2; `_` is excluded.
 - `func_count`, `cognitive_total` and `cognitive_p90` include `init()` functions.
 - `cognitive_p90` is the nearest-rank 90th percentile over per-function values; a package with no functions reports 0.
+- `uses_cgo`, `uses_reflect` and `generated_files` are read from the source files' import specs and headers, never from files cgo generates; blank and renamed imports of `reflect` or `unsafe` count.
 - `tokens_est` sums bytes across files first, then divides by `chars_per_token` and truncates.
 - `fan_in_tests` counts other packages whose test files import this package; a package's own external test package importing it does not count.
 - `sloc` counts a line with code and a trailing comment as code.
@@ -274,6 +275,8 @@ All parameters live in the `rebuild:` section of the config and are labelled unc
 
 **Capacity rules** measure how much code there is. They are supposed to grow with features, so they carry no delta. They have an absolute `max` that answers a different question: has the package outgrown what one agent can hold in context? The fix for a capacity breach is a split, not a smaller feature. Like a density `max`, the ceiling is a violation for a new package or when the value rose; a legacy package already over the ceiling whose value is unchanged or fell gets a warning saying so, not a violation, so identical head and baseline trees never fail the gate. Each capacity rule also has a `warn_at` fraction (default 0.75) above which `check` emits a non-failing warning naming the headroom, so a split can be planned before a hard failure lands mid-feature.
 
+**Module row.** A module-level row with package path `module` carries module-wide metrics, today `dup_blocks_cross_pkg` as the number of distinct cross-package blocks. It exists because one edit that copies code between packages changes two packages' counts. It is baselined under the id `module` by `baseline write` and by git baselines alike, and evaluated by the same thresholds as a package; a baseline without the row treats it as new. `check` reports it first, and only when at least one package is selected; a check of named packages (the MCP `check_package` tool) has no module row. No default rule gates it until corpus calibration; a config may add `dup_blocks_cross_pkg` with `max_delta: 0` and `ratchet_from_zero: true`.
+
 Boolean metrics use `require: true` with an optional `when` guard (for example `has_tests` when `sloc > 100`). Requirements, like density `max`, do not fire on an unchanged legacy package: `has_tests` fails a package that lacks tests only when it is new or when its `sloc` grew.
 
 Packages that are new at head have no baseline. They face the capacity ceilings and the absolute `max` of every density rule. Delta rules are evaluated against zero only for rules marked `ratchet_from_zero: true`, which are the count-of-things-added metrics (`dup_blocks`, `untested_exports`, `globals`, `init_funcs`): a new package with three untested exports fails, a new package with forty tested exports under the ceiling passes. Intensive metrics such as `max_nesting`, `cognitive_p90` and `duplication_pct` are not ratcheted from zero, since every real package has some nesting; for a new package only their `max` applies.
@@ -332,7 +335,7 @@ Two sources, chosen by flag:
 - `text` (default): violations, then warnings, then a one-line summary per package.
 - `json`: the section 10.2 report per package plus `violations` and `warnings` arrays and a `passed` bool.
 - `hook`: the JSON shape Claude Code Stop hooks consume: `{ "decision": "block", "reason": "<violations as text>" }` on failure, `{}` on success, so the agent is told to keep working and why. Warnings are appended to the reason on failure and written to stderr on success. Because Claude Code reads a hook's JSON only when it exits 0, `--format hook` exits 0 whenever it produced a decision, whether or not there were violations; analysis failure still exits 2, which a Stop hook treats as a blocking error with stderr shown to the agent. In hook format, `check` reads the Stop hook's JSON from stdin when present and emits `{}` without analysis when `stop_hook_active` is true, so a hook that already blocked once never blocks again.
-- `github`: `::error file=<pkgdir>::` annotations, one per violation, and `::warning file=<pkgdir>::` per warning.
+- `github`: `::error file=<pkgdir>::` annotations, one per violation, and `::warning file=<pkgdir>::` per warning; the module row's findings carry no `file` property and lead with `module: `.
 
 ## 9. CLI
 
@@ -394,6 +397,8 @@ Results return `content` (text) and `structuredContent` (JSON), with `isError: t
   "config_version": "default-uncalibrated-1"
 }
 ```
+
+`check --format json` lists the module row first as an ordinary report whose `package_path` is `module`: v0 metrics are 0 and v1 metrics are null except the module-wide ones, and its rebuild block is zero.
 
 `package_path` is the package directory relative to the module root (`.` for the root package); the full import path is `module_path` joined with it. `agent_passes` and `human_days` are rounded to one decimal; `rebuild_tokens` and driver `tokens` are integers. `passed`, `baseline`, `violations` and `warnings` are present whenever a gate ran, with `violations` and `warnings` as empty arrays rather than omitted; all four are absent from `assess` output.
 
