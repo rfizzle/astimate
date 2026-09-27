@@ -358,7 +358,7 @@ Built on `github.com/modelcontextprotocol/go-sdk` v1.8 or later, which supports 
 
 | Tool | Input | Output |
 | --- | --- | --- |
-| `check_package` | `{ "path": string, "base"?: string }` | Gate result: `passed`, `violations[]`, per-package report. The agent's self-check. |
+| `check_package` | `{ "path": string, "base"?: string, "baseline_file"?: string }` | Gate result: `passed`, `violations[]`, per-package report. The agent's self-check; the text opens with PASSED or FAILED and what to do next. |
 | `assess_package` | `{ "path": string, "tokenizer"?: string }` | One report (10.2) |
 | `rank_packages` | `{ "module_root": string, "top"?: int, "sort"?: string }` | Sorted array of `{ path, agent_passes, human_days, tier, fan_in, tokens_est, duplication_pct }` |
 | `explain_metric` | `{ "metric": string }` | Definition, evidence note and default threshold for one metric |
