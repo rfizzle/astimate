@@ -394,6 +394,8 @@ Results return `content` (text) and `structuredContent` (JSON), with `isError: t
 }
 ```
 
+`package_path` is the package directory relative to the module root (`.` for the root package); the full import path is `module_path` joined with it. `agent_passes` and `human_days` are rounded to one decimal; `rebuild_tokens` and driver `tokens` are integers. `passed`, `baseline`, `violations` and `warnings` are present only when a gate ran.
+
 ## 11. Calibration
 
 Two calibrations, in priority order.
