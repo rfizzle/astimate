@@ -1,0 +1,22 @@
+version: "2"
+
+run:
+  tests: true
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - gochecknoglobals
+    - gochecknoinits
+    - gocritic
+    - govet
+    - ineffassign
+    - revive
+    - staticcheck
+    - unused
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
