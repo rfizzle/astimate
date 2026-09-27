@@ -3,16 +3,13 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 
-	"github.com/rfizzle/astimate/internal/lang/golang"
 	"github.com/rfizzle/astimate/internal/metrics"
-	"github.com/rfizzle/astimate/internal/metrics/metricstest"
 	"github.com/rfizzle/astimate/internal/report"
 	"github.com/rfizzle/astimate/internal/score"
 )
@@ -189,83 +186,6 @@ func TestAssessExitCodes(t *testing.T) {
 	}
 }
 
-func TestPackagePaths(t *testing.T) {
-	t.Parallel()
-
-	root := filepath.FromSlash("/src/mod")
-	tests := []struct {
-		name           string
-		dir            string
-		wantPkgPath    string
-		wantImportPath string
-	}{
-		{name: "module root", dir: root, wantPkgPath: ".", wantImportPath: "example.com/mod"},
-		{name: "child", dir: filepath.Join(root, "hub"), wantPkgPath: "hub", wantImportPath: "example.com/mod/hub"},
-		{name: "nested", dir: filepath.Join(root, "internal", "billing"),
-			wantPkgPath: "internal/billing", wantImportPath: "example.com/mod/internal/billing"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			pkgPath, importPath, err := packagePaths(root, tt.dir, "example.com/mod")
-			if err != nil {
-				t.Fatalf("packagePaths: %v", err)
-			}
-			if pkgPath != tt.wantPkgPath || importPath != tt.wantImportPath {
-				t.Errorf("packagePaths(%q) = (%q, %q), want (%q, %q)",
-					tt.dir, pkgPath, importPath, tt.wantPkgPath, tt.wantImportPath)
-			}
-		})
-	}
-}
-
-func TestLoadTarget(t *testing.T) {
-	t.Parallel()
-
-	absFixture, err := filepath.Abs(fixtureDir)
-	if err != nil {
-		t.Fatalf("resolving fixture: %v", err)
-	}
-	tests := []struct {
-		name           string
-		dir            string
-		wantPkgPath    string
-		wantImportPath string
-	}{
-		{name: "relative package dir", dir: filepath.Join(fixtureDir, "hub"),
-			wantPkgPath: "hub", wantImportPath: "example.com/fixture/hub"},
-		{name: "module root", dir: fixtureDir, wantPkgPath: ".", wantImportPath: "example.com/fixture"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			tg, err := loadTarget(tt.dir, targetFlags{tokenizer: tokenizerEst})
-			if err != nil {
-				t.Fatalf("loadTarget(%q): %v", tt.dir, err)
-			}
-			if tg.module.Root != absFixture || tg.module.ModulePath != "example.com/fixture" {
-				t.Errorf("module = (%q, %q), want (%q, example.com/fixture)",
-					tg.module.Root, tg.module.ModulePath, absFixture)
-			}
-			if tg.packagePath != tt.wantPkgPath || tg.importPath != tt.wantImportPath {
-				t.Errorf("paths = (%q, %q), want (%q, %q)",
-					tg.packagePath, tg.importPath, tt.wantPkgPath, tt.wantImportPath)
-			}
-		})
-	}
-
-	t.Run("non-module", func(t *testing.T) {
-		t.Parallel()
-
-		_, err := loadTarget(t.TempDir(), targetFlags{tokenizer: tokenizerEst})
-		if !errors.Is(err, golang.ErrNoModule) {
-			t.Errorf("loadTarget error = %v, want it to wrap golang.ErrNoModule", err)
-		}
-	})
-}
-
 func TestAssessNamesUntestedExports(t *testing.T) {
 	t.Parallel()
 
@@ -283,74 +203,4 @@ func TestAssessNamesUntestedExports(t *testing.T) {
 	if !slices.Contains(r.Suggestions, want) {
 		t.Errorf("suggestions = %q, want one to be %q", r.Suggestions, want)
 	}
-}
-
-// TestDupesDuplicationSuggestionNamesLocation checks the path check takes: the
-// names assess resolves feed the duplication template, which cites the first
-// occurrence of the first block.
-func TestDupesDuplicationSuggestionNamesLocation(t *testing.T) {
-	t.Parallel()
-
-	tg, err := loadTarget(filepath.Join(fixtureDir, "dupes"), targetFlags{tokenizer: tokenizerEst})
-	if err != nil {
-		t.Fatalf("loadTarget: %v", err)
-	}
-	m, err := tg.extractor.Extract(t.Context(), tg.module, tg.importPath)
-	if err != nil {
-		t.Fatalf("Extract: %v", err)
-	}
-	names, err := suggestionNames(t.Context(), tg.extractor, tg.module, tg.importPath)
-	if err != nil {
-		t.Fatalf("suggestionNames: %v", err)
-	}
-	got := score.MetricSuggestion("dup_blocks", float64(m.DupBlocks), m, names)
-	want := "1 duplicate block covers 80.6% of lines; extract shared helpers, starting with dupes.go:9-26."
-	if got != want {
-		t.Errorf("dup_blocks suggestion = %q, want %q", got, want)
-	}
-}
-
-func TestSuggestionNames(t *testing.T) {
-	t.Parallel()
-
-	const root = "/fake/module"
-	pkgs := map[string]metrics.RawMetrics{"p": {UntestedExports: 1, DupBlocks: 1}}
-	details := map[string]metrics.Details{"p": {
-		UntestedExports:  []string{"Parse"},
-		UntestedExcluded: []string{"Legacy"},
-		DupLocations:     []string{"p.go:3-9", "q.go:1-7"},
-	}}
-	tests := []struct {
-		name string
-		ext  metrics.Extractor
-		want score.Names
-	}{
-		{name: "detailer", ext: metricstest.NewFake("fake", root, pkgs, metricstest.WithDetails(details)),
-			want: score.Names{UntestedExports: []string{"Parse"}, DupLocations: []string{"p.go:3-9", "q.go:1-7"}}},
-		{name: "counts only", ext: metricstest.NewFake("fake", root, pkgs)},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			mod := &metrics.ModuleContext{Root: root}
-			got, err := suggestionNames(t.Context(), tt.ext, mod, "p")
-			if err != nil {
-				t.Fatalf("suggestionNames: %v", err)
-			}
-			if !slices.Equal(got.UntestedExports, tt.want.UntestedExports) ||
-				!slices.Equal(got.DupLocations, tt.want.DupLocations) {
-				t.Errorf("suggestionNames = %+v, want %+v", got, tt.want)
-			}
-		})
-	}
-
-	t.Run("unknown package", func(t *testing.T) {
-		t.Parallel()
-
-		ext := metricstest.NewFake("fake", root, pkgs, metricstest.WithDetails(details))
-		if _, err := suggestionNames(t.Context(), ext, &metrics.ModuleContext{Root: root}, "absent"); err == nil {
-			t.Error("suggestionNames on an unknown package returned no error")
-		}
-	})
 }

@@ -6,10 +6,8 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"os"
-	"path/filepath"
 
-	"github.com/rfizzle/astimate/internal/baseline"
+	"github.com/rfizzle/astimate/internal/engine"
 )
 
 const baselineUsage = `usage: astimate baseline <subcommand> [arguments]
@@ -38,7 +36,7 @@ func runBaseline(args []string, stdout, stderr io.Writer) int {
 func runBaselineWrite(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("astimate baseline write", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	out := fs.String("out", "", "path of the baseline file (default <module-root>/"+baseline.DefaultPath+")")
+	out := fs.String("out", "", "path of the baseline file (default <module-root>/"+engine.DefaultBaselinePath+")")
 	configPath := fs.String("config", "", "configuration file (default ./astimate.yaml, then the embedded default)")
 	fs.Usage = func() {
 		_, _ = fmt.Fprintln(stderr, "usage: astimate baseline write [<module-root>] [--out path] [--config path]")
@@ -59,7 +57,7 @@ func runBaselineWrite(args []string, stdout, stderr io.Writer) int {
 	}
 
 	logger := slog.New(slog.NewTextHandler(stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
-	path, n, err := writeBaseline(context.Background(), dir, *out, *configPath)
+	path, n, err := writeBaseline(context.Background(), dir, *out, *configPath, logger)
 	if err != nil {
 		logger.Error("baseline write failed", "dir", dir, "err", err)
 		return exitAnalysis
@@ -68,32 +66,15 @@ func runBaselineWrite(args []string, stdout, stderr io.Writer) int {
 	return exitOK
 }
 
-// writeBaseline extracts the module containing dir and writes its baseline
-// file to out, or to the default path under the module root when out is
-// empty. It returns the path written and the number of packages.
-func writeBaseline(ctx context.Context, dir, out, configPath string) (string, int, error) {
+// writeBaseline resolves dir and writes its module's baseline file with
+// engine.WriteBaseline. It returns the path written and the number of
+// packages.
+func writeBaseline(ctx context.Context, dir, out, configPath string, logger *slog.Logger) (string, int, error) {
 	// The baseline must be comparable with the metrics check computes, which
 	// always use the default tokenizer.
-	t, err := loadTarget(dir, targetFlags{configPath: configPath, tokenizer: tokenizerEst})
+	t, err := loadTarget(dir, configPath, tokenizerEst, logger)
 	if err != nil {
 		return "", 0, err
 	}
-	pkgs, err := baseline.Collect(ctx, t.extractor, t.module)
-	if err != nil {
-		return "", 0, err
-	}
-	// Outside git, or before the first commit, the file records no ref.
-	ref, _ := baseline.HeadCommit(ctx, t.module.Root)
-
-	path := out
-	if path == "" {
-		path = filepath.Join(t.module.Root, baseline.DefaultPath)
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return "", 0, fmt.Errorf("creating %s: %w", filepath.Dir(path), err)
-	}
-	if err := baseline.Write(path, ref, t.module.ModulePath, pkgs); err != nil {
-		return "", 0, err
-	}
-	return path, len(pkgs), nil
+	return engine.WriteBaseline(ctx, t, out)
 }

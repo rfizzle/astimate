@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/baseline"
+	"github.com/rfizzle/astimate/internal/engine"
 	"github.com/rfizzle/astimate/internal/lang/golang"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/report"
@@ -39,16 +40,16 @@ func degradedMetrics() []string {
 func fixtureBaseline(t *testing.T) string {
 	t.Helper()
 	// Extract as check does, with the extractor the default config builds.
-	tg, err := loadTarget(fixtureDir, targetFlags{tokenizer: tokenizerEst})
+	tg, err := engine.LoadTarget(fixtureDir, engine.TargetOptions{Tokenizer: tokenizerEst})
 	if err != nil {
 		t.Fatal(err)
 	}
-	pkgs, err := baseline.Collect(context.Background(), tg.extractor, tg.module)
+	pkgs, err := baseline.Collect(context.Background(), tg.Ext, tg.Mod)
 	if err != nil {
 		t.Fatalf("collecting the fixture baseline: %v", err)
 	}
 	path := filepath.Join(t.TempDir(), "baseline.json")
-	if err := baseline.Write(path, "fixture", tg.module.ModulePath, pkgs); err != nil {
+	if err := baseline.Write(path, "fixture", tg.Mod.ModulePath, pkgs); err != nil {
 		t.Fatalf("writing the fixture baseline: %v", err)
 	}
 	return path
@@ -327,15 +328,17 @@ func TestCheckGitRef(t *testing.T) {
 	gitIn(t, repo, "commit", "-q", "--no-verify", "-m", "pristine fixture")
 	copyTree(t, filepath.Join(degradedDir, "tested"), filepath.Join(repo, "fixture", "tested"))
 
-	tg, err := loadTarget(filepath.Join(repo, "fixture"), targetFlags{tokenizer: tokenizerEst})
+	tg, err := engine.LoadTarget(filepath.Join(repo, "fixture"), engine.TargetOptions{Tokenizer: tokenizerEst})
 	if err != nil {
 		t.Fatal(err)
 	}
-	ext := newRootCountingExtractor(tg.extractor)
+	ext := newRootCountingExtractor(tg.Ext.(*golang.Extractor))
+	tg.Ext = ext
 	var stdout, stderr bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&stderr, nil))
 	opts := checkOptions{base: "master", format: formatJSON}
-	if got := checkModule(context.Background(), ext, tg.module, tg.cfg, opts, &stdout, &stderr, logger); got != exitGateFailed {
+	tg.Logger = logger
+	if got := checkTarget(context.Background(), tg, opts, &stdout, &stderr, logger); got != exitGateFailed {
 		t.Fatalf("exit code = %d, want %d; stderr = %s", got, exitGateFailed, stderr.String())
 	}
 

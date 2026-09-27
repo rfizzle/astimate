@@ -3,22 +3,15 @@ package main
 import (
 	"bytes"
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"log/slog"
-	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 
-	"github.com/rfizzle/astimate/internal/baseline"
-	"github.com/rfizzle/astimate/internal/config"
-	"github.com/rfizzle/astimate/internal/gate"
-	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/engine"
 	"github.com/rfizzle/astimate/internal/report"
-	"github.com/rfizzle/astimate/internal/score"
 )
 
 // Output formats accepted by check --format (SPEC.md 8.5).
@@ -102,67 +95,38 @@ func runCheck(args []string, stdout, stderr io.Writer) int {
 	}
 
 	logger := slog.New(slog.NewTextHandler(stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
-	t, err := loadTarget(dir, targetFlags{configPath: configPath, tokenizer: *tokenizer})
+	t, err := loadTarget(dir, configPath, *tokenizer, logger)
 	if err != nil {
 		logger.Error("check failed", "dir", dir, "err", err)
 		return exitAnalysis
 	}
-	return checkModule(context.Background(), t.extractor, t.module, t.cfg, opts, stdout, stderr, logger)
+	return checkTarget(context.Background(), t, opts, stdout, stderr, logger)
 }
 
-// checkModule runs the gate on the module mod with ext and cfg and renders
-// the result to stdout in opts.format. The head tree is listed with one
-// Packages call and the baseline tree, when it comes from git, with one more
-// inside baseline.FromGit, so each tree is loaded once. A package that fails
-// to extract is logged and skipped; the rest are still rendered.
-func checkModule(ctx context.Context, ext metrics.Extractor, mod *metrics.ModuleContext, cfg *config.Config,
-	opts checkOptions, stdout, stderr io.Writer, logger *slog.Logger,
+// checkTarget runs the gate on t's module with engine.Check and renders the
+// result to stdout in opts.format. A package that fails to extract is
+// logged and skipped; the rest are still rendered.
+func checkTarget(ctx context.Context, t *engine.Target, opts checkOptions, stdout, stderr io.Writer,
+	logger *slog.Logger,
 ) int {
-	head, err := ext.Packages(mod.Root)
+	c, failed, err := engine.Check(ctx, t, engine.CheckOptions{
+		Base:         opts.base,
+		BaselineFile: opts.baselineFile,
+		All:          opts.all,
+	})
 	if err != nil {
-		logger.Error("check failed", "root", mod.Root, "err", err)
+		logger.Error("check failed", "root", t.Mod.Root, "err", err)
 		return exitAnalysis
-	}
-	src, err := resolveBaselineSource(ctx, mod.Root, opts, logger)
-	if err != nil {
-		logger.Error("check failed", "root", mod.Root, "err", err)
-		return exitAnalysis
-	}
-	selected, deleted, err := selectPackages(ctx, mod, head, src, opts.all, logger)
-	if err != nil {
-		logger.Error("check failed", "root", mod.Root, "err", err)
-		return exitAnalysis
-	}
-	base := src.file
-	if base == nil && len(selected) > 0 {
-		// Nothing selected means nothing to compare; skip the second load.
-		base, err = baseline.FromGit(ctx, mod.Root, src.ref, ext, mod.ModulePath)
-		if err != nil {
-			logger.Error("check failed", "root", mod.Root, "err", err)
-			return exitAnalysis
-		}
 	}
 
-	c := report.Check{Packages: make([]report.CheckedPackage, 0, len(selected)), Deleted: deleted}
-	failed := 0
-	for _, pkg := range selected {
-		p, err := checkPackage(ctx, ext, mod, cfg, base, pkg, logger)
-		if err != nil {
-			logger.Error("checking package failed", "path", modulePathRel(mod.ModulePath, pkg), "err", err)
-			failed++
-			continue
-		}
-		c.Packages = append(c.Packages, p)
-	}
-
-	if err := renderCheck(&c, opts.format, stdout, stderr); err != nil {
-		logger.Error("check failed", "root", mod.Root, "err", err)
+	if err := renderCheck(c, opts.format, stdout, stderr); err != nil {
+		logger.Error("check failed", "root", t.Mod.Root, "err", err)
 		return exitAnalysis
 	}
-	if failed > 0 {
-		logger.Error("check incomplete", "failed_packages", failed)
+	if len(failed) > 0 {
+		logger.Error("check incomplete", "failed_packages", len(failed))
 	}
-	return checkExitCode(opts.format, c.Failed(), failed)
+	return checkExitCode(opts.format, c.Failed(), len(failed))
 }
 
 // checkExitCode maps a check outcome in format to the process exit code
@@ -183,150 +147,6 @@ func checkExitCode(format string, violations bool, failedPackages int) int {
 	default:
 		return exitOK
 	}
-}
-
-// baselineSource is where the baseline comes from: a git ref or a file,
-// never both.
-type baselineSource struct {
-	// ref is the git ref whose merge-base with HEAD is the baseline; empty
-	// when file is set.
-	ref string
-	// file is the baseline read from a file; nil for a git baseline.
-	file baseline.Baseline
-}
-
-// resolveBaselineSource picks the baseline per SPEC.md 8.3: --baseline
-// reads the file, --base names the ref, and with neither the first default
-// ref is used. When no default ref exists but the module has a baseline
-// file at baseline.DefaultPath, that file is used and a warning says so.
-func resolveBaselineSource(ctx context.Context, root string, opts checkOptions, logger *slog.Logger) (baselineSource, error) {
-	if opts.baselineFile != "" {
-		b, err := baseline.FromFile(opts.baselineFile)
-		if err != nil {
-			return baselineSource{}, err
-		}
-		return baselineSource{file: b}, nil
-	}
-	if opts.base != "" {
-		return baselineSource{ref: opts.base}, nil
-	}
-	ref, refErr := baseline.DefaultRef(ctx, root)
-	if refErr == nil {
-		return baselineSource{ref: ref}, nil
-	}
-	path := filepath.Join(root, baseline.DefaultPath)
-	if _, err := os.Stat(path); err != nil {
-		if errors.Is(refErr, baseline.ErrNoDefaultRef) {
-			return baselineSource{}, refErr
-		}
-		return baselineSource{}, fmt.Errorf("%w; pass --base <ref> or --baseline <file>", refErr)
-	}
-	logger.Warn("no default baseline ref; using the baseline file", "path", path, "err", refErr)
-	b, err := baseline.FromFile(path)
-	if err != nil {
-		return baselineSource{}, err
-	}
-	return baselineSource{file: b}, nil
-}
-
-// selectPackages returns the import paths to check, in the order of head
-// (the import paths the extractor lists at head), and the module-relative
-// directories deleted since the baseline. With all set it returns head.
-// Otherwise it takes the packages changed since the merge-base of HEAD and
-// the baseline's ref and keeps those in head, which drops the directories
-// the go tool ignores. A file baseline whose ref does not resolve in git,
-// for example outside a repository, selects every package and says so.
-func selectPackages(ctx context.Context, mod *metrics.ModuleContext, head []string, src baselineSource,
-	all bool, logger *slog.Logger,
-) (selected, deleted []string, err error) {
-	if all {
-		return head, nil, nil
-	}
-	ref := src.ref
-	if src.file != nil {
-		ref = src.file.Ref()
-	}
-	if ref == "" {
-		logger.Warn("baseline file records no git ref; checking every package")
-		return head, nil, nil
-	}
-	mergeBase, err := baseline.MergeBase(ctx, mod.Root, ref)
-	if err != nil {
-		if src.file == nil {
-			return nil, nil, err
-		}
-		logger.Warn("cannot resolve the baseline file's ref; checking every package", "ref", ref, "err", err)
-		return head, nil, nil
-	}
-	change, err := baseline.ChangedPackages(ctx, mod.Root, mergeBase)
-	if err != nil {
-		return nil, nil, err
-	}
-	changed := make(map[string]bool, len(change.Packages))
-	for _, dir := range change.Packages {
-		changed[importPathOf(mod.ModulePath, dir)] = true
-	}
-	for _, pkg := range head {
-		if changed[pkg] {
-			selected = append(selected, pkg)
-		}
-	}
-	return selected, change.Deleted, nil
-}
-
-// importPathOf returns the import path of the package in the module-relative
-// slash directory dir of module modPath; the inverse of modulePathRel.
-func importPathOf(modPath, dir string) string {
-	if dir == "." {
-		return modPath
-	}
-	return modPath + "/" + dir
-}
-
-// checkPackage extracts pkg at head, evaluates it against its baseline
-// metrics, if base has any, and the configured thresholds, and builds its
-// report.
-func checkPackage(ctx context.Context, ext metrics.Extractor, mod *metrics.ModuleContext, cfg *config.Config,
-	base baseline.Baseline, pkg string, logger *slog.Logger,
-) (report.CheckedPackage, error) {
-	m, err := ext.Extract(ctx, mod, pkg)
-	if err != nil {
-		return report.CheckedPackage{}, err
-	}
-	names, err := suggestionNames(ctx, ext, mod, pkg)
-	if err != nil {
-		return report.CheckedPackage{}, err
-	}
-	var bm *metrics.RawMetrics
-	if v, ok := base.Metrics(pkg); ok {
-		bm = &v
-	}
-	suggest := func(metric string, h float64, hm metrics.RawMetrics) string {
-		return score.MetricSuggestion(metric, h, hm, names)
-	}
-	res := gate.Evaluate(m, bm, cfg.Thresholds, suggest)
-	path := modulePathRel(mod.ModulePath, pkg)
-	for _, n := range res.Notes {
-		logger.Info("rule skipped", "path", path, "metric", n.Metric, "reason", n.Text)
-	}
-
-	r := report.Build(&report.Input{
-		Language:        ext.Language(),
-		PackagePath:     path,
-		ModulePath:      mod.ModulePath,
-		Metrics:         m,
-		Names:           names,
-		Params:          cfg.Rebuild,
-		ConfigVersion:   cfg.Version,
-		AstimateVersion: astimateVersion(),
-	})
-	report.ApplyGate(&r, base.Ref(), bm, &res)
-	p := report.CheckedPackage{Report: r}
-	if bm != nil {
-		passes := score.Estimate(*bm, cfg.Rebuild).AgentPassesRounded()
-		p.BaseAgentPasses = &passes
-	}
-	return p, nil
 }
 
 // renderCheck renders c in format to stdout, writing hook warnings to

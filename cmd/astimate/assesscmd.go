@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"runtime/debug"
 
+	"github.com/rfizzle/astimate/internal/engine"
 	"github.com/rfizzle/astimate/internal/report"
 )
 
@@ -43,7 +44,7 @@ func runAssess(args []string, stdout, stderr io.Writer) int {
 	}
 
 	logger := slog.New(slog.NewTextHandler(stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
-	r, err := assess(context.Background(), dir, targetFlags{configPath: *configPath, tokenizer: *tokenizer})
+	r, err := assess(context.Background(), dir, *configPath, *tokenizer, logger)
 	if err != nil {
 		logger.Error("assess failed", "dir", dir, "err", err)
 		return exitAnalysis
@@ -52,9 +53,9 @@ func runAssess(args []string, stdout, stderr io.Writer) int {
 	// Render into a buffer so a write error cannot leave partial output.
 	var buf bytes.Buffer
 	if *asJSON {
-		err = report.WriteJSON(&buf, &r)
+		err = report.WriteJSON(&buf, r)
 	} else {
-		err = report.WriteTable(&buf, &r)
+		err = report.WriteTable(&buf, r)
 	}
 	if err != nil {
 		logger.Error("assess failed", "dir", dir, "err", err)
@@ -83,30 +84,13 @@ func parseInterspersed(fs *flag.FlagSet, args []string) ([]string, error) {
 	}
 }
 
-// assess resolves dir, extracts its metrics and builds the report.
-func assess(ctx context.Context, dir string, f targetFlags) (report.Report, error) {
-	t, err := loadTarget(dir, f)
+// assess resolves dir and builds its report with engine.Assess.
+func assess(ctx context.Context, dir, configPath, tokenizer string, logger *slog.Logger) (*report.Report, error) {
+	t, err := loadTarget(dir, configPath, tokenizer, logger)
 	if err != nil {
-		return report.Report{}, err
+		return nil, err
 	}
-	m, err := t.extractor.Extract(ctx, t.module, t.importPath)
-	if err != nil {
-		return report.Report{}, err
-	}
-	names, err := suggestionNames(ctx, t.extractor, t.module, t.importPath)
-	if err != nil {
-		return report.Report{}, err
-	}
-	return report.Build(&report.Input{
-		Language:        t.extractor.Language(),
-		PackagePath:     t.packagePath,
-		ModulePath:      t.module.ModulePath,
-		Metrics:         m,
-		Names:           names,
-		Params:          t.cfg.Rebuild,
-		ConfigVersion:   t.cfg.Version,
-		AstimateVersion: astimateVersion(),
-	}), nil
+	return engine.Assess(ctx, t)
 }
 
 // astimateVersion is the version `astimate version` prints: the linked

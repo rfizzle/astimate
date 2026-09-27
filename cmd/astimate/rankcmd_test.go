@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rfizzle/astimate/internal/config"
+	"github.com/rfizzle/astimate/internal/engine"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/metrics/metricstest"
 	"github.com/rfizzle/astimate/internal/report"
@@ -223,10 +225,10 @@ func TestRankModulePartialFailure(t *testing.T) {
 			mod := &metrics.ModuleContext{Root: root, ModulePath: modPath}
 			var stdout, stderr bytes.Buffer
 			logger := slog.New(slog.NewTextHandler(&stderr, nil))
-			opts := rankOptions{sortKey: report.SortPasses, asJSON: true}
-			got := rankModule(context.Background(), ext, mod, rankParams(), opts, &stdout, logger)
+			tg := &engine.Target{Mod: mod, Ext: ext, Cfg: &config.Config{Rebuild: rankParams()}, Logger: logger}
+			got := rankTarget(context.Background(), tg, engine.RankOptions{Sort: report.SortPasses}, true, &stdout, logger)
 			if got != tt.wantCode {
-				t.Errorf("rankModule exit code = %d, want %d; stderr = %q", got, tt.wantCode, stderr.String())
+				t.Errorf("rankTarget exit code = %d, want %d; stderr = %q", got, tt.wantCode, stderr.String())
 			}
 
 			// One Packages call and one Extract per package: with the Go
@@ -263,9 +265,10 @@ func TestRankModuleListFailure(t *testing.T) {
 	mod := &metrics.ModuleContext{Root: "/elsewhere", ModulePath: "example.com/m"}
 	var stdout, stderr bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&stderr, nil))
-	got := rankModule(context.Background(), ext, mod, rankParams(), rankOptions{sortKey: report.SortPasses}, &stdout, logger)
+	tg := &engine.Target{Mod: mod, Ext: ext, Cfg: &config.Config{Rebuild: rankParams()}, Logger: logger}
+	got := rankTarget(context.Background(), tg, engine.RankOptions{Sort: report.SortPasses}, false, &stdout, logger)
 	if got != exitAnalysis || stdout.Len() != 0 {
-		t.Errorf("rankModule = %d with stdout %q, want %d and empty stdout", got, stdout.String(), exitAnalysis)
+		t.Errorf("rankTarget = %d with stdout %q, want %d and empty stdout", got, stdout.String(), exitAnalysis)
 	}
 }
 
@@ -281,20 +284,5 @@ func rankParams() score.RebuildParams {
 		CocomoB:                 1.05,
 		DaysPerMonth:            19,
 		Tiers:                   score.Tiers{OnePassMax: 1, FewPassesMax: 3},
-	}
-}
-
-func TestModulePathRel(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct{ importPath, want string }{
-		{"example.com/m", "."},
-		{"example.com/m/a", "a"},
-		{"example.com/m/a/b", "a/b"},
-	}
-	for _, tt := range tests {
-		if got := modulePathRel("example.com/m", tt.importPath); got != tt.want {
-			t.Errorf("modulePathRel(%q) = %q, want %q", tt.importPath, got, tt.want)
-		}
 	}
 }

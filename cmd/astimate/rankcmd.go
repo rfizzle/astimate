@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -10,20 +11,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/engine"
 	"github.com/rfizzle/astimate/internal/report"
-	"github.com/rfizzle/astimate/internal/score"
 )
-
-// rankOptions are the rank flags that shape the output.
-type rankOptions struct {
-	// sortKey is the --sort value, one of report.SortKeys.
-	sortKey string
-	// top is the --top value; 0 keeps every row.
-	top int
-	// asJSON selects the JSON array instead of the table.
-	asJSON bool
-}
 
 // runRank ranks every package of a module: `rank [<module-root>] [--json]
 // [--top N] [--sort passes|days|fan_in|tokens|duplication] [--config path]
@@ -72,50 +62,35 @@ func runRank(args []string, stdout, stderr io.Writer) int {
 	}
 
 	logger := slog.New(slog.NewTextHandler(stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
-	t, err := loadTarget(dir, targetFlags{configPath: *configPath, tokenizer: *tokenizer})
+	t, err := loadTarget(dir, *configPath, *tokenizer, logger)
 	if err != nil {
 		logger.Error("rank failed", "dir", dir, "err", err)
 		return exitAnalysis
 	}
-	opts := rankOptions{sortKey: *sortKey, top: *top, asJSON: *asJSON}
-	return rankModule(context.Background(), t.extractor, t.module, t.cfg.Rebuild, opts, stdout, logger)
+	opts := engine.RankOptions{Sort: *sortKey, Top: *top}
+	return rankTarget(context.Background(), t, opts, *asJSON, stdout, logger)
 }
 
-// rankModule lists the packages of mod with one Packages call, extracts and
-// estimates each, then sorts, truncates and prints the rows to stdout. It
+// rankTarget ranks t's module with engine.Rank and prints the rows to
+// stdout, as a JSON array when asJSON is set and a table otherwise. It
 // returns exitAnalysis when listing fails (stdout stays empty) or when any
 // package failed to extract (the other rows are printed), else exitOK.
-func rankModule(ctx context.Context, ext metrics.Extractor, mod *metrics.ModuleContext,
-	params score.RebuildParams, opts rankOptions, stdout io.Writer, logger *slog.Logger,
+func rankTarget(ctx context.Context, t *engine.Target, opts engine.RankOptions, asJSON bool,
+	stdout io.Writer, logger *slog.Logger,
 ) int {
-	pkgs, err := ext.Packages(mod.Root)
-	if err != nil {
-		logger.Error("rank failed", "root", mod.Root, "err", err)
-		return exitAnalysis
-	}
-	rows := make([]report.Row, 0, len(pkgs))
-	failed := 0
-	for _, pkg := range pkgs {
-		path := modulePathRel(mod.ModulePath, pkg)
-		m, err := ext.Extract(ctx, mod, pkg)
-		if err != nil {
-			logger.Error("extracting package failed", "path", path, "err", err)
-			failed++
-			continue
-		}
-		rows = append(rows, report.NewRow(path, &m, params))
-	}
-	if err := report.SortRows(rows, opts.sortKey); err != nil {
+	rows, failed, err := engine.Rank(ctx, t, opts)
+	if errors.Is(err, report.ErrUnknownSortKey) {
 		logger.Error("rank failed", "err", err)
 		return exitUsage
 	}
-	if opts.top > 0 && opts.top < len(rows) {
-		rows = rows[:opts.top]
+	if err != nil {
+		logger.Error("rank failed", "root", t.Mod.Root, "err", err)
+		return exitAnalysis
 	}
 
 	// Render into a buffer so a write error cannot leave partial output.
 	var buf bytes.Buffer
-	if opts.asJSON {
+	if asJSON {
 		err = report.WriteRowsJSON(&buf, rows)
 	} else {
 		err = report.WriteRowsTable(&buf, rows)
@@ -124,22 +99,12 @@ func rankModule(ctx context.Context, ext metrics.Extractor, mod *metrics.ModuleC
 		_, err = stdout.Write(buf.Bytes())
 	}
 	if err != nil {
-		logger.Error("rank failed", "root", mod.Root, "err", err)
+		logger.Error("rank failed", "root", t.Mod.Root, "err", err)
 		return exitAnalysis
 	}
-	if failed > 0 {
-		logger.Error("rank incomplete", "failed_packages", failed)
+	if len(failed) > 0 {
+		logger.Error("rank incomplete", "failed_packages", len(failed))
 		return exitAnalysis
 	}
 	return exitOK
-}
-
-// modulePathRel returns the directory of the package with import path
-// importPath relative to the root of module modPath, in slash form: "." for
-// the root package, matching assess's package_path.
-func modulePathRel(modPath, importPath string) string {
-	if importPath == modPath {
-		return "."
-	}
-	return strings.TrimPrefix(importPath, modPath+"/")
 }
