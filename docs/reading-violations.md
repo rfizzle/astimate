@@ -10,9 +10,9 @@ violations:
     untested_exports: 0 -> 1, max_delta +0. 1 exported function has no test (JoinAgain); a rebuild would have to reverse-engineer its behavior.
 warnings:
   big
-    tokens_est: 21000 -> 24000, max 30000. at 80% of the 30000 ceiling; plan a split before the next feature. The package is 24000 tokens of non-test source; split it so a rebuild fits one agent pass.
+    tokens_est: 11000 -> 12800, max 16000. at 80% of the 16000 ceiling; plan a split before the next feature. The package is 12800 tokens of non-test source; split it so a rebuild fits one agent pass.
 tested: 0.1 passes (ONE_PASS), 1 violation, 0 warnings, +0.1 passes from baseline
-big: 1.1 passes (ONE_PASS), 0 violations, 1 warning, +0.1 passes from baseline
+big: 0.6 passes (ONE_PASS), 0 violations, 1 warning, +0.1 passes from baseline
 ```
 
 Violations come first, then warnings, each grouped under the package directory, then one summary line per package (the `big` lines are illustrative). Each finding line is `metric: baseline -> head, limit. suggestion`; a package new since the baseline shows `head (no baseline)` instead, and `changed_func_cognitive_max`, which is itself measured against the baseline, shows `head (changed since baseline)`. The suggestion names the identifiers or file lines to start with when the extractor knows them. The Claude Code hook sends the same text as its `reason`; the JSON format carries the same fields as `violations` and `warnings` arrays.

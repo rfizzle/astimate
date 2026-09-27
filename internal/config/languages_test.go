@@ -74,7 +74,7 @@ func TestDefaultLanguagesExample(t *testing.T) {
 		t.Errorf("Warnings = %q, want none", cfg.Warnings)
 	}
 	ts := cfg.ForLanguage("typescript")
-	if ts.Version != "default-uncalibrated-1+typescript" {
+	if ts.Version != "thresholds-2026-09-27+typescript" {
 		t.Errorf("typescript Version = %q", ts.Version)
 	}
 	if ts.Rebuild.TokensPerExport != 30 || ts.Rebuild.ContextBudget != cfg.Rebuild.ContextBudget {
@@ -167,8 +167,8 @@ func TestForLanguage(t *testing.T) {
 	t.Run("top level untouched", func(t *testing.T) {
 		t.Parallel()
 
-		if got := *ruleOn(t, cfg.Thresholds, "tokens_est").Max; got != 30000 {
-			t.Errorf("top-level tokens_est max = %v, want 30000", got)
+		if got := *ruleOn(t, cfg.Thresholds, "tokens_est").Max; got != 16000 {
+			t.Errorf("top-level tokens_est max = %v, want 16000", got)
 		}
 		if cfg.Rebuild.ContextBudget != 25000 {
 			t.Errorf("top-level context_budget = %v, want 25000", cfg.Rebuild.ContextBudget)

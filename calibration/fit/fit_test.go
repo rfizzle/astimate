@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -16,12 +17,20 @@ import (
 	"github.com/rfizzle/astimate/internal/metrics"
 )
 
-// dataPath is the committed standard-library data the candidate is fitted
-// from.
-const dataPath = "../data/2026-09-27/packages.jsonl"
+// dataPath is the committed corpus data the shipped thresholds are fitted
+// from: the standard library and the cloned modules of corpus.yaml.
+const dataPath = "../data/2026-09-27-corpus/packages.jsonl"
 
-// committedCandidate is the candidate fitted from dataPath.
-const committedCandidate = "../thresholds/astimate-thresholds-2026-09-27-stdlib-provisional.yaml"
+// stdlibDataPath is the earlier standard-library-only data, kept for
+// comparison; a fit of it carries the provisional suffix.
+const stdlibDataPath = "../data/2026-09-27/packages.jsonl"
+
+// committedCandidate is the candidate fitted from dataPath, which the
+// embedded default carries.
+const committedCandidate = "../thresholds/astimate-thresholds-2026-09-27.yaml"
+
+// shippedVersion is committedCandidate's config_version.
+const shippedVersion = "thresholds-2026-09-27"
 
 func TestPercentile(t *testing.T) {
 	series := make([]float64, 100)
@@ -168,8 +177,7 @@ func synthRows(n int) []Row {
 }
 
 func TestFitThresholds(t *testing.T) {
-	base, err := config.Parse([]byte(strings.Replace(string(config.Default()), "thresholds:\n", "thresholds:\n"+
-		"  - metric: globals\n    kind: density\n    max_delta: 0\n", 1)))
+	base, err := config.Parse(config.Default())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,7 +193,7 @@ func TestFitThresholds(t *testing.T) {
 		{"sloc", "90", "none"},              // capacity: p90 90
 		{"largest_file_sloc", "90", "none"}, // capacity
 		{"duplication_pct", "90", "12.5"},   // density with a max: IQR 50 / 4 = 12.5
-		{"globals", "none", "1"},            // density without a max stays without; all zero, minimum 1
+		{"globals", "none", "0"},            // density without a max stays without; base delta 0 is pinned
 		{"has_tests", "none", "none"},       // requirement untouched
 		{"tokens_est", "1", "none"},         // all zero: a capacity max is at least one step
 		// Null in every row (it needs a baseline diff): the base max stays,
@@ -210,6 +218,74 @@ func TestFitThresholds(t *testing.T) {
 	}
 }
 
+// TestFitKeepsZeroDelta checks the zero-tolerance policy of SPEC.md 11.1: a
+// density rule whose base max_delta is 0 keeps 0 however wide the data's
+// IQR, while a rule with a non-zero base max_delta is refitted.
+func TestFitKeepsZeroDelta(t *testing.T) {
+	base, err := config.Parse(config.Default())
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows := synthRows(100)
+	for i := range rows {
+		v := i + 1
+		rows[i].Metrics.DupBlocks = v
+		rows[i].Metrics.UntestedExports = v
+		rows[i].Metrics.Globals = v
+		rows[i].Metrics.InitFuncs = v
+		rows[i].Metrics.MaxNesting = v
+	}
+	pinned := 0
+	for _, c := range fitThresholds(rows, base) {
+		if c.Rule.MaxDelta == nil {
+			continue
+		}
+		switch {
+		case *c.Rule.MaxDelta == 0:
+			pinned++
+			if c.MaxDelta == nil || *c.MaxDelta != 0 || !c.DeltaPinned {
+				t.Errorf("%s: max_delta = %s (pinned %t) from IQR %v, want 0 kept", c.Rule.Metric, opt(c.MaxDelta), c.DeltaPinned, c.Stats.IQR)
+			}
+		case c.DeltaPinned:
+			t.Errorf("%s: base max_delta %v marked pinned", c.Rule.Metric, *c.Rule.MaxDelta)
+		}
+	}
+	if pinned != 5 {
+		t.Errorf("%d rules pinned, want the 5 zero-tolerance rules of the default", pinned)
+	}
+}
+
+// TestFitPoolsInternalImportsFromClonedModules checks internal_imports is
+// fitted from non-std rows only and every other metric from all rows.
+func TestFitPoolsInternalImportsFromClonedModules(t *testing.T) {
+	base, err := config.Parse(config.Default())
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows := synthRows(20)
+	for i := range rows {
+		rows[i].Metrics.InternalImports = 3
+		if i < 10 {
+			// std counts every standard-library import as internal.
+			rows[i].Module = "std"
+			rows[i].Metrics.InternalImports = 40
+		}
+	}
+	for _, c := range fitThresholds(rows, base) {
+		switch c.Rule.Metric {
+		case "internal_imports":
+			if c.Pool != poolCloned || c.Stats.N != 10 || c.Stats.Max != 3 || opt(c.Max) != "3" {
+				t.Errorf("internal_imports: pool %q n %d max %v candidate %s, want the 10 cloned rows and max 3",
+					c.Pool, c.Stats.N, c.Stats.Max, opt(c.Max))
+			}
+		case "sloc":
+			if c.Pool != poolAll || c.Stats.N != 20 {
+				t.Errorf("sloc: pool %q n %d, want all 20 rows", c.Pool, c.Stats.N)
+			}
+		}
+	}
+}
+
 // fitInto fits the committed data into dir and returns the candidate's
 // path and the report.
 func fitInto(t *testing.T, dir string) (candidate, report string) {
@@ -225,8 +301,8 @@ func fitInto(t *testing.T, dir string) (candidate, report string) {
 	if err != nil {
 		t.Fatalf("fit: %v", err)
 	}
-	if res.version != "thresholds-2026-09-27-stdlib-provisional" {
-		t.Errorf("version = %q, want the standard-library provisional suffix", res.version)
+	if res.version != shippedVersion {
+		t.Errorf("version = %q, want %q with no suffix", res.version, shippedVersion)
 	}
 	data, err := os.ReadFile(res.report)
 	if err != nil {
@@ -264,8 +340,27 @@ func TestCandidate(t *testing.T) {
 			t.Errorf("report has no section for %s", r.Metric)
 		}
 	}
-	if !strings.Contains(report, "**Provisional.**") {
-		t.Error("report does not say the candidate is provisional")
+	for _, want := range []string{"cloned-module rows only", "max_delta stays 0 on", "no `<module>` rows", "`changed_func_cognitive_max`: no row measures it"} {
+		if !strings.Contains(report, want) {
+			t.Errorf("report does not contain %q", want)
+		}
+	}
+	if strings.Contains(report, "**Provisional.**") {
+		t.Error("report calls the corpus fit provisional")
+	}
+}
+
+// TestStdlibOnlyIsProvisional checks a fit of standard-library rows alone
+// carries the provisional suffix.
+func TestStdlibOnlyIsProvisional(t *testing.T) {
+	dir := t.TempDir()
+	res, err := fit(options{data: stdlibDataPath, out: filepath.Join(dir, "c.yaml"), report: filepath.Join(dir, "r.md"),
+		date: "2026-09-27", suffix: suffixAuto})
+	if err != nil {
+		t.Fatalf("fit: %v", err)
+	}
+	if res.version != "thresholds-2026-09-27-stdlib-provisional" {
+		t.Errorf("version = %q, want the standard-library provisional suffix", res.version)
 	}
 }
 
@@ -275,15 +370,42 @@ func TestCommittedCandidate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("committed candidate does not validate: %v", err)
 	}
-	if cfg.Version != "thresholds-2026-09-27-stdlib-provisional" {
-		t.Errorf("config_version = %q", cfg.Version)
+	if cfg.Version != shippedVersion {
+		t.Errorf("config_version = %q, want %q", cfg.Version, shippedVersion)
+	}
+}
+
+// TestDefaultIsCommittedCandidate checks the embedded default carries the
+// committed candidate's config_version and exactly its rules, so the
+// shipped thresholds are the fitted ones.
+func TestDefaultIsCommittedCandidate(t *testing.T) {
+	cand, err := config.Load(committedCandidate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	def, err := config.Parse(config.Default())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if def.Version != cand.Version {
+		t.Errorf("default config_version = %q, candidate %q", def.Version, cand.Version)
+	}
+	if !reflect.DeepEqual(def.Thresholds, cand.Thresholds) {
+		t.Errorf("default thresholds differ from the committed candidate:\n%+v\n%+v", def.Thresholds, cand.Thresholds)
+	}
+	if def.Rebuild != cand.Rebuild || def.CharsPerToken != cand.CharsPerToken || def.Duplication != cand.Duplication {
+		t.Error("default rebuild or extraction settings differ from the committed candidate")
 	}
 }
 
 // TestCandidatePassesGoodCode is the acceptance check: under the fitted
 // candidate the fixture passes check --all against its own baseline, and
-// the standard-library errors package passes both against itself and as a
-// package new at head.
+// the standard-library sort package passes against itself and, as a
+// package new at head, every rule but the zero-tolerance ratchets, which
+// judge what a change adds rather than where a package sits in the corpus.
+// (errors, used before, sits above the corpus p90 of cognitive_p90 and
+// fails the fitted max as a new package, as a tenth of the corpus does by
+// construction.)
 func TestCandidatePassesGoodCode(t *testing.T) {
 	if testing.Short() {
 		t.Skip("loads the fixture and the standard library")
@@ -325,8 +447,8 @@ func TestCandidatePassesGoodCode(t *testing.T) {
 		}
 	})
 
-	t.Run("errors", func(t *testing.T) {
-		m, err := golang.ExtractStdlib(ctx, "errors",
+	t.Run("sort", func(t *testing.T) {
+		m, err := golang.ExtractStdlib(ctx, "sort",
 			golang.WithCharsPerToken(cfg.CharsPerToken),
 			golang.WithDupMinTokens(cfg.Duplication.MinTokens),
 			golang.WithDupIgnoreLiteralOnly(cfg.Duplication.IgnoreLiteralOnly),
@@ -340,6 +462,9 @@ func TestCandidatePassesGoodCode(t *testing.T) {
 		}{{"self-baseline", &m}, {"new package", nil}} {
 			res := gate.Evaluate(m, tt.base, cfg.Thresholds, nil)
 			for _, v := range res.Violations {
+				if tt.base == nil && v.Limit == "max_delta +0" {
+					continue
+				}
 				t.Errorf("%s: violation %+v", tt.name, v)
 			}
 		}

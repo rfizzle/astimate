@@ -6,7 +6,7 @@ The gate targets the ways LLM-written changes tend to degrade a package: copy-pa
 
 ## Status
 
-Every command below, the GitHub Action, the Claude Code hook, the pre-commit hook and the MCP server are implemented and tested. No release has been tagged yet, so install from source. The default thresholds are provisional until they are calibrated against a corpus of well-regarded Go modules (`SPEC.md` section 11), and every report says so. See `SPEC.md` for the full design and `AGENTS.md` for contribution rules.
+Every command below, the GitHub Action, the Claude Code hook, the pre-commit hook and the MCP server are implemented and tested. No release has been tagged yet, so install from source. The default thresholds are calibrated against a corpus of the standard library and 36 well-regarded Go modules (`SPEC.md` section 11, [the report](calibration/reports/thresholds-2026-09-27.md)); the rebuild estimate's parameters are not calibrated yet, and every report says so. See `SPEC.md` for the full design and `AGENTS.md` for contribution rules.
 
 Go and TypeScript are supported. The extractor interface and its conformance suite are language-agnostic; Go is analyzed with the standard toolchain, TypeScript with a pure-Go tree-sitter runtime, so neither needs cgo.
 
@@ -195,8 +195,7 @@ violations:
   tested
     changed_func_cognitive_max: 40 (changed since baseline), max 30. Changed function grade (grade.go:8) has cognitive complexity 40; split it into smaller functions or flatten its branching.
     dup_blocks: 0 -> 1, max_delta +0. 1 duplicate block covers 12.2% of lines; extract shared helpers, starting with degraded.go:15-20.
-    duplication_pct: 0 -> 12.2, max_delta +0.5. 1 duplicate block covers 12.2% of lines; extract shared helpers, starting with degraded.go:15-20.
-    duplication_pct: 0 -> 12.2, max 5. 1 duplicate block covers 12.2% of lines; extract shared helpers, starting with degraded.go:15-20.
+    duplication_pct: 0 -> 12.2, max_delta +6. 1 duplicate block covers 12.2% of lines; extract shared helpers, starting with degraded.go:15-20.
     globals: 0 -> 1, max_delta +0. 1 package-level variable holds state no signature reveals (joins); pass it explicitly or move it into a struct.
     untested_exports: 0 -> 1, max_delta +0. 1 exported function has no test (JoinAgain); a rebuild would have to reverse-engineer its behavior.
 <module>: dup_blocks_cross_pkg 1, 0 violations, 0 warnings
@@ -205,14 +204,14 @@ b: 0.1 passes (ONE_PASS), 0 violations, 0 warnings, +0.0 passes from baseline
 dupes: 0.1 passes (ONE_PASS), 0 violations, 0 warnings, +0.0 passes from baseline
 hidden: 0.1 passes (ONE_PASS), 0 violations, 0 warnings, +0.0 passes from baseline
 hub: 0.1 passes (ONE_PASS), 0 violations, 0 warnings, +0.0 passes from baseline
-tested: 0.1 passes (ONE_PASS), 6 violations, 0 warnings, +0.1 passes from baseline
+tested: 0.1 passes (ONE_PASS), 5 violations, 0 warnings, +0.1 passes from baseline
 trivial: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, +0.0 passes from baseline
 $ echo $?
 3
 ```
 <!-- /sample:check -->
 
-Each finding reads `metric: baseline -> head, limit. suggestion`. [docs/reading-violations.md](docs/reading-violations.md) explains them and the order to fix them in. The `<module>` row carries module-wide metrics, today `dup_blocks_cross_pkg`, the code copied between packages; it is reported first, and no default rule gates it until the thresholds are calibrated.
+Each finding reads `metric: baseline -> head, limit. suggestion`. [docs/reading-violations.md](docs/reading-violations.md) explains them and the order to fix them in. The `<module>` row carries module-wide metrics, today `dup_blocks_cross_pkg`, the code copied between packages; it is reported first, and no default rule gates it yet, since the calibration corpus has no module rows to fit it from.
 
 #### Gate semantics
 
@@ -221,7 +220,7 @@ Density rules measure how the code is written (duplicate blocks, untested export
 | Rule | Kind | Baseline | Head | Verdict |
 | --- | --- | --- | --- | --- |
 | `dup_blocks` `max_delta: 0` | density | 0 | 1 | violation: one copied block fails however small the change |
-| `tokens_est` `max: 30000`, `warn_at: 0.75` | capacity | 12,000 | 24,100 | passes with a warning: at 80% of the ceiling, plan a split before the next feature |
+| `tokens_est` `max: 16000`, `warn_at: 0.75` | capacity | 6,000 | 12,800 | passes with a warning: at 80% of the ceiling, plan a split before the next feature |
 
 ### serve
 
@@ -238,19 +237,19 @@ wrote astimate.yaml
 $ head -15 astimate.yaml
 # Astimate configuration: rebuild parameters and gate thresholds in one file.
 #
-# These defaults are uncalibrated placeholders (SPEC.md sections 7 and 8.2)
-# until the calibration in SPEC.md section 11 has run.
+# The gate thresholds are calibrated (SPEC.md sections 8.2 and 11.1): fitted
+# by calibration/fit from the reference corpus in calibration/corpus.md, with
+# the evidence in calibration/reports/thresholds-2026-09-27.md. The rebuild
+# parameters are uncalibrated placeholders (SPEC.md section 7) until the
+# rebuild experiments in SPEC.md section 11.2 have run.
 
 # Identifies the defaults this file was generated from.
-config_version: default-uncalibrated-1
+config_version: thresholds-2026-09-27
 
 # Bytes of source per estimated token; tokens_est = bytes / chars_per_token.
 chars_per_token: 3.2
 
 # Duplicate-block detection. This section is optional: any key left out, or
-# the whole section, takes the value shown here.
-duplication:
-  # Minimum normalized token run that counts as a duplicate block.
 ...
 ```
 <!-- /sample:config-init -->
@@ -272,7 +271,7 @@ date: <date>
 
 One file, `astimate.yaml`, holds the rebuild-estimate parameters and the gate thresholds. `astimate config init` writes the defaults with a comment on every line. Resolution order is `--config` (`--thresholds` is an alias on `check`), then `./astimate.yaml`, then the embedded default. The top-level keys `config_version`, `chars_per_token`, `rebuild` and `thresholds` are required: a missing one is an error, not filled from the default, so start from the file `config init` writes. Sections that group optional tuning, today `duplication` (`min_tokens`, `ignore_literal_only`, `fold_signs`), may be partial or absent, and absent keys take the embedded defaults. An optional `languages:` section, keyed by language id (`go` or `typescript`), overrides the configuration for one language: its `rebuild:` sets only the parameters it names, the rest coming from the top-level `rebuild`; its `thresholds:` rules replace the top-level rule on the same metric or add one, and `- metric: <name>` with `disabled: true` drops that metric's rules for the language. Everything else is shared. Reports judged with an override show `config_version` suffixed with `+<language>`. `SPEC.md` section 9 has the full rules.
 
-The default thresholds are placeholders until they are calibrated against a corpus of well-regarded Go modules (`SPEC.md` section 11), and every report says so.
+The default thresholds (`config_version: thresholds-2026-09-27`) are the rounded 90th percentiles of a reference corpus of the standard library and 36 well-regarded Go modules, fitted by `calibration/fit` (`SPEC.md` section 11.1); [calibration/reports/thresholds-2026-09-27.md](calibration/reports/thresholds-2026-09-27.md) has the distributions and a before and after table, and `configs/uncalibrated.yaml` keeps the earlier placeholders. The zero-tolerance ratchets stay at 0 by policy. The rebuild parameters are still uncalibrated, and every report's estimate says so.
 
 ## Integrations
 
@@ -386,6 +385,7 @@ internal/mcpserver/             MCP server
 internal/invariants/            Rebuild and gate invariants every configuration must pass
 action/                         Composite GitHub Action and its install and run scripts
 calibration/                    Reference corpus, metric collector, threshold fit and reports
+configs/                        Alternative configurations: the uncalibrated placeholder defaults
 docs/                           Integration guides and verification records
 scripts/                        README sample generator
 testdata/                       Fixture modules with hand-verified golden metrics

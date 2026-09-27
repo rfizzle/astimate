@@ -55,7 +55,7 @@ func TestCheckLanguageOverride(t *testing.T) {
 	const root, modPath = "/mod", "example.com/m"
 	pkg := modPath + "/big"
 	pkgs := map[string]metrics.RawMetrics{
-		pkg: {TokensEst: 40000, SLOC: 3000, ExportedSymbols: 10},
+		pkg: {TokensEst: 40000, SLOC: 700, ExportedSymbols: 10},
 	}
 	path := filepath.Join(t.TempDir(), "baseline.json")
 	// The baseline lacks big, so it is judged as new.
@@ -73,9 +73,9 @@ func TestCheckLanguageOverride(t *testing.T) {
 		wantPasses     float64
 	}{
 		{lang: "go", wantViolations: []string{"has_tests", "tokens_est"},
-			wantVersion: "default-uncalibrated-1", wantPasses: 1.9},
+			wantVersion: "thresholds-2026-09-27", wantPasses: 1.9},
 		{lang: "typescript", wantWarnings: []string{"tokens_est"},
-			wantVersion: "default-uncalibrated-1+typescript", wantPasses: 0.8},
+			wantVersion: "thresholds-2026-09-27+typescript", wantPasses: 0.8},
 	}
 	for _, tt := range tests {
 		t.Run(tt.lang, func(t *testing.T) {
@@ -126,8 +126,8 @@ func TestLanguageOverrideFixtures(t *testing.T) {
 		wantVersion string
 		wantBudget  float64
 	}{
-		{name: "go", dir: filepath.Join(fixtureDir, "hub"), wantVersion: "default-uncalibrated-1", wantBudget: 25000},
-		{name: "typescript", dir: "../../testdata/ts/fixture/hub", wantVersion: "default-uncalibrated-1+typescript", wantBudget: 50000},
+		{name: "go", dir: filepath.Join(fixtureDir, "hub"), wantVersion: "thresholds-2026-09-27", wantBudget: 25000},
+		{name: "typescript", dir: "../../testdata/ts/fixture/hub", wantVersion: "thresholds-2026-09-27+typescript", wantBudget: 50000},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

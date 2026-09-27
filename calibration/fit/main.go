@@ -120,7 +120,7 @@ func fit(opts options) (result, error) {
 	}
 
 	mods := modules(rows)
-	provisional := len(mods) == 1 && mods[0] == "std"
+	provisional := len(mods) == 1 && mods[0] == stdModule
 	suffix := opts.suffix
 	if suffix == suffixAuto {
 		suffix = ""
@@ -159,6 +159,7 @@ func fit(opts options) (result, error) {
 		Modules:     mods,
 		Provisional: provisional,
 		Choices:     choices,
+		CrossPkg:    crossPkgStats(rows),
 	})
 	if err := writeFile(res.out, out); err != nil {
 		return result{}, err

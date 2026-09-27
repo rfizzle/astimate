@@ -49,6 +49,8 @@ func TestCalibrated(t *testing.T) {
 		want    bool
 	}{
 		{"default-uncalibrated-1", false},
+		// Calibrated thresholds leave the rebuild parameters unmeasured.
+		{"thresholds-2026-09-27", false},
 		{"rebuild-2026-10-01-claude-code", true},
 		{"", false},
 		{"custom-rebuild-1", false},

@@ -563,7 +563,7 @@ func defaultRules(t *testing.T) []gate.Threshold {
 // every warn band.
 func healthy() metrics.RawMetrics {
 	return metrics.RawMetrics{
-		Files: 6, SLOC: 1200, LargestFileSLOC: 300, TokensEst: 9000,
+		Files: 6, SLOC: 600, LargestFileSLOC: 300, TokensEst: 9000,
 		InternalImports: 3, ExportedSymbols: 15, MaxNesting: 3,
 		CognitiveP90: 6, DupBlocks: 1, DuplicationPct: 1.0,
 		TestFiles: 3, TestFuncs: 12, HasTests: true,
@@ -576,7 +576,7 @@ func healthy() metrics.RawMetrics {
 // and cognitive_p90 face only their absolute max (SPEC.md section 8.1).
 func fresh() metrics.RawMetrics {
 	return metrics.RawMetrics{
-		Files: 8, SLOC: 2500, LargestFileSLOC: 450, TokensEst: 20000,
+		Files: 8, SLOC: 700, LargestFileSLOC: 400, TokensEst: 11000,
 		InternalImports: 3, ExportedSymbols: 40, MaxNesting: 3, CognitiveP90: 8,
 		TestFiles: 8, TestFuncs: 60, HasTests: true,
 	}
@@ -598,12 +598,12 @@ func TestEvaluateDefaultConfig(t *testing.T) {
 	})
 
 	// legacy is a package already past the density ceilings and without
-	// tests before the change.
+	// tests before the change, and below every capacity warn band.
 	legacy := func() metrics.RawMetrics {
 		return metrics.RawMetrics{
-			SLOC: 3000, LargestFileSLOC: 500, TokensEst: 20000, InternalImports: 5,
+			SLOC: 700, LargestFileSLOC: 400, TokensEst: 11000, InternalImports: 5,
 			ExportedSymbols: 30, Globals: 9, InitFuncs: 2, MaxNesting: 8,
-			CognitiveP90: 25, DupBlocks: 14, DuplicationPct: 11.5,
+			CognitiveP90: 25, DupBlocks: 14, DuplicationPct: 45.5,
 			UntestedExports: 20,
 		}
 	}
@@ -623,11 +623,11 @@ func TestEvaluateDefaultConfig(t *testing.T) {
 
 		base := legacy()
 		head := legacy()
-		head.DuplicationPct = 11.8
-		head.SLOC = 3010
+		head.DuplicationPct = 45.8
+		head.SLOC = 710
 		got := gate.Evaluate(head, &base, rules, nil)
 		want := gate.Result{Violations: []gate.Violation{
-			{Metric: "duplication_pct", Base: 11.5, Head: 11.8, HasBase: true, Limit: "max 5"},
+			{Metric: "duplication_pct", Base: 45.5, Head: 45.8, HasBase: true, Limit: "max 40"},
 			{Metric: "has_tests", Base: 0, Head: 0, HasBase: true, Limit: "require true"},
 		}}
 		if !reflect.DeepEqual(got, want) {
@@ -691,10 +691,10 @@ func TestEvaluateDefaultConfig(t *testing.T) {
 		t.Parallel()
 
 		head := fresh()
-		head.CognitiveP90 = 26
+		head.CognitiveP90 = 21
 		got := gate.Evaluate(head, nil, rules, nil)
 		want := gate.Result{Violations: []gate.Violation{
-			{Metric: "cognitive_p90", Head: 26, Limit: "max 25"},
+			{Metric: "cognitive_p90", Head: 21, Limit: "max 20"},
 		}}
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Evaluate() =\n%+v\nwant\n%+v", got, want)
@@ -722,16 +722,16 @@ func TestEvaluateDefaultConfig(t *testing.T) {
 		t.Parallel()
 
 		base := healthy()
-		base.SLOC = 1500
-		base.LargestFileSLOC = 150
-		base.TokensEst = 9000
+		base.SLOC = 250
+		base.LargestFileSLOC = 100
+		base.TokensEst = 4800
 		base.InternalImports = 2
 		base.ExportedSymbols = 15
 		head := base
-		head.SLOC *= 3            // 4500: exactly the 75% edge of 6000
-		head.LargestFileSLOC *= 3 // 450: below 600
-		head.TokensEst *= 3       // 27000: 90% of 30000
-		head.InternalImports *= 3 // 6: below 9
+		head.SLOC *= 3            // 750: exactly the 75% edge of 1000
+		head.LargestFileSLOC *= 3 // 300: below 450
+		head.TokensEst *= 3       // 14400: 90% of 16000
+		head.InternalImports *= 3 // 6: below 7.5
 		head.ExportedSymbols *= 3 // 45: exactly the 75% edge of 60
 		head.Files *= 3
 		head.FuncCount *= 3
@@ -740,8 +740,8 @@ func TestEvaluateDefaultConfig(t *testing.T) {
 		got := gate.Evaluate(head, &base, rules, nil)
 		want := gate.Result{Passed: true, Warnings: []gate.Warning{
 			{Metric: "exported_symbols", Base: 15, Head: 45, HasBase: true, Limit: "max 60", Suggestion: "at 75% of the 60 ceiling; plan a split before the next feature."},
-			{Metric: "sloc", Base: 1500, Head: 4500, HasBase: true, Limit: "max 6000", Suggestion: "at 75% of the 6000 ceiling; plan a split before the next feature."},
-			{Metric: "tokens_est", Base: 9000, Head: 27000, HasBase: true, Limit: "max 30000", Suggestion: "at 90% of the 30000 ceiling; plan a split before the next feature."},
+			{Metric: "sloc", Base: 250, Head: 750, HasBase: true, Limit: "max 1000", Suggestion: "at 75% of the 1000 ceiling; plan a split before the next feature."},
+			{Metric: "tokens_est", Base: 4800, Head: 14400, HasBase: true, Limit: "max 16000", Suggestion: "at 90% of the 16000 ceiling; plan a split before the next feature."},
 		}}
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Evaluate() =\n%+v\nwant\n%+v", got, want)

@@ -161,7 +161,27 @@ ASTIMATE_CONFIG=$PWD/calibration/thresholds/astimate-thresholds-<version>.yaml g
 It writes `thresholds/astimate-thresholds-<version>.yaml`, the embedded
 default with each rule's `max` and `max_delta` refitted, and
 `reports/thresholds-<version>.md`, each gated metric's percentiles,
-histogram and chosen limits. The fitting rules are stated in both files.
-While every row is from the standard library the version carries a
-`-stdlib-provisional` suffix; `thresholds-2026-09-27-stdlib-provisional`
-is such a candidate and is not the shipped default.
+histogram and chosen limits, with the rows that fed each metric. The
+fitting rules are stated in both files: a rule whose base `max_delta` is 0
+keeps it, and `internal_imports` is pooled from the cloned modules' rows
+only (see Known limits). While every row is from the standard library the
+version carries a `-stdlib-provisional` suffix;
+`thresholds-2026-09-27-stdlib-provisional` is such a candidate, fitted from
+`data/2026-09-27/`, and is kept for comparison only: it predates the
+zero-tolerance and `internal_imports` rules, so its `max_delta` values on
+the zero-tolerance ratchets (1 to 3) are not what the fitter now produces.
+
+`thresholds-2026-09-27` is the fit of `data/2026-09-27-corpus/` and the
+shipped default: `internal/config/default.yaml` carries its rules and
+`config_version` (a test in `fit/` keeps them equal), and
+`configs/uncalibrated.yaml` keeps the placeholders it replaced. It was
+fitted with that file as the base, so the report's before and after table
+compares against the placeholders:
+
+```sh
+go run ./calibration/fit --data calibration/data/2026-09-27-corpus/packages.jsonl --date 2026-09-27 --base configs/uncalibrated.yaml
+```
+
+The corpus data has no `<module>` rows, so `dup_blocks_cross_pkg` has no
+distribution and no default rule; `changed_func_cognitive_max` needs
+baseline pairs the corpus lacks and keeps its placeholder of 30.

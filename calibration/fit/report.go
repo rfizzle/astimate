@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/rfizzle/astimate/internal/gate"
+	"github.com/rfizzle/astimate/internal/metrics"
 )
 
 // reportInput is what the Markdown report describes.
@@ -26,6 +27,9 @@ type reportInput struct {
 	Provisional bool
 	// Choices are the fitted rules in config order.
 	Choices []Choice
+	// CrossPkg is the distribution of dup_blocks_cross_pkg over the
+	// data's module rows; its N is 0 when the data has none.
+	CrossPkg Stats
 }
 
 // methodText states the fitting rules; the report header and the
@@ -34,7 +38,8 @@ func methodText() []string {
 	return []string{
 		"Percentiles are nearest-rank: the p-th percentile of n values is the value at rank ceil(p/100 * n), so it is always an observed value. IQR is p75 minus p25.",
 		"A capacity rule's max, and a density rule's max where the base rule has one, is the 90th percentile rounded to two significant figures and then to the nearest readable step: 500 above 1000, 50 above 100, 5 above 10, otherwise 1 (0.5 for a percentage). A capacity max is at least one step.",
-		"A density rule's max_delta is a quarter of the IQR rounded up to a whole step, at least 1 for a count and 0.5 for a percentage.",
+		"A density rule's max_delta is a quarter of the IQR rounded up to a whole step, at least 1 for a count and 0.5 for a percentage, except that a rule whose base max_delta is 0 keeps it: zero tolerance on new duplicate blocks, untested exports, globals, init functions and nesting is a policy, not a statistic.",
+		"internal_imports is pooled from cloned-module rows only, since the standard library is loaded as one module and counts every standard-library import as internal; every other metric is pooled from all rows.",
 		"Kinds, warn_at, ratchet_from_zero, when guards, requirement rules, the rebuild parameters and every other key are copied from the base unchanged; a density rule with no max in the base gets none.",
 	}
 }
@@ -62,18 +67,27 @@ func renderReport(in *reportInput) string {
 	w("above max, above max_delta from zero where ratchet_from_zero is set, or not meeting a requirement whose guard holds.\n\n")
 
 	w("## Summary\n\n")
-	w("| Metric | Kind | p90 | IQR | Base max | Candidate max | Base max_delta | Candidate max_delta | Fail as new, base | Fail as new, candidate |\n")
-	w("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n")
+	w("Base is `%s`, candidate `%s`. Rows counts the rows the metric was measured on and names which rows fed it.\n\n",
+		in.BaseVersion, in.Version)
+	w("| Metric | Kind | Rows | p90 | IQR | Base max | Candidate max | Base max_delta | Candidate max_delta | Fail as new, base | Fail as new, candidate |\n")
+	w("| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n")
 	for i := range in.Choices {
 		c := &in.Choices[i]
-		w("| `%s` | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n", c.Rule.Metric, c.Rule.Kind,
-			num(c.Stats.P90), num(c.Stats.IQR), opt(c.Rule.Max), opt(c.Max), opt(c.Rule.MaxDelta), opt(c.MaxDelta),
+		p90, iqr := "none", "none"
+		if c.Stats.N > 0 {
+			p90, iqr = num(c.Stats.P90), num(c.Stats.IQR)
+		}
+		w("| `%s` | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n", c.Rule.Metric, c.Rule.Kind, rowsUsed(c),
+			p90, iqr, opt(c.Rule.Max), opt(c.Max), opt(c.Rule.MaxDelta), opt(c.MaxDelta),
 			share(c.OverBase, c.Stats.N), share(c.OverCandidate, c.Stats.N))
 	}
 	w("\n")
 
 	w("## What changed most\n\n")
 	writeChanges(&b, in)
+
+	w("## Not fitted\n\n")
+	writeUnfitted(&b, in)
 
 	w("## Per metric\n\n")
 	for i := range in.Choices {
@@ -105,17 +119,22 @@ func writeChanges(b *strings.Builder, in *reportInput) {
 			c.Rule.Metric, dir, num(*c.Rule.Max), num(*c.Max), num(c.Stats.P50), num(c.Stats.P90),
 			share(c.OverBase, c.Stats.N), share(c.OverCandidate, c.Stats.N))
 	}
-	var loosened []string
+	var moves, pinned []string
 	for i := range in.Choices {
 		c := &in.Choices[i]
-		if c.MaxDelta != nil && c.Rule.MaxDelta != nil && *c.MaxDelta > *c.Rule.MaxDelta {
-			loosened = append(loosened, fmt.Sprintf("`%s` %s to %s", c.Rule.Metric, num(*c.Rule.MaxDelta), num(*c.MaxDelta)))
+		switch {
+		case c.DeltaPinned:
+			pinned = append(pinned, "`"+c.Rule.Metric+"`")
+		case c.MaxDelta != nil && c.Rule.MaxDelta != nil && *c.MaxDelta != *c.Rule.MaxDelta:
+			moves = append(moves, fmt.Sprintf("`%s` %s to %s", c.Rule.Metric, num(*c.Rule.MaxDelta), num(*c.MaxDelta)))
 		}
 	}
-	if len(loosened) > 0 {
-		w("- max_delta loosens on %s. ", strings.Join(loosened, ", "))
-		w("The minimum of one step turns every zero-tolerance ratchet into an allowance of at least one step, so a change may add duplicate blocks, untested exports, globals or init functions up to the candidate max_delta without failing. ")
-		w("Whether the zero-tolerance ratchets should stay at 0 regardless of the IQR is a policy decision the fit cannot make; review it before this candidate ships.\n")
+	if len(moves) > 0 {
+		w("- max_delta moves on %s: a quarter of each IQR.\n", strings.Join(moves, ", "))
+	}
+	if len(pinned) > 0 {
+		w("- max_delta stays 0 on %s whatever the IQR: zero tolerance on these is a policy, not a statistic (SPEC.md 11.1).\n",
+			strings.Join(pinned, ", "))
 	}
 	w("\n")
 	if in.Provisional {
@@ -126,12 +145,42 @@ func writeChanges(b *strings.Builder, in *reportInput) {
 	}
 }
 
-// writeMetric writes one metric's section: its percentiles, histogram and
-// limits.
+// writeUnfitted names the gated metrics no row measures, which keep their
+// base values, and describes the module-wide dup_blocks_cross_pkg, which
+// no base rule gates, from the data's module rows or their absence.
+func writeUnfitted(b *strings.Builder, in *reportInput) {
+	w := func(format string, args ...any) { fmt.Fprintf(b, format, args...) }
+	for i := range in.Choices {
+		c := &in.Choices[i]
+		if c.Stats.N == 0 {
+			w("- `%s`: no row measures it, so the base values are kept (max %s, max_delta %s). ",
+				c.Rule.Metric, opt(c.Max), opt(c.MaxDelta))
+			w("A metric that is itself a diff against a baseline needs baseline and head pairs, which the corpus does not have.\n")
+		}
+	}
+	if s := &in.CrossPkg; s.N == 0 {
+		w("- `dup_blocks_cross_pkg`: the data has no `%s` rows, so the module-wide metric has no distribution here and no default rule gates it.\n",
+			metrics.ModuleRowID)
+	} else {
+		w("- `dup_blocks_cross_pkg`, over %d `%s` rows (no default rule gates it): p25 %s, p50 %s, p75 %s, p90 %s, max %s.\n",
+			s.N, metrics.ModuleRowID, num(s.P25), num(s.P50), num(s.P75), num(s.P90), num(s.Max))
+	}
+	w("\n")
+}
+
+// rowsUsed describes the rows a metric was measured on: the count and the
+// pool.
+func rowsUsed(c *Choice) string {
+	return strconv.Itoa(c.Stats.N) + ", " + c.Pool
+}
+
+// writeMetric writes one metric's section: the rows it was measured on,
+// its percentiles, histogram and limits.
 func writeMetric(b *strings.Builder, c *Choice) {
 	w := func(format string, args ...any) { fmt.Fprintf(b, format, args...) }
 	s := &c.Stats
 	w("### `%s` (%s)\n\n", c.Rule.Metric, c.Rule.Kind)
+	w("Rows: %s.\n\n", rowsUsed(c))
 	w("| n | min | p25 | p50 | p75 | p90 | p95 | max | IQR |\n")
 	w("| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n")
 	w("| %d | %s | %s | %s | %s | %s | %s | %s | %s |\n\n", s.N, num(s.Min), num(s.P25), num(s.P50), num(s.P75),

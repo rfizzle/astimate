@@ -71,8 +71,7 @@ When a change adds a copied function, an untested export and a package variable 
 violations:
   tested
     dup_blocks: 0 -> 1, max_delta +0. 1 duplicate block covers 29.3% of lines; extract shared helpers, starting with degraded.go:15-20.
-    duplication_pct: 0 -> 29.3, max_delta +0.5. 1 duplicate block covers 29.3% of lines; extract shared helpers, starting with degraded.go:15-20.
-    duplication_pct: 0 -> 29.3, max 5. 1 duplicate block covers 29.3% of lines; extract shared helpers, starting with degraded.go:15-20.
+    duplication_pct: 0 -> 29.3, max_delta +6. 1 duplicate block covers 29.3% of lines; extract shared helpers, starting with degraded.go:15-20.
     globals: 0 -> 1, max_delta +0. 1 package-level variable holds state no signature reveals; pass it explicitly or move it into a struct.
     untested_exports: 0 -> 1, max_delta +0. 1 exported function has no test (JoinAgain); a rebuild would have to reverse-engineer its behavior.
 ```

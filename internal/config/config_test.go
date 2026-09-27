@@ -27,8 +27,8 @@ func TestParseDefault(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Parse(Default()) error = %v", err)
 	}
-	if cfg.Version != "default-uncalibrated-1" {
-		t.Errorf("Version = %q, want default-uncalibrated-1", cfg.Version)
+	if cfg.Version != "thresholds-2026-09-27" {
+		t.Errorf("Version = %q, want thresholds-2026-09-27", cfg.Version)
 	}
 	if cfg.CharsPerToken != 3.2 {
 		t.Errorf("CharsPerToken = %v, want 3.2", cfg.CharsPerToken)
@@ -80,8 +80,8 @@ func TestParseDefault(t *testing.T) {
 		if th.RatchetFromZero {
 			ratchet = append(ratchet, th.Metric)
 		}
-		if th.Metric == "cognitive_p90" && (th.Max == nil || *th.Max != 25) {
-			t.Errorf("cognitive_p90 max = %v, want 25", th.Max)
+		if th.Metric == "cognitive_p90" && (th.Max == nil || *th.Max != 20) {
+			t.Errorf("cognitive_p90 max = %v, want 20", th.Max)
 		}
 		if th.Metric == "changed_func_cognitive_max" && (th.Max == nil || *th.Max != 30 || th.MaxDelta != nil) {
 			t.Errorf("changed_func_cognitive_max max = %v, max_delta = %v, want max 30 and no max_delta", th.Max, th.MaxDelta)
@@ -93,6 +93,48 @@ func TestParseDefault(t *testing.T) {
 	last := cfg.Thresholds[len(cfg.Thresholds)-1]
 	if last.When == nil || *last.When != (gate.Condition{Metric: "sloc", Value: 100}) {
 		t.Errorf("has_tests when = %+v, want sloc > 100", last.When)
+	}
+}
+
+// TestDefaultVersionPrefix checks the embedded default ships calibrated
+// thresholds: SPEC.md 11.1 names a corpus fit thresholds-<date>.
+func TestDefaultVersionPrefix(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := Parse(Default())
+	if err != nil {
+		t.Fatalf("Parse(Default()) error = %v", err)
+	}
+	if !strings.HasPrefix(cfg.Version, "thresholds-") {
+		t.Errorf("Version = %q, want a thresholds-<date> version", cfg.Version)
+	}
+}
+
+// TestUncalibratedStillParses checks the pre-calibration defaults kept for
+// comparison under configs/ still load, with the default's rules in the same
+// order and its rebuild parameters.
+func TestUncalibratedStillParses(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := Load(filepath.Join("..", "..", "configs", "uncalibrated.yaml"))
+	if err != nil {
+		t.Fatalf("Load(configs/uncalibrated.yaml) error = %v", err)
+	}
+	if cfg.Version != "default-uncalibrated-1" {
+		t.Errorf("Version = %q, want default-uncalibrated-1", cfg.Version)
+	}
+	def, err := Parse(Default())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.Thresholds) != len(def.Thresholds) || cfg.Rebuild != def.Rebuild {
+		t.Fatalf("uncalibrated file has %d rules and rebuild %+v, want %d rules and the default rebuild parameters",
+			len(cfg.Thresholds), cfg.Rebuild, len(def.Thresholds))
+	}
+	for i, r := range cfg.Thresholds {
+		if d := def.Thresholds[i]; r.Metric != d.Metric || r.Kind != d.Kind {
+			t.Errorf("thresholds[%d] = %s %s, default has %s %s", i, r.Metric, r.Kind, d.Metric, d.Kind)
+		}
 	}
 }
 
@@ -110,7 +152,7 @@ func replace(t *testing.T, old, repl string) string {
 func TestParseErrors(t *testing.T) {
 	t.Parallel()
 
-	const capacityRule = "  - metric: sloc\n    kind: capacity\n    max: 6000\n    warn_at: 0.75\n"
+	const capacityRule = "  - metric: sloc\n    kind: capacity\n    max: 1000\n    warn_at: 0.75\n"
 	tests := []struct {
 		name    string
 		old     string
@@ -128,9 +170,9 @@ func TestParseErrors(t *testing.T) {
 		{name: "zero min_tokens", old: "min_tokens: 40", repl: "min_tokens: 0", wantErr: "duplication.min_tokens must be > 0"},
 		{name: "ignore_literal_only not a bool", old: "ignore_literal_only: true", repl: "ignore_literal_only: maybe", wantErr: "`maybe` into bool"},
 		{name: "unknown duplication key", old: "  min_tokens: 40\n", repl: "  min_tokens: 40\n  min_tokenz: 40\n", wantErr: "min_tokenz"},
-		{name: "empty version", old: "config_version: default-uncalibrated-1", repl: "config_version: \"\"", wantErr: "config_version is required"},
+		{name: "empty version", old: "config_version: thresholds-2026-09-27", repl: "config_version: \"\"", wantErr: "config_version is required"},
 		{name: "unknown key", old: "chars_per_token: 3.2", repl: "chars_per_token: 3.2\nchars_per_tokenz: 3.2", wantErr: "chars_per_tokenz"},
-		{name: "threshold with no limit", old: "    kind: density\n    max_delta: 0.5\n    max: 5.0\n", repl: "    kind: density\n", wantErr: `"duplication_pct": density rule needs max_delta or max`},
+		{name: "threshold with no limit", old: "    kind: density\n    max_delta: 6\n    max: 40\n", repl: "    kind: density\n", wantErr: `"duplication_pct": density rule needs max_delta or max`},
 		{name: "capacity with max_delta", old: capacityRule, repl: capacityRule + "    max_delta: 0\n", wantErr: `"sloc": capacity rule must not set max_delta`},
 		{name: "ratchet_from_zero on capacity", old: capacityRule, repl: capacityRule + "    ratchet_from_zero: true\n", wantErr: `"sloc": ratchet_from_zero applies only to density rules`},
 		{name: "ratchet_from_zero not a bool", old: "    ratchet_from_zero: true\n", repl: "    ratchet_from_zero: sometimes\n", wantErr: "`sometimes` into bool"},
@@ -228,7 +270,7 @@ func TestParseDuplication(t *testing.T) {
 func TestParseCapacityWarnAtDefault(t *testing.T) {
 	t.Parallel()
 
-	cfg, err := Parse([]byte(replace(t, "    max: 6000\n    warn_at: 0.75\n", "    max: 6000\n")))
+	cfg, err := Parse([]byte(replace(t, "    max: 1000\n    warn_at: 0.75\n", "    max: 1000\n")))
 	if err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
@@ -303,8 +345,8 @@ func TestParseAcceptsCouplingMetrics(t *testing.T) {
 func TestResolveOrder(t *testing.T) {
 	t.Parallel()
 
-	custom := replace(t, "config_version: default-uncalibrated-1", "config_version: custom")
-	flagged := replace(t, "config_version: default-uncalibrated-1", "config_version: flagged")
+	custom := replace(t, "config_version: thresholds-2026-09-27", "config_version: custom")
+	flagged := replace(t, "config_version: thresholds-2026-09-27", "config_version: flagged")
 
 	tests := []struct {
 		name        string
@@ -313,7 +355,7 @@ func TestResolveOrder(t *testing.T) {
 		wantSource  string
 		wantVersion string
 	}{
-		{name: "embedded", wantSource: SourceEmbedded, wantVersion: "default-uncalibrated-1"},
+		{name: "embedded", wantSource: SourceEmbedded, wantVersion: "thresholds-2026-09-27"},
 		{name: "working dir", localFile: true, wantSource: SourceWorkDir, wantVersion: "custom"},
 		{name: "flag over nothing", flag: true, wantSource: SourceFlag, wantVersion: "flagged"},
 		{name: "flag over working dir", localFile: true, flag: true, wantSource: SourceFlag, wantVersion: "flagged"},
@@ -379,7 +421,7 @@ func TestResolveErrors(t *testing.T) {
 // TestResolveUsesWorkingDir checks the exported entry point reads ./astimate.yaml.
 func TestResolveUsesWorkingDir(t *testing.T) {
 	dir := t.TempDir()
-	custom := replace(t, "config_version: default-uncalibrated-1", "config_version: cwd")
+	custom := replace(t, "config_version: thresholds-2026-09-27", "config_version: cwd")
 	if err := os.WriteFile(filepath.Join(dir, FileName), []byte(custom), 0o600); err != nil {
 		t.Fatal(err)
 	}

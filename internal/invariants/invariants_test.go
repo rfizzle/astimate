@@ -86,7 +86,11 @@ func TestConfigOverrideViaEnvironment(t *testing.T) {
 		}
 	})
 	t.Run("set loads the named file", func(t *testing.T) {
-		data := strings.Replace(string(config.Default()), "config_version: default-uncalibrated-1",
+		def, err := config.Parse(config.Default())
+		if err != nil {
+			t.Fatal(err)
+		}
+		data := strings.Replace(string(config.Default()), "config_version: "+def.Version,
 			"config_version: invariants-override", 1)
 		if !strings.Contains(data, "invariants-override") {
 			t.Fatal("default config no longer carries the expected config_version line")

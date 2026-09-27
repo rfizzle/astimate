@@ -1,13 +1,10 @@
 # Astimate configuration: rebuild parameters and gate thresholds in one file.
 #
-# The gate thresholds are calibrated (SPEC.md sections 8.2 and 11.1): fitted
-# by calibration/fit from the reference corpus in calibration/corpus.md, with
-# the evidence in calibration/reports/thresholds-2026-09-27.md. The rebuild
-# parameters are uncalibrated placeholders (SPEC.md section 7) until the
-# rebuild experiments in SPEC.md section 11.2 have run.
+# These defaults are uncalibrated placeholders (SPEC.md sections 7 and 8.2)
+# until the calibration in SPEC.md section 11 has run.
 
 # Identifies the defaults this file was generated from.
-config_version: thresholds-2026-09-27
+config_version: default-uncalibrated-1
 
 # Bytes of source per estimated token; tokens_est = bytes / chars_per_token.
 chars_per_token: 3.2
@@ -66,8 +63,8 @@ thresholds:
   # Guards against a large duplicated feature that adds only one block.
   - metric: duplication_pct
     kind: density
-    max_delta: 6
-    max: 40
+    max_delta: 0.5
+    max: 5.0
   # New exported behavior needs a test; legacy gaps are reported, not failed.
   - metric: untested_exports
     kind: density
@@ -96,7 +93,7 @@ thresholds:
     kind: density
     max_delta: 3
     # What a new package, which has no baseline to drift from, is judged by.
-    max: 20
+    max: 25
   # No added or modified function past this complexity, even when the
   # package's p90 stays low. The metric is already a diff against the
   # baseline, so it takes a max and no max_delta; it is null, and the rule
@@ -107,12 +104,12 @@ thresholds:
   # The rebuild bar: past this a rebuild no longer fits one agent pass; split.
   - metric: tokens_est
     kind: capacity
-    max: 16000
+    max: 30000
     warn_at: 0.75
   # Files past this rarely fit an edit in one view.
   - metric: largest_file_sloc
     kind: capacity
-    max: 600
+    max: 800
     warn_at: 0.75
   # Surface past this is a package boundary problem.
   - metric: exported_symbols
@@ -122,12 +119,12 @@ thresholds:
   # Fan-out ceiling on internal imports.
   - metric: internal_imports
     kind: capacity
-    max: 10
+    max: 12
     warn_at: 0.75
   # Overall non-test source size ceiling.
   - metric: sloc
     kind: capacity
-    max: 1000
+    max: 6000
     warn_at: 0.75
   # Packages of meaningful size must have tests.
   - metric: has_tests
