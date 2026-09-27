@@ -350,8 +350,8 @@ func WriteHook(w, warnings io.Writer, c *Check) error {
 // WriteGitHub writes GitHub Actions workflow commands (SPEC.md 8.5): one
 // "::error" annotation per violation and one "::warning" per warning,
 // package by package, with the property and message escaped per the
-// workflow-command rules. A finding with a location (Finding.File and
-// Line) is annotated "file=<file>,line=<line>" on it, so it lands on the
+// workflow-command rules. A finding with a location (Finding.Location)
+// is annotated "file=<file>,line=<line>" on it, so it lands on the
 // line that caused it; a package finding without one is annotated
 // "file=<dir>" on its package directory. Every file is prefixed with
 // c.ModuleDir, so paths are relative to the repository top level. The
@@ -399,12 +399,13 @@ func (c *Check) repoPath(p string) string {
 // relative to the repository top level, and line when it has a location,
 // and prop, its row's, otherwise.
 func (c *Check) findingProperty(prop string, f *Finding) string {
-	if f.File == "" {
+	loc := f.Location
+	if loc == nil || loc.File == "" {
 		return prop
 	}
-	s := " file=" + escapeProperty(c.repoPath(f.File))
-	if f.Line > 0 {
-		s += ",line=" + strconv.Itoa(f.Line)
+	s := " file=" + escapeProperty(c.repoPath(loc.File))
+	if loc.Line > 0 {
+		s += ",line=" + strconv.Itoa(loc.Line)
 	}
 	return s
 }

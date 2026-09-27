@@ -203,8 +203,10 @@ type toolsList struct {
 }
 
 // checkToolsList checks that list names the four tools, each with an
-// output schema, that check_package's input schema declares staged, and
-// that its output schema's success branch declares the module block.
+// output schema, that the success branches of check_package's and
+// assess_package's output schemas declare details and finding locations,
+// that check_package's input schema declares staged, and that its output
+// schema's success branch declares the module block.
 func checkToolsList(t *testing.T, list toolsList) {
 	t.Helper()
 	names := make([]string, 0, len(list.Tools))
@@ -214,11 +216,8 @@ func checkToolsList(t *testing.T, list toolsList) {
 			t.Errorf("tools/list: %s has no outputSchema", tool.Name)
 			continue
 		}
-		if tool.Name != "check_package" {
+		if tool.Name != "check_package" && tool.Name != "assess_package" {
 			continue
-		}
-		if tool.InputSchema.Properties["staged"] == nil {
-			t.Errorf("tools/list: check_package inputSchema properties = %v, want staged", slices.Collect(maps.Keys(tool.InputSchema.Properties)))
 		}
 		var schema struct {
 			OneOf []struct {
@@ -226,7 +225,17 @@ func checkToolsList(t *testing.T, list toolsList) {
 			} `json:"oneOf"`
 		}
 		if err := json.Unmarshal(tool.OutputSchema, &schema); err != nil || len(schema.OneOf) == 0 ||
-			schema.OneOf[0].Properties["module"] == nil || schema.OneOf[0].Properties["package_path"] == nil {
+			schema.OneOf[0].Properties["details"] == nil ||
+			!strings.Contains(string(schema.OneOf[0].Properties["violations"]), `"location"`) {
+			t.Errorf("tools/list: %s outputSchema = %s, want a success branch with details and finding locations", tool.Name, tool.OutputSchema)
+		}
+		if tool.Name != "check_package" {
+			continue
+		}
+		if tool.InputSchema.Properties["staged"] == nil {
+			t.Errorf("tools/list: check_package inputSchema properties = %v, want staged", slices.Collect(maps.Keys(tool.InputSchema.Properties)))
+		}
+		if len(schema.OneOf) == 0 || schema.OneOf[0].Properties["module"] == nil || schema.OneOf[0].Properties["package_path"] == nil {
 			t.Errorf("tools/list: check_package outputSchema = %s, want a success branch with package_path and module", tool.OutputSchema)
 		}
 	}
@@ -245,7 +254,17 @@ type callResult struct {
 	StructuredContent struct {
 		PackagePath string `json:"package_path"`
 		Passed      *bool  `json:"passed"`
-		Module      *struct {
+		Violations  []struct {
+			Metric   string `json:"metric"`
+			Location *struct {
+				File string `json:"file"`
+				Line int    `json:"line"`
+			} `json:"location"`
+		} `json:"violations"`
+		Details *struct {
+			Duplicates []json.RawMessage `json:"duplicates"`
+		} `json:"details"`
+		Module *struct {
 			PackagePath string `json:"package_path"`
 			Passed      *bool  `json:"passed"`
 		} `json:"module"`
@@ -270,6 +289,14 @@ func checkDegradedResult(t *testing.T, res callResult) {
 	}
 	if m := res.StructuredContent.Module; m == nil || m.PackagePath != "module" || m.Passed == nil {
 		t.Errorf("check_package structuredContent.module = %+v, want the gated module row", m)
+	}
+	for _, v := range res.StructuredContent.Violations {
+		if v.Location == nil || !strings.HasPrefix(v.Location.File, "tested/") || v.Location.Line == 0 {
+			t.Errorf("check_package violation %s location = %+v, want a line in tested", v.Metric, v.Location)
+		}
+	}
+	if d := res.StructuredContent.Details; d == nil || len(d.Duplicates) == 0 {
+		t.Errorf("check_package structuredContent.details = %+v, want the duplicate locations", d)
 	}
 	if len(res.Content) == 0 || res.Content[0].Type != "text" || !strings.HasPrefix(res.Content[0].Text, "FAILED") {
 		t.Errorf("check_package content = %+v, want text starting with FAILED", res.Content)

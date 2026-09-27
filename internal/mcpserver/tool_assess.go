@@ -18,7 +18,8 @@ const assessToolName = "assess_package"
 // assessToolDescription tells the agent what assess_package reports and
 // when it helps.
 const assessToolDescription = "Report the rebuild estimate for one Go package: agent passes, rebuild tokens, " +
-	"human days and tier, the drivers behind the estimate, suggestions, and every metric. Call it before " +
+	"human days and tier, the drivers behind the estimate, suggestions, every metric, and details " +
+	"locating its duplicate blocks, untested exports and globals. Call it before " +
 	"deciding how to approach a change to a package, to see how large and risky it is and what makes it so. " +
 	"It compares against no baseline; use check_package to gate a change."
 

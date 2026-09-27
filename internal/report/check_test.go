@@ -276,18 +276,18 @@ func TestWriteGitHubLocations(t *testing.T) {
 			c := fixedCheck()
 			c.ModuleDir = tt.moduleDir
 			billing := &c.Packages[0].Report
-			billing.Violations[0].File, billing.Violations[0].Line = "internal/billing/dupes.go", 12
-			billing.Warnings[0].File = "internal/billing/billing.go" // a file without a line
+			billing.Violations[0].Location = &Location{File: "internal/billing/dupes.go", Line: 12}
+			billing.Warnings[0].Location = &Location{File: "internal/billing/billing.go"} // a file without a line
 			root := &c.Packages[1].Report
 			root.PackagePath = "."
-			root.Warnings[0].File, root.Warnings[0].Line = "main.go", 1
+			root.Warnings[0].Location = &Location{File: "main.go", Line: 1}
 			zero, one := 0, 1
 			mod := Build(&Input{Language: "go", PackagePath: metrics.ModuleRowID, ModulePath: "example.com/app",
 				Metrics: metrics.RawMetrics{DupBlocksCrossPkg: &one}, Params: params()})
 			ApplyGate(&mod, "a1b2c3d", &metrics.RawMetrics{DupBlocksCrossPkg: &zero}, &gate.Result{
 				Violations: []gate.Violation{{Metric: "dup_blocks_cross_pkg", Head: 1, HasBase: true, Limit: "max_delta +0"}},
 			})
-			mod.Violations[0].File, mod.Violations[0].Line = "internal/billing/dupes.go", 40
+			mod.Violations[0].Location = &Location{File: "internal/billing/dupes.go", Line: 40}
 			c.Module = &CheckedPackage{Report: mod}
 
 			var buf bytes.Buffer

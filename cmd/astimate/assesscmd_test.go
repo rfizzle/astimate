@@ -50,8 +50,10 @@ func TestAssessJSONSchema(t *testing.T) {
 
 	// SPEC.md 10.2 keys an assess report carries; baseline, violations,
 	// warnings and passed are omitted because no baseline or gate ran.
+	// The Go extractor records details, at least the largest file, for
+	// every package.
 	wantTop := sorted("language", "package_path", "module_path", "rebuild", "suggestions",
-		"metrics", "astimate_version", "config_version")
+		"metrics", "details", "astimate_version", "config_version")
 	wantRebuild := sorted("agent_passes", "rebuild_tokens", "human_days", "tier", "calibrated", "drivers")
 	wantDriver := sorted("term", "tokens", "detail")
 	wantMetrics := sorted(metrics.MetricNames()...)
@@ -202,5 +204,48 @@ func TestAssessNamesUntestedExports(t *testing.T) {
 		"a rebuild would have to reverse-engineer their behavior."
 	if !slices.Contains(r.Suggestions, want) {
 		t.Errorf("suggestions = %q, want one to be %q", r.Suggestions, want)
+	}
+}
+
+func TestAssessJSONDetails(t *testing.T) {
+	t.Parallel()
+
+	var stdout, stderr bytes.Buffer
+	args := []string{"assess", "--json", filepath.Join(fixtureDir, "dupes")}
+	if got := run(args, &stdout, &stderr); got != exitOK {
+		t.Fatalf("run(%q) exit code = %d, want %d; stderr = %q", args, got, exitOK, stderr.String())
+	}
+	var r report.Report
+	dec := json.NewDecoder(bytes.NewReader(stdout.Bytes()))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&r); err != nil {
+		t.Fatalf("decoding report: %v\n%s", err, stdout.String())
+	}
+	if r.Details == nil {
+		t.Fatalf("report has no details:\n%s", stdout.String())
+	}
+	// The three copies of one block in dupes.go, files relative to the
+	// package directory.
+	wantDups := []report.Span{
+		{File: "dupes.go", StartLine: 9, EndLine: 26},
+		{File: "dupes.go", StartLine: 31, EndLine: 48},
+		{File: "dupes.go", StartLine: 53, EndLine: 70},
+	}
+	if !slices.Equal(r.Details.Duplicates, wantDups) {
+		t.Errorf("details.duplicates = %+v, want %+v", r.Details.Duplicates, wantDups)
+	}
+	if r.Metrics.DupBlocks == 0 {
+		t.Error("dup_blocks = 0, want the fixture's duplicate block counted")
+	}
+	wantUntested := []report.Declaration{
+		{Name: "CountVisits", File: "dupes.go", Line: 53},
+		{Name: "SumOrders", File: "dupes.go", Line: 9},
+		{Name: "TallyScores", File: "dupes.go", Line: 31},
+	}
+	if !slices.Equal(r.Details.UntestedExports, wantUntested) {
+		t.Errorf("details.untested_exports = %+v, want %+v", r.Details.UntestedExports, wantUntested)
+	}
+	if r.Details.LargestFile != "dupes.go" {
+		t.Errorf("details.largest_file = %q, want dupes.go", r.Details.LargestFile)
 	}
 }

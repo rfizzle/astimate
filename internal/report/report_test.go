@@ -61,7 +61,7 @@ func TestReportOptionalKeys(t *testing.T) {
 		{
 			name:   "no gate",
 			mutate: func(*Report) {},
-			noKeys: []string{`"baseline"`, `"violations"`, `"warnings"`, `"passed"`},
+			noKeys: []string{`"baseline"`, `"violations"`, `"warnings"`, `"passed"`, `"details"`},
 		},
 		{
 			name: "gate ran",
@@ -72,6 +72,18 @@ func TestReportOptionalKeys(t *testing.T) {
 				r.Passed = &passed
 			},
 			wantKeys: []string{`"baseline"`, `"violations"`, `"warnings"`, `"passed": false`},
+			noKeys:   []string{`"location"`, `"details"`},
+		},
+		{
+			name: "details and locations",
+			mutate: func(r *Report) {
+				r.Violations = []Finding{{Metric: "dup_blocks", Head: 4, Limit: "max_delta +0",
+					Location: &Location{File: "internal/billing/dupes.go", Line: 12}}}
+				r.Details = &Details{LargestFile: "billing.go"}
+			},
+			wantKeys: []string{`"location": {`, `"file": "internal/billing/dupes.go"`, `"line": 12`,
+				`"details": {`, `"largest_file": "billing.go"`},
+			noKeys: []string{`"duplicates"`, `"excluded_untested"`, `"cross_blocks"`},
 		},
 		{
 			name: "gate ran clean",

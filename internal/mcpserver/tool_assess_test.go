@@ -70,6 +70,24 @@ func TestAssessPackageTool(t *testing.T) {
 	}
 }
 
+func TestAssessPackageToolDetails(t *testing.T) {
+	if testing.Short() {
+		t.Skip("integration test: loads Go packages")
+	}
+	t.Parallel()
+
+	ws := workspace(t, fixtureDir)
+	cs := newTestClient(t, Options{Config: defaultConfig(t), WorkDir: ws})
+	res := callAssess(t, cs, map[string]any{"path": "mod/dupes"})
+	if res.IsError {
+		t.Fatalf("IsError = true, want a report; text:\n%s", resultText(res))
+	}
+	r := decodeReport(t, res)
+	if r.Details == nil || len(r.Details.Duplicates) != 3 || r.Details.Duplicates[0].File != "dupes.go" {
+		t.Errorf("details = %+v, want the three duplicate occurrences in dupes.go", r.Details)
+	}
+}
+
 func TestAssessPackageToolErrors(t *testing.T) {
 	if testing.Short() {
 		t.Skip("integration test: loads Go packages")

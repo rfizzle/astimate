@@ -91,7 +91,7 @@ func TestCheckModuleRow(t *testing.T) {
 	t.Run("github located", func(t *testing.T) {
 		t.Parallel()
 		c := moduleCheck()
-		c.Module.Report.Violations[0].File, c.Module.Report.Violations[0].Line = "a/a,b.go", 12
+		c.Module.Report.Violations[0].Location = &Location{File: "a/a,b.go", Line: 12}
 		var buf bytes.Buffer
 		if err := WriteGitHub(&buf, c); err != nil {
 			t.Fatal(err)
@@ -101,13 +101,17 @@ func TestCheckModuleRow(t *testing.T) {
 		if !strings.HasPrefix(buf.String(), want) {
 			t.Errorf("github =\n%s\nwant it to start with\n%s", buf.String(), want)
 		}
-		// The location is for annotations only: JSON keeps the 10.2 shape.
+		// JSON carries the same location on the finding.
 		var js bytes.Buffer
 		if err := WriteCheckJSON(&js, c); err != nil {
 			t.Fatal(err)
 		}
-		if strings.Contains(js.String(), "a/a,b.go") {
-			t.Errorf("json carries the annotation location:\n%s", js.String())
+		var got []Report
+		if err := json.Unmarshal(js.Bytes(), &got); err != nil {
+			t.Fatal(err)
+		}
+		if l := got[0].Violations[0].Location; l == nil || *l != (Location{File: "a/a,b.go", Line: 12}) {
+			t.Errorf("json module finding location = %+v, want a/a,b.go line 12:\n%s", l, js.String())
 		}
 	})
 	t.Run("hook and failed", func(t *testing.T) {

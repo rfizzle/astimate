@@ -525,10 +525,11 @@ func checkModule(ctx context.Context, t *Target, mm metrics.ModuleMetrics, base 
 		logger.Info("baseline file has no module row; module-wide rules skipped; run `astimate baseline write` to add it")
 		rules = nil
 	}
-	names, err := moduleNames(ctx, t.Ext, t.Mod)
+	det, err := moduleDetails(ctx, t.Ext, t.Mod)
 	if err != nil {
 		return report.CheckedPackage{}, err
 	}
+	names := score.Names{CrossBlocks: det.CrossBlocks}
 	gm, blame := m, (*crossBlame)(nil)
 	if _, detailed := t.Ext.(metrics.ModuleDetailer); detailed && len(named) > 0 && len(rules) > 0 && m.DupBlocksCrossPkg != nil {
 		gm, blame = blameNamed(m, bm, base, names.CrossBlocks, named)
@@ -561,22 +562,23 @@ func checkModule(ctx context.Context, t *Target, mm metrics.ModuleMetrics, base 
 		located = blame.blocks
 	}
 	locateCross(&r, located)
+	r.Details = t.details(&det)
 	return report.CheckedPackage{Report: r}, nil
 }
 
-// moduleNames returns the names behind the module row's counts for
-// suggestions when ext implements metrics.ModuleDetailer, and the zero
-// score.Names otherwise.
-func moduleNames(ctx context.Context, ext metrics.Extractor, mod *metrics.ModuleContext) (score.Names, error) {
+// moduleDetails returns the details behind the module row's counts, for
+// suggestions and the report's details block, when ext implements
+// metrics.ModuleDetailer, and the zero metrics.Details otherwise.
+func moduleDetails(ctx context.Context, ext metrics.Extractor, mod *metrics.ModuleContext) (metrics.Details, error) {
 	d, ok := ext.(metrics.ModuleDetailer)
 	if !ok {
-		return score.Names{}, nil
+		return metrics.Details{}, nil
 	}
 	det, err := d.ModuleDetails(ctx, mod)
 	if err != nil {
-		return score.Names{}, fmt.Errorf("naming suggestions for %s: %w", metrics.ModuleRowID, err)
+		return metrics.Details{}, fmt.Errorf("naming suggestions for %s: %w", metrics.ModuleRowID, err)
 	}
-	return score.Names{CrossBlocks: det.CrossBlocks}, nil
+	return det, nil
 }
 
 // locateCross locates r's dup_blocks_cross_pkg findings on the first
@@ -590,7 +592,7 @@ func locateCross(r *report.Report, blocks []metrics.CrossBlock) {
 	for _, fs := range [][]report.Finding{r.Violations, r.Warnings} {
 		for i := range fs {
 			if fs[i].Metric == "dup_blocks_cross_pkg" {
-				fs[i].File, fs[i].Line = o.File, o.StartLine
+				fs[i].Location = &report.Location{File: o.File, Line: o.StartLine}
 			}
 		}
 	}
@@ -648,6 +650,7 @@ func checkPackage(ctx context.Context, t *Target, base baseline.Baseline, pkg st
 	report.ApplyGate(&r, base.Ref(), bm, &res)
 	report.MarkTokenizer(&r, base.Tokenizer(), t.tokenizer())
 	locateFindings(&r, &det, worst)
+	r.Details = t.details(&det)
 	p = report.CheckedPackage{Report: r}
 	if bm != nil {
 		passes := score.Estimate(*bm, eff.Rebuild).AgentPassesRounded()
@@ -762,7 +765,7 @@ func locateFindings(r *report.Report, d *metrics.Details, worst *changedFunction
 	for _, fs := range [][]report.Finding{r.Violations, r.Warnings} {
 		for i := range fs {
 			if pos := findingPosition(fs[i].Metric, d, worst); pos.File != "" {
-				fs[i].File, fs[i].Line = path.Join(r.PackagePath, pos.File), pos.Line
+				fs[i].Location = &report.Location{File: path.Join(r.PackagePath, pos.File), Line: pos.Line}
 			}
 		}
 	}

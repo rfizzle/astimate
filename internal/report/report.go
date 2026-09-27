@@ -39,6 +39,10 @@ type Report struct {
 	Warnings []Finding `json:"warnings,omitzero"`
 	// Passed is the gate verdict; nil when no gate ran.
 	Passed *bool `json:"passed,omitempty"`
+	// Details names and locates what some of the metrics count, from the
+	// extractor's metrics.Details (see NewDetails); nil (omitted) when the
+	// extractor records none or the row has nothing to show.
+	Details *Details `json:"details,omitempty"`
 	// AstimateVersion is the version of the binary that produced the report.
 	AstimateVersion string `json:"astimate_version"`
 	// ConfigVersion is the config_version of the configuration used.
@@ -101,16 +105,21 @@ type Finding struct {
 	Limit string `json:"limit"`
 	// Suggestion is the fix sentence.
 	Suggestion string `json:"suggestion"`
-	// File and Line locate the finding, for renderers that annotate the
-	// line that caused it, such as a dup_blocks finding on a duplicate
-	// block or the module row's dup_blocks_cross_pkg finding on the first
-	// occurrence of the first shared block: File is relative to the module
-	// root in slash form and Line is 1-based, 0 when only the file is
-	// known. Empty when the finding has no location; a package finding is
-	// then located by its package path. Neither is part of the SPEC.md
-	// 10.2 schema.
-	File string `json:"-"`
-	Line int    `json:"-"`
+	// Location is the file and line that caused the finding, for
+	// renderers that annotate it, such as a dup_blocks finding on a
+	// duplicate block or the module row's dup_blocks_cross_pkg finding on
+	// the first occurrence of the first shared block. Nil (omitted) when
+	// the finding has no location; a package finding is then located by
+	// its package path.
+	Location *Location `json:"location,omitempty"`
+}
+
+// Location is a place in a module's source.
+type Location struct {
+	// File is relative to the module root, in slash form.
+	File string `json:"file"`
+	// Line is 1-based; 0 when only the file is known.
+	Line int `json:"line"`
 }
 
 // Input is everything Build composes a report from.

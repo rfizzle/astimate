@@ -55,7 +55,7 @@ func Assess(ctx context.Context, t *Target) (*report.Report, error) {
 	if err != nil {
 		return nil, err
 	}
-	names, err := Names(ctx, t, t.ImportPath)
+	det, err := packageDetails(ctx, t.Ext, t.Mod, t.ImportPath)
 	if err != nil {
 		return nil, err
 	}
@@ -65,12 +65,19 @@ func Assess(ctx context.Context, t *Target) (*report.Report, error) {
 		PackagePath:     t.Dir,
 		ModulePath:      t.Mod.ModulePath,
 		Metrics:         m,
-		Names:           names,
+		Names:           namesOf(&det),
 		Params:          eff.Rebuild,
 		ConfigVersion:   eff.Version,
 		AstimateVersion: t.Version,
 	})
+	r.Details = t.details(&det)
 	return &r, nil
+}
+
+// details returns the report details block of d, with cross-package
+// occurrences named by their module-relative package path.
+func (t *Target) details(d *metrics.Details) *report.Details {
+	return report.NewDetails(d, func(pkg string) string { return modulePathRel(t.Mod.ModulePath, pkg) })
 }
 
 // Rank lists the packages of t's module with one Packages call, extracts

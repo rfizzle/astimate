@@ -290,8 +290,8 @@ func TestCheckCrossPackageCopyOneFinding(t *testing.T) {
 	if v.Suggestion != suggestion {
 		t.Errorf("suggestion = %q, want %q", v.Suggestion, suggestion)
 	}
-	if v.File != "a/a.go" || v.Line != 7 {
-		t.Errorf("violation located at %q line %d, want a/a.go line 7", v.File, v.Line)
+	if l := v.Location; l == nil || l.File != "a/a.go" || l.Line != 7 {
+		t.Errorf("violation located at %+v, want a/a.go line 7", l)
 	}
 }
 

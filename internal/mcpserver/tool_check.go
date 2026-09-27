@@ -23,7 +23,8 @@ const checkToolName = "check_package"
 // to read its result.
 const checkToolDescription = "Run the astimate quality gate on one Go package you changed and report " +
 	"whether it got worse than its baseline. Call it on each package you changed before declaring " +
-	"the work done. A result with passed: false lists the violations to fix, each with a suggestion; " +
+	"the work done. A result with passed: false lists the violations to fix, each with a suggestion " +
+	"and, where known, the location (file and line) that caused it; " +
 	"fix them and call it again until it passes. Violations of module-wide rules, such as code " +
 	"newly copied between this package and another, are in the module block and fail the check " +
 	"too; their suggestion names the packages sharing each copy. Copies between two other " +

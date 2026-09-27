@@ -72,15 +72,16 @@ func TestCheckLocatesDegradedFindings(t *testing.T) {
 	}
 	seen := 0
 	for _, v := range r.Violations {
-		loc := v.File + ":" + strconv.Itoa(v.Line)
+		if v.Location == nil || v.Location.File == "" || v.Location.Line == 0 {
+			t.Errorf("%s has no location", v.Metric)
+			continue
+		}
+		loc := v.Location.File + ":" + strconv.Itoa(v.Location.Line)
 		if w, ok := want[v.Metric]; ok {
 			seen++
 			if loc != w {
 				t.Errorf("%s located at %s, want %s", v.Metric, loc, w)
 			}
-		}
-		if v.File == "" || v.Line == 0 {
-			t.Errorf("%s has no location", v.Metric)
 		}
 	}
 	if seen != len(want) {
@@ -138,10 +139,10 @@ func TestLocateFindingsJoinsPackagePath(t *testing.T) {
 	}
 	d := &metrics.Details{GlobalPositions: []metrics.Position{{File: "state.go", Line: 7}}}
 	locateFindings(&r, d, nil)
-	if f := r.Violations[0]; f.File != "internal/billing/state.go" || f.Line != 7 {
-		t.Errorf("globals located at %s:%d, want internal/billing/state.go:7", f.File, f.Line)
+	if l := r.Violations[0].Location; l == nil || *l != (report.Location{File: "internal/billing/state.go", Line: 7}) {
+		t.Errorf("globals located at %+v, want internal/billing/state.go:7", l)
 	}
-	if f := r.Warnings[0]; f.File != "" || f.Line != 0 {
-		t.Errorf("tokens_est located at %s:%d with nothing recorded, want no location", f.File, f.Line)
+	if l := r.Warnings[0].Location; l != nil {
+		t.Errorf("tokens_est located at %+v with nothing recorded, want no location", l)
 	}
 }

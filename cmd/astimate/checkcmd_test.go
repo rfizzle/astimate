@@ -13,11 +13,13 @@ import (
 	"path"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/baseline"
+	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/engine"
 	"github.com/rfizzle/astimate/internal/lang/golang"
 	"github.com/rfizzle/astimate/internal/metrics"
@@ -221,6 +223,17 @@ func TestCheckFixtures(t *testing.T) {
 						if v.Metric == "changed_func_cognitive_max" && !strings.HasPrefix(v.Suggestion, degradedGrade) {
 							t.Errorf("changed_func_cognitive_max suggestion = %q, want it to start %q", v.Suggestion, degradedGrade)
 						}
+						// Each degraded violation carries the location its
+						// github annotation lands on, module-relative.
+						want, ok := degradedLocations()[v.Metric]
+						if !ok {
+							continue
+						}
+						file, line, _ := strings.Cut(want, ",line=")
+						want = "tested/" + file + ":" + line
+						if l := v.Location; l == nil || l.File+":"+strconv.Itoa(l.Line) != want {
+							t.Errorf("%s location = %+v, want %s", v.Metric, l, want)
+						}
 					}
 				}
 			})
@@ -391,6 +404,68 @@ func gitIn(t *testing.T, dir string, args ...string) {
 	cmd.Env = env
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git %s: %v\n%s", strings.Join(args, " "), err, out)
+	}
+}
+
+// TestCheckJSONModuleLocation checks the module row of check --format
+// json against a baseline without the fixture's one cross-package block:
+// its dup_blocks_cross_pkg violation carries the location of the block's
+// first occurrence, and its details list the block.
+func TestCheckJSONModuleLocation(t *testing.T) {
+	if testing.Short() {
+		t.Skip("integration test: loads Go packages")
+	}
+	t.Parallel()
+
+	tg, err := engine.LoadTarget(fixtureDir, engine.TargetOptions{Tokenizer: tokenizerEst})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pkgs, err := baseline.Collect(t.Context(), tg.Ext, tg.Mod)
+	if err != nil {
+		t.Fatalf("collecting the fixture baseline: %v", err)
+	}
+	zero := 0
+	row := pkgs[metrics.ModuleRowID]
+	row.DupBlocksCrossPkg = &zero
+	pkgs[metrics.ModuleRowID] = row
+	base := filepath.Join(t.TempDir(), "baseline.json")
+	err = baseline.WriteContents(base, baseline.Contents{
+		Ref: "fixture", ModulePath: tg.Mod.ModulePath, Tokenizer: tokenizerEst, Packages: pkgs,
+	})
+	if err != nil {
+		t.Fatalf("writing the baseline: %v", err)
+	}
+	// No default rule gates dup_blocks_cross_pkg (SPEC.md 8.1); add one.
+	cfg := filepath.Join(t.TempDir(), "astimate.yaml")
+	rule := "\nlanguages:\n  go:\n    thresholds:\n" +
+		"      - metric: dup_blocks_cross_pkg\n        kind: density\n        max_delta: 0\n        ratchet_from_zero: true\n"
+	if err := os.WriteFile(cfg, append(config.Default(), rule...), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	args := []string{"check", fixtureDir, "--all", "--config", cfg, "--baseline", base, "--format", formatJSON}
+	if got := run(args, &stdout, &stderr); got != exitGateFailed {
+		t.Fatalf("run(%q) exit code = %d, want %d; stderr:\n%s", args, got, exitGateFailed, stderr.String())
+	}
+	reports := decodeReports(t, stdout.Bytes())
+	if len(reports) == 0 || reports[0].PackagePath != metrics.ModuleRowID {
+		t.Fatalf("reports do not start with the module row:\n%s", stdout.String())
+	}
+	m := &reports[0]
+	if len(m.Violations) != 1 || m.Violations[0].Metric != "dup_blocks_cross_pkg" {
+		t.Fatalf("module violations = %+v, want one on dup_blocks_cross_pkg", m.Violations)
+	}
+	if l := m.Violations[0].Location; l == nil || *l != (report.Location{File: "a/a.go", Line: 7}) {
+		t.Errorf("module finding location = %+v, want a/a.go line 7", l)
+	}
+	want := []report.CrossOccurrence{
+		{Package: "a", File: "a/a.go", StartLine: 7, EndLine: 19},
+		{Package: "b", File: "b/b.go", StartLine: 13, EndLine: 25},
+	}
+	if m.Details == nil || len(m.Details.CrossBlocks) != 1 || !slices.Equal(m.Details.CrossBlocks[0].Occurrences, want) {
+		t.Errorf("module details = %+v, want the one block %+v", m.Details, want)
 	}
 }
 

@@ -3,8 +3,8 @@ package metrics
 import "context"
 
 // Details carries the identifiers behind some RawMetrics counts, for
-// suggestions that name what to fix. It is a side channel: it never enters
-// RawMetrics or the report schema.
+// suggestions that name what to fix and for the report's details block.
+// It is a side channel: it never enters RawMetrics.
 type Details struct {
 	// UntestedExports names the exported functions and methods counted by
 	// untested_exports, sorted. Its length equals untested_exports.
