@@ -349,7 +349,7 @@ jobs:
           fetch-depth: 0   # the merge-base with the base branch must be in the clone
       - uses: rfizzle/astimate/action@master
         with:
-          version: v0.3.0
+          version: v0.1.0
           base: origin/${{ github.base_ref }}
 ```
 
@@ -364,7 +364,7 @@ jobs:
 
 `fetch-depth: 0` is required: with the default shallow clone the merge-base does not exist and the action stops with exit 2 (`base ref ... not found`) or warns that the clone is shallow. For a `pull_request` event the checkout is the merge commit, so the packages checked are those the pull request changes. If `origin/<base>` might be missing, fetch it first with `git fetch --no-tags origin "+refs/heads/<base>:refs/remotes/origin/<base>"`, as this repository's `gate` job in [`ci.yml`](.github/workflows/ci.yml) does.
 
-A release install downloads `astimate_<version>_<os>_<arch>.tar.gz` (`<version>` without the leading `v`, `<os>` `linux` or `darwin`, `<arch>` `amd64` or `arm64`) and `checksums.txt` from the GitHub release and refuses to install when the archive's SHA-256 does not match its line in `checksums.txt`. Linux and macOS runners are supported. Releases are built by goreleaser from [`.goreleaser.yaml`](.goreleaser.yaml) when a `v*` tag is pushed. No release has been published yet, so `version: latest` and a tag such as the `v0.3.0` above fail until one is; until then use `version: source` with `actions/setup-go`, as this repository's CI does.
+A release install downloads `astimate_<version>_<os>_<arch>.tar.gz` (`<version>` without the leading `v`, `<os>` `linux` or `darwin`, `<arch>` `amd64` or `arm64`) and `checksums.txt` from the GitHub release and refuses to install when the archive's SHA-256 does not match its line in `checksums.txt`. Linux and macOS runners are supported. Releases are built by goreleaser from [`.goreleaser.yaml`](.goreleaser.yaml) when a `v*` tag is pushed. The first release is `v0.1.0`; `version: latest` follows the newest one. `version: source` builds the checked-out repository with `actions/setup-go`, which is what this repository's own CI does.
 
 ## Layout
 
@@ -393,4 +393,4 @@ testdata/                       Fixture modules with hand-verified golden metric
 
 ## License
 
-To be decided before the first release.
+[MIT](LICENSE).

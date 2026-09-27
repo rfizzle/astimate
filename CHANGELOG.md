@@ -10,6 +10,14 @@ history.
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-09-27
+
+First release: Go and TypeScript extractors, the rebuild estimate, the
+quality gate with calibrated defaults, `assess`, `rank`, `baseline`,
+`check` (text, JSON, hook and GitHub formats, `--staged`), the MCP server,
+the GitHub Action, the Claude Code Stop hook and pre-commit integrations,
+under the MIT license.
+
 ### Changed
 
 - The embedded default thresholds are calibrated: `config_version` is
@@ -27,3 +35,6 @@ history.
   evidence is in `calibration/reports/thresholds-2026-09-27.md`; the previous
   placeholders are kept as `configs/uncalibrated.yaml`. The rebuild
   parameters are unchanged and still uncalibrated.
+
+[Unreleased]: https://github.com/rfizzle/astimate/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/rfizzle/astimate/releases/tag/v0.1.0
