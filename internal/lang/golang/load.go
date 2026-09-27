@@ -52,6 +52,9 @@ type loaded struct {
 	// packages that import it. It is nil until the fan-in metrics (fan_in,
 	// fan_in_tests) build it once per load.
 	reverse map[string][]string
+	// fanIn guards the one-time build of reverse and holds the test-only
+	// importer graph behind fan_in_tests.
+	fanIn reverseGraph
 }
 
 // loadModule loads every package under cfg.Dir, which must be an absolute
