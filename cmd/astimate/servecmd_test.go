@@ -194,10 +194,12 @@ func TestServeStdoutCarriesOnlyProtocolFrames(t *testing.T) {
 		t.Errorf("initialize result = %s (err %v), want serverInfo.name astimate", byID["1"].Result, err)
 	}
 	var list struct {
-		Tools []json.RawMessage `json:"tools"`
+		Tools []struct {
+			Name string `json:"name"`
+		} `json:"tools"`
 	}
-	if err := json.Unmarshal(byID["2"].Result, &list); err != nil || list.Tools == nil || len(list.Tools) != 0 {
-		t.Errorf("tools/list result = %s (err %v), want an empty tools array", byID["2"].Result, err)
+	if err := json.Unmarshal(byID["2"].Result, &list); err != nil || len(list.Tools) != 1 || list.Tools[0].Name != "check_package" {
+		t.Errorf("tools/list result = %s (err %v), want the check_package tool", byID["2"].Result, err)
 	}
 	if !strings.Contains(stderr.String(), "mcp server starting") {
 		t.Errorf("stderr = %q, want the startup log line", stderr)

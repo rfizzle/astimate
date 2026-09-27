@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -114,6 +115,9 @@ func checkTarget(ctx context.Context, t *engine.Target, opts checkOptions, stdou
 		BaselineFile: opts.baselineFile,
 		All:          opts.all,
 	})
+	if errors.Is(err, engine.ErrNoBaseline) {
+		err = fmt.Errorf("%w; pass --base <ref> or --baseline <file>", err)
+	}
 	if err != nil {
 		logger.Error("check failed", "root", t.Mod.Root, "err", err)
 		return exitAnalysis

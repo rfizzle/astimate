@@ -35,10 +35,11 @@ type Options struct {
 
 // New returns the astimate MCP server for o. Each tool is registered by its
 // own file in this package (tool_check.go, tool_assess.go, tool_rank.go,
-// tool_explain.go) through an AddTool call made from here. The tools
-// capability is advertised even while no tool is registered.
+// tool_explain.go) through an AddTool call made from here. The tools share
+// one session, which caches module loads and baselines for the server's
+// lifetime.
 func New(o Options) *mcp.Server {
-	return mcp.NewServer(
+	srv := mcp.NewServer(
 		&mcp.Implementation{Name: serverName, Version: o.Version},
 		&mcp.ServerOptions{
 			Logger: o.logger(),
@@ -48,6 +49,9 @@ func New(o Options) *mcp.Server {
 			Capabilities: &mcp.ServerCapabilities{Tools: &mcp.ToolCapabilities{}},
 		},
 	)
+	s := newSession(o)
+	addCheckTool(srv, s)
+	return srv
 }
 
 // Serve runs the server on stdin and stdout until the client closes stdin or

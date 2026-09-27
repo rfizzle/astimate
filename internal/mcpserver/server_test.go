@@ -3,6 +3,7 @@ package mcpserver
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"log/slog"
 	"strings"
 	"testing"
@@ -40,8 +41,20 @@ func TestDiscovery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListTools: %v", err)
 	}
-	if len(res.Tools) != 0 {
-		t.Errorf("ListTools returned %d tools, want 0", len(res.Tools))
+	if len(res.Tools) != 1 || res.Tools[0].Name != checkToolName {
+		t.Fatalf("ListTools returned %d tools, want only %s", len(res.Tools), checkToolName)
+	}
+	schema, err := json.Marshal(res.Tools[0].InputSchema)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, prop := range []string{`"path"`, `"base"`, `"baseline_file"`, `"required":["path"]`} {
+		if !strings.Contains(string(schema), prop) {
+			t.Errorf("input schema %s lacks %s", schema, prop)
+		}
+	}
+	if !strings.Contains(res.Tools[0].Description, "before declaring the work done") {
+		t.Errorf("description = %q, want it to say when to call the tool", res.Tools[0].Description)
 	}
 }
 

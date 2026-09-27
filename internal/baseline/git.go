@@ -88,8 +88,7 @@ func DefaultRef(ctx context.Context, root string) (string, error) {
 			return ref, nil
 		}
 	}
-	return "", fmt.Errorf("%w: tried %s; pass --base <ref> or --baseline <file>",
-		ErrNoDefaultRef, strings.Join(refs, ", "))
+	return "", fmt.Errorf("%w: tried %s", ErrNoDefaultRef, strings.Join(refs, ", "))
 }
 
 // MergeBase returns the commit hash of the merge-base of HEAD and ref in the

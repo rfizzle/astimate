@@ -412,8 +412,8 @@ func TestCheckDefaultRefFallback(t *testing.T) {
 		if got := run([]string{"check", root}, &out, &errOut); got != exitAnalysis {
 			t.Errorf("exit code = %d, want %d", got, exitAnalysis)
 		}
-		if !strings.Contains(errOut.String(), "--base") || out.Len() != 0 {
-			t.Errorf("stdout = %q, stderr = %q, want empty stdout and ref guidance", out.String(), errOut.String())
+		if strings.Count(errOut.String(), "pass --base <ref> or --baseline <file>") != 1 || out.Len() != 0 {
+			t.Errorf("stdout = %q, stderr = %q, want empty stdout and the ref guidance once", out.String(), errOut.String())
 		}
 	})
 }
