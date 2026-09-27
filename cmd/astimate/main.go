@@ -28,10 +28,11 @@ type command func(args []string, stdout, stderr io.Writer) int
 // commands is the top-level dispatch table. Adding a command is one entry.
 func commands() map[string]command {
 	return map[string]command{
-		"assess":  runAssess,
-		"config":  runConfig,
-		"rank":    runRank,
-		"version": runVersion,
+		"assess":   runAssess,
+		"baseline": runBaseline,
+		"config":   runConfig,
+		"rank":     runRank,
+		"version":  runVersion,
 	}
 }
 
