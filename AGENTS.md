@@ -68,6 +68,7 @@ Performance matters because agents call this tool interactively and `rank` runs 
 - `internal/metrics` defines `RawMetrics` and `Extractor`. It imports nothing language-specific.
 - `internal/lang/<lang>` implements one extractor. Language-specific code lives only here.
 - `internal/score` and `internal/gate` depend on `internal/metrics` only. Neither may import any `internal/lang` package.
+- `internal/config` is the composition point: it imports `metrics`, `score` and `gate`, parses YAML, and produces `score.RebuildParams` and `[]gate.Threshold`. Those types and their `Validate` methods live in `score` and `gate`, which never import `config`.
 - `internal/baseline` may call `git` and the extractor registry, and nothing in `score` or `gate` may call `git`.
 - `internal/report` shapes output, including the hook and GitHub formats. `internal/mcpserver` and `cmd/astimate` depend on `report`, `gate`, `baseline` and `score`, never on `lang` directly except to register extractors.
 - Go analysis uses the standard toolchain (`go/packages`, `go/types`, `go/ast`). Never tree-sitter for Go.
