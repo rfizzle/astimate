@@ -41,8 +41,8 @@ func TestDiscovery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListTools: %v", err)
 	}
-	if len(res.Tools) != 1 || res.Tools[0].Name != checkToolName {
-		t.Fatalf("ListTools returned %d tools, want only %s", len(res.Tools), checkToolName)
+	if len(res.Tools) != 2 || res.Tools[0].Name != checkToolName || res.Tools[1].Name != rankToolName {
+		t.Fatalf("ListTools returned %d tools, want %s and %s", len(res.Tools), checkToolName, rankToolName)
 	}
 	schema, err := json.Marshal(res.Tools[0].InputSchema)
 	if err != nil {
