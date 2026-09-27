@@ -246,7 +246,7 @@ where `untested_ratio = untested_exports / max(exported_symbols, 1)`, clamped to
 | FEW_PASSES | 1.0 to 3.0 | Rebuildable with partitioning; plan the split |
 | PARTITION | > 3.0 | Not rebuildable as a unit; split before any large change |
 
-`drivers` lists the two largest terms of `rebuild_tokens` (volume, spec, contract, unspecified, hidden). `suggestions` are generated from drivers with the metric values, for example "7 exported functions have no test; a rebuild would have to reverse-engineer their behavior".
+`drivers` lists the two largest non-zero terms of `rebuild_tokens` (volume, spec, contract, unspecified, hidden). `suggestions` are generated from drivers whose term is at least 10% of `rebuild_tokens`, with the metric values, for example "7 exported functions have no test (Parse, Encode, Decode, Flush, Close and 2 more); a rebuild would have to reverse-engineer their behavior". At most five names are listed. Gate violations and warnings always carry a suggestion from the same per-metric templates.
 
 All parameters live in the `rebuild:` section of the config and are labelled uncalibrated until section 11.2 has run.
 
