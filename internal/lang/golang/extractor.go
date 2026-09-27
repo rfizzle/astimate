@@ -85,6 +85,14 @@ func WithDupIgnoreLiteralOnly(on bool) Option {
 	return func(e *Extractor) { e.dup.ignoreLiteralOnly = on }
 }
 
+// WithDupFoldSigns sets dup_fold_signs: when on, the literal-only rule of
+// WithDupIgnoreLiteralOnly counts a unary + or - directly before a numeric
+// literal as part of the literal, so a table of negative numbers is dropped
+// like any other. Matching is unchanged (SPEC.md 6.3; default true).
+func WithDupFoldSigns(on bool) Option {
+	return func(e *Extractor) { e.dup.foldSigns = on }
+}
+
 // New returns a Go extractor configured by opts.
 func New(opts ...Option) *Extractor {
 	e := &Extractor{

@@ -51,6 +51,9 @@ type Config struct {
 	// DupIgnoreLiteralOnly drops a duplicate block made only of literals
 	// and literal-table punctuation.
 	DupIgnoreLiteralOnly bool
+	// DupFoldSigns counts a unary + or - directly before a numeric literal
+	// as part of the literal when dropping literal-only blocks.
+	DupFoldSigns bool
 	// Rebuild holds the rebuild-estimate parameters.
 	Rebuild score.RebuildParams
 	// Thresholds holds the gate rules in file order.
@@ -64,6 +67,7 @@ type fileConfig struct {
 	CharsPerToken        *float64        `yaml:"chars_per_token"`
 	DupMinTokens         *int            `yaml:"dup_min_tokens"`
 	DupIgnoreLiteralOnly *bool           `yaml:"dup_ignore_literal_only"`
+	DupFoldSigns         *bool           `yaml:"dup_fold_signs"`
 	Rebuild              *fileRebuild    `yaml:"rebuild"`
 	Thresholds           []fileThreshold `yaml:"thresholds"`
 }
@@ -229,6 +233,11 @@ func (fc *fileConfig) build() (*Config, error) {
 		missing("dup_ignore_literal_only")
 	} else {
 		cfg.DupIgnoreLiteralOnly = *fc.DupIgnoreLiteralOnly
+	}
+	if fc.DupFoldSigns == nil {
+		missing("dup_fold_signs")
+	} else {
+		cfg.DupFoldSigns = *fc.DupFoldSigns
 	}
 	if fc.Rebuild == nil {
 		missing("rebuild")

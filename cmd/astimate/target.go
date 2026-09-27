@@ -92,6 +92,7 @@ func loadTarget(dir string, f targetFlags) (*target, error) {
 		golang.WithCharsPerToken(cfg.CharsPerToken),
 		golang.WithDupMinTokens(cfg.DupMinTokens),
 		golang.WithDupIgnoreLiteralOnly(cfg.DupIgnoreLiteralOnly),
+		golang.WithDupFoldSigns(cfg.DupFoldSigns),
 		golang.WithTokenizer(f.tokenizer),
 	)
 	if !ext.Detect(root) {

@@ -574,6 +574,7 @@ func TestDupMeasureStdlibLiteralOnly(t *testing.T) {
 	var rows []dupMeasureRow
 	on := defaultDupOptions()
 	on.ignoreLiteralOnly = true
+	on.foldSigns = false // as measured, before dup_fold_signs existed
 	off := on
 	off.ignoreLiteralOnly = false
 	for _, p := range pkgs {
@@ -667,6 +668,12 @@ func TestDupLiteralOnly(t *testing.T) {
 	rawLitsOn.normalizeLiterals = false
 	rawLitsOff := rawLitsOn
 	rawLitsOff.ignoreLiteralOnly = false
+	noFold := on
+	noFold.foldSigns = false
+	rawNoFold := rawLitsOn
+	rawNoFold.foldSigns = false
+	signed := "package p\n\nvar t = []float64{" + dupTable("-1", 20) + dupTable("+2.5", 10) + dupTable("-'a'", 10) + "}\n"
+	rawSigned := "package p\n\nvar t = []int{" + dupTable("-7", 40) + "}\n"
 	nums := make([]string, 60)
 	for i := range nums {
 		nums[i] = strconv.Itoa(i*7919%1000) + ","
@@ -687,7 +694,14 @@ func TestDupLiteralOnly(t *testing.T) {
 		{"interned literals on", zeros, rawLitsOn, 0},
 		{"interned literals off", zeros, rawLitsOff, 1},
 		{"identifier table kept", "package p\n\nvar t = []int{" + dupTable("a", 40) + "}\n", on, 1},
-		{"operator table kept", "package p\n\nvar t = []int{" + dupTable("-1", 30) + "}\n", on, 1},
+		{"signed table on", signed, on, 0},
+		{"signed table without fold signs", signed, noFold, 1},
+		{"interned signed literals on", rawSigned, rawLitsOn, 0},
+		{"interned signed literals without fold signs", rawSigned, rawNoFold, 1},
+		{"binary operator table kept", "package p\n\nvar t = []int{" + dupTable("1-1", 30) + "}\n", on, 1},
+		{"sign after bracket is binary", "package p\n\nvar t = []int{" + dupTable("(1)-1", 20) + "}\n", on, 1},
+		{"negated identifier table kept", "package p\n\nvar t = []int{" + dupTable("-a", 30) + "}\n", on, 1},
+		{"other unary operator kept", "package p\n\nvar t = []int{" + dupTable("^1", 30) + "}\n", on, 1},
 		{"mixed block kept", "package p\n\n" + mixed + "\n" + strings.Replace(mixed, "F", "G", 1), on, 1},
 		{"code copies kept", "package p\n\n" + dupCopy + "\nvar sep = 1\n\n" + dupRenamed, on, 1},
 	}
@@ -702,4 +716,257 @@ func TestDupLiteralOnly(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDupSigns(t *testing.T) {
+	cases := []struct {
+		name string
+		expr string
+		want string // the source text of each recorded sign and its literal
+	}{
+		{"leading", "-1", "-1"},
+		{"plus and kinds", "f(+2, -3.5, -4i, -'a')", "+2 -3.5 -4i -'a'"},
+		{"after operators", "a * -1 + (-2) - -3", "-1 -2 -3"},
+		{"binary after operand", "a - 1 + b[0] - 2 + f() - 3", ""},
+		{"binary after literal", "1 - 2", ""},
+		{"not a numeric literal", `-a + -"s"[0] + -(1)`, ""},
+		{"in a table", "[]int{-1, 2, -3}[0]", "-1 -3"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			src := "package p\n\nvar x = " + tc.expr + "\n"
+			s := &dupStream{intern: make(map[string]int32)}
+			opts := defaultDupOptions()
+			opts.normalizeLiterals = false
+			if err := s.scan(token.NewFileSet(), "src.go", []byte(src), opts); err != nil {
+				t.Fatal(err)
+			}
+			texts := make([]string, len(s.intern))
+			for k, c := range s.intern {
+				texts[c-dupInternBase] = k[1:]
+			}
+			got := make([]string, 0, len(s.signs))
+			for _, p := range s.signs {
+				got = append(got, token.Token(s.codes[p]).String()+texts[s.codes[p+1]-dupInternBase])
+			}
+			if g := strings.Join(got, " "); g != tc.want {
+				t.Errorf("signs = %q, want %q", g, tc.want)
+			}
+		})
+	}
+}
+
+// TestDupMeasureStdlibRefinements measures two candidate refinements of the
+// duplicate-block rules against the shipped defaults over the standard
+// library, for calibration/notes/duplication-refinements.md. A1 folds each
+// unary sign before a numeric literal into the literal in the stream; A2
+// (dup_fold_signs) leaves the stream alone and lets the literal-only rule
+// count such a sign as literal; B drops a block whose only non-literal
+// tokens are calls to one or two distinct functions (strictly, every
+// identifier is a callee; loosely, identifiers may also be whole
+// arguments). It loads every
+// std package, so it runs only with ASTIMATE_MEASURE_STDLIB=1.
+func TestDupMeasureStdlibRefinements(t *testing.T) {
+	if os.Getenv("ASTIMATE_MEASURE_STDLIB") != "1" {
+		t.Skip("set ASTIMATE_MEASURE_STDLIB=1 to measure the standard library")
+	}
+	start := time.Now()
+	fset := token.NewFileSet()
+	pkgs, err := packages.Load(&packages.Config{
+		Mode: packages.NeedFiles | packages.NeedSyntax | packages.NeedName,
+		Fset: fset,
+	}, "std")
+	if err != nil {
+		t.Fatalf("loading std: %v", err)
+	}
+	l := &loaded{fset: fset}
+	base := defaultDupOptions()
+	base.foldSigns = false // the defaults before dup_fold_signs
+	signs := base
+	signs.foldSigns = true
+	raw := base
+	raw.normalizeIdents = false
+	variants := []string{"A1 stream fold", "A2 sign-aware literal-only", "B strict", "B loose"}
+	rows := make([][]dupMeasureRow, len(variants))
+	changes := make([][]string, len(variants))
+	for _, p := range pkgs {
+		if len(p.Errors) > 0 {
+			continue
+		}
+		sz, err := size(l, p, osFiles{})
+		if err != nil {
+			t.Fatalf("size %s: %v", p.PkgPath, err)
+		}
+		if sz.sloc < 200 {
+			continue
+		}
+		s, err := dupStreamOf(l, p, osFiles{}, base)
+		if err != nil {
+			t.Fatal(err)
+		}
+		sa, reps := s.find(base)
+		b := s.count(sa, reps, sz.sloc)
+		f := dupFoldSigns(s)
+		fsa, freps := f.find(base)
+		a1 := f.count(fsa, freps, sz.sloc)
+		a2, err := duplication(l, p, osFiles{}, sz, signs)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for v, a := range []dupCounts{a1, a2} {
+			rows[v] = append(rows[v], dupMeasureRow{p.PkgPath, sz.sloc, b.blocks, a.blocks, b.pct, a.pct})
+			changes[v] = append(changes[v], dupLocDiff(p.PkgPath, "-", b.locations, a.locations)...)
+			changes[v] = append(changes[v], dupLocDiff(p.PkgPath, "+", a.locations, b.locations)...)
+		}
+		names, err := dupStreamOf(l, p, osFiles{}, raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i, loose := range []bool{false, true} {
+			v := i + 2
+			kept := slices.DeleteFunc(slices.Clone(reps), func(r dupRepeat) bool {
+				at := sa[r.lb]
+				if !dupCallChain(s, names.codes, at, r.n, loose) {
+					return false
+				}
+				changes[v] = append(changes[v], "- "+p.PkgPath+" "+s.files[s.file[at]].name+":"+
+					strconv.Itoa(int(s.line[at]))+"-"+strconv.Itoa(int(s.last[at+r.n-1]))+
+					" x"+strconv.Itoa(int(r.rb-r.lb+1))+" n"+strconv.Itoa(int(r.n)))
+				return true
+			})
+			c := s.count(sa, kept, sz.sloc)
+			rows[v] = append(rows[v], dupMeasureRow{p.PkgPath, sz.sloc, b.blocks, c.blocks, b.pct, c.pct})
+		}
+	}
+	t.Logf("packages %d, wall %v", len(rows[0]), time.Since(start))
+	for v, name := range variants {
+		t.Logf("=== %s (off = shipped defaults, on = variant)", name)
+		dupLogMeasure(t, rows[v])
+		t.Logf("changed block occurrences (%d):", len(changes[v]))
+		for _, c := range changes[v] {
+			t.Log(c)
+		}
+	}
+}
+
+// dupLogMeasure logs the quantiles, totals, named packages, largest drops
+// and rises and top ten of one variant's rows.
+func dupLogMeasure(t *testing.T, rows []dupMeasureRow) {
+	t.Helper()
+	offPct := func(r dupMeasureRow) float64 { return r.offPct }
+	onPct := func(r dupMeasureRow) float64 { return r.onPct }
+	offB := func(r dupMeasureRow) float64 { return float64(r.offB) }
+	onB := func(r dupMeasureRow) float64 { return float64(r.onB) }
+	for _, q := range []float64{0.5, 0.9, 0.99} {
+		t.Logf("p%v: duplication_pct off %v on %v; dup_blocks off %v on %v", q*100,
+			dupQuantile(rows, offPct, q), dupQuantile(rows, onPct, q),
+			dupQuantile(rows, offB, q), dupQuantile(rows, onB, q))
+	}
+	totalOff, totalOn, changed := 0, 0, 0
+	for _, r := range rows {
+		totalOff += r.offB
+		totalOn += r.onB
+		if r.offB != r.onB || r.offPct != r.onPct {
+			changed++
+		}
+	}
+	t.Logf("total dup_blocks off %d on %d; packages changed %d", totalOff, totalOn, changed)
+	row := func(r dupMeasureRow) {
+		t.Logf("| %s | %d | %d | %d | %v | %v |", r.path, r.sloc, r.offB, r.onB, r.offPct, r.onPct)
+	}
+	t.Log("named:")
+	for _, r := range rows {
+		switch r.path {
+		case "crypto/internal/fips140/nistec", "math/big", "net/http":
+			row(r)
+		}
+	}
+	top := func(title string, get func(dupMeasureRow) float64) {
+		t.Log(title)
+		s := slices.Clone(rows)
+		slices.SortStableFunc(s, func(a, b dupMeasureRow) int { return cmp.Compare(get(b), get(a)) })
+		for _, r := range s[:min(10, len(s))] {
+			row(r)
+		}
+	}
+	top("largest drop:", func(r dupMeasureRow) float64 { return r.offPct - r.onPct })
+	top("largest rise:", func(r dupMeasureRow) float64 { return r.onPct - r.offPct })
+	top("top ten on:", onPct)
+}
+
+// dupFoldSigns returns a copy of s with every unary sign before a numeric
+// literal removed from the stream, so the literal's code stands for the
+// signed number: the fold considered in the normalizer and not shipped. The
+// literal takes the sign's line.
+func dupFoldSigns(s *dupStream) *dupStream {
+	n := len(s.codes) - len(s.signs)
+	f := &dupStream{
+		codes: make([]int32, 0, n), file: make([]int32, 0, n),
+		line: make([]int32, 0, n), last: make([]int32, 0, n),
+		files: s.files, intern: s.intern, internLit: s.internLit,
+	}
+	k := 0
+	for i := range s.codes {
+		if k < len(s.signs) && int(s.signs[k]) == i {
+			k++
+			continue
+		}
+		line := s.line[i]
+		if k > 0 && int(s.signs[k-1]) == i-1 {
+			line = s.line[i-1]
+		}
+		f.codes = append(f.codes, s.codes[i])
+		f.file = append(f.file, s.file[i])
+		f.line = append(f.line, line)
+		f.last = append(f.last, s.last[i])
+	}
+	return f
+}
+
+// dupLocDiff returns, prefixed by mark and pkg, the locations in a that are
+// not in b.
+func dupLocDiff(pkg, mark string, a, b []dupLocation) []string {
+	var out []string
+	for _, x := range a {
+		if !slices.Contains(b, x) {
+			out = append(out, mark+" "+pkg+" "+x.file+":"+strconv.Itoa(x.startLine)+"-"+strconv.Itoa(x.endLine))
+		}
+	}
+	return out
+}
+
+// dupCallChain reports whether the n codes of s at p are a call chain: every
+// code is a literal, table punctuation or an identifier; the identifiers
+// followed by "(" (the callees) have one or two distinct texts in names, the
+// parallel stream with identifiers interned; and every other identifier is,
+// when loose, a whole argument between "(" or "," and "," or ")", and when
+// not loose, absent.
+func dupCallChain(s *dupStream, names []int32, p, n int32, loose bool) bool {
+	callees := make([]int32, 0, 2)
+	codes := s.codes[p : p+n]
+	for i, c := range codes {
+		if s.literalOrPunct(c) {
+			continue
+		}
+		if c != dupIdentCode {
+			return false
+		}
+		next, prev := token.ILLEGAL, token.ILLEGAL
+		if i+1 < len(codes) {
+			next = token.Token(codes[i+1])
+		}
+		if i > 0 {
+			prev = token.Token(codes[i-1])
+		}
+		if next == token.LPAREN {
+			if name := names[int(p)+i]; !slices.Contains(callees, name) {
+				callees = append(callees, name)
+			}
+			continue
+		}
+		if !loose || (prev != token.LPAREN && prev != token.COMMA) || (next != token.COMMA && next != token.RPAREN) {
+			return false
+		}
+	}
+	return len(callees) > 0 && len(callees) <= 2
 }

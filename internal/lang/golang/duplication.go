@@ -63,6 +63,16 @@ package golang
 // operator keeps the block. The rule runs after merging, so a block that
 // holds a literal table next to code is kept whole.
 //
+// Signed literals. The scanner records each + or - that directly precedes
+// an int, float, imaginary or char literal and follows a token that cannot
+// end an operand (anything but an identifier, a literal, or ) ] }), which
+// is to say a unary sign. With dup_fold_signs on, the literal-only rule
+// counts such a sign as part of its literal, so a table of negative numbers
+// is dropped too. The stream keeps the sign as its own code: folding it
+// into the literal there was measured and rejected, because it lets f(-1)
+// match f(1), which merges signed coefficient tables with the code around
+// them, and it shortens code blocks below dup_min_tokens.
+//
 // Coverage. A line is covered when it holds a code byte of a token in any
 // occurrence of any block, and counts only if it is a source line by the
 // same rule size uses: at least one non-space byte outside comments.
@@ -72,6 +82,7 @@ package golang
 import (
 	"bytes"
 	"cmp"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/scanner"
@@ -97,9 +108,10 @@ const (
 	dupSeparatorBase = int32(1 << 30)
 )
 
-// dupOptions configures duplication. The extractor options WithDupMinTokens
-// and WithDupIgnoreLiteralOnly set minTokens and ignoreLiteralOnly; the
-// normalization toggles keep their defaults.
+// dupOptions configures duplication. The extractor options WithDupMinTokens,
+// WithDupIgnoreLiteralOnly and WithDupFoldSigns set minTokens,
+// ignoreLiteralOnly and foldSigns; the normalization toggles keep their
+// defaults.
 type dupOptions struct {
 	// minTokens is dup_min_tokens: the shortest normalized token sequence
 	// that counts as a duplicate block.
@@ -112,12 +124,17 @@ type dupOptions struct {
 	// ignoreLiteralOnly is dup_ignore_literal_only: drop a block made only
 	// of literals and punctuation.
 	ignoreLiteralOnly bool
+	// foldSigns is dup_fold_signs: under ignoreLiteralOnly, a unary + or -
+	// directly before a numeric literal counts as part of the literal. The
+	// stream itself is unchanged, so no match is gained or lost.
+	foldSigns bool
 }
 
 // defaultDupOptions returns the SPEC.md defaults: 40 tokens, identifiers and
-// literals normalized, literal-only blocks ignored.
+// literals normalized, literal-only blocks ignored with signed literals
+// counted as literals.
 func defaultDupOptions() dupOptions {
-	return dupOptions{minTokens: 40, normalizeIdents: true, normalizeLiterals: true, ignoreLiteralOnly: true}
+	return dupOptions{minTokens: 40, normalizeIdents: true, normalizeLiterals: true, ignoreLiteralOnly: true, foldSigns: true}
 }
 
 // dupCounts holds the duplication metrics of one package.
@@ -161,6 +178,9 @@ type dupStream struct {
 	// internLit reports, per interned code minus dupInternBase, whether the
 	// text is a literal.
 	internLit []bool
+	// signs holds, in increasing order, the stream positions of the unary
+	// + and - tokens directly before a numeric literal.
+	signs []int32
 }
 
 // dupRepeat is one maximal repeat: its occurrences are sa[lb..rb] and its
@@ -177,6 +197,17 @@ func duplication(l *loaded, p *packages.Package, src fileSource, sz sizeCounts, 
 	if opts.minTokens < 1 {
 		return dupCounts{}, fmt.Errorf("detecting duplication in %s: minimum of %d tokens is not positive", p.PkgPath, opts.minTokens)
 	}
+	s, err := dupStreamOf(l, p, src, opts)
+	if err != nil {
+		return dupCounts{}, fmt.Errorf("detecting duplication in %s: %w", p.PkgPath, err)
+	}
+	sa, reps := s.find(opts)
+	return s.count(sa, reps, sz.sloc), nil
+}
+
+// dupStreamOf scans the non-test, non-generated files of p, read through
+// src, into one normalized stream under opts.
+func dupStreamOf(l *loaded, p *packages.Package, src fileSource, opts dupOptions) (*dupStream, error) {
 	s := &dupStream{intern: make(map[string]int32)}
 	fs := token.NewFileSet()
 	for _, f := range p.Syntax {
@@ -185,18 +216,17 @@ func duplication(l *loaded, p *packages.Package, src fileSource, sz sizeCounts, 
 		}
 		tf := l.fset.File(f.FileStart)
 		if tf == nil {
-			return dupCounts{}, fmt.Errorf("detecting duplication in %s: file not in file set", p.PkgPath)
+			return nil, errors.New("file not in file set")
 		}
 		data, err := src.read(tf.Name())
 		if err != nil {
-			return dupCounts{}, fmt.Errorf("detecting duplication in %s: %w", p.PkgPath, err)
+			return nil, err
 		}
 		if err := s.scan(fs, tf.Name(), data, opts); err != nil {
-			return dupCounts{}, fmt.Errorf("detecting duplication in %s: %w", p.PkgPath, err)
+			return nil, err
 		}
 	}
-	sa, reps := s.find(opts)
-	return s.count(sa, reps, sz.sloc), nil
+	return s, nil
 }
 
 // find returns the suffix array of the stream and its duplicate blocks
@@ -205,7 +235,7 @@ func duplication(l *loaded, p *packages.Package, src fileSource, sz sizeCounts, 
 func (s *dupStream) find(opts dupOptions) (sa []int32, reps []dupRepeat) {
 	sa, reps = dupFind(s.codes, opts.minTokens)
 	if opts.ignoreLiteralOnly {
-		reps = s.dropLiteralOnly(sa, reps)
+		reps = s.dropLiteralOnly(sa, reps, opts.foldSigns)
 	}
 	return sa, reps
 }
@@ -222,11 +252,19 @@ func (s *dupStream) scan(fs *token.FileSet, name string, src []byte, opts dupOpt
 	}, 0)
 	fi := int32(len(s.files))
 	df := dupFile{name: name, code: make([]bool, bytes.Count(src, []byte{'\n'})+2)}
+	// operand: the previous token can end an operand; unary: the previous
+	// token is a + or - that does not follow one.
+	operand, unary := false, false
 	for {
 		pos, tok, lit := sc.Scan()
 		if tok == token.EOF {
 			break
 		}
+		if unary && isNumericLit(tok) {
+			s.signs = append(s.signs, int32(len(s.codes)-1))
+		}
+		unary = !operand && (tok == token.SUB || tok == token.ADD)
+		operand = endsOperand(tok)
 		if tok == token.SEMICOLON && lit == "\n" {
 			continue
 		}
@@ -250,6 +288,26 @@ func (s *dupStream) scan(fs *token.FileSet, name string, src []byte, opts dupOpt
 	s.line = append(s.line, 0)
 	s.last = append(s.last, 0)
 	return nil
+}
+
+// endsOperand reports whether tok can be the last token of an operand, so
+// that a + or - after it is binary.
+func endsOperand(tok token.Token) bool {
+	switch tok {
+	case token.IDENT, token.RPAREN, token.RBRACK, token.RBRACE:
+		return true
+	}
+	return tok.IsLiteral()
+}
+
+// isNumericLit reports whether tok is an int, float, imaginary or char
+// literal, the literals a unary sign applies to.
+func isNumericLit(tok token.Token) bool {
+	switch tok {
+	case token.INT, token.FLOAT, token.IMAG, token.CHAR:
+		return true
+	}
+	return false
 }
 
 // markRawLines marks the lines after line that the multi-line raw string lit
@@ -297,12 +355,20 @@ func (s *dupStream) interned(key string) int32 {
 }
 
 // dropLiteralOnly returns reps without the repeats whose codes are all
-// literals or literal-table punctuation, reusing the backing array.
-func (s *dupStream) dropLiteralOnly(sa []int32, reps []dupRepeat) []dupRepeat {
+// literals or literal-table punctuation, reusing the backing array. With
+// signs, a unary + or - directly before a numeric literal counts as part of
+// the literal.
+func (s *dupStream) dropLiteralOnly(sa []int32, reps []dupRepeat, signs bool) []dupRepeat {
 	return slices.DeleteFunc(reps, func(r dupRepeat) bool {
 		p := sa[r.lb]
-		for _, c := range s.codes[p : p+r.n] {
-			if !s.literalOrPunct(c) {
+		for i, c := range s.codes[p : p+r.n] {
+			if s.literalOrPunct(c) {
+				continue
+			}
+			if !signs || (c != int32(token.SUB) && c != int32(token.ADD)) {
+				return false
+			}
+			if _, ok := slices.BinarySearch(s.signs, p+int32(i)); !ok {
 				return false
 			}
 		}

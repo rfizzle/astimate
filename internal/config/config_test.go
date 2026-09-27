@@ -29,9 +29,9 @@ func TestParseDefault(t *testing.T) {
 	if cfg.Version != "default-uncalibrated-1" {
 		t.Errorf("Version = %q, want default-uncalibrated-1", cfg.Version)
 	}
-	if cfg.CharsPerToken != 3.2 || cfg.DupMinTokens != 40 || !cfg.DupIgnoreLiteralOnly {
-		t.Errorf("CharsPerToken, DupMinTokens, DupIgnoreLiteralOnly = %v, %d, %v; want 3.2, 40, true",
-			cfg.CharsPerToken, cfg.DupMinTokens, cfg.DupIgnoreLiteralOnly)
+	if cfg.CharsPerToken != 3.2 || cfg.DupMinTokens != 40 || !cfg.DupIgnoreLiteralOnly || !cfg.DupFoldSigns {
+		t.Errorf("CharsPerToken, DupMinTokens, DupIgnoreLiteralOnly, DupFoldSigns = %v, %d, %v, %v; want 3.2, 40, true, true",
+			cfg.CharsPerToken, cfg.DupMinTokens, cfg.DupIgnoreLiteralOnly, cfg.DupFoldSigns)
 	}
 
 	r := cfg.Rebuild
@@ -119,6 +119,7 @@ func TestParseErrors(t *testing.T) {
 		{name: "zero dup_min_tokens", old: "dup_min_tokens: 40", repl: "dup_min_tokens: 0", wantErr: "dup_min_tokens"},
 		{name: "missing dup_ignore_literal_only", old: "dup_ignore_literal_only: true\n", repl: "", wantErr: "dup_ignore_literal_only is required"},
 		{name: "dup_ignore_literal_only not a bool", old: "dup_ignore_literal_only: true", repl: "dup_ignore_literal_only: maybe", wantErr: "`maybe` into bool"},
+		{name: "missing dup_fold_signs", old: "dup_fold_signs: true\n", repl: "", wantErr: "dup_fold_signs is required"},
 		{name: "empty version", old: "config_version: default-uncalibrated-1", repl: "config_version: \"\"", wantErr: "config_version is required"},
 		{name: "unknown key", old: "dup_min_tokens: 40", repl: "dup_min_tokens: 40\ndup_min_tokenz: 40", wantErr: "dup_min_tokenz"},
 		{name: "threshold with no limit", old: "    kind: density\n    max_delta: 3\n", repl: "    kind: density\n", wantErr: `"cognitive_p90": density rule needs max_delta`},

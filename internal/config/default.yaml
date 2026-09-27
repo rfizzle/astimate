@@ -16,6 +16,11 @@ dup_min_tokens: 40
 # literal table, so repeated runs of data tables are not duplication.
 dup_ignore_literal_only: true
 
+# Under dup_ignore_literal_only, count a unary + or - directly before a
+# numeric literal as part of the literal, so tables of negative numbers are
+# data too. Matching is unchanged.
+dup_fold_signs: true
+
 # Rebuild estimate parameters (SPEC.md sections 7.2 to 7.4).
 rebuild:
   # Tokens one agent can hold in context for a rebuild; past it work is split.
