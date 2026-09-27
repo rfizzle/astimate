@@ -14,7 +14,8 @@ import (
 )
 
 // runAssess scores one package: `assess <package-dir> [--json] [--config
-// path] [--tokenizer est|o200k]`. It prints the table report, or the SPEC.md
+// path] [--tokenizer est|o200k] [--coverage] [--coverage-timeout d]`. It
+// prints the table report, or the SPEC.md
 // 10.2 JSON report with --json, to stdout. On failure stdout stays empty and
 // the error is logged to stderr.
 func runAssess(args []string, stdout, stderr io.Writer) int {
@@ -23,8 +24,11 @@ func runAssess(args []string, stdout, stderr io.Writer) int {
 	asJSON := fs.Bool("json", false, "print the JSON report instead of the table")
 	configPath := fs.String("config", "", "configuration file (default ./astimate.yaml, then the embedded default)")
 	tokenizer := fs.String("tokenizer", tokenizerEst, "token counting method: est or o200k")
+	var cov coverageFlags
+	cov.register(fs)
 	fs.Usage = func() {
-		_, _ = fmt.Fprintln(stderr, "usage: astimate assess <package-dir> [--json] [--config path] [--tokenizer est|o200k]")
+		_, _ = fmt.Fprintln(stderr, "usage: astimate assess <package-dir> [--json] [--config path] [--tokenizer est|o200k] "+
+			"[--coverage] [--coverage-timeout 2m]")
 		fs.PrintDefaults()
 	}
 	positional, err := parseInterspersed(fs, args)
@@ -42,9 +46,14 @@ func runAssess(args []string, stdout, stderr io.Writer) int {
 			*tokenizer, tokenizerEst, tokenizerO200k)
 		return exitUsage
 	}
+	coverage, err := cov.options()
+	if err != nil {
+		_, _ = fmt.Fprintf(stderr, "astimate: assess: %v\n", err)
+		return exitUsage
+	}
 
 	logger := slog.New(slog.NewTextHandler(stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
-	r, err := assess(context.Background(), dir, *configPath, *tokenizer, logger)
+	r, err := assess(context.Background(), dir, *configPath, *tokenizer, engine.AssessOptions{Coverage: coverage}, logger)
 	if err != nil {
 		logger.Error("assess failed", "dir", dir, "err", err)
 		return exitAnalysis
@@ -84,13 +93,13 @@ func parseInterspersed(fs *flag.FlagSet, args []string) ([]string, error) {
 	}
 }
 
-// assess resolves dir and builds its report with engine.Assess.
-func assess(ctx context.Context, dir, configPath, tokenizer string, logger *slog.Logger) (*report.Report, error) {
+// assess resolves dir and builds its report with engine.Assess under opts.
+func assess(ctx context.Context, dir, configPath, tokenizer string, opts engine.AssessOptions, logger *slog.Logger) (*report.Report, error) {
 	t, err := loadTarget(dir, configPath, tokenizer, logger)
 	if err != nil {
 		return nil, err
 	}
-	return engine.Assess(ctx, t)
+	return engine.Assess(ctx, t, opts)
 }
 
 // astimateVersion is the version `astimate version` prints: the linked

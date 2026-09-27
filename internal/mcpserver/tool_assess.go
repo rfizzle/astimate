@@ -30,6 +30,8 @@ type AssessInput struct {
 	Path string `json:"path" jsonschema:"Directory of the package to assess, relative to the server's working directory or absolute. Must be inside the working directory unless the server runs with --allow-any-path."`
 	// Tokenizer selects the token counter: est (default) or o200k.
 	Tokenizer string `json:"tokenizer,omitempty" jsonschema:"Token counter: est (the default, a character-based estimate) or o200k (an exact count with the o200k encoding, slower)."`
+	// Coverage measures coverage_pct (engine.AssessOptions.Coverage).
+	Coverage bool `json:"coverage,omitempty" jsonschema:"Run the package's tests with go test -cover to report coverage_pct and scale the estimate's unspecified term by it. Slower. Defaults to false."`
 }
 
 // addAssessTool registers assess_package on srv, backed by s.
@@ -95,7 +97,7 @@ func (s *session) runAssess(ctx context.Context, in AssessInput) (*report.Report
 			return nil, "", err
 		}
 	}
-	r, err := engine.Assess(ctx, t)
+	r, err := engine.Assess(ctx, t, engine.AssessOptions{Coverage: engine.CoverageOptions{Enabled: in.Coverage}})
 	if err != nil {
 		return nil, "", err
 	}

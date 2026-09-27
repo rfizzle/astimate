@@ -51,15 +51,17 @@ func (r Rebuild) AgentPassesRounded() float64 {
 }
 
 // Estimate computes the rebuild estimate for m under cfg, per SPEC.md 7.1 to
-// 7.3. It reads only v0 fields: v1 pointer fields, including coverage_pct,
-// never change the result. fan_in is recorded in the contract term's Detail
-// but does not enter the formula. cfg is assumed to have passed Validate.
+// 7.3. It reads the v0 fields and one v1 field, coverage_pct, which scales
+// the unspecified term when non-null (unspecifiedTerm); no other v1 pointer
+// field changes the result. fan_in is recorded in the contract term's
+// Detail but does not enter the formula. cfg is assumed to have passed
+// Validate.
 func Estimate(m metrics.RawMetrics, cfg RebuildParams) Rebuild {
 	keep := 1 - m.DuplicationPct/100
 	volume := float64(m.TokensEst) * keep
 	spec := math.Max(float64(m.TokensEstWithTests-m.TokensEst), 0)
 	contract := float64(m.ExportedSymbols) * cfg.TokensPerExport
-	unspecified := float64(m.UntestedExports) * cfg.TokensPerUntestedExport
+	unspecified, unspecifiedDetail := unspecifiedTerm(&m, cfg)
 	hidden := float64(m.Globals+m.InitFuncs) * cfg.TokensPerHiddenState
 
 	terms := []Term{
@@ -69,7 +71,7 @@ func Estimate(m metrics.RawMetrics, cfg RebuildParams) Rebuild {
 			" tokens_est=" + strconv.Itoa(m.TokensEst) + " test_funcs=" + strconv.Itoa(m.TestFuncs)},
 		{Name: TermContract, Tokens: contract, Detail: "exported_symbols=" + strconv.Itoa(m.ExportedSymbols) +
 			" fan_in=" + strconv.Itoa(m.FanIn)},
-		{Name: TermUnspecified, Tokens: unspecified, Detail: "untested_exports=" + strconv.Itoa(m.UntestedExports)},
+		{Name: TermUnspecified, Tokens: unspecified, Detail: unspecifiedDetail},
 		{Name: TermHidden, Tokens: hidden, Detail: "globals=" + strconv.Itoa(m.Globals) +
 			" init_funcs=" + strconv.Itoa(m.InitFuncs)},
 	}
@@ -88,6 +90,22 @@ func Estimate(m metrics.RawMetrics, cfg RebuildParams) Rebuild {
 		HumanDays:     humanDays(&m, cfg, keep),
 		Terms:         terms,
 	}
+}
+
+// unspecifiedTerm returns the unspecified-behavior term of SPEC.md 7.2 and
+// its Detail. Without coverage_pct it is untested_exports *
+// tokens_per_untested_export, a step penalty per untested export. With it,
+// that product is scaled by 1 - coverage_pct/100, so a package whose tests
+// execute its statements, if not by naming every export, owes less
+// reverse-engineering; the Detail then records coverage_pct too.
+func unspecifiedTerm(m *metrics.RawMetrics, cfg RebuildParams) (tokens float64, detail string) {
+	tokens = float64(m.UntestedExports) * cfg.TokensPerUntestedExport
+	detail = "untested_exports=" + strconv.Itoa(m.UntestedExports)
+	if m.CoveragePct == nil {
+		return tokens, detail
+	}
+	pct := min(max(*m.CoveragePct, 0), 100)
+	return tokens * (1 - pct/100), detail + " coverage_pct=" + strconv.FormatFloat(pct, 'g', -1, 64)
 }
 
 // humanDays is SPEC.md 7.3: COCOMO basic organic mode on the non-duplicated

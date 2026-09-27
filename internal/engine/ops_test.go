@@ -162,7 +162,7 @@ func TestAssess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadTarget: %v", err)
 	}
-	r, err := Assess(t.Context(), tg)
+	r, err := Assess(t.Context(), tg, AssessOptions{})
 	if err != nil {
 		t.Fatalf("Assess: %v", err)
 	}

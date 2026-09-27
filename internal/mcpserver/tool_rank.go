@@ -33,6 +33,8 @@ type RankInput struct {
 	Top int `json:"top,omitempty" jsonschema:"Return only the first top rows after sorting. 0 or omitted returns every package."`
 	// Sort is the sort key, one of report.SortKeys.
 	Sort string `json:"sort,omitempty" jsonschema:"Sort key, descending: passes (default), days, fan_in, tokens or duplication."`
+	// Coverage measures coverage_pct for every package (engine.RankOptions.Coverage).
+	Coverage bool `json:"coverage,omitempty" jsonschema:"Run the module's tests with go test -cover and scale each estimate's unspecified term by the package's coverage. Slower. Defaults to false."`
 }
 
 // rankFailure is one package rank_packages skipped.
@@ -96,7 +98,9 @@ func (s *session) runRank(ctx context.Context, in RankInput) (string, rankResult
 		return "", rankResult{}, err
 	}
 	defer rc.mu.Unlock()
-	rows, failed, err := engine.Rank(ctx, t, engine.RankOptions{Sort: key, Top: in.Top})
+	rows, failed, err := engine.Rank(ctx, t, engine.RankOptions{
+		Sort: key, Top: in.Top, Coverage: engine.CoverageOptions{Enabled: in.Coverage},
+	})
 	if err != nil {
 		return "", rankResult{}, err
 	}

@@ -270,6 +270,16 @@ func monotoneMutations() []mutation {
 		{"duplication_pct", neverRaises, func(m *metrics.RawMetrics, rng *rand.Rand) {
 			m.DuplicationPct = math.Min(100, m.DuplicationPct+0.1+rng.Float64()*(100-m.DuplicationPct))
 		}},
+		// Measuring coverage where there was none, or raising it, only
+		// scales the unspecified term down.
+		{"coverage_pct", neverRaises, func(m *metrics.RawMetrics, rng *rand.Rand) {
+			cov := 0.0
+			if m.CoveragePct != nil {
+				cov = *m.CoveragePct
+			}
+			cov = math.Min(100, cov+rng.Float64()*(100-cov))
+			m.CoveragePct = &cov
+		}},
 	}
 }
 

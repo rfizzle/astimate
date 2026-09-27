@@ -49,6 +49,8 @@ type checkOptions struct {
 	indexFile string
 	// format is the --format value, one of checkFormats.
 	format string
+	// coverage measures coverage_pct at head (--coverage).
+	coverage engine.CoverageOptions
 	// hookStdin returns the Claude Code hook input read in the hook format,
 	// or nil when there is none; nil hookStdin means no input.
 	hookStdin func() io.Reader
@@ -91,7 +93,8 @@ func stopHookActive(r io.Reader) bool {
 // runCheck gates the packages of a module against a baseline and the
 // configured thresholds: `check [<module-root>] [--base ref | --baseline
 // file] [--all] [--staged] [--config|--thresholds file] [--format
-// text|json|hook|github] [--tokenizer est|o200k]`. It exits 3 when any
+// text|json|hook|github] [--tokenizer est|o200k] [--coverage]
+// [--coverage-timeout d]`. It exits 3 when any
 // package has a violation (0 with --format hook, whose JSON carries the
 // decision), 2 when analysis failed, and 0 otherwise; warnings never change
 // the exit code. In the hook format it reads the Stop hook input from stdin
@@ -119,9 +122,12 @@ func runCheckInput(args []string, hookStdin func() io.Reader, stdout, stderr io.
 	fs.StringVar(&configPath, "thresholds", "", "alias of --config")
 	fs.StringVar(&opts.format, "format", formatText, "output format: "+strings.Join(checkFormats(), ", "))
 	tokenizer := fs.String("tokenizer", tokenizerEst, "token counting method: est or o200k")
+	var cov coverageFlags
+	cov.register(fs)
 	fs.Usage = func() {
 		_, _ = fmt.Fprintln(stderr, "usage: astimate check [<module-root>] [--base ref | --baseline file] [--all] [--staged] "+
-			"[--config|--thresholds file] [--format text|json|hook|github] [--tokenizer est|o200k]")
+			"[--config|--thresholds file] [--format text|json|hook|github] [--tokenizer est|o200k] "+
+			"[--coverage] [--coverage-timeout 2m]")
 		fs.PrintDefaults()
 	}
 	positional, err := parseInterspersed(fs, args)
@@ -149,6 +155,10 @@ func runCheckInput(args []string, hookStdin func() io.Reader, stdout, stderr io.
 	if !validTokenizer(*tokenizer) {
 		_, _ = fmt.Fprintf(stderr, "astimate: check: unknown tokenizer %q: want %s or %s\n",
 			*tokenizer, tokenizerEst, tokenizerO200k)
+		return exitUsage
+	}
+	if opts.coverage, err = cov.options(); err != nil {
+		_, _ = fmt.Fprintf(stderr, "astimate: check: %v\n", err)
 		return exitUsage
 	}
 
@@ -187,6 +197,7 @@ func checkTarget(ctx context.Context, t *engine.Target, opts checkOptions, stdou
 		All:          opts.all,
 		Staged:       opts.staged,
 		IndexFile:    opts.indexFile,
+		Coverage:     opts.coverage,
 	})
 	if errors.Is(err, engine.ErrNoBaseline) {
 		err = fmt.Errorf("%w; pass --base <ref> or --baseline <file>", err)

@@ -74,6 +74,10 @@ type CheckOptions struct {
 	// inside a git hook; empty means the repository's own index. Ignored
 	// unless Staged.
 	IndexFile string
+	// Coverage opts into measuring coverage_pct at head for the selected
+	// packages, in one run after extraction. The baseline is never
+	// measured, so coverage_pct is reported, never compared.
+	Coverage CoverageOptions
 }
 
 // BaselineCache holds baselines already read or extracted, so repeated
@@ -162,6 +166,12 @@ func (c *BaselineCache) get(key string, load func() (baseline.Baseline, error)) 
 // records the baseline's tokenizer and whether it is t's
 // (report.MarkTokenizer).
 //
+// The selected packages are all extracted before any is gated, so that
+// with opts.Coverage their coverage is measured at head in one run
+// (measureCoverage). coverage_pct is then reported only: the baseline is
+// never measured, and the baseline's agent_passes in the summary borrows
+// head's coverage so it moves with the change, not with the opt-in.
+//
 // With opts.Staged the head packages are listed and extracted from a
 // temporary copy of the index (stagedTarget), removed before Check
 // returns, also on SIGINT or SIGTERM; git commands and the baseline still
@@ -237,8 +247,23 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 	noFunctions := false
 	eff := t.langConfig()
 	pkgRules := gate.ForRow(eff.Thresholds, gate.PackageRow)
+	extracted := make(map[string]*metrics.RawMetrics, len(selected))
+	order := make([]string, 0, len(selected))
 	for _, pkg := range selected {
-		p, unrecorded, err := checkPackage(ctx, ht, base, pkg, eff, pkgRules)
+		m, err := ht.Ext.Extract(ctx, ht.Mod, pkg)
+		if err != nil {
+			err = baseline.TreeRelative(err, tmp)
+			path := modulePathRel(t.Mod.ModulePath, pkg)
+			logger.Error("checking package failed", "path", path, "err", err)
+			failed = append(failed, &PackageError{Path: path, Err: err})
+			continue
+		}
+		extracted[pkg] = &m
+		order = append(order, pkg)
+	}
+	measureCoverage(ctx, ht, opts.Coverage, extracted, order)
+	for _, pkg := range order {
+		p, unrecorded, err := checkPackage(ctx, ht, base, pkg, *extracted[pkg], eff, pkgRules)
 		if err != nil {
 			err = baseline.TreeRelative(err, tmp)
 			path := modulePathRel(t.Mod.ModulePath, pkg)
@@ -659,18 +684,15 @@ func locateCross(r *report.Report, blocks []metrics.CrossBlock) {
 	}
 }
 
-// checkPackage extracts pkg at head, fills changed_func_cognitive_max from
-// the function-level diff against base (changedFunctions), evaluates it
-// against its baseline metrics, if base has any, and rules, the configured
-// thresholds that apply to a package row, and builds its report with eff,
-// the configuration of t's language, its findings located where the
-// extractor's details say (locateFindings). unrecorded reports that the
-// diff was skipped because base has pkg but no functions for it.
-func checkPackage(ctx context.Context, t *Target, base baseline.Baseline, pkg string, eff config.Effective, rules []gate.Threshold) (p report.CheckedPackage, unrecorded bool, err error) {
-	m, err := t.Ext.Extract(ctx, t.Mod, pkg)
-	if err != nil {
-		return report.CheckedPackage{}, false, err
-	}
+// checkPackage takes m, pkg's metrics extracted at head, fills
+// changed_func_cognitive_max from the function-level diff against base
+// (changedFunctions), evaluates it against its baseline metrics, if base
+// has any, and rules, the configured thresholds that apply to a package
+// row, and builds its report with eff, the configuration of t's language,
+// its findings located where the extractor's details say (locateFindings).
+// unrecorded reports that the diff was skipped because base has pkg but no
+// functions for it.
+func checkPackage(ctx context.Context, t *Target, base baseline.Baseline, pkg string, m metrics.RawMetrics, eff config.Effective, rules []gate.Threshold) (p report.CheckedPackage, unrecorded bool, err error) {
 	det, err := packageDetails(ctx, t.Ext, t.Mod, pkg)
 	if err != nil {
 		return report.CheckedPackage{}, false, err
@@ -714,7 +736,14 @@ func checkPackage(ctx context.Context, t *Target, base baseline.Baseline, pkg st
 	r.Details = t.details(&det)
 	p = report.CheckedPackage{Report: r}
 	if bm != nil {
-		passes := score.Estimate(*bm, eff.Rebuild).AgentPassesRounded()
+		// Baselines never measure coverage. When head did, the base is
+		// estimated with head's coverage so that the two agent_passes
+		// differ by the change, not by the opt-in.
+		be := *bm
+		if be.CoveragePct == nil && m.CoveragePct != nil {
+			be.CoveragePct = m.CoveragePct
+		}
+		passes := score.Estimate(be, eff.Rebuild).AgentPassesRounded()
 		p.BaseAgentPasses = &passes
 	}
 	return p, unrecorded, nil

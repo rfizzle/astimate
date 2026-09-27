@@ -26,6 +26,8 @@ Per package, from non-test files unless noted:
 
 The full list, definitions and counting rules are in `SPEC.md` section 6.
 
+`assess`, `rank` and `check` take `--coverage` (bounded by `--coverage-timeout`, default 2m) to run the tests with `go test -cover`, report `coverage_pct` and scale the rebuild estimate's untested-behavior term by it; it is off by default because it runs code, and it is reported, never gated.
+
 ## Requirements
 
 - Go 1.27 or later

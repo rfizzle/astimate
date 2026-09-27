@@ -140,7 +140,7 @@ func TestLanguageOverrideFixtures(t *testing.T) {
 			if got := tg.Ext.Language(); got != tt.name {
 				t.Fatalf("language = %q, want %q", got, tt.name)
 			}
-			r, err := Assess(t.Context(), tg)
+			r, err := Assess(t.Context(), tg, AssessOptions{})
 			if err != nil {
 				t.Fatalf("Assess: %v", err)
 			}

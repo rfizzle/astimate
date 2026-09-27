@@ -70,6 +70,29 @@ func TestAssessPackageTool(t *testing.T) {
 	}
 }
 
+func TestAssessPackageToolCoverage(t *testing.T) {
+	if testing.Short() {
+		t.Skip("integration test: runs go test")
+	}
+	t.Parallel()
+
+	ws := workspace(t, fixtureDir)
+	cs := newTestClient(t, Options{Config: defaultConfig(t), WorkDir: ws})
+	for _, coverage := range []bool{false, true} {
+		res := callAssess(t, cs, map[string]any{"path": "mod/tested", "coverage": coverage})
+		if res.IsError {
+			t.Fatalf("coverage %v: IsError = true, want a report; text:\n%s", coverage, resultText(res))
+		}
+		got := decodeReport(t, res).Metrics.CoveragePct
+		switch {
+		case !coverage && got != nil:
+			t.Errorf("coverage_pct = %v without coverage, want null", *got)
+		case coverage && (got == nil || *got < 0 || *got > 100):
+			t.Errorf("coverage_pct = %v with coverage, want a value in [0, 100]", got)
+		}
+	}
+}
+
 func TestAssessPackageToolDetails(t *testing.T) {
 	if testing.Short() {
 		t.Skip("integration test: loads Go packages")

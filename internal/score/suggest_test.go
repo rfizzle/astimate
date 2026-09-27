@@ -340,6 +340,45 @@ func TestDriverSuggestionsOrderAndUnspecified(t *testing.T) {
 	}
 }
 
+func TestDriverSuggestionUnspecifiedCoverage(t *testing.T) {
+	t.Parallel()
+
+	m := metrics.RawMetrics{
+		SLOC: 1200, TokensEst: 10000, TokensEstWithTests: 16000, DuplicationPct: 20,
+		ExportedSymbols: 30, UntestedExports: 15, Globals: 2, InitFuncs: 1,
+	}
+	tests := []struct {
+		name     string
+		coverage *float64
+		want     string
+	}{
+		{name: "without coverage", want: "15 exported functions have no test; a rebuild would have to reverse-engineer their behavior."},
+		{
+			name: "with coverage", coverage: new(25.0),
+			want: "15 exported functions have no test; a rebuild would have to reverse-engineer their behavior. " +
+				"Tests cover 25% of statements, which scales this term to 9000 tokens.",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			mm := m
+			mm.CoveragePct = tt.coverage
+			r := Estimate(mm, validParams())
+			ds := Drivers(r)
+			if len(ds) == 0 || ds[0].Term != TermUnspecified {
+				t.Fatalf("Drivers = %+v, want unspecified first", ds)
+			}
+			if tt.coverage != nil && !strings.Contains(ds[0].Detail, "coverage_pct=25") {
+				t.Errorf("driver detail = %q, want coverage_pct named", ds[0].Detail)
+			}
+			if got := DriverSuggestions(r, mm, Names{})[0]; got != tt.want {
+				t.Errorf("got  %q\nwant %q", got, tt.want)
+			}
+		})
+	}
+}
+
 // TestMetricSuggestionV1Templates covers the templates of the v1 metrics a
 // config may gate although the default configuration does not.
 func TestMetricSuggestionV1Templates(t *testing.T) {

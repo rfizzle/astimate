@@ -17,7 +17,8 @@ import (
 
 // runRank ranks every package of a module: `rank [<module-root>] [--json]
 // [--top N] [--sort passes|days|fan_in|tokens|duplication] [--config path]
-// [--tokenizer est|o200k]`. The root defaults to the current directory. A
+// [--tokenizer est|o200k] [--coverage] [--coverage-timeout d]`. The root
+// defaults to the current directory. A
 // package that fails to extract is logged to stderr and left out; the other
 // rows are still printed and the command exits 2.
 func runRank(args []string, stdout, stderr io.Writer) int {
@@ -28,9 +29,12 @@ func runRank(args []string, stdout, stderr io.Writer) int {
 	sortKey := fs.String("sort", report.SortPasses, "sort key: "+strings.Join(report.SortKeys(), ", "))
 	configPath := fs.String("config", "", "configuration file (default ./astimate.yaml, then the embedded default)")
 	tokenizer := fs.String("tokenizer", tokenizerEst, "token counting method: est or o200k")
+	var cov coverageFlags
+	cov.register(fs)
 	fs.Usage = func() {
 		_, _ = fmt.Fprintln(stderr, "usage: astimate rank [<module-root>] [--json] [--top N] "+
-			"[--sort passes|days|fan_in|tokens|duplication] [--config path] [--tokenizer est|o200k]")
+			"[--sort passes|days|fan_in|tokens|duplication] [--config path] [--tokenizer est|o200k] "+
+			"[--coverage] [--coverage-timeout 2m]")
 		fs.PrintDefaults()
 	}
 	positional, err := parseInterspersed(fs, args)
@@ -60,6 +64,11 @@ func runRank(args []string, stdout, stderr io.Writer) int {
 			*tokenizer, tokenizerEst, tokenizerO200k)
 		return exitUsage
 	}
+	coverage, err := cov.options()
+	if err != nil {
+		_, _ = fmt.Fprintf(stderr, "astimate: rank: %v\n", err)
+		return exitUsage
+	}
 
 	logger := slog.New(slog.NewTextHandler(stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	t, err := loadTarget(dir, *configPath, *tokenizer, logger)
@@ -67,7 +76,7 @@ func runRank(args []string, stdout, stderr io.Writer) int {
 		logger.Error("rank failed", "dir", dir, "err", err)
 		return exitAnalysis
 	}
-	opts := engine.RankOptions{Sort: *sortKey, Top: *top}
+	opts := engine.RankOptions{Sort: *sortKey, Top: *top, Coverage: coverage}
 	return rankTarget(context.Background(), t, opts, *asJSON, stdout, logger)
 }
 

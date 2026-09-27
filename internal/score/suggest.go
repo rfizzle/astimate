@@ -77,7 +77,12 @@ func driverSuggestion(d Driver, m *metrics.RawMetrics, n Names) string {
 			count(m.FanIn, "internal package", "internal packages") + " cost " + tokens +
 			" tokens of the rebuild; narrow the exported surface."
 	case TermUnspecified:
-		return untestedSentence(m.UntestedExports, n.UntestedExports)
+		s := untestedSentence(m.UntestedExports, n.UntestedExports)
+		if m.CoveragePct != nil {
+			s += " Tests cover " + formatPct(*m.CoveragePct) + "% of statements, which scales this term to " +
+				tokens + " tokens."
+		}
+		return s
 	case TermHidden:
 		return count(m.Globals, "package-level variable", "package-level variables") + " and " +
 			count(m.InitFuncs, "init function", "init functions") + " are hidden state worth " + tokens +

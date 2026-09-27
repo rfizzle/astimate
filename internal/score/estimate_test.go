@@ -264,7 +264,7 @@ func TestEstimateIgnoresV1Fields(t *testing.T) {
 		ExportedSymbols: 8, UntestedExports: 2, Globals: 1, HasTests: true,
 	}
 	withV1 := base
-	ratio, pct := 0.7, 12.5
+	ratio := 0.7
 	dup, gen := 4, 2
 	yes := true
 	withV1.Instability = &ratio
@@ -274,12 +274,50 @@ func TestEstimateIgnoresV1Fields(t *testing.T) {
 	withV1.UsesCgo = &yes
 	withV1.UsesReflect = &yes
 	withV1.GeneratedFiles = &gen
-	withV1.CoveragePct = &pct
 	withV1.ChangedFuncCognitiveMax = &dup
 
 	cfg := validParams()
 	if a, b := Estimate(base, cfg), Estimate(withV1, cfg); !reflect.DeepEqual(a, b) {
-		t.Fatalf("v1 fields changed the estimate:\n%+v\n%+v", a, b)
+		t.Fatalf("v1 fields other than coverage_pct changed the estimate:\n%+v\n%+v", a, b)
+	}
+}
+
+func TestEstimateCoverageScalesUnspecified(t *testing.T) {
+	t.Parallel()
+
+	// The SPEC.md 7.2 worked example: unspecified = 15 * 800 = 12000 without
+	// coverage, the step penalty.
+	base := metrics.RawMetrics{
+		SLOC: 1200, TokensEst: 10000, TokensEstWithTests: 16000, DuplicationPct: 20,
+		ExportedSymbols: 30, UntestedExports: 15, Globals: 2, InitFuncs: 1, HasTests: true,
+	}
+	tests := []struct {
+		name        string
+		coverage    *float64
+		unspecified float64
+		detail      string
+	}{
+		{name: "null applies the step penalty", coverage: nil, unspecified: 12000, detail: "untested_exports=15"},
+		{name: "zero keeps the full term", coverage: new(0.0), unspecified: 12000, detail: "untested_exports=15 coverage_pct=0"},
+		{name: "partial scales the term", coverage: new(62.5), unspecified: 4500, detail: "untested_exports=15 coverage_pct=62.5"},
+		{name: "full removes the term", coverage: new(100.0), unspecified: 0, detail: "untested_exports=15 coverage_pct=100"},
+	}
+	cfg := validParams()
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			m := base
+			m.CoveragePct = tc.coverage
+			r := Estimate(m, cfg)
+			tm := r.Terms[3]
+			approx(t, "unspecified", tm.Tokens, tc.unspecified, 1e-9)
+			if tm.Detail != tc.detail {
+				t.Errorf("Detail = %q, want %q", tm.Detail, tc.detail)
+			}
+			approx(t, "rebuild_tokens", r.RebuildTokens, 16400+tc.unspecified, 1e-9)
+			// human_days reads untested_exports, not coverage.
+			approx(t, "human_days", r.HumanDays, Estimate(base, cfg).HumanDays, 1e-9)
+		})
 	}
 }
 

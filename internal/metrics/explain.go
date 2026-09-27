@@ -42,8 +42,8 @@ const (
 		"invert the abstract-provider assumption: idiomatic Go puts stable concrete leaf packages near " +
 		"distance 1 by design. No gate rule until the reference-corpus measurement shows where " +
 		"well-regarded Go modules sit."
-	evidenceNotYetGated = "Reported only; no default threshold until the metric is computed and " +
-		"calibrated against the reference corpus."
+	evidenceCoverage = "Opt-in and reported only: no gate rule, since baselines do not run tests " +
+		"and a check measures head only, so there is no delta to gate."
 	evidenceOpacity = "Opacity: code the next agent cannot follow from Go source alone (C, reflection, " +
 		"unsafe memory, generator output). Informational: reported, not gated, and no default threshold."
 )
@@ -134,7 +134,14 @@ func explanations() map[string]Explanation {
 			Evidence: evidenceOpacity,
 			Release:  "v1",
 		},
-		"coverage_pct": {Definition: "Statement coverage from go test -cover, only with --coverage.", Evidence: evidenceTests + " " + evidenceNotYetGated, Release: "v1"},
+		"coverage_pct": {
+			Definition: "Statement coverage of the package's own statements from go test -cover -count=1 -run ., " +
+				"measured only when opted in (--coverage, or coverage: true on an MCP tool) because it runs the tests. " +
+				"Null without the opt-in, for a package without test files, and when its tests fail to build or run. " +
+				"When present it scales the rebuild estimate's unspecified term by 1 - coverage_pct/100.",
+			Evidence: evidenceTests + " " + evidenceCoverage,
+			Release:  "v1",
+		},
 		"changed_func_cognitive_max": {
 			Definition: "Highest cognitive complexity among functions added or modified since baseline, " +
 				"matched by receiver and name and compared by a fingerprint of the normalized body, so a " +
