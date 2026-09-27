@@ -168,6 +168,8 @@ Tokens are taken from `go/scanner` over non-test files. Identifiers, literals an
 
 An exported function or method counts as untested when no identifier in any test file of the package (internal or external test package) resolves, via `types.Info.Uses`, to that function or to a method with the same name on the same receiver type. Exported types, vars and consts are not counted; the metric targets behavior, not declarations. Reported as a count and, in the gate, primarily as a delta so new untested behavior fails while legacy gaps are only reported.
 
+Two refinements. A declaration whose doc comment contains the line `//astimate:untested` (optionally followed by a reason) is excluded from the count and listed separately, for intentionally untested wrappers. A method called in a test through an interface value counts as referenced when the concrete receiver type, or a pointer to it, implements that interface and has a method of that name; the interface may come from any package. Generic receiver types are checked uninstantiated, which is a known gap.
+
 ### 6.5 Counting rules
 
 Rules that the section 6 table leaves implicit, fixed here so goldens and implementations agree (`testdata/go/fixture/golden/COUNTING.md` shows each applied):
@@ -494,5 +496,4 @@ Each bullet is intended to become one story.
 
 - Should `check` also evaluate packages whose importers changed, since a change to `hub` can affect their metrics? Proposed: no in v0; `--all` covers it.
 - Should the duplication detector ignore table-driven test-like literal blocks in non-test code? Proposed: literals normalize to `LIT`, so long literal tables will match; add a `dup_ignore_literal_only` option in v1.
-- Should `untested_exports` accept an `//astimate:untested` directive for intentionally untested wrappers? Proposed: yes, in M2, logged in output.
 - Which reference modules go in the corpus? To be listed in S-034.
