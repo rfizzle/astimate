@@ -14,10 +14,16 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/rfizzle/astimate/internal/config"
 )
 
 // serveChildEnv marks a re-executed test binary that runs `astimate serve`.
 const serveChildEnv = "ASTIMATE_TEST_SERVE"
+
+// serveChildConfigEnv, when set in the child, is passed to serve as
+// --config.
+const serveChildConfigEnv = "ASTIMATE_TEST_SERVE_CONFIG"
 
 // TestServeChild is the body of the child process the serve tests start: it
 // runs the real main with `serve` on the process's own stdin and stdout. It
@@ -27,6 +33,9 @@ func TestServeChild(t *testing.T) {
 		t.Skip("helper process for the serve tests")
 	}
 	os.Args = []string{"astimate", "serve"}
+	if path := os.Getenv(serveChildConfigEnv); path != "" {
+		os.Args = append(os.Args, "--config", path)
+	}
 	main()
 }
 
@@ -250,6 +259,50 @@ func TestServeExitsOnStdinClose(t *testing.T) {
 	}
 	if len(out) != 0 {
 		t.Errorf("stdout = %q, want empty with no requests", out)
+	}
+}
+
+func TestServeLogsConfigWarnings(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "old.yaml")
+	// The embedded default with its duplication section swapped for the
+	// deprecated top-level key.
+	def := string(config.Default())
+	start := strings.Index(def, "duplication:\n")
+	end := strings.Index(def, "\n# Rebuild")
+	if start < 0 || end < start {
+		t.Fatal("default config no longer has a duplication section before rebuild")
+	}
+	old := def[:start] + "dup_min_tokens: 30\n" + def[end:]
+	if err := os.WriteFile(path, []byte(old), 0o600); err != nil {
+		t.Fatalf("writing config: %v", err)
+	}
+	cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^TestServeChild$")
+	cmd.Env = append(os.Environ(), serveChildEnv+"=1", serveChildConfigEnv+"="+path, "GORACE=atexit_sleep_ms=0")
+	cmd.Dir = dir
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	// cmd.Stdin is nil, so the child reads /dev/null and sees EOF at once.
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("starting serve: %v", err)
+	}
+	if code := waitExit(t, cmd, 30*time.Second); code != exitOK {
+		t.Errorf("serve exit code = %d, want %d; stderr:\n%s", code, exitOK, &stderr)
+	}
+	if stdout.Len() != 0 {
+		t.Errorf("stdout = %q, want empty", stdout.String())
+	}
+	var warns []string
+	for line := range strings.Lines(stderr.String()) {
+		if strings.Contains(line, "level=WARN") {
+			warns = append(warns, line)
+		}
+	}
+	if len(warns) != 1 || !strings.Contains(warns[0], "deprecated") || !strings.Contains(warns[0], "dup_min_tokens") {
+		t.Errorf("WARN lines = %q, want one naming dup_min_tokens as deprecated; stderr:\n%s", warns, &stderr)
 	}
 }
 

@@ -16,7 +16,8 @@ import (
 
 // runServe starts the MCP server on stdio: `serve [--config path]
 // [--allow-any-path]`. The configuration is resolved once, as for the other
-// commands, and shared by every tool. Stdout belongs to the protocol, so
+// commands, and shared by every tool; its warnings, such as deprecated keys,
+// are logged once before the server starts. Stdout belongs to the protocol, so
 // runServe never writes to the stdout it is given; usage errors and logs go
 // to stderr. It exits 0 when the client closes stdin or on SIGINT or
 // SIGTERM, 2 when the configuration cannot be resolved or serving fails,
@@ -45,6 +46,9 @@ func runServe(args []string, _, stderr io.Writer) int {
 	if err != nil {
 		logger.Error("serve failed", "err", fmt.Errorf("resolving config: %w", err))
 		return exitAnalysis
+	}
+	for _, w := range cfg.Warnings {
+		logger.Warn("config", "source", source, "warning", w)
 	}
 	wd, err := os.Getwd()
 	if err != nil {

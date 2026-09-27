@@ -70,25 +70,25 @@ func WithTokenizer(name string) Option {
 	return func(e *Extractor) { e.tokenizer = name }
 }
 
-// WithDupMinTokens sets dup_min_tokens, the shortest normalized token
-// sequence counted as a duplicate block (SPEC.md 6.3; default 40). A value
-// below 1 makes Extract fail.
+// WithDupMinTokens sets duplication.min_tokens, the shortest normalized
+// token sequence counted as a duplicate block (SPEC.md 6.3; default 40). A
+// value below 1 makes Extract fail.
 func WithDupMinTokens(n int) Option {
 	return func(e *Extractor) { e.dup.minTokens = n }
 }
 
-// WithDupIgnoreLiteralOnly sets dup_ignore_literal_only: when on, a
-// duplicate block made only of literals and the punctuation of a literal
+// WithDupIgnoreLiteralOnly sets duplication.ignore_literal_only: when on,
+// a duplicate block made only of literals and the punctuation of a literal
 // table (, { } : [ ] ( ) ;) is dropped, so repeated runs of data tables do
 // not count as duplication (SPEC.md 6.3; default true).
 func WithDupIgnoreLiteralOnly(on bool) Option {
 	return func(e *Extractor) { e.dup.ignoreLiteralOnly = on }
 }
 
-// WithDupFoldSigns sets dup_fold_signs: when on, the literal-only rule of
-// WithDupIgnoreLiteralOnly counts a unary + or - directly before a numeric
-// literal as part of the literal, so a table of negative numbers is dropped
-// like any other. Matching is unchanged (SPEC.md 6.3; default true).
+// WithDupFoldSigns sets duplication.fold_signs: when on, the literal-only
+// rule of WithDupIgnoreLiteralOnly counts a unary + or - directly before a
+// numeric literal as part of the literal, so a table of negative numbers is
+// dropped like any other. Matching is unchanged (SPEC.md 6.3; default true).
 func WithDupFoldSigns(on bool) Option {
 	return func(e *Extractor) { e.dup.foldSigns = on }
 }
