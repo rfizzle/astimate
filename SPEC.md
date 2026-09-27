@@ -152,7 +152,7 @@ Every field is reported in output. *(v0)* fields are required for the first rele
 | `uses_cgo` | bool | Imports `"C"` | v1 |
 | `uses_reflect` | bool | Imports `reflect` or `unsafe` | v1 |
 | `generated_files` | int | Files with a `Code generated ... DO NOT EDIT` header | v1 |
-| `coverage_pct` | float | Statement coverage from `go test -cover`, only with `--coverage` | v1 |
+| `coverage_pct` | float | Statement coverage of the package's own statements from `go test -cover -count=1 -run .`, measured only with `--coverage` (or `coverage: true` on an MCP tool): one run per invocation over the selected packages that have test files, bounded by `--coverage-timeout` (default 2m, also passed as `-timeout`). Null without the opt-in, for a package without test files or statements, and when its tests fail to build or run or the run times out (one stderr warning per package naming the reason; other metrics unaffected); 0 when passing tests cover nothing. Baselines, git or file, never run tests, so it is compared only when both sides have it; reported only, no gate rule | v1 |
 | `changed_func_cognitive_max` | int | Highest cognitive complexity among functions added or modified since baseline (matched per 6.5); 0 when none changed; null without a function-level baseline diff, as in `assess`, against a baseline file written without function records, or for an extractor that cannot list functions | v1 |
 
 ### 6.1 Token estimation
@@ -205,7 +205,7 @@ A rebuild must reproduce a contract and pass a spec, and the raw metrics describ
 | Essential volume | `tokens_est * (1 - duplication_pct / 100)` | Code that must be written; duplicates collapse in a rebuild |
 | Spec | `tokens_est_with_tests - tokens_est`, `test_funcs` | Tests are the executable specification the rebuild is checked against |
 | Contract | `exported_symbols`, `fan_in` | Signatures that must survive; consumers that must keep working |
-| Unspecified behavior | `untested_exports` | Behavior that must be reverse-engineered from the old implementation |
+| Unspecified behavior | `untested_exports`, scaled by `coverage_pct` when measured | Behavior that must be reverse-engineered from the old implementation |
 | Hidden contract | `globals`, `init_funcs` | State and ordering that no signature reveals |
 
 ### 7.2 Agent estimate
@@ -216,7 +216,7 @@ Everything a rebuild needs must fit in context at once, or the work is partition
 rebuild_tokens = essential_volume
                + spec_tokens
                + exported_symbols * tokens_per_export            (default 40)
-               + untested_exports * tokens_per_untested_export   (default 800)
+               + untested_exports * tokens_per_untested_export * (1 - coverage_pct / 100)   (default 800)
                + (globals + init_funcs) * tokens_per_hidden_state (default 400)
 
 r            = rebuild_tokens / B
@@ -224,7 +224,7 @@ agent_passes = r                       when r <= 1
              = r ^ superlinear_exponent when r > 1     (default 1.3)
 ```
 
-`agent_passes` is reported to one decimal. Below 1.0 the package is rebuildable in one pass with room to spare.
+`agent_passes` is reported to one decimal. Below 1.0 the package is rebuildable in one pass with room to spare. The coverage factor applies only when `coverage_pct` is non-null (`--coverage`); without it the term is the full step penalty of `tokens_per_untested_export` per untested export, as in the worked example. The unspecified driver's detail then records `coverage_pct`, and its suggestion says what coverage scaled the term to. `human_days` (7.3) does not read coverage. In `check`, the baseline has no coverage, so the summary's baseline `agent_passes` is estimated with head's `coverage_pct`.
 
 Worked example (the reference test reproduces every value to four decimals): `sloc` 1200, `tokens_est` 10000, `tokens_est_with_tests` 16000, `duplication_pct` 20, `exported_symbols` 30, `untested_exports` 15, `globals` 2, `init_funcs` 1, default parameters.
 
@@ -269,7 +269,7 @@ All parameters live in the `rebuild:` section of the config and are labelled unc
 
 - Go stdlib `errors` is ONE_PASS; `net/http` is PARTITION.
 - A package with zero fan-in, tests present, no duplication and under 5k tokens is ONE_PASS.
-- Monotonicity: increasing `tokens_est`, `exported_symbols`, `untested_exports`, `globals` or `init_funcs` never lowers `agent_passes`; increasing `duplication_pct` alone never raises it; adding test tokens raises only the `spec` term (on the worked example, 1,000 more test tokens move `agent_passes` from 1.1803 to 1.2346), and adding tests never raises `human_days`.
+- Monotonicity: increasing `tokens_est`, `exported_symbols`, `untested_exports`, `globals` or `init_funcs` never lowers `agent_passes`; increasing `duplication_pct` alone never raises it; raising `coverage_pct`, or measuring it where it was null, never raises it; adding test tokens raises only the `spec` term (on the worked example, 1,000 more test tokens move `agent_passes` from 1.1803 to 1.2346), and adding tests never raises `human_days`.
 
 ## 8. Quality gate
 
@@ -348,10 +348,10 @@ Two sources, chosen by flag:
 ## 9. CLI
 
 ```
-astimate check    [<module-root>] [--base ref | --baseline file] [--all] [--staged] [--config|--thresholds file] [--format text|json|hook|github] [--tokenizer=est|o200k]
+astimate check    [<module-root>] [--base ref | --baseline file] [--all] [--staged] [--config|--thresholds file] [--format text|json|hook|github] [--tokenizer=est|o200k] [--coverage] [--coverage-timeout 2m]
 astimate baseline write [<module-root>] [--out .astimate/baseline.json] [--tokenizer=est|o200k]
-astimate assess   <package-dir> [--json] [--config astimate.yaml] [--tokenizer=est|o200k] [--coverage]
-astimate rank     [<module-root>] [--json] [--top N] [--sort passes|days|fan_in|tokens|duplication] [--config astimate.yaml] [--tokenizer=est|o200k]
+astimate assess   <package-dir> [--json] [--config astimate.yaml] [--tokenizer=est|o200k] [--coverage] [--coverage-timeout 2m]
+astimate rank     [<module-root>] [--json] [--top N] [--sort passes|days|fan_in|tokens|duplication] [--config astimate.yaml] [--tokenizer=est|o200k] [--coverage] [--coverage-timeout 2m]
 astimate serve    [--config astimate.yaml] [--allow-any-path]
 astimate config init [--out astimate.yaml]     # rebuild parameters and thresholds in one file with comments
 astimate version
@@ -369,9 +369,9 @@ Built on `github.com/modelcontextprotocol/go-sdk` v1.8 or later, which supports 
 
 | Tool | Input | Output |
 | --- | --- | --- |
-| `check_package` | `{ "path": string, "base"?: string, "baseline_file"?: string, "staged"?: bool }` | Gate result: the package's report (10.2) with `passed` false when the package or the module row has a violation, plus a `module` block holding the module row's report (8.1) with its own `violations`, `warnings` and `passed`, absent when the extractor has no module row. The agent's self-check; the text opens with PASSED or FAILED and what to do next, and lists the module row's findings under `<module>` as `check`'s text format does. `staged: true` judges the git index instead of the working tree, as `check --staged` does (8.3), reading the repository's own index; outside a git repository it is an `isError` result. Its module block fails only on cross-package copies that touch the checked package; the suggestion names the packages sharing each such copy. |
-| `assess_package` | `{ "path": string, "tokenizer"?: string }` | One report (10.2) |
-| `rank_packages` | `{ "module_root": string, "top"?: int, "sort"?: string }` | Sorted array of `{ path, agent_passes, human_days, tier, fan_in, tokens_est, duplication_pct }` |
+| `check_package` | `{ "path": string, "base"?: string, "baseline_file"?: string, "staged"?: bool, "coverage"?: bool }` | Gate result: the package's report (10.2) with `passed` false when the package or the module row has a violation, plus a `module` block holding the module row's report (8.1) with its own `violations`, `warnings` and `passed`, absent when the extractor has no module row. The agent's self-check; the text opens with PASSED or FAILED and what to do next, and lists the module row's findings under `<module>` as `check`'s text format does. `staged: true` judges the git index instead of the working tree, as `check --staged` does (8.3), reading the repository's own index; outside a git repository it is an `isError` result. Its module block fails only on cross-package copies that touch the checked package; the suggestion names the packages sharing each such copy. On every tool, `coverage: true` measures `coverage_pct` as `--coverage` does (section 6), with the default timeout. |
+| `assess_package` | `{ "path": string, "tokenizer"?: string, "coverage"?: bool }` | One report (10.2) |
+| `rank_packages` | `{ "module_root": string, "top"?: int, "sort"?: string, "coverage"?: bool }` | Sorted array of `{ path, agent_passes, human_days, tier, fan_in, tokens_est, duplication_pct }` |
 | `explain_metric` | `{ "metric": string }` | Definition, evidence note and default threshold for one metric |
 
 Results return `content` (text) and `structuredContent` (JSON), with `isError: true` on analysis failure. A gate failure is not an error; it is a result with `passed: false`.
