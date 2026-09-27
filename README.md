@@ -48,6 +48,12 @@ One file, `astimate.yaml`, holds the rebuild-estimate parameters and the gate th
 
 The default thresholds are placeholders until they are calibrated against a corpus of well-regarded Go modules (`SPEC.md` section 11), and every report says so.
 
+## Integrations
+
+- [Claude Code Stop hook](docs/claude-code-hook.md): a `settings.json` snippet that keeps an agent working while `astimate check --format hook` reports violations.
+- [Pre-commit](docs/pre-commit.md): a git hook script and a pre-commit framework entry that refuse a commit that makes a package worse, and their limitations.
+- [Reading violations](docs/reading-violations.md): how to read `check` output and which metrics to fix first; worth pointing an agent at.
+
 ## Layout
 
 ```
