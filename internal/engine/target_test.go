@@ -1,12 +1,17 @@
 package engine
 
 import (
+	"bytes"
 	"errors"
+	"log/slog"
+	"os"
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 
+	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/lang/golang"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/metrics/metricstest"
@@ -180,6 +185,51 @@ func TestModulePathRel(t *testing.T) {
 	for _, tt := range tests {
 		if got := modulePathRel("example.com/m", tt.importPath); got != tt.want {
 			t.Errorf("modulePathRel(%q) = %q, want %q", tt.importPath, got, tt.want)
+		}
+	}
+}
+
+// TestLoadTargetWarnsUnknownLanguage checks that the registry, not the
+// config package, judges language ids: an override for an id no extractor
+// reports is warned once, and overrides for shipped languages are not.
+func TestLoadTargetWarnsUnknownLanguage(t *testing.T) {
+	t.Parallel()
+
+	const section = "\nlanguages:\n  rust:\n    rebuild:\n      cocomo_a: 3\n  go: {}\n  typescript: {}\n"
+	path := filepath.Join(t.TempDir(), "astimate.yaml")
+	if err := os.WriteFile(path, append(config.Default(), section...), 0o600); err != nil {
+		t.Fatalf("writing config: %v", err)
+	}
+	cfg, err := config.Load(path)
+	if err != nil {
+		t.Fatalf("loading config: %v", err)
+	}
+	warns, err := LanguageWarnings(cfg)
+	if err != nil {
+		t.Fatalf("LanguageWarnings: %v", err)
+	}
+	want := []string{"languages.rust: unknown language; known: go, typescript"}
+	if !slices.Equal(warns, want) {
+		t.Errorf("LanguageWarnings = %q, want %q", warns, want)
+	}
+
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&buf, nil))
+	if _, err := LoadTarget(fixtureDir, TargetOptions{ConfigPath: path, Tokenizer: TokenizerEst, Logger: logger}); err != nil {
+		t.Fatalf("LoadTarget: %v", err)
+	}
+	var lines []string
+	for line := range strings.Lines(buf.String()) {
+		if strings.Contains(line, "level=WARN") && strings.Contains(line, "unknown language") {
+			lines = append(lines, line)
+		}
+	}
+	if len(lines) != 1 || !strings.Contains(lines[0], "languages.rust") {
+		t.Errorf("unknown-language warnings = %q, want one naming languages.rust", lines)
+	}
+	for _, id := range []string{"languages.go", "languages.typescript"} {
+		if strings.Contains(buf.String(), id) {
+			t.Errorf("log names %s, want no warning for a shipped language; log:\n%s", id, &buf)
 		}
 	}
 }

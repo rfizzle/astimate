@@ -60,15 +60,16 @@ func (o languageOverride) empty() bool {
 	return true
 }
 
-// knownLanguage reports the language ids of the shipped extractors. An
-// override for any other id is kept, with a warning, since it can never
-// apply.
-func knownLanguage(id string) bool {
-	switch id {
-	case "go", "typescript":
-		return true
+// Languages returns the language ids the languages section names, sorted.
+// Config does not judge them: the caller that owns the extractor registry
+// warns on an id no extractor reports, since its override can never apply.
+func (c *Config) Languages() []string {
+	ids := make([]string, 0, len(c.languages))
+	for id := range c.languages {
+		ids = append(ids, id)
 	}
-	return false
+	slices.Sort(ids)
+	return ids
 }
 
 // ForLanguage returns the configuration the language lang is evaluated
@@ -124,9 +125,8 @@ func mergeRules(top []gate.Threshold, o languageOverride) []gate.Threshold {
 	return out
 }
 
-// buildLanguages parses the languages section into cfg, warning on an
-// unknown language id and on disabling a metric the top level does not
-// gate. A disabled rule that sets anything but metric, or a metric both
+// buildLanguages parses the languages section into cfg, accepting any
+// language id, and warns on disabling a metric the top level does not gate. A disabled rule that sets anything but metric, or a metric both
 // disabled and overridden, is an error naming the language. Range checks
 // are left to Validate.
 func (fc *fileConfig) buildLanguages(cfg *Config) error {
@@ -141,9 +141,6 @@ func (fc *fileConfig) buildLanguages(cfg *Config) error {
 	cfg.languages = make(map[string]languageOverride, len(ids))
 	var errs []error
 	for _, id := range ids {
-		if !knownLanguage(id) {
-			cfg.Warnings = append(cfg.Warnings, fmt.Sprintf("languages.%s: unknown language; known: go, typescript", id))
-		}
 		fl := fc.Languages[id]
 		if fl == nil {
 			cfg.languages[id] = languageOverride{}
@@ -198,13 +195,8 @@ func disabledShape(ft fileThreshold) error {
 // effective rebuild parameters, its rules and its disabled metrics, each
 // error naming the language.
 func (c *Config) validateLanguages(isKnown func(string) bool) []error {
-	ids := make([]string, 0, len(c.languages))
-	for id := range c.languages {
-		ids = append(ids, id)
-	}
-	slices.Sort(ids)
 	var errs []error
-	for _, id := range ids {
+	for _, id := range c.Languages() {
 		o := c.languages[id]
 		if o.rebuild != nil {
 			if err := c.ForLanguage(id).Rebuild.Validate(); err != nil {

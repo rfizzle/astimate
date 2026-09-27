@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/config"
+	"github.com/rfizzle/astimate/internal/engine"
 )
 
 func TestConfigInitMatchesDefault(t *testing.T) {
@@ -146,5 +148,24 @@ func TestConfigInitValidates(t *testing.T) {
 		if eff.Version != cfg.Version || eff.Rebuild != cfg.Rebuild || len(eff.Thresholds) != len(cfg.Thresholds) {
 			t.Errorf("ForLanguage(%q) = %+v, want the top level unchanged", lang, eff)
 		}
+	}
+	if warns, err := engine.LanguageWarnings(cfg); err != nil || len(warns) != 0 {
+		t.Errorf("LanguageWarnings = %q, %v, want none", warns, err)
+	}
+
+	// The registry, not the config package, judges override ids: the
+	// written file with overrides appended warns only on the unknown one.
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("reading written config: %v", err)
+	}
+	withOverrides, err := config.Parse(append(data, "\nlanguages:\n  rust: {}\n  go: {}\n  typescript: {}\n"...))
+	if err != nil {
+		t.Fatalf("parsing config with overrides: %v", err)
+	}
+	warns, err := engine.LanguageWarnings(withOverrides)
+	want := []string{"languages.rust: unknown language; known: go, typescript"}
+	if err != nil || !slices.Equal(warns, want) {
+		t.Errorf("LanguageWarnings = %q, %v, want %q", warns, err, want)
 	}
 }

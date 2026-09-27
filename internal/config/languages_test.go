@@ -195,8 +195,6 @@ func TestParseLanguageWarnings(t *testing.T) {
 		section string
 		want    string
 	}{
-		{name: "unknown language", section: "languages:\n  rust:\n    rebuild:\n      cocomo_a: 3\n",
-			want: "languages.rust: unknown language"},
 		{name: "disable ungated metric", section: "languages:\n  go:\n    thresholds:\n      - metric: fan_in\n        disabled: true\n",
 			want: `languages.go.thresholds[0] "fan_in": disables a metric the top-level thresholds do not gate`},
 	}
@@ -212,6 +210,26 @@ func TestParseLanguageWarnings(t *testing.T) {
 				t.Errorf("Warnings = %q, want one containing %q", cfg.Warnings, tt.want)
 			}
 		})
+	}
+}
+
+// TestParseAcceptsAnyLanguage checks that Parse keeps an override for an id
+// no shipped extractor reports without judging it, and lists every id.
+func TestParseAcceptsAnyLanguage(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := Parse(withLanguages("languages:\n  rust:\n    rebuild:\n      cocomo_a: 3\n  go: {}\n"))
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if len(cfg.Warnings) != 0 {
+		t.Errorf("Warnings = %q, want none", cfg.Warnings)
+	}
+	if got, want := cfg.Languages(), []string{"go", "rust"}; !slices.Equal(got, want) {
+		t.Errorf("Languages() = %q, want %q", got, want)
+	}
+	if got := cfg.ForLanguage("rust").Rebuild.CocomoA; got != 3 {
+		t.Errorf("ForLanguage(rust).Rebuild.CocomoA = %v, want 3", got)
 	}
 }
 

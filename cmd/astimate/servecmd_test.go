@@ -291,7 +291,7 @@ func TestServeLogsConfigWarnings(t *testing.T) {
 	if start < 0 || end < start {
 		t.Fatal("default config no longer has a duplication section before rebuild")
 	}
-	old := def[:start] + "dup_min_tokens: 30\n" + def[end:]
+	old := def[:start] + "dup_min_tokens: 30\n" + def[end:] + "\nlanguages:\n  rust: {}\n  go: {}\n"
 	if err := os.WriteFile(path, []byte(old), 0o600); err != nil {
 		t.Fatalf("writing config: %v", err)
 	}
@@ -317,8 +317,10 @@ func TestServeLogsConfigWarnings(t *testing.T) {
 			warns = append(warns, line)
 		}
 	}
-	if len(warns) != 1 || !strings.Contains(warns[0], "deprecated") || !strings.Contains(warns[0], "dup_min_tokens") {
-		t.Errorf("WARN lines = %q, want one naming dup_min_tokens as deprecated; stderr:\n%s", warns, &stderr)
+	if len(warns) != 2 || !strings.Contains(warns[0], "deprecated") || !strings.Contains(warns[0], "dup_min_tokens") ||
+		!strings.Contains(warns[1], "languages.rust: unknown language") {
+		t.Errorf("WARN lines = %q, want one naming dup_min_tokens as deprecated and one naming languages.rust as unknown; stderr:\n%s",
+			warns, &stderr)
 	}
 }
 

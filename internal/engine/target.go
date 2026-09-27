@@ -100,7 +100,9 @@ func ValidTokenizer(name string) bool {
 // TypeScript. When both are at the same root, Go is chosen and a warning
 // logged. A Go module's packages are named by import path; a TypeScript
 // module has no module path and names its packages by their directory
-// relative to the root. A dir outside any module yields an error wrapping
+// relative to the root. When it resolves the configuration itself, it logs
+// the configuration's warnings, and one for each languages override whose id
+// no registered extractor reports. A dir outside any module yields an error wrapping
 // golang.ErrNoModule, whose text names go.mod; an unknown tokenizer yields
 // ErrUnknownTokenizer.
 func LoadTarget(dir string, opts TargetOptions) (*Target, error) {
@@ -139,6 +141,11 @@ func LoadTarget(dir string, opts TargetOptions) (*Target, error) {
 	if err != nil {
 		return nil, err
 	}
+	if opts.Config == nil && opts.Logger != nil {
+		for _, w := range languageWarnings(cfg, reg) {
+			opts.Logger.Warn("config", "source", source, "warning", w)
+		}
+	}
 	root, ext, err := detectModule(abs, reg, opts.Logger)
 	if err != nil {
 		return nil, fmt.Errorf("resolving %s: %w", dir, err)
@@ -165,6 +172,30 @@ func LoadTarget(dir string, opts TargetOptions) (*Target, error) {
 		Version:      opts.Version,
 		Logger:       opts.Logger,
 	}, nil
+}
+
+// LanguageWarnings returns one warning for each language id cfg's languages
+// section names that no supported extractor reports, since such an override
+// can never apply. The extractor registry, not the config package, is the
+// source of truth for language ids.
+func LanguageWarnings(cfg *config.Config) ([]string, error) {
+	reg, err := newRegistry(cfg, TokenizerEst, nil)
+	if err != nil {
+		return nil, err
+	}
+	return languageWarnings(cfg, reg), nil
+}
+
+// languageWarnings returns one warning for each language id cfg's languages
+// section names that reg has no extractor for.
+func languageWarnings(cfg *config.Config, reg *metrics.Registry) []string {
+	var warns []string
+	for _, id := range cfg.Languages() {
+		if _, ok := reg.Lookup(id); !ok {
+			warns = append(warns, "languages."+id+": unknown language; known: "+strings.Join(reg.Languages(), ", "))
+		}
+	}
+	return warns
 }
 
 // languageGo is the language identifier of the Go extractor.
