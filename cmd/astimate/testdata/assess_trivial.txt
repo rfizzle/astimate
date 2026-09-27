@@ -7,7 +7,7 @@ drivers:
   volume       47 tokens   tokens_est=47 duplication_pct=0
 
 suggestions:
-  - 1 exported function has no test; a rebuild would have to reverse-engineer their behavior.
+  - 1 exported function has no test (Answer); a rebuild would have to reverse-engineer its behavior.
 
 metrics:
   files                  1   sloc              4

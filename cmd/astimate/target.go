@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/lang/golang"
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/score"
 )
 
 // Tokenizer names accepted by --tokenizer (SPEC.md 6.1).
@@ -116,4 +118,20 @@ func packagePaths(root, dir, modPath string) (pkgPath, importPath string, err er
 		return rel, modPath, nil
 	}
 	return rel, modPath + "/" + rel, nil
+}
+
+// suggestionNames returns the names behind pkg's counts for suggestions when
+// ext implements metrics.Detailer, and the zero score.Names, which yields
+// suggestions with counts only, when it does not. Call it after Extract for
+// pkg on mod. It is shared by assess and the later check command.
+func suggestionNames(ctx context.Context, ext metrics.Extractor, mod *metrics.ModuleContext, pkg string) (score.Names, error) {
+	d, ok := ext.(metrics.Detailer)
+	if !ok {
+		return score.Names{}, nil
+	}
+	det, err := d.Details(ctx, mod, pkg)
+	if err != nil {
+		return score.Names{}, fmt.Errorf("naming suggestions for %s: %w", pkg, err)
+	}
+	return score.Names{UntestedExports: det.UntestedExports, DupLocations: det.DupLocations}, nil
 }

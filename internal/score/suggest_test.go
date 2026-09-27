@@ -76,7 +76,7 @@ func TestMetricSuggestionSingular(t *testing.T) {
 	t.Parallel()
 
 	got := MetricSuggestion("untested_exports", 1, metrics.RawMetrics{}, Names{UntestedExports: []string{"Parse"}})
-	want := "1 exported function has no test (Parse); a rebuild would have to reverse-engineer their behavior."
+	want := "1 exported function has no test (Parse); a rebuild would have to reverse-engineer its behavior."
 	if got != want {
 		t.Errorf("MetricSuggestion = %q, want %q", got, want)
 	}
@@ -113,6 +113,11 @@ func TestUntestedExportsNamesTruncated(t *testing.T) {
 			name: "no names",
 			head: 7,
 			want: "7 exported functions have no test; a rebuild would have to reverse-engineer their behavior.",
+		},
+		{
+			name: "one without names",
+			head: 1,
+			want: "1 exported function has no test; a rebuild would have to reverse-engineer its behavior.",
 		},
 	}
 	for _, tt := range tests {

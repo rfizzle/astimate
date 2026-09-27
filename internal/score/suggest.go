@@ -25,7 +25,7 @@ type Names struct {
 	// references.
 	UntestedExports []string
 	// DupLocations lists duplicate block locations, for example
-	// "parse.go:40", first occurrence first.
+	// "parse.go:40-58", first occurrence first.
 	DupLocations []string
 }
 
@@ -122,11 +122,14 @@ func dupSentence(blocks int, pct string, locations []string) string {
 }
 
 // untestedSentence renders the untested-exports template for n exports,
-// naming up to five of names.
+// naming up to five of names, in the singular when n is 1.
 func untestedSentence(n int, names []string) string {
 	s := count(n, "exported function has", "exported functions have") + " no test"
 	if len(names) > 0 {
 		s += " (" + nameList(names, n) + ")"
+	}
+	if n == 1 {
+		return s + "; a rebuild would have to reverse-engineer its behavior."
 	}
 	return s + "; a rebuild would have to reverse-engineer their behavior."
 }

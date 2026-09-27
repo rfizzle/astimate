@@ -21,6 +21,7 @@ const (
 	caseEnv          = "METRICSTEST_SUBPROCESS_CASE"
 	caseGolden       = "golden-mutation"
 	caseInvariant    = "invariant-violation"
+	caseDetails      = "details-mismatch"
 	fakeRoot         = "/fake/module"
 	thisPackage      = "github.com/rfizzle/astimate/internal/metrics"
 	metricstestPkgID = thisPackage + "/metricstest"
@@ -167,6 +168,30 @@ func TestSuitePassesOnFake(t *testing.T) {
 	metricstest.TestExtractor(t, ext, syntheticFixture(dir))
 }
 
+// syntheticDetails names as many untested exports per package as
+// syntheticPackages counts.
+func syntheticDetails() map[string]metrics.Details {
+	return map[string]metrics.Details{
+		"alpha": {UntestedExports: []string{"Parse"}},
+		"beta":  {UntestedExports: []string{"Close", "Open"}, DupLocations: []string{"beta.go:3-9", "beta.go:12-18"}},
+	}
+}
+
+func TestSuitePassesOnFakeWithDetails(t *testing.T) {
+	dir := writeGoldens(t, syntheticGoldens())
+	ext := metricstest.NewFake("fake", fakeRoot, syntheticPackages(), metricstest.WithDetails(syntheticDetails()))
+	if _, ok := ext.(metrics.Detailer); !ok {
+		t.Fatal("NewFake with WithDetails does not implement metrics.Detailer")
+	}
+	metricstest.TestExtractor(t, ext, syntheticFixture(dir))
+}
+
+func TestFakeWithoutDetailsIsNotDetailer(t *testing.T) {
+	if _, ok := metricstest.NewFake("fake", fakeRoot, syntheticPackages()).(metrics.Detailer); ok {
+		t.Error("NewFake without WithDetails implements metrics.Detailer; callers could not test their fallback")
+	}
+}
+
 // TestSuiteSubprocess is the child side of the failure-detection tests. It
 // does nothing unless caseEnv is set.
 func TestSuiteSubprocess(t *testing.T) {
@@ -181,6 +206,13 @@ func TestSuiteSubprocess(t *testing.T) {
 		alpha := pkgs["alpha"]
 		alpha.FanIn = 1
 		pkgs["alpha"] = alpha
+	case caseDetails:
+		details := syntheticDetails()
+		details["beta"] = metrics.Details{UntestedExports: []string{"Open"}}
+		dir := writeGoldens(t, goldens)
+		ext := metricstest.NewFake("fake", fakeRoot, pkgs, metricstest.WithDetails(details))
+		metricstest.TestExtractor(t, ext, syntheticFixture(dir))
+		return
 	default:
 		t.Fatalf("unknown %s %q", caseEnv, os.Getenv(caseEnv))
 	}
@@ -221,6 +253,14 @@ func TestSuiteDetectsGoldenMutation(t *testing.T) {
 	if n := strings.Count(out, "before regenerating"); n != 1 {
 		t.Errorf("want exactly one golden difference, got %d:\n%s", n, out)
 	}
+}
+
+func TestSuiteDetectsDetailsMismatch(t *testing.T) {
+	out := runSubprocess(t, caseDetails)
+	requireContains(t, out,
+		"--- FAIL: TestSuiteSubprocess/Details",
+		`beta: Details names 1 untested exports ["Open"], want untested_exports 2`,
+	)
 }
 
 func TestSuiteDetectsInvariantViolation(t *testing.T) {

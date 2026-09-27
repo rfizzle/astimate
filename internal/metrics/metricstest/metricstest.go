@@ -55,7 +55,10 @@ type Fixture struct {
 // and keeps only language-specific unit tests locally. It checks Detect,
 // Packages, Validate on every Extract result, byte-identical determinism
 // across two module contexts, errors for an unknown package and a cancelled
-// context, module-wide invariants, and every golden in fx.GoldenDir.
+// context, module-wide invariants, and every golden in fx.GoldenDir. When ext
+// also implements the optional metrics.Detailer, it checks that Details
+// succeeds for every package after Extract and names as many untested
+// exports as untested_exports counts.
 //
 // Implementations must check ctx.Err() at least once on every Extract call,
 // including calls served from ModuleContext.Cache, so that a cancelled
@@ -131,6 +134,10 @@ func TestExtractor(t *testing.T, ext metrics.Extractor, fx Fixture) {
 
 	t.Run("Invariants", func(t *testing.T) { checkInvariants(t, fx.Packages, got) })
 
+	if d, ok := ext.(metrics.Detailer); ok {
+		t.Run("Details", func(t *testing.T) { checkDetails(t, d, mod, fx.Packages, got) })
+	}
+
 	t.Run("Goldens", func(t *testing.T) { checkGoldens(t, fx, got) })
 }
 
@@ -201,6 +208,25 @@ func checkInvariants(t *testing.T, pkgs []string, got map[string]metrics.RawMetr
 	if fanIn != fanOut {
 		t.Errorf("module-wide sum(fan_in) %d != sum(internal_imports) %d; each internal import edge must count once on each side",
 			fanIn, fanOut)
+	}
+}
+
+// checkDetails runs only for an extractor that implements the optional
+// metrics.Detailer. After Extract on mod, Details must succeed for every
+// package and name exactly as many untested exports as untested_exports
+// counts.
+func checkDetails(t *testing.T, d metrics.Detailer, mod *metrics.ModuleContext, pkgs []string, got map[string]metrics.RawMetrics) {
+	t.Helper()
+	for _, pkg := range pkgs {
+		det, err := d.Details(t.Context(), mod, pkg)
+		if err != nil {
+			t.Errorf("Details(%s): %v", pkg, err)
+			continue
+		}
+		if n, want := len(det.UntestedExports), got[pkg].UntestedExports; n != want {
+			t.Errorf("%s: Details names %d untested exports %q, want untested_exports %d",
+				pkg, n, det.UntestedExports, want)
+		}
 	}
 }
 

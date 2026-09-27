@@ -93,11 +93,16 @@ func assess(ctx context.Context, dir string, f targetFlags) (report.Report, erro
 	if err != nil {
 		return report.Report{}, err
 	}
+	names, err := suggestionNames(ctx, t.extractor, t.module, t.importPath)
+	if err != nil {
+		return report.Report{}, err
+	}
 	return report.Build(&report.Input{
 		Language:        t.extractor.Language(),
 		PackagePath:     t.packagePath,
 		ModulePath:      t.module.ModulePath,
 		Metrics:         m,
+		Names:           names,
 		Params:          t.cfg.Rebuild,
 		ConfigVersion:   t.cfg.Version,
 		AstimateVersion: astimateVersion(),
