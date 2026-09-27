@@ -40,9 +40,12 @@ type walker struct {
 	fn *funcScore
 	// hashing reports that the walk is inside fn's body, whose tokens its
 	// fingerprint mixes; self is fn's name as a direct call spells it,
-	// empty for a method.
-	hashing bool
-	self    string
+	// empty for a method; selfMember is a method's name as a call through
+	// this spells it, empty for a plain function, a constructor, and inside
+	// a nested function or class that binds its own this.
+	hashing    bool
+	self       string
+	selfMember string
 	// localFuncs maps the name of each top-level function to whether it
 	// carries the untested directive, and classMethods holds the
 	// untested_exports candidates of each top-level class, for resolving
@@ -457,16 +460,19 @@ func (w *walker) hasDirective(parent *sitter.Node, i int) bool {
 // recorded.
 func (w *walker) function(receiver, ident string, fn *sitter.Node) {
 	score := &funcScore{receiver: receiver, ident: ident, line: int(fn.StartPoint().Row) + 1, fingerprint: fpOffset}
-	prev, prevHashing, prevSelf := w.fn, w.hashing, w.self
-	w.fn, w.self = score, ""
-	if receiver == "" {
+	prev, prevHashing, prevSelf, prevMember := w.fn, w.hashing, w.self, w.selfMember
+	w.fn, w.self, w.selfMember = score, "", ""
+	switch {
+	case receiver == "":
 		w.self = ident
+	case ident != "constructor":
+		w.selfMember = ident
 	}
 	for i := range fn.ChildCount() {
 		w.hashing = !w.f.test && fn.FieldNameForChild(i, w.lang) == "body"
 		w.visit(fn.Child(i), state{})
 	}
-	w.fn, w.hashing, w.self = prev, prevHashing, prevSelf
+	w.fn, w.hashing, w.self, w.selfMember = prev, prevHashing, prevSelf, prevMember
 	if !w.f.test {
 		w.f.funcs = append(w.f.funcs, *score)
 	}
@@ -501,6 +507,13 @@ func (w *walker) visit(n *sitter.Node, st state) {
 			w.children(n, quiet)
 		}
 		return
+	}
+	if w.selfMember != "" && bindsThis(typ) {
+		// A nested function other than an arrow, or a nested class body,
+		// binds its own this, so this.m() inside it is not a self-call.
+		prevMember := w.selfMember
+		w.selfMember = ""
+		defer func() { w.selfMember = prevMember }()
 	}
 	if w.fn != nil && w.complexity(n, typ, st) {
 		return
@@ -703,14 +716,41 @@ func firstArgument(w *walker, args *sitter.Node) *sitter.Node {
 	return nil
 }
 
-// isSelfCall reports whether the call expression n calls, by its bare
-// name, the function being walked.
+// isSelfCall reports whether the call expression n calls the function
+// being walked: a plain function by its bare name, a method through this.
 func (w *walker) isSelfCall(n *sitter.Node) bool {
-	if w.self == "" {
+	switch {
+	case w.self != "":
+		callee := w.field(n, "function")
+		return callee != nil && callee.Type(w.lang) == "identifier" && w.text(callee) == w.self
+	case w.selfMember != "":
+		return w.isSelfMemberCall(n)
+	}
+	return false
+}
+
+// isSelfMemberCall reports whether the call expression n calls, through
+// this, the method being walked: this.m(...) inside method m, including
+// the optional forms this?.m(...) and this.m?.(...).
+func (w *walker) isSelfMemberCall(n *sitter.Node) bool {
+	callee := w.field(n, "function")
+	if callee == nil || callee.Type(w.lang) != "member_expression" {
 		return false
 	}
-	callee := w.field(n, "function")
-	return callee != nil && callee.Type(w.lang) == "identifier" && w.text(callee) == w.self
+	obj := w.field(callee, "object")
+	return obj != nil && obj.Type(w.lang) == "this" && w.text(w.field(callee, "property")) == w.selfMember
+}
+
+// bindsThis reports whether a node of type typ gives the code inside it its
+// own this: a function or method other than an arrow function, or a class
+// body, whose field initializers and static blocks see the inner class.
+func bindsThis(typ string) bool {
+	switch typ {
+	case "function_expression", "function", "generator_function",
+		"function_declaration", "generator_function_declaration", "method_definition", "class_body":
+		return true
+	}
+	return false
 }
 
 // isTemplateText reports whether a leaf of type typ inside a template

@@ -15,8 +15,11 @@ package typescript
 // operators changes it. Unlike the duplication stream, the tokens inside a template literal's
 // substitutions are hashed too, since they may hold control flow; its text
 // fragments and escapes are not. The one name the hash sees is the
-// function's own, on a direct call to it, kept distinct as in the Go
-// extractor. Kinds are hashed by name rather than by the module's interned
+// function's own, on a call to itself, kept distinct as in the Go
+// extractor: a plain function's call by its bare name, and a method's call
+// through this.m(...), including from a nested arrow function, which shares
+// the method's this, but not from a nested function expression or class,
+// which binds its own, nor through super or another object. Kinds are hashed by name rather than by the module's interned
 // token codes, which depend on the order files are scanned, so a function
 // fingerprints the same in a baseline tree and at head.
 
@@ -32,7 +35,9 @@ const (
 	fpIdent uint64 = iota + 1
 	fpLit
 	// fpSelfCall precedes the tokens of a call whose callee is an
-	// identifier naming the enclosing function.
+	// identifier naming the enclosing plain function, or this.m inside
+	// method m. It is mixed into the fingerprint only, never emitted as a
+	// duplication token.
 	fpSelfCall
 )
 

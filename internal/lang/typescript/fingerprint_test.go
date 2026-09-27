@@ -164,6 +164,72 @@ func TestFingerprintDetails(t *testing.T) {
 			b:    "function f(n: number): number { return n <= 1 ? 1 : g(n - 1); }\n",
 		},
 		{
+			name: "method self call through this is distinct from another method call",
+			a:    "class A { m(n: number): number { return n <= 1 ? 1 : this.m(n - 1); } }\n",
+			b:    "class A { m(n: number): number { return n <= 1 ? 1 : this.n(n - 1); } }\n",
+		},
+		{
+			name: "renaming a this call target to the method itself",
+			a:    "class A { m(n: number) { return this.k(n); } }\n",
+			b:    "class A { m(n: number) { return this.m(n); } }\n",
+		},
+		{
+			name: "renaming a this call target away from the method itself",
+			a:    "class A { m(n: number) { return this.m(n); } }\n",
+			b:    "class A { m(n: number) { return this.j(n); } }\n",
+		},
+		{
+			name: "calls to two other methods through this are alike",
+			a:    "class A { m(n: number) { return this.k(n); } }\n",
+			b:    "class A { m(n: number) { return this.j(n); } }\n",
+			same: true,
+		},
+		{
+			name: "private method self call through this is distinct",
+			a:    "class A { #m(n: number) { return this.#m(n); } }\n",
+			b:    "class A { #m(n: number) { return this.#k(n); } }\n",
+		},
+		{
+			name: "function-valued field self call through this is distinct",
+			a:    "class A { m = (n: number) => this.m(n); }\n",
+			b:    "class A { m = (n: number) => this.k(n); }\n",
+		},
+		{
+			name: "super call is not a self call",
+			a:    "class A extends B { m(n: number) { return super.m(n); } }\n",
+			b:    "class A extends B { m(n: number) { return super.k(n); } }\n",
+			same: true,
+		},
+		{
+			name: "call on another object is not a self call",
+			a:    "class A { m(o: A) { return o.m(); } }\n",
+			b:    "class A { m(o: A) { return o.k(); } }\n",
+			same: true,
+		},
+		{
+			name: "this call from a nested arrow function is a self call",
+			a:    "class A { m(xs: number[]) { return xs.map((x) => this.m([x])); } }\n",
+			b:    "class A { m(xs: number[]) { return xs.map((x) => this.k([x])); } }\n",
+		},
+		{
+			name: "this call from a nested function expression is not a self call",
+			a:    "class A { m(xs: number[]) { return xs.map(function (x) { return this.m([x]); }); } }\n",
+			b:    "class A { m(xs: number[]) { return xs.map(function (x) { return this.k([x]); }); } }\n",
+			same: true,
+		},
+		{
+			name: "this call from a nested class is not a self call",
+			a:    "class A { m() { return class { f = this.m(); }; } }\n",
+			b:    "class A { m() { return class { f = this.k(); }; } }\n",
+			same: true,
+		},
+		{
+			name: "this call in a plain function is not a self call",
+			a:    "function m(this: any) { return this.m(); }\n",
+			b:    "function m(this: any) { return this.k(); }\n",
+			same: true,
+		},
+		{
 			name: "calls to two other functions are alike",
 			a:    "function f(n: number): number { return h(n - 1); }\n",
 			b:    "function f(n: number): number { return g(n - 1); }\n",
