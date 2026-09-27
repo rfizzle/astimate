@@ -244,6 +244,30 @@ type Taker[T any] interface{ Take() T }
 type Tray[T any] struct{}
 
 func (Tray[T]) Take() T { var v T; return v }
+
+type NestBox struct{}
+
+func (NestBox) Get() uint { return 0 }
+
+type ChainBox struct{}
+
+func (ChainBox) Get() int8 { return 0 }
+
+type SwapBox struct{}
+
+func (SwapBox) Get() int32 { return 0 }
+
+type HarnessBox struct{}
+
+func (HarnessBox) Get() int64 { return 0 }
+
+type WrapBox struct{}
+
+func (WrapBox) Get() uint16 { return 0 }
+
+type IdleBox struct{}
+
+func (IdleBox) Get() uint8 { return 0 }
 `,
 		"u_test.go": `package u
 
@@ -260,6 +284,36 @@ func via[T any, G Getter[T]](g G) T { return g.Get() }
 
 func take[T any](k Taker[T]) T { return k.Take() }
 
+func outer[T any](g Getter[T]) T { return get(g) }
+
+func chain1[T any](g Getter[T]) T { return chain2(g) }
+
+func chain2[T any](g Getter[T]) T { return get[T](g) }
+
+func rec[T any](n int, g Getter[T]) T {
+	if n > 0 {
+		return rec(n-1, g)
+	}
+	return g.Get()
+}
+
+func swap[A, B any](a Getter[A], b Getter[B]) A {
+	if a == nil {
+		_ = swap(b, a)
+	}
+	return a.Get()
+}
+
+type harness[T any] struct{ g Getter[T] }
+
+func (h harness[T]) run() T { return h.g.Get() }
+
+func wrap[T any](g Getter[T]) T { return harness[T]{g: g}.run() }
+
+type idle[T any] struct{ g Getter[T] }
+
+func (i *idle[T]) run() T { return i.g.Get() }
+
 func TestDispatch(t *testing.T) {
 	var s Shape = &Circle{}
 	_ = s.Area()
@@ -272,6 +326,12 @@ func TestDispatch(t *testing.T) {
 	_ = get(IntBox{})
 	_ = via[bool](&Crate{})
 	_ = Tray[string]{}
+	_ = outer(NestBox{})
+	_ = chain1(ChainBox{})
+	_ = rec(1, IntBox{})
+	_ = swap[int16, int32](nil, SwapBox{})
+	_ = harness[int64]{g: HarnessBox{}}.run()
+	_ = wrap(WrapBox{})
 }
 `,
 	})
@@ -286,7 +346,15 @@ func TestDispatch(t *testing.T) {
 	// instantiation is inferred from the argument. via selects Get
 	// on its type argument *Crate directly. take is never called, so
 	// Tray.Take stays untested although the test holds Tray[string].
-	want := []string{"Blob.Area", "FloatBox.Get", "Gen.Area", "Lone.Area", "Other.Len", "Tray.Take"}
+	// NestBox.Get is reached only through outer[uint] calling get[uint], and
+	// ChainBox.Get through chain1, chain2 and get. rec calls itself with its
+	// own type argument and swap with its arguments swapped, so resolving
+	// them must stop; swap[int16, int32] reaches SwapBox.Get only through
+	// swap[int32, int16]. HarnessBox.Get is reached only through the method
+	// of harness[int64], and WrapBox.Get through harness[uint16]
+	// instantiated inside wrap. idle is never instantiated, so IdleBox.Get
+	// stays untested although idle's method selects Get.
+	want := []string{"Blob.Area", "FloatBox.Get", "Gen.Area", "IdleBox.Get", "Lone.Area", "Other.Len", "Tray.Take"}
 	if got.untested != len(want) || !slices.Equal(got.names, want) {
 		t.Errorf("untested = %d %v, want %d %v", got.untested, got.names, len(want), want)
 	}

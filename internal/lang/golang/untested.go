@@ -53,7 +53,11 @@ type untestedCounts struct {
 // get[T any](g Getter[T]), the check runs once per instantiation of that
 // function in the test files, on the receiver type with the type arguments
 // substituted; a receiver that substitutes to a concrete type marks the
-// method it selects directly.
+// method it selects directly. A method of a generic type declared in a test
+// file is treated the same way, once per instantiation of that type in the
+// test files. A helper instantiated inside another with the outer one's
+// type parameters, such as get[T] called from outer[T], takes the outer
+// one's instantiations with their arguments substituted.
 //
 // Unlike the syntactic metrics, it reads p.Syntax rather than sourceSyntax,
 // because p.TypesInfo.Defs is keyed by the identifiers of those trees. For a
@@ -206,68 +210,200 @@ func markMethod(pkgPath string, t types.Type, name string, marked map[string]boo
 	}
 }
 
-// genericHelper is a generic func declared in a test file, with the
-// distinct type-argument lists the test files instantiate it with.
+// maxHelperDepth bounds the rounds that carry instantiations from one
+// generic helper into the helpers it instantiates, so that a chain of that
+// many nested helpers resolves and a recursive one stops.
+const maxHelperDepth = 8
+
+// genericHelper is a generic func declared in a test file, or a method of a
+// generic type declared in one, with the distinct concrete type-argument
+// lists the test files instantiate it with.
 type genericHelper struct {
 	// body is the func's body, where a selection may mention its type
 	// parameters.
 	body *ast.BlockStmt
-	// tparams are the func's type parameters.
+	// tparams are the func's type parameters, or the method's receiver type
+	// parameters.
 	tparams *types.TypeParamList
 	// args holds one concrete type-argument list per distinct
 	// instantiation.
 	args [][]types.Type
 }
 
-// genericHelpers returns the generic funcs declared in tp's test files with
-// their instantiations there, from tp's Instances. An instantiation whose
-// type arguments still mention a type parameter, such as a call from
-// another generic helper, is skipped because it names no concrete type. It
-// returns a non-nil slice so that callers can cache an empty result.
+// addArgs appends args to h's instantiations unless an identical list is
+// already there, and reports whether it did.
+func (h *genericHelper) addArgs(args []types.Type) bool {
+	if slices.ContainsFunc(h.args, func(a []types.Type) bool { return slices.EqualFunc(a, args, types.Identical) }) {
+		return false
+	}
+	h.args = append(h.args, args)
+	return true
+}
+
+// helperUse is one instantiation, at pos in a test file, of the helpers at
+// the given indexes: a generic func, or every method of a generic type.
+// Its type arguments may mention the type parameters of the helper whose
+// body holds pos.
+type helperUse struct {
+	pos     token.Pos
+	helpers []int
+	args    []types.Type
+	// from is the index of the helper whose body holds pos, set only for a
+	// use whose type arguments mention a type parameter.
+	from int
+}
+
+// genericHelpers returns the generic funcs declared in tp's test files and
+// the methods of the generic types declared there, with their
+// instantiations in the test files: a func's from tp's Instances, and a
+// method's from the instantiations of its receiver type, in Instances and
+// in the types of expressions, mapped onto its receiver type parameters by
+// position. An instantiation made inside another helper with that helper's
+// type parameters, such as get[T](g) inside outer[T], takes each of the
+// enclosing helper's instantiations with its arguments substituted, through
+// chains of up to maxHelperDepth helpers. It returns a non-nil slice so
+// that callers can cache an empty result.
 func genericHelpers(tp *packages.Package, inTest func(token.Pos) bool) []genericHelper {
 	hs := []genericHelper{}
-	index := make(map[*types.Func]int)
+	funcs := make(map[*types.Func]int)
+	methods := make(map[*types.TypeName][]int)
 	for _, f := range tp.Syntax {
 		if !inTest(f.Pos()) {
 			continue
 		}
 		for _, d := range f.Decls {
 			fd, ok := d.(*ast.FuncDecl)
-			if !ok || fd.Recv != nil || fd.Type.TypeParams == nil || fd.Body == nil {
+			if !ok || fd.Body == nil {
 				continue
 			}
 			fn, ok := tp.TypesInfo.Defs[fd.Name].(*types.Func)
 			if !ok {
 				continue
 			}
-			index[fn] = len(hs)
-			hs = append(hs, genericHelper{body: fd.Body, tparams: fn.Signature().TypeParams()})
+			sig := fn.Signature()
+			switch {
+			case fd.Recv == nil && sig.TypeParams().Len() > 0:
+				funcs[fn] = len(hs)
+				hs = append(hs, genericHelper{body: fd.Body, tparams: sig.TypeParams()})
+			case sig.RecvTypeParams().Len() > 0:
+				if n := namedOf(sig.Recv().Type()); n != nil {
+					tn := n.Origin().Obj()
+					methods[tn] = append(methods[tn], len(hs))
+					hs = append(hs, genericHelper{body: fd.Body, tparams: sig.RecvTypeParams()})
+				}
+			}
 		}
 	}
 	if len(hs) == 0 {
 		return hs
 	}
-	for id, inst := range tp.TypesInfo.Instances {
-		fn, ok := tp.TypesInfo.Uses[id].(*types.Func)
-		if !ok || !inTest(id.Pos()) {
-			continue
-		}
-		i, ok := index[fn]
-		if !ok {
-			continue
-		}
-		args := make([]types.Type, inst.TypeArgs.Len())
-		for j := range args {
-			args[j] = inst.TypeArgs.At(j)
-		}
-		if slices.ContainsFunc(args, mentionsTypeParam) {
-			continue
-		}
-		if !slices.ContainsFunc(hs[i].args, func(a []types.Type) bool { return slices.EqualFunc(a, args, types.Identical) }) {
-			hs[i].args = append(hs[i].args, args)
+	var uses []helperUse
+	addType := func(pos token.Pos, t types.Type) {
+		if n := namedOf(t); n != nil && n.TypeArgs().Len() > 0 {
+			if is, ok := methods[n.Origin().Obj()]; ok {
+				uses = append(uses, helperUse{pos: pos, helpers: is, args: slices.Collect(n.TypeArgs().Types())})
+			}
 		}
 	}
+	for id, inst := range tp.TypesInfo.Instances {
+		if !inTest(id.Pos()) {
+			continue
+		}
+		if fn, ok := tp.TypesInfo.Uses[id].(*types.Func); ok {
+			if i, ok := funcs[fn]; ok {
+				uses = append(uses, helperUse{pos: id.Pos(), helpers: []int{i}, args: slices.Collect(inst.TypeArgs.Types())})
+			}
+			continue
+		}
+		addType(id.Pos(), inst.Type)
+	}
+	if len(methods) > 0 {
+		for e, tv := range tp.TypesInfo.Types {
+			if inTest(e.Pos()) {
+				addType(e.Pos(), tv.Type)
+			}
+		}
+	}
+	resolveHelperUses(hs, uses)
 	return hs
+}
+
+// resolveHelperUses adds each use's type arguments to its helpers. A use
+// whose arguments mention a type parameter is resolved through the helper
+// whose body holds it, substituting each of that helper's instantiations,
+// repeated until no helper gains one or for maxHelperDepth rounds. A use
+// held by no helper, such as the receiver in a generic method's own
+// declaration, names no concrete type and is dropped.
+func resolveHelperUses(hs []genericHelper, uses []helperUse) {
+	var nested []helperUse
+	for _, u := range uses {
+		if !slices.ContainsFunc(u.args, mentionsTypeParam) {
+			for _, i := range u.helpers {
+				hs[i].addArgs(u.args)
+			}
+			continue
+		}
+		if u.from = enclosingHelper(hs, u.pos); u.from >= 0 {
+			nested = append(nested, u)
+		}
+	}
+	for range maxHelperDepth {
+		grew := false
+		for _, u := range nested {
+			for _, outer := range hs[u.from].args {
+				args, ok := substituteArgs(u.args, typeParamMap(hs[u.from].tparams, outer))
+				if !ok {
+					continue
+				}
+				for _, i := range u.helpers {
+					if hs[i].addArgs(args) {
+						grew = true
+					}
+				}
+			}
+		}
+		if !grew {
+			return
+		}
+	}
+}
+
+// substituteArgs returns args with m substituted into each, and false when
+// one cannot be substituted or still mentions a type parameter.
+func substituteArgs(args []types.Type, m map[*types.TypeParam]types.Type) ([]types.Type, bool) {
+	out := make([]types.Type, len(args))
+	for i, a := range args {
+		if out[i] = substitute(a, m); out[i] == nil || mentionsTypeParam(out[i]) {
+			return nil, false
+		}
+	}
+	return out, true
+}
+
+// enclosingHelper returns the index of the helper whose body holds pos, or
+// -1 when none does.
+func enclosingHelper(hs []genericHelper, pos token.Pos) int {
+	return slices.IndexFunc(hs, func(h genericHelper) bool { return pos >= h.body.Pos() && pos < h.body.End() })
+}
+
+// typeParamMap maps each of tparams to the type argument at its position.
+func typeParamMap(tparams *types.TypeParamList, args []types.Type) map[*types.TypeParam]types.Type {
+	m := make(map[*types.TypeParam]types.Type, len(args))
+	for i, a := range args {
+		m[tparams.At(i)] = a
+	}
+	return m
+}
+
+// namedOf returns t, or the element of t when t is a pointer, as a named
+// type, or nil when it is not one.
+func namedOf(t types.Type) *types.Named {
+	t = types.Unalias(t)
+	if ptr, ok := t.(*types.Pointer); ok {
+		t = types.Unalias(ptr.Elem())
+	}
+	n, _ := t.(*types.Named)
+	return n
 }
 
 // helperReceivers returns recv with the type arguments of each
@@ -275,23 +411,17 @@ func genericHelpers(tp *packages.Package, inTest func(token.Pos) bool) []generic
 // helper's type parameters. It returns nil when no helper holds pos, and
 // skips an instantiation for which substitute cannot rebuild recv.
 func helperReceivers(hs []genericHelper, pos token.Pos, recv types.Type) []types.Type {
-	for _, h := range hs {
-		if pos < h.body.Pos() || pos >= h.body.End() {
-			continue
-		}
-		var rs []types.Type
-		for _, args := range h.args {
-			m := make(map[*types.TypeParam]types.Type, len(args))
-			for i, a := range args {
-				m[h.tparams.At(i)] = a
-			}
-			if r := substitute(recv, m); r != nil {
-				rs = append(rs, r)
-			}
-		}
-		return rs
+	i := enclosingHelper(hs, pos)
+	if i < 0 {
+		return nil
 	}
-	return nil
+	var rs []types.Type
+	for _, args := range hs[i].args {
+		if r := substitute(recv, typeParamMap(hs[i].tparams, args)); r != nil {
+			rs = append(rs, r)
+		}
+	}
+	return rs
 }
 
 // substitute returns t with each type parameter in m replaced by its
@@ -456,12 +586,8 @@ func isGeneric(tn *types.TypeName) bool {
 func instantiations(info *types.Info, inTest func(token.Pos) bool) map[*types.TypeName][]types.Type {
 	m := make(map[*types.TypeName][]types.Type)
 	add := func(pos token.Pos, t types.Type) {
-		t = types.Unalias(t)
-		if ptr, ok := t.(*types.Pointer); ok {
-			t = types.Unalias(ptr.Elem())
-		}
-		n, ok := t.(*types.Named)
-		if !ok || n.TypeArgs().Len() == 0 || !inTest(pos) {
+		n := namedOf(t)
+		if n == nil || n.TypeArgs().Len() == 0 || !inTest(pos) {
 			return
 		}
 		tn := n.Origin().Obj()
