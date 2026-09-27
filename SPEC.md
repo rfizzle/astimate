@@ -343,7 +343,7 @@ Two sources, chosen by flag:
 - `text` (default): violations, then warnings, then a one-line summary per package.
 - `json`: the section 10.2 report per package plus `violations` and `warnings` arrays and a `passed` bool.
 - `hook`: the JSON shape Claude Code Stop hooks consume: `{ "decision": "block", "reason": "<violations as text>" }` on failure, `{}` on success, so the agent is told to keep working and why. Warnings are appended to the reason on failure and written to stderr on success. Because Claude Code reads a hook's JSON only when it exits 0, `--format hook` exits 0 whenever it produced a decision, whether or not there were violations; analysis failure still exits 2, which a Stop hook treats as a blocking error with stderr shown to the agent. In hook format, `check` reads the Stop hook's JSON from stdin when present and emits `{}` without analysis when `stop_hook_active` is true, so a hook that already blocked once never blocks again.
-- `github`: `::error file=<pkgdir>::` annotations, one per violation, and `::warning file=<pkgdir>::` per warning; the module row's findings lead with `module: ` and, when the extractor names the shared blocks, a `dup_blocks_cross_pkg` finding is annotated `file=<file>,line=<line>` on the first occurrence of the first cross-package block (file relative to the module root); otherwise it carries no `file` property.
+- `github`: `::error` annotations, one per violation, and `::warning` per warning, each on the file and line that caused it where the extractor can say: a duplicate block's occurrence for `dup_blocks` and `duplication_pct`, the untested export's declaration for `untested_exports`, the global's declaration for `globals`, the largest file for `sloc`, `largest_file_sloc`, `tokens_est` and `tokens_est_with_tests`, the function for `changed_func_cognitive_max`, else the package's `doc.go` or first file; among several candidates, the first in a file holding a changed function. A finding with no location is annotated `file=<pkgdir>`. Paths are relative to the repository top level (the module root's directory in the git repository is prefixed; outside git, paths are module-relative). The module row's findings lead with `module: `; a `dup_blocks_cross_pkg` finding is annotated on the first occurrence of the first cross-package block when the extractor names them, and otherwise carries no `file` property. When the baseline's tokenizer differs from the check's, one `::warning title=astimate::` line says token counts are not comparable; the hook format adds the same text as a `warning:` line.
 
 ## 9. CLI
 
@@ -393,7 +393,7 @@ Results return `content` (text) and `structuredContent` (JSON), with `isError: t
   },
   "suggestions": [ "7 exported functions have no test; a rebuild would have to reverse-engineer their behavior." ],
   "metrics": { "...": "every field from section 6" },
-  "baseline": { "ref": "a1b2c3d", "metrics": { "...": "same fields" } },
+  "baseline": { "ref": "a1b2c3d", "tokenizer": "est", "tokens_comparable": true, "metrics": { "...": "same fields" } },
   "violations": [
     { "metric": "dup_blocks", "base": 1, "head": 4, "limit": "max_delta +0", "suggestion": "..." }
   ],
@@ -407,7 +407,7 @@ Results return `content` (text) and `structuredContent` (JSON), with `isError: t
 ```
 
 `check --format json` lists the module row first as an ordinary report whose `package_path` is `module`: v0 metrics are 0 and v1 metrics are null except the module-wide ones, and its rebuild block is zero. `metrics.changed_func_cognitive_max` is filled only by `check` (null in `assess`), `baseline.metrics` never carries it, and its violation shows no base value; the text format renders it `head (changed since baseline)`.
-`config_version` carries a `+<language>` suffix when a `languages:` override applied (section 9).
+`config_version` carries a `+<language>` suffix when a `languages:` override applied (section 9). `baseline.tokenizer` is the tokenizer the baseline counted tokens with, and `baseline.tokens_comparable` is false when it differs from the check's, in which case token deltas against the baseline are not meaningful; the gate still runs.
 
 `package_path` is the package directory relative to the module root (`.` for the root package); the full import path is `module_path` joined with it. `agent_passes` and `human_days` are rounded to one decimal; `rebuild_tokens` and driver `tokens` are integers. `passed`, `baseline`, `violations` and `warnings` are present whenever a gate ran, with `violations` and `warnings` as empty arrays rather than omitted; all four are absent from `assess` output.
 
@@ -437,7 +437,7 @@ This is well-defined and repeatable, unlike a refactoring-task corpus, and it di
 
 ## 12. Integrations
 
-- **CI:** `astimate check --format github` in a workflow step; exit 3 fails the job. A composite GitHub Action under `action/` wraps install and invocation.
+- **CI:** `astimate check --format github` in a workflow step; exit 3 fails the job. A composite GitHub Action under `action/` wraps install and invocation; its `path` input names a module below the repository root.
 - **Claude Code Stop hook:** `astimate check --format hook` returns a block decision with the violations as the reason, so the agent continues and fixes them. Documented with a ready-to-paste `settings.json` snippet.
 - **Pre-commit:** documented invocation with `--all` disabled and `--base` set.
 - **MCP:** `check_package` for in-task self-checks.
