@@ -9,7 +9,7 @@ Astimate is a Go static-analysis tool used as a quality gate on LLM-written chan
 ## Workflow
 
 1. Pick a story from `.backlog.md`. Respect its `Depends on` line.
-2. Branch from `main` as `s-NNN-short-slug` (for example `s-007-fan-in`).
+2. Branch from `master` as `s-NNN-short-slug` (for example `s-007-fan-in`).
 3. Implement tasks in order. Every acceptance criterion must be demonstrably met, and every listed test must exist and pass, before the story is done.
 4. Run the full check before committing: `gofmt -l .`, `go vet ./...`, `golangci-lint run`, `go test -race ./...`.
 5. If implementation forces a deviation from `SPEC.md`, update `SPEC.md` in the same change and say why in the commit body.

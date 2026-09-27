@@ -247,7 +247,7 @@ Uncalibrated placeholders, replaced by 90th-percentile values from the reference
 
 Two sources, chosen by flag:
 
-- `--base <ref>` (default): the merge-base of `HEAD` and `<ref>` (default `origin/main` or `main`). The base tree is checked out into a temporary `git worktree`, analyzed, and removed. Packages are matched by import path.
+- `--base <ref>` (default): the merge-base of `HEAD` and `<ref>` (default `origin/master`, then `master`, `origin/main`, `main`). The base tree is checked out into a temporary `git worktree`, analyzed, and removed. Packages are matched by import path.
 - `--baseline <file>`: a committed `.astimate/baseline.json` written by `astimate baseline write`. For repositories that prefer explicit, reviewable baselines or that run outside git.
 
 ### 8.4 Changed-package detection
