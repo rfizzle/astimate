@@ -212,6 +212,50 @@ func TestLoadSkipped(t *testing.T) {
 	}
 }
 
+// TestLoadSkippedTestOnly checks that a package made of tests beside
+// "//go:build ignore" files is reported as test-only, and that one whose
+// tests build constraints exclude too keeps the plain reason.
+func TestLoadSkippedTestOnly(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/tonly\n\ngo 1.27\n")
+	for _, sub := range []string{"pure", "gen", "xgen", "allignored"} {
+		if err := os.Mkdir(filepath.Join(root, sub), 0o750); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeFile(t, filepath.Join(root, "pure", "pure.go"), "// Package pure is plain Go.\npackage pure\n")
+	const generator = "//go:build ignore\n\npackage main\n\nfunc main() {}\n"
+	test := func(pkg string) string {
+		return "package " + pkg + "\n\nimport \"testing\"\n\nfunc TestX(t *testing.T) {}\n"
+	}
+	writeFile(t, filepath.Join(root, "gen", "gen.go"), generator)
+	writeFile(t, filepath.Join(root, "gen", "gen_test.go"), test("gen"))
+	writeFile(t, filepath.Join(root, "xgen", "gen.go"), generator)
+	writeFile(t, filepath.Join(root, "xgen", "tool.go"), generator)
+	writeFile(t, filepath.Join(root, "xgen", "x_test.go"), test("xgen_test"))
+	writeFile(t, filepath.Join(root, "allignored", "gen.go"), generator)
+	writeFile(t, filepath.Join(root, "allignored", "x_test.go"), "//go:build ignore\n\n"+test("allignored"))
+
+	l, err := loadModule(&packages.Config{Dir: root}, packages.Load)
+	if err != nil {
+		t.Fatalf("loadModule: %v", err)
+	}
+	if want := []string{"example.com/tonly/pure"}; !slices.Equal(l.paths, want) {
+		t.Errorf("paths = %v, want %v", l.paths, want)
+	}
+	want := []skippedDir{
+		{dir: "allignored", importPath: "example.com/tonly/allignored", reason: "build constraints exclude all Go files"},
+		{dir: "gen", importPath: "example.com/tonly/gen", reason: "test-only package: build constraints exclude its 1 non-test Go file"},
+		{dir: "xgen", importPath: "example.com/tonly/xgen", reason: "test-only package: build constraints exclude its 2 non-test Go files"},
+	}
+	if !slices.Equal(l.skipped, want) {
+		t.Errorf("skipped = %+v, want %+v", l.skipped, want)
+	}
+	if len(l.tests) != 0 || len(l.xtests) != 0 {
+		t.Errorf("tests = %v, xtests = %v, want none", l.tests, l.xtests)
+	}
+}
+
 // TestLogSkipped checks that the extractor logs each skipped package once,
 // at info level, however many calls share the load.
 func TestLogSkipped(t *testing.T) {

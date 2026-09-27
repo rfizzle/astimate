@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -69,6 +70,11 @@ type loaded struct {
 	// returned no package for, sorted by directory: build constraints
 	// exclude all their files, so "./..." dropped them without a word.
 	skipped []skippedDir
+	// testOnly holds the import paths of the module packages whose non-test
+	// files build constraints exclude entirely but whose test files the
+	// load kept: go list lists them in "./..." for their tests alone. index
+	// drops them and findSkipped names them test-only.
+	testOnly map[string]bool
 	// reverse maps an import path to the sorted import paths of the module
 	// packages that import it. It is nil until the fan-in metrics (fan_in,
 	// fan_in_tests) build it once per load.
@@ -124,7 +130,7 @@ func loadModule(cfg *packages.Config, load loadFunc) (*loaded, error) {
 	if err := parseSources(l); err != nil {
 		return nil, fmt.Errorf("loading %s: %w", root, err)
 	}
-	if l.skipped, err = findSkipped(root, modPath, l.pkgs); err != nil {
+	if l.skipped, err = findSkipped(root, modPath, l.pkgs, l.testOnly); err != nil {
 		return nil, fmt.Errorf("loading %s: %w", root, err)
 	}
 	return l, nil
@@ -152,8 +158,9 @@ type skippedDir struct {
 // modules; it ignores files whose names start with "_" or ".", as the go
 // command does. go list drops a directory from "./..." without a word when
 // build constraints exclude all of its Go files, as they do a package made
-// only of cgo files when cgo is disabled.
-func findSkipped(root, modulePath string, pkgs map[string]*packages.Package) ([]skippedDir, error) {
+// only of cgo files when cgo is disabled. testOnly holds the import paths
+// of packages the load listed for their test files alone; see skipReason.
+func findSkipped(root, modulePath string, pkgs map[string]*packages.Package, testOnly map[string]bool) ([]skippedDir, error) {
 	var skipped []skippedDir
 	var files []string // Go files of the directory being walked
 	dir := ""          // slash path of that directory
@@ -166,7 +173,7 @@ func findSkipped(root, modulePath string, pkgs map[string]*packages.Package) ([]
 			path += "/" + dir
 		}
 		if _, ok := pkgs[path]; !ok {
-			skipped = append(skipped, skippedDir{dir: dir, importPath: path, reason: skipReason(files)})
+			skipped = append(skipped, skippedDir{dir: dir, importPath: path, reason: skipReason(files, testOnly[path])})
 		}
 		files = files[:0]
 	}
@@ -213,9 +220,11 @@ func ignoredName(base string) bool {
 
 // skipReason says why the directory holding the Go files named by files was
 // left out of a load: build constraints exclude them all, and, when one
-// imports "C", that cgo is the likely cause. It parses only the import
-// clauses.
-func skipReason(files []string) string {
+// imports "C", that cgo is the likely cause. When testOnly is set the load
+// kept the directory's test files, so only its non-test files are excluded:
+// a package of tests beside a "//go:build ignore" generator. It parses only
+// the import clauses.
+func skipReason(files []string, testOnly bool) string {
 	const reason = "build constraints exclude all Go files"
 	fset := token.NewFileSet()
 	for _, name := range files {
@@ -228,6 +237,19 @@ func skipReason(files []string) string {
 				return reason + "; it " + usesDisabledCgo
 			}
 		}
+	}
+	if testOnly {
+		n := 0
+		for _, name := range files {
+			if !strings.HasSuffix(name, "_test.go") {
+				n++
+			}
+		}
+		noun := " non-test Go files"
+		if n == 1 {
+			noun = " non-test Go file"
+		}
+		return "test-only package: build constraints exclude its " + strconv.Itoa(n) + noun
 	}
 	return reason
 }
@@ -251,7 +273,8 @@ func readModulePath(root string) (string, error) {
 // It also drops a package whose non-test files build constraints exclude
 // entirely, with its test variants: go list keeps such a package in "./..."
 // only for its test files, and it fails to build, while the same package
-// without tests drops out of "./..." silently. findSkipped reports both.
+// without tests drops out of "./..." silently. findSkipped reports both,
+// and index records the first kind in testOnly so the report can say so.
 // It returns the first error reported on a module package, in package ID
 // order, so the failing package is named deterministically.
 func index(modulePath string, roots []*packages.Package) (*loaded, error) {
@@ -262,14 +285,22 @@ func index(modulePath string, roots []*packages.Package) (*loaded, error) {
 		}
 	}
 	mod := make([]*packages.Package, 0, len(roots))
+	var testOnly map[string]bool
 	for _, p := range roots {
 		// A test variant belongs to the package it tests; the external test
 		// package of the module root package is "<module>_test".
 		under, _ := forTest(p)
-		if under == "" {
+		variant := under != ""
+		if !variant {
 			under = p.PkgPath
 		}
 		if excluded[under] || excluded[strings.TrimSuffix(under, ".test")] {
+			if variant {
+				if testOnly == nil {
+					testOnly = make(map[string]bool)
+				}
+				testOnly[under] = true
+			}
 			continue
 		}
 		if inModule(modulePath, under) {
@@ -285,6 +316,7 @@ func index(modulePath string, roots []*packages.Package) (*loaded, error) {
 
 	l := &loaded{
 		modulePath: modulePath,
+		testOnly:   testOnly,
 		pkgs:       make(map[string]*packages.Package, len(mod)),
 		tests:      make(map[string]*packages.Package),
 		xtests:     make(map[string]*packages.Package),
