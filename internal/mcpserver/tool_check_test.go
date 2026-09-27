@@ -24,9 +24,10 @@ const (
 )
 
 // degradedMetrics are the rules the degraded fixture's tested package
-// breaks by adding a duplicate function, an untested export and a global.
+// breaks by adding a duplicate function, an untested export, a global and
+// one function of cognitive complexity 40.
 func degradedMetrics() []string {
-	return []string{"dup_blocks", "globals", "untested_exports"}
+	return []string{"changed_func_cognitive_max", "dup_blocks", "globals", "untested_exports"}
 }
 
 // defaultConfig returns the embedded default configuration.

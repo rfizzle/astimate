@@ -38,6 +38,8 @@ const cleanupTimeout = 30 * time.Second
 // cancellation of ctx, and SIGINT or SIGTERM received meanwhile. root may be
 // a module nested below the repository root. Ref reports the merge-base
 // commit and Tokenizer reports tokenizer, the method ext counts tokens with.
+// When ext implements metrics.FunctionLister, Functions reports each
+// package's functions at the merge-base (CollectFunctions).
 // When ext implements metrics.Forgetter, FromGit calls Forget on the
 // worktree's module root before removing it, so ext keeps nothing loaded
 // from the baseline.
@@ -68,10 +70,12 @@ func FromGit(ctx context.Context, root, ref string, ext metrics.Extractor, modul
 	defer cleanup()
 
 	modRoot := filepath.Join(wt, rel)
-	pkgs, err := Collect(ctx, ext, &metrics.ModuleContext{
-		Root:       modRoot,
-		ModulePath: modulePath,
-	})
+	mod := &metrics.ModuleContext{Root: modRoot, ModulePath: modulePath}
+	pkgs, err := Collect(ctx, ext, mod)
+	var funcs map[string][]metrics.FunctionInfo
+	if err == nil {
+		funcs, err = CollectFunctions(ctx, ext, mod, pkgs)
+	}
 	// The worktree is deleted on return, so nothing will ask for its load
 	// again; let an extractor that caches loads release it.
 	if f, ok := ext.(metrics.Forgetter); ok {
@@ -80,7 +84,7 @@ func FromGit(ctx context.Context, root, ref string, ext metrics.Extractor, modul
 	if err != nil {
 		return nil, fmt.Errorf("extracting baseline at %s: %w", sha, err)
 	}
-	return &snapshot{ref: sha, tokenizer: tokenizer, pkgs: pkgs}, nil
+	return &snapshot{ref: sha, tokenizer: tokenizer, pkgs: pkgs, funcs: funcs}, nil
 }
 
 // DefaultRef returns the first of origin/master, master, origin/main and main

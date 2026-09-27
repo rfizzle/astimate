@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"path/filepath"
 	"testing"
 
 	"golang.org/x/tools/go/packages"
@@ -182,9 +183,13 @@ func TestComplexityHiddenPerFunc(t *testing.T) {
 	if len(got.perFunc) != len(want) {
 		t.Fatalf("perFunc = %+v, want %+v", got.perFunc, want)
 	}
-	for i := range want {
-		if got.perFunc[i] != want[i] {
-			t.Errorf("perFunc[%d] = %+v, want %+v", i, got.perFunc[i], want[i])
+	for i, w := range want {
+		g := got.perFunc[i]
+		if g.name != w.name || g.cognitive != w.cognitive || g.nesting != w.nesting {
+			t.Errorf("perFunc[%d] = %+v, want %+v", i, g, w)
+		}
+		if pos := l.fset.Position(g.pos); filepath.Ext(pos.Filename) != ".go" || pos.Line == 0 {
+			t.Errorf("perFunc[%d] at %s, want a line of a Go file", i, pos)
 		}
 	}
 }

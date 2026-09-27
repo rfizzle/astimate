@@ -194,3 +194,80 @@ func TestFileTokenizer(t *testing.T) {
 		})
 	}
 }
+
+func TestFileFunctions(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	pkgs := map[string]metrics.RawMetrics{"example.com/m/a": {}, "example.com/m/b": {}}
+	funcs := map[string][]metrics.FunctionInfo{
+		"example.com/m/a": {
+			{Name: "Parse", Fingerprint: 0xff, Cognitive: 4, File: "a.go", Line: 3},
+			{Receiver: "T", Name: "Run", Fingerprint: 0xfedcba9876543210, Cognitive: 12},
+		},
+		"example.com/m/b": {},
+	}
+	path := filepath.Join(dir, "baseline.json")
+	err := WriteContents(path, Contents{Ref: "abc", ModulePath: "example.com/m", Packages: pkgs, Functions: funcs})
+	if err != nil {
+		t.Fatalf("WriteContents: %v", err)
+	}
+	b, err := FromFile(path)
+	if err != nil {
+		t.Fatalf("FromFile: %v", err)
+	}
+	// File and line are not stored: a baseline function is only matched.
+	want := []metrics.FunctionInfo{
+		{Name: "Parse", Fingerprint: 0xff, Cognitive: 4},
+		{Receiver: "T", Name: "Run", Fingerprint: 0xfedcba9876543210, Cognitive: 12},
+	}
+	if got, ok := b.Functions("example.com/m/a"); !ok || !reflect.DeepEqual(got, want) {
+		t.Errorf("Functions(a) = %+v, %v, want %+v", got, ok, want)
+	}
+	if got, ok := b.Functions("example.com/m/b"); !ok || len(got) != 0 {
+		t.Errorf("Functions(b) = %+v, %v, want recorded and empty", got, ok)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var raw struct {
+		Functions map[string][]map[string]any `json:"functions"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatal(err)
+	}
+	if fp := raw.Functions["example.com/m/a"][0]["fingerprint"]; fp != "00000000000000ff" {
+		t.Errorf("fingerprint recorded as %v, want 16 hex digits", fp)
+	}
+	if _, ok := raw.Functions["example.com/m/a"][0]["file"]; ok {
+		t.Error("baseline file records a function's file, want only receiver, name, fingerprint and cognitive")
+	}
+
+	t.Run("file without functions", func(t *testing.T) {
+		t.Parallel()
+		old := filepath.Join(t.TempDir(), "old.json")
+		if err := Write(old, "abc", "example.com/m", "est", pkgs); err != nil {
+			t.Fatal(err)
+		}
+		b, err := FromFile(old)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, ok := b.Functions("example.com/m/a"); ok {
+			t.Error("Functions of a file that records none reported found")
+		}
+	})
+	t.Run("bad fingerprint", func(t *testing.T) {
+		t.Parallel()
+		bad := filepath.Join(t.TempDir(), "bad.json")
+		body := `{"ref": "", "module_path": "example.com/m", "packages": {},
+			"functions": {"example.com/m/a": [{"name": "F", "fingerprint": "xyz", "cognitive": 1}]}}`
+		if err := os.WriteFile(bad, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := FromFile(bad); err == nil {
+			t.Error("FromFile accepted a malformed fingerprint")
+		}
+	})
+}

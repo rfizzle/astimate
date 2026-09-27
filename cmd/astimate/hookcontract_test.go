@@ -23,9 +23,10 @@ func hookTestdata(name string) string {
 }
 
 // hookDegradedMetrics are the rules the degraded fixture's tested package
-// breaks: a duplicate function, an untested export and a global.
+// breaks: a duplicate function, an untested export, a global and one
+// function of cognitive complexity 40.
 func hookDegradedMetrics() []string {
-	return []string{"dup_blocks", "untested_exports", "globals"}
+	return []string{"dup_blocks", "untested_exports", "globals", "changed_func_cognitive_max"}
 }
 
 // assertHookBlock checks that out is exactly one JSON object, followed by a

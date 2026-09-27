@@ -157,8 +157,28 @@ func TestFromGitReturnsBaseCommitMetrics(t *testing.T) {
 	if _, ok := b.Metrics("example.com/m/c"); ok {
 		t.Error("Metrics of a package absent from the base reported found")
 	}
+	// The Go extractor lists functions, so the base commit's are recorded.
+	if fns, ok := b.Functions("example.com/m/a"); !ok || len(fns) != 1 || fns[0].Name != "A" || fns[0].Fingerprint == 0 {
+		t.Errorf("Functions(a) = %+v, %v, want A with a fingerprint", fns, ok)
+	}
+	if fns, ok := b.Functions("example.com/m/b"); !ok || len(fns) != 0 {
+		t.Errorf("Functions(b) = %+v, %v, want recorded and empty", fns, ok)
+	}
+	if _, ok := b.Functions("example.com/m/c"); ok {
+		t.Error("Functions of a package absent from the base reported found")
+	}
 	if n := r.worktrees(); n != 1 {
 		t.Errorf("git worktree list shows %d worktrees after FromGit, want 1", n)
+	}
+}
+
+func TestCollectFunctionsWithoutLister(t *testing.T) {
+	t.Parallel()
+
+	pkgs := map[string]metrics.RawMetrics{"example.com/m/a": {}}
+	funcs, err := CollectFunctions(t.Context(), &stubExtractor{}, &metrics.ModuleContext{}, pkgs)
+	if err != nil || funcs != nil {
+		t.Errorf("CollectFunctions = %v, %v, want nil and no error for an extractor without FunctionLister", funcs, err)
 	}
 }
 

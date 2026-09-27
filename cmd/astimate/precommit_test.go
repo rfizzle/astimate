@@ -65,16 +65,23 @@ func newFixtureRepo(t *testing.T, env []string) string {
 	return repo
 }
 
-// degradeFixture adds the degraded fixture's extra file to package tested
+// degradedFiles are the files the degraded fixture adds to package tested.
+func degradedFiles() []string {
+	return []string{"degraded.go", "grade.go"}
+}
+
+// degradeFixture adds the degraded fixture's extra files to package tested
 // in the repository repo.
 func degradeFixture(t *testing.T, repo string) {
 	t.Helper()
-	data, err := os.ReadFile(filepath.Join(hookTestdata("fixture-degraded"), "tested", "degraded.go"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(repo, "fixture", "tested", "degraded.go"), data, 0o600); err != nil {
-		t.Fatal(err)
+	for _, name := range degradedFiles() {
+		data, err := os.ReadFile(filepath.Join(hookTestdata("fixture-degraded"), "tested", name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(repo, "fixture", "tested", name), data, 0o600); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 
@@ -126,8 +133,10 @@ func TestPreCommitSnippet(t *testing.T) {
 		}
 	}
 
-	if err := os.Remove(filepath.Join(repo, "fixture", "tested", "degraded.go")); err != nil {
-		t.Fatal(err)
+	for _, name := range degradedFiles() {
+		if err := os.Remove(filepath.Join(repo, "fixture", "tested", name)); err != nil {
+			t.Fatal(err)
+		}
 	}
 	// A harmless change to the same package, so the passing commit is
 	// gated rather than empty.

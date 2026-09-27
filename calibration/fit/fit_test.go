@@ -188,6 +188,9 @@ func TestFitThresholds(t *testing.T) {
 		{"globals", "none", "1"},            // density without a max stays without; all zero, minimum 1
 		{"has_tests", "none", "none"},       // requirement untouched
 		{"tokens_est", "1", "none"},         // all zero: a capacity max is at least one step
+		// Null in every row (it needs a baseline diff): the base max stays,
+		// and a max-only density rule gets no max_delta.
+		{"changed_func_cognitive_max", "30", "none"},
 	}
 	for _, tt := range tests {
 		c, ok := byMetric[tt.metric]

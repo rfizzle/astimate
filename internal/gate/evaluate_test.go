@@ -24,6 +24,12 @@ func require(metric string, want bool, when *gate.Condition) gate.Threshold {
 	return gate.Threshold{Metric: metric, Kind: gate.Requirement, Require: ptr(want), When: when}
 }
 
+// changedFuncRule is the default changed_func_cognitive_max rule: density
+// with a max of 30 and no max_delta.
+func changedFuncRule() gate.Threshold {
+	return gate.Threshold{Metric: "changed_func_cognitive_max", Kind: gate.Density, Max: ptr(30.0)}
+}
+
 func TestEvaluateRules(t *testing.T) {
 	t.Parallel()
 
@@ -293,6 +299,33 @@ func TestEvaluateRules(t *testing.T) {
 				Violations: []gate.Violation{{Metric: "dup_blocks_cross_pkg", Head: 4, Limit: "max 1"}},
 				Notes:      []gate.Note{{Metric: "dup_blocks_cross_pkg", Text: "not computed at baseline; max_delta skipped"}},
 			},
+		},
+		{
+			name:  "max-only density rule is skipped while its metric is null",
+			head:  metrics.RawMetrics{},
+			base:  &metrics.RawMetrics{},
+			rules: []gate.Threshold{changedFuncRule()},
+			want:  gate.Result{Passed: true},
+		},
+		{
+			name:  "max-only density rule fails a changed function over the max",
+			head:  metrics.RawMetrics{ChangedFuncCognitiveMax: ptr(40)},
+			base:  &metrics.RawMetrics{},
+			rules: []gate.Threshold{changedFuncRule()},
+			want:  gate.Result{Violations: []gate.Violation{{Metric: "changed_func_cognitive_max", Head: 40, Limit: "max 30"}}},
+		},
+		{
+			name:  "max-only density rule passes at the max, without a note",
+			head:  metrics.RawMetrics{ChangedFuncCognitiveMax: ptr(30)},
+			base:  &metrics.RawMetrics{},
+			rules: []gate.Threshold{changedFuncRule()},
+			want:  gate.Result{Passed: true},
+		},
+		{
+			name:  "max-only density rule judges a new package by its max",
+			head:  metrics.RawMetrics{ChangedFuncCognitiveMax: ptr(31)},
+			rules: []gate.Threshold{changedFuncRule()},
+			want:  gate.Result{Violations: []gate.Violation{{Metric: "changed_func_cognitive_max", Head: 31, Limit: "max 30"}}},
 		},
 		{
 			name:  "rebuild output and unknown names are never evaluated",

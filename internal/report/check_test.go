@@ -95,6 +95,16 @@ func TestWriteCheckText(t *testing.T) {
 	}
 }
 
+func TestFindingTextChangedFunction(t *testing.T) {
+	t.Parallel()
+
+	f := Finding{Metric: "changed_func_cognitive_max", Head: 40, Limit: "max 30", Suggestion: "Split grade."}
+	want := "changed_func_cognitive_max: 40 (changed since baseline), max 30. Split grade."
+	if got := findingText(&f); got != want {
+		t.Errorf("findingText = %q, want %q", got, want)
+	}
+}
+
 func TestWriteCheckTextSummaryDelta(t *testing.T) {
 	t.Parallel()
 

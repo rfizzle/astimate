@@ -21,7 +21,7 @@ Per package, from non-test files unless noted:
 | `untested_exports` | Exported functions and methods no test file references |
 | `exported_symbols`, `fan_in`, `internal_imports` | The contract other packages depend on and the coupling in both directions |
 | `globals`, `init_funcs` | Hidden state and ordering no signature reveals |
-| `max_nesting`, `cognitive_p90` | Structural complexity |
+| `max_nesting`, `cognitive_p90`, `changed_func_cognitive_max` | Structural complexity, including that of the most complex function changed since the baseline |
 | `test_files`, `test_funcs`, `has_tests` | Whether the next agent has a feedback loop |
 
 The full list, definitions and counting rules are in `SPEC.md` section 6.

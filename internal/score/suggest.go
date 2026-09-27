@@ -27,6 +27,10 @@ type Names struct {
 	// DupLocations lists duplicate block locations, for example
 	// "parse.go:40-58", first occurrence first.
 	DupLocations []string
+	// ChangedFunction names the most complex function added or modified
+	// since the baseline, the one changed_func_cognitive_max reports, with
+	// its location when known, for example "Parser.next (parse.go:40)".
+	ChangedFunction string
 }
 
 // DriverSuggestions returns one suggestion per driver of r, in driver order,
@@ -99,6 +103,12 @@ func MetricSuggestion(metric string, head float64, m metrics.RawMetrics, n Names
 		return "Nesting reaches depth " + v + "; flatten with early returns or extract the inner blocks."
 	case "cognitive_p90":
 		return "The 90th-percentile function has cognitive complexity " + v + "; split the most complex functions."
+	case "changed_func_cognitive_max":
+		fn := "A changed function"
+		if n.ChangedFunction != "" {
+			fn = "Changed function " + n.ChangedFunction
+		}
+		return fn + " has cognitive complexity " + v + "; split it into smaller functions or flatten its branching."
 	case "tokens_est":
 		return "The package is " + v + " tokens of non-test source; split it so a rebuild fits one agent pass."
 	case "largest_file_sloc":

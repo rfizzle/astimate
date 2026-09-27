@@ -124,6 +124,12 @@ func (c *BaselineCache) get(key string, load func() (baseline.Baseline, error)) 
 // of opts.Packages has no module row: it answers for those packages only.
 // A module row that fails to extract is logged and returned in failed like
 // a package.
+//
+// When t's extractor implements metrics.FunctionLister, each package's
+// changed_func_cognitive_max is computed here, from its functions at head
+// and in the baseline (changedFunctions); otherwise, and for a baseline
+// file that records no functions, it stays null and its rule is skipped,
+// the latter with one info log.
 func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, failed []error, err error) {
 	if opts.Base != "" && opts.BaselineFile != "" {
 		return nil, nil, ErrBaseAndBaselineFile
@@ -160,15 +166,21 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 	}
 
 	c = &report.Check{Packages: make([]report.CheckedPackage, 0, len(selected)), Deleted: deleted}
+	noFunctions := false
 	for _, pkg := range selected {
-		p, err := checkPackage(ctx, t, base, pkg)
+		p, unrecorded, err := checkPackage(ctx, t, base, pkg)
 		if err != nil {
 			path := modulePathRel(t.Mod.ModulePath, pkg)
 			logger.Error("checking package failed", "path", path, "err", err)
 			failed = append(failed, &PackageError{Path: path, Err: err})
 			continue
 		}
+		noFunctions = noFunctions || unrecorded
 		c.Packages = append(c.Packages, p)
+	}
+	if noFunctions {
+		logger.Info("rule skipped", "metric", "changed_func_cognitive_max",
+			"reason", "the baseline records no functions to diff; rewrite the baseline file with astimate baseline write")
 	}
 	if mm, ok := t.Ext.(metrics.ModuleMetrics); ok && len(opts.Packages) == 0 && len(selected) > 0 {
 		m, err := checkModule(ctx, t, mm, base)
@@ -364,21 +376,31 @@ func checkModule(ctx context.Context, t *Target, mm metrics.ModuleMetrics, base 
 	return report.CheckedPackage{Report: r}, nil
 }
 
-// checkPackage extracts pkg at head, evaluates it against its baseline
-// metrics, if base has any, and the configured thresholds, and builds its
-// report.
-func checkPackage(ctx context.Context, t *Target, base baseline.Baseline, pkg string) (report.CheckedPackage, error) {
+// checkPackage extracts pkg at head, fills changed_func_cognitive_max from
+// the function-level diff against base (changedFunctions), evaluates it
+// against its baseline metrics, if base has any, and the configured
+// thresholds, and builds its report. unrecorded reports that the diff was
+// skipped because base has pkg but no functions for it.
+func checkPackage(ctx context.Context, t *Target, base baseline.Baseline, pkg string) (p report.CheckedPackage, unrecorded bool, err error) {
 	m, err := t.Ext.Extract(ctx, t.Mod, pkg)
 	if err != nil {
-		return report.CheckedPackage{}, err
+		return report.CheckedPackage{}, false, err
 	}
 	names, err := Names(ctx, t, pkg)
 	if err != nil {
-		return report.CheckedPackage{}, err
+		return report.CheckedPackage{}, false, err
 	}
 	var bm *metrics.RawMetrics
 	if v, ok := base.Metrics(pkg); ok {
 		bm = &v
+	}
+	worst, unrecorded, err := changedFunctions(ctx, t, base, pkg, bm != nil)
+	if err != nil {
+		return report.CheckedPackage{}, false, err
+	}
+	if worst != nil {
+		m.ChangedFuncCognitiveMax = &worst.cognitive
+		names.ChangedFunction = worst.name
 	}
 	suggest := func(metric string, h float64, hm metrics.RawMetrics) string {
 		return score.MetricSuggestion(metric, h, hm, names)
@@ -401,10 +423,57 @@ func checkPackage(ctx context.Context, t *Target, base baseline.Baseline, pkg st
 		AstimateVersion: t.Version,
 	})
 	report.ApplyGate(&r, base.Ref(), bm, &res)
-	p := report.CheckedPackage{Report: r}
+	p = report.CheckedPackage{Report: r}
 	if bm != nil {
 		passes := score.Estimate(*bm, t.Cfg.Rebuild).AgentPassesRounded()
 		p.BaseAgentPasses = &passes
 	}
-	return p, nil
+	return p, unrecorded, nil
+}
+
+// changedFunction is the most complex function added or modified since the
+// baseline: its cognitive complexity and its display name.
+type changedFunction struct {
+	// cognitive is the function's cognitive complexity; 0 when no function
+	// changed.
+	cognitive int
+	// name is the qualified name with "(file:line)" when the location is
+	// known; empty when no function changed.
+	name string
+}
+
+// changedFunctions diffs pkg's functions at head against base's
+// (metrics.ChangedFunctions) and returns the most complex changed one, or
+// a zero changedFunction when none changed. inBase reports whether base
+// has pkg; a package new at head diffs against no functions, so all of its
+// functions are changed. It returns nil when there is nothing to diff:
+// t's extractor does not implement metrics.FunctionLister, or base has pkg
+// but recorded no functions for it, which unrecorded reports so the caller
+// can say why the metric is null.
+func changedFunctions(ctx context.Context, t *Target, base baseline.Baseline, pkg string, inBase bool) (worst *changedFunction, unrecorded bool, err error) {
+	fl, ok := t.Ext.(metrics.FunctionLister)
+	if !ok {
+		return nil, false, nil
+	}
+	var before []metrics.FunctionInfo
+	if inBase {
+		if before, ok = base.Functions(pkg); !ok {
+			return nil, true, nil
+		}
+	}
+	head, err := fl.Functions(ctx, t.Mod, pkg)
+	if err != nil {
+		return nil, false, err
+	}
+	changed := metrics.ChangedFunctions(before, head)
+	i := metrics.MostComplex(changed)
+	if i < 0 {
+		return &changedFunction{}, false, nil
+	}
+	f := &changed[i]
+	name := f.QualifiedName()
+	if f.File != "" {
+		name += " (" + f.File + ":" + strconv.Itoa(f.Line) + ")"
+	}
+	return &changedFunction{cognitive: f.Cognitive, name: name}, false, nil
 }

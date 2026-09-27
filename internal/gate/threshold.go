@@ -38,10 +38,14 @@ type Threshold struct {
 	// Max is the absolute ceiling: optional for density, required for
 	// capacity.
 	Max *float64
-	// MaxDelta is the largest permitted increase from baseline; density only.
+	// MaxDelta is the largest permitted increase from baseline; density
+	// only. A density rule needs MaxDelta, Max or both; one with Max alone
+	// judges a metric that is already a change, such as
+	// changed_func_cognitive_max.
 	MaxDelta *float64
 	// RatchetFromZero makes a density rule evaluate MaxDelta against zero for
-	// a package with no baseline; otherwise only Max applies to it.
+	// a package with no baseline; otherwise only Max applies to it. It
+	// requires MaxDelta.
 	RatchetFromZero bool
 	// WarnAt is the fraction of Max above which a capacity rule warns; zero
 	// for other kinds.
@@ -70,8 +74,11 @@ func (t Threshold) Validate(known func(string) bool) error {
 	case "":
 		add("kind is required")
 	case Density:
-		if t.MaxDelta == nil {
-			add("density rule needs max_delta")
+		switch {
+		case t.MaxDelta == nil && t.Max == nil:
+			add("density rule needs max_delta or max")
+		case t.MaxDelta == nil && t.RatchetFromZero:
+			add("ratchet_from_zero needs max_delta")
 		}
 		if t.WarnAt != 0 {
 			add("warn_at applies only to capacity rules")

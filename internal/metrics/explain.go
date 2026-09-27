@@ -134,11 +134,14 @@ func explanations() map[string]Explanation {
 		},
 		"coverage_pct": {Definition: "Statement coverage from go test -cover, only with --coverage.", Evidence: evidenceTests + " " + evidenceNotYetGated, Release: "v1"},
 		"changed_func_cognitive_max": {
-			Definition: "Highest cognitive complexity among functions added or modified since baseline. " +
-				"Null without a baseline diff.",
+			Definition: "Highest cognitive complexity among functions added or modified since baseline, " +
+				"matched by receiver and name and compared by a fingerprint of the normalized body, so a " +
+				"comment or formatting edit does not count; 0 when none changed. Null without a " +
+				"function-level baseline to diff against, as in assess.",
 			Evidence: "Closes the gap where one very complex new function leaves the package's p90 low. " +
-				evidenceNotYetGated,
+				evidenceNesting + " Gated with an absolute max only, since the value is already a diff.",
 			Release: "v1",
+			Gated:   true,
 		},
 	}
 }

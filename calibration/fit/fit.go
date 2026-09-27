@@ -92,9 +92,10 @@ type Choice struct {
 // fitThresholds fits every rule of base to the pooled rows. A capacity
 // rule's max, and a density rule's max where the base has one, become the
 // 90th percentile rounded with roundReadable (a capacity max never below
-// one step, since it must be positive); a density rule's max_delta becomes
-// deltaFromIQR. Kinds, warn_at, ratchet_from_zero and requirement rules
-// are kept.
+// one step, since it must be positive); a density rule's max_delta, where
+// the base has one, becomes deltaFromIQR. A rule whose metric no row
+// measured keeps its base values. Kinds, warn_at, ratchet_from_zero and
+// requirement rules are kept.
 func fitThresholds(rows []Row, base *config.Config) []Choice {
 	choices := make([]Choice, 0, len(base.Thresholds))
 	for _, rule := range base.Thresholds {
@@ -106,14 +107,20 @@ func fitThresholds(rows []Row, base *config.Config) []Choice {
 		}
 		c := Choice{Rule: rule, Stats: computeStats(values)}
 		pct := isPercent(rule.Metric)
-		switch rule.Kind {
-		case gate.Capacity:
+		switch {
+		case len(values) == 0:
+			// Nothing measured, as for changed_func_cognitive_max, which
+			// needs a baseline diff: keep the base values.
+			c.Max, c.MaxDelta = rule.Max, rule.MaxDelta
+		case rule.Kind == gate.Capacity:
 			c.Max = ptr(max(roundReadable(c.Stats.P90, pct), minStep(pct)))
-		case gate.Density:
+		case rule.Kind == gate.Density:
 			if rule.Max != nil {
 				c.Max = ptr(roundReadable(c.Stats.P90, pct))
 			}
-			c.MaxDelta = ptr(deltaFromIQR(c.Stats.IQR, pct))
+			if rule.MaxDelta != nil {
+				c.MaxDelta = ptr(deltaFromIQR(c.Stats.IQR, pct))
+			}
 		}
 		// A requirement rule has neither, so its candidate is the base.
 		cand := rule

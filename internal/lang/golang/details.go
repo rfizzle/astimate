@@ -2,6 +2,7 @@ package golang
 
 import (
 	"context"
+	"go/token"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -14,20 +15,9 @@ import (
 // recent Extract on mod recorded. When nothing is recorded it runs Extract
 // first, so it fails exactly when Extract would.
 func (e *Extractor) Details(ctx context.Context, mod *metrics.ModuleContext, pkg string) (metrics.Details, error) {
-	l, err := e.cached(ctx, mod)
+	d, _, dir, err := e.recorded(ctx, mod, pkg)
 	if err != nil {
 		return metrics.Details{}, err
-	}
-	d, ok := l.detailsOf(pkg)
-	if !ok {
-		if _, err := e.Extract(ctx, mod, pkg); err != nil {
-			return metrics.Details{}, err
-		}
-		d, _ = l.detailsOf(pkg)
-	}
-	dir := ""
-	if p, ok := l.pkgs[pkg]; ok {
-		dir = p.Dir
 	}
 	locs := make([]string, 0, len(d.dupLocations))
 	for _, loc := range d.dupLocations {
@@ -40,15 +30,81 @@ func (e *Extractor) Details(ctx context.Context, mod *metrics.ModuleContext, pkg
 	}, nil
 }
 
+// Functions returns the top-level functions and methods of the package with
+// import path pkg in declaration order, init functions included, with the
+// cognitive complexity and body fingerprint its most recent Extract on mod
+// recorded (metrics.FunctionLister). File is relative to the package
+// directory. When nothing is recorded it runs Extract first, so it fails
+// exactly when Extract would.
+func (e *Extractor) Functions(ctx context.Context, mod *metrics.ModuleContext, pkg string) ([]metrics.FunctionInfo, error) {
+	d, l, dir, err := e.recorded(ctx, mod, pkg)
+	if err != nil {
+		return nil, err
+	}
+	return functionInfos(l.fset, dir, d.functions), nil
+}
+
+// functionInfos converts the per-function records of a package in dir to
+// metrics.FunctionInfo, resolving each position in fset to a file relative
+// to dir and a line. A nil fset leaves File and Line empty.
+func functionInfos(fset *token.FileSet, dir string, fcs []funcComplexity) []metrics.FunctionInfo {
+	fns := make([]metrics.FunctionInfo, len(fcs))
+	for i, fc := range fcs {
+		fns[i] = metrics.FunctionInfo{
+			Receiver:    fc.receiver,
+			Name:        fc.ident,
+			Fingerprint: fc.fingerprint,
+			Cognitive:   fc.cognitive,
+		}
+		if fset != nil && fc.pos.IsValid() {
+			pos := fset.Position(fc.pos)
+			fns[i].File, fns[i].Line = relFile(dir, pos.Filename), pos.Line
+		}
+	}
+	return fns
+}
+
+// recorded returns the details the most recent Extract of pkg on mod
+// recorded, running Extract first when there are none, the load they came
+// from, and pkg's directory, empty when the load has no such package.
+func (e *Extractor) recorded(ctx context.Context, mod *metrics.ModuleContext, pkg string) (details, *loaded, string, error) {
+	l, err := e.cached(ctx, mod)
+	if err != nil {
+		return details{}, nil, "", err
+	}
+	d, ok := l.detailsOf(pkg)
+	if !ok {
+		if _, err := e.Extract(ctx, mod, pkg); err != nil {
+			return details{}, nil, "", err
+		}
+		d, _ = l.detailsOf(pkg)
+	}
+	dir := ""
+	if p, ok := l.pkgs[pkg]; ok {
+		dir = p.Dir
+	}
+	return d, l, dir, nil
+}
+
+// relFile returns file relative to dir in slash form, falling back to the
+// base name when dir is empty or the file cannot be related to it. An empty
+// file stays empty.
+func relFile(dir, file string) string {
+	if file == "" {
+		return ""
+	}
+	rel := filepath.Base(file)
+	if dir != "" {
+		if r, err := filepath.Rel(dir, file); err == nil {
+			rel = r
+		}
+	}
+	return filepath.ToSlash(rel)
+}
+
 // relLocation renders loc as "file:start-end" with file relative to dir, in
 // slash form. It falls back to the base name when dir is empty or the file
 // cannot be related to it.
 func relLocation(dir string, loc dupLocation) string {
-	file := filepath.Base(loc.file)
-	if dir != "" {
-		if rel, err := filepath.Rel(dir, loc.file); err == nil {
-			file = rel
-		}
-	}
-	return filepath.ToSlash(file) + ":" + strconv.Itoa(loc.startLine) + "-" + strconv.Itoa(loc.endLine)
+	return relFile(dir, loc.file) + ":" + strconv.Itoa(loc.startLine) + "-" + strconv.Itoa(loc.endLine)
 }

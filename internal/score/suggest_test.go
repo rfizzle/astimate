@@ -16,8 +16,36 @@ func sevenNames() []string {
 func gatedMetrics() []string {
 	return []string{
 		"dup_blocks", "duplication_pct", "untested_exports", "globals", "init_funcs",
-		"max_nesting", "cognitive_p90", "tokens_est", "largest_file_sloc",
+		"max_nesting", "cognitive_p90", "changed_func_cognitive_max", "tokens_est", "largest_file_sloc",
 		"exported_symbols", "internal_imports", "sloc", "has_tests",
+	}
+}
+
+func TestMetricSuggestionChangedFunction(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		names Names
+		want  string
+	}{
+		{
+			name:  "named",
+			names: Names{ChangedFunction: "Parser.next (parse.go:40)"},
+			want:  "Changed function Parser.next (parse.go:40) has cognitive complexity 41; split it into smaller functions or flatten its branching.",
+		},
+		{
+			name: "unnamed",
+			want: "A changed function has cognitive complexity 41; split it into smaller functions or flatten its branching.",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := MetricSuggestion("changed_func_cognitive_max", 41, metrics.RawMetrics{}, tt.names); got != tt.want {
+				t.Errorf("MetricSuggestion = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
 
@@ -30,19 +58,20 @@ func TestMetricSuggestionEveryTemplate(t *testing.T) {
 		head float64
 		want string
 	}{
-		"dup_blocks":        {head: 4, want: "4 duplicate blocks cover 9.2% of lines"},
-		"duplication_pct":   {head: 9.2, want: "4 duplicate blocks cover 9.2% of lines"},
-		"untested_exports":  {head: 7, want: "7 exported functions have no test"},
-		"globals":           {head: 3, want: "3 package-level variables"},
-		"init_funcs":        {head: 2, want: "2 init functions"},
-		"max_nesting":       {head: 6, want: "depth 6"},
-		"cognitive_p90":     {head: 17, want: "complexity 17"},
-		"tokens_est":        {head: 31000, want: "31000 tokens"},
-		"largest_file_sloc": {head: 912, want: "912 source lines"},
-		"exported_symbols":  {head: 64, want: "64 symbols"},
-		"internal_imports":  {head: 13, want: "13 internal packages"},
-		"sloc":              {head: 6500, want: "6500 source lines"},
-		"has_tests":         {head: 0, want: "4321 source lines and no tests"},
+		"dup_blocks":                 {head: 4, want: "4 duplicate blocks cover 9.2% of lines"},
+		"duplication_pct":            {head: 9.2, want: "4 duplicate blocks cover 9.2% of lines"},
+		"untested_exports":           {head: 7, want: "7 exported functions have no test"},
+		"globals":                    {head: 3, want: "3 package-level variables"},
+		"init_funcs":                 {head: 2, want: "2 init functions"},
+		"max_nesting":                {head: 6, want: "depth 6"},
+		"cognitive_p90":              {head: 17, want: "complexity 17"},
+		"changed_func_cognitive_max": {head: 40, want: "complexity 40"},
+		"tokens_est":                 {head: 31000, want: "31000 tokens"},
+		"largest_file_sloc":          {head: 912, want: "912 source lines"},
+		"exported_symbols":           {head: 64, want: "64 symbols"},
+		"internal_imports":           {head: 13, want: "13 internal packages"},
+		"sloc":                       {head: 6500, want: "6500 source lines"},
+		"has_tests":                  {head: 0, want: "4321 source lines and no tests"},
 	}
 	for _, metric := range gatedMetrics() {
 		t.Run(metric, func(t *testing.T) {

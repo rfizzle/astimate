@@ -94,6 +94,13 @@ thresholds:
     max_delta: 3
     # What a new package, which has no baseline to drift from, is judged by.
     max: 25
+  # No added or modified function past this complexity, even when the
+  # package's p90 stays low. The metric is already a diff against the
+  # baseline, so it takes a max and no max_delta; it is null, and the rule
+  # skipped, when there is no function-level baseline to diff against.
+  - metric: changed_func_cognitive_max
+    kind: density
+    max: 30
   # The rebuild bar: past this a rebuild no longer fits one agent pass; split.
   - metric: tokens_est
     kind: capacity

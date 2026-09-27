@@ -101,11 +101,17 @@ func Rank(ctx context.Context, t *Target, opts RankOptions) (rows []report.Row, 
 // HEAD's commit, or no ref outside git or before the first commit, and t's
 // tokenizer, so a check with another tokenizer can warn that token counts
 // are not comparable. When t's extractor implements metrics.ModuleMetrics
-// the file also holds the module-level row under metrics.ModuleRowID. It
+// the file also holds the module-level row under metrics.ModuleRowID, and
+// when it implements metrics.FunctionLister each package's functions, so a
+// check against the file can compute changed_func_cognitive_max. It
 // returns the path written and the number of packages, not counting that
 // row.
 func WriteBaseline(ctx context.Context, t *Target, out string) (path string, n int, err error) {
 	pkgs, err := baseline.Collect(ctx, t.Ext, t.Mod)
+	if err != nil {
+		return "", 0, err
+	}
+	funcs, err := baseline.CollectFunctions(ctx, t.Ext, t.Mod, pkgs)
 	if err != nil {
 		return "", 0, err
 	}
@@ -119,7 +125,14 @@ func WriteBaseline(ctx context.Context, t *Target, out string) (path string, n i
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return "", 0, fmt.Errorf("creating %s: %w", filepath.Dir(path), err)
 	}
-	if err := baseline.Write(path, ref, t.Mod.ModulePath, t.tokenizer(), pkgs); err != nil {
+	err = baseline.WriteContents(path, baseline.Contents{
+		Ref:        ref,
+		ModulePath: t.Mod.ModulePath,
+		Tokenizer:  t.tokenizer(),
+		Packages:   pkgs,
+		Functions:  funcs,
+	})
+	if err != nil {
 		return "", 0, err
 	}
 	n = len(pkgs)

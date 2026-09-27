@@ -202,15 +202,21 @@ func isV0(name string) bool {
 
 // findingText renders one finding as "<metric>: <base> -> <head>, <limit>.
 // <suggestion>", with "<head> (no baseline)" when there is no base value.
+// changed_func_cognitive_max is itself a diff against the baseline and
+// never has a base value, so it shows "<head> (changed since baseline)".
 func findingText(f *Finding) string {
 	var b strings.Builder
 	b.WriteString(f.Metric)
 	b.WriteString(": ")
-	if f.Base != nil {
+	switch {
+	case f.Base != nil:
 		b.WriteString(valueText(f.Metric, *f.Base))
 		b.WriteString(" -> ")
 		b.WriteString(valueText(f.Metric, f.Head))
-	} else {
+	case f.Metric == "changed_func_cognitive_max":
+		b.WriteString(valueText(f.Metric, f.Head))
+		b.WriteString(" (changed since baseline)")
+	default:
 		b.WriteString(valueText(f.Metric, f.Head))
 		b.WriteString(" (no baseline)")
 	}

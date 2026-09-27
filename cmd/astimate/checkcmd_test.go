@@ -30,14 +30,28 @@ const (
 )
 
 // degradedMetrics are the rules the degraded fixture's tested package
-// breaks by adding a duplicate function, an untested export and a global.
+// breaks by adding a duplicate function, an untested export, a global and
+// one function of cognitive complexity 40.
 func degradedMetrics() []string {
-	return []string{"dup_blocks", "globals", "untested_exports"}
+	return []string{"changed_func_cognitive_max", "dup_blocks", "globals", "untested_exports"}
 }
 
+// degradedGrade is the start of the changed_func_cognitive_max suggestion
+// on the degraded fixture, naming its complex function.
+const degradedGrade = "Changed function grade (grade.go:8) has cognitive complexity 40"
+
 // fixtureBaseline extracts the pristine fixture and writes it as a baseline
-// file with ref "fixture" in a temporary directory, returning its path.
+// file with ref "fixture", functions included, in a temporary directory,
+// returning its path.
 func fixtureBaseline(t *testing.T) string {
+	t.Helper()
+	return writeFixtureBaseline(t, true)
+}
+
+// writeFixtureBaseline is fixtureBaseline, recording the fixture's
+// functions only when withFunctions is set, as files written before
+// function records existed do not.
+func writeFixtureBaseline(t *testing.T, withFunctions bool) string {
 	t.Helper()
 	// Extract as check does, with the extractor the default config builds.
 	tg, err := engine.LoadTarget(fixtureDir, engine.TargetOptions{Tokenizer: tokenizerEst})
@@ -48,8 +62,18 @@ func fixtureBaseline(t *testing.T) string {
 	if err != nil {
 		t.Fatalf("collecting the fixture baseline: %v", err)
 	}
+	var funcs map[string][]metrics.FunctionInfo
+	if withFunctions {
+		funcs, err = baseline.CollectFunctions(context.Background(), tg.Ext, tg.Mod, pkgs)
+		if err != nil {
+			t.Fatalf("collecting the fixture functions: %v", err)
+		}
+	}
 	path := filepath.Join(t.TempDir(), "baseline.json")
-	if err := baseline.Write(path, "fixture", tg.Mod.ModulePath, tokenizerEst, pkgs); err != nil {
+	err = baseline.WriteContents(path, baseline.Contents{
+		Ref: "fixture", ModulePath: tg.Mod.ModulePath, Tokenizer: tokenizerEst, Packages: pkgs, Functions: funcs,
+	})
+	if err != nil {
 		t.Fatalf("writing the fixture baseline: %v", err)
 	}
 	return path
@@ -159,6 +183,32 @@ func TestCheckFixtures(t *testing.T) {
 				if !failing && len(got) > 0 {
 					t.Errorf("tested violations = %q, want none", got)
 				}
+				for i := range reports {
+					r := &reports[i]
+					// Only the module row has no function-level diff.
+					if got := r.Metrics.ChangedFuncCognitiveMax; (got == nil) != (r.PackagePath == "module") {
+						t.Errorf("%s: changed_func_cognitive_max = %v, want null only on the module row", r.PackagePath, got)
+					}
+					if r.PackagePath != "tested" {
+						continue
+					}
+					// The degraded copy adds grade (40) while the p90 stays
+					// under 10; the grown copy adds simple functions, and
+					// the unchanged copy changes none.
+					got := r.Metrics.ChangedFuncCognitiveMax
+					switch {
+					case got == nil:
+					case fx.name == "unchanged" && *got != 0,
+						fx.name == "grown" && *got > 30,
+						failing && (*got != 40 || r.Metrics.CognitiveP90 >= 10):
+						t.Errorf("tested: changed_func_cognitive_max %d with cognitive_p90 %d", *got, r.Metrics.CognitiveP90)
+					}
+					for _, v := range r.Violations {
+						if v.Metric == "changed_func_cognitive_max" && !strings.HasPrefix(v.Suggestion, degradedGrade) {
+							t.Errorf("changed_func_cognitive_max suggestion = %q, want it to start %q", v.Suggestion, degradedGrade)
+						}
+					}
+				}
 			})
 			t.Run("text", func(t *testing.T) {
 				t.Parallel()
@@ -176,6 +226,9 @@ func TestCheckFixtures(t *testing.T) {
 					if got := strings.Contains(out, "    "+m+": "); got != failing {
 						t.Errorf("text names %s = %v, want %v:\n%s", m, got, failing, out)
 					}
+				}
+				if got := strings.Contains(out, degradedGrade); got != failing {
+					t.Errorf("text names the complex function = %v, want %v:\n%s", got, failing, out)
 				}
 			})
 			t.Run("hook", func(t *testing.T) {
@@ -317,6 +370,54 @@ func gitIn(t *testing.T, dir string, args ...string) {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git %s: %v\n%s", strings.Join(args, " "), err, out)
 	}
+}
+
+// TestChangedFunctionNeedsBaseline checks that changed_func_cognitive_max
+// is null, and its rule skipped, wherever there is no function-level
+// baseline: in assess, and in a check against a baseline file written
+// before function records existed, which says so on stderr.
+func TestChangedFunctionNeedsBaseline(t *testing.T) {
+	if testing.Short() {
+		t.Skip("integration test: loads Go packages")
+	}
+	t.Parallel()
+
+	t.Run("assess", func(t *testing.T) {
+		t.Parallel()
+		var out, errOut bytes.Buffer
+		args := []string{"assess", "--json", filepath.Join(degradedDir, "tested")}
+		if got := run(args, &out, &errOut); got != exitOK {
+			t.Fatalf("run(%q) = %d; stderr:\n%s", args, got, errOut.String())
+		}
+		var r report.Report
+		if err := json.Unmarshal(out.Bytes(), &r); err != nil {
+			t.Fatal(err)
+		}
+		if r.Metrics.ChangedFuncCognitiveMax != nil {
+			t.Errorf("assess changed_func_cognitive_max = %d, want null", *r.Metrics.ChangedFuncCognitiveMax)
+		}
+	})
+	t.Run("baseline file without functions", func(t *testing.T) {
+		t.Parallel()
+		base := writeFixtureBaseline(t, false)
+		var out, errOut bytes.Buffer
+		args := []string{"check", degradedDir, "--all", "--baseline", base, "--format", formatJSON}
+		if got := run(args, &out, &errOut); got != exitGateFailed {
+			t.Fatalf("run(%q) = %d, want the other degraded rules to fail; stderr:\n%s", args, got, errOut.String())
+		}
+		reports := decodeReports(t, out.Bytes())
+		for i := range reports {
+			if got := reports[i].Metrics.ChangedFuncCognitiveMax; got != nil {
+				t.Errorf("%s: changed_func_cognitive_max = %d, want null", reports[i].PackagePath, *got)
+			}
+		}
+		if got := violationMetrics(reports, "tested"); slices.Contains(got, "changed_func_cognitive_max") {
+			t.Errorf("tested violations = %q, want the rule skipped", got)
+		}
+		if n := strings.Count(errOut.String(), "metric=changed_func_cognitive_max reason="); n != 1 {
+			t.Errorf("stderr notes the skipped rule %d times, want once:\n%s", n, errOut.String())
+		}
+	})
 }
 
 func TestCheckGitRef(t *testing.T) {

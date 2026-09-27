@@ -21,12 +21,14 @@ type assembleOptions struct {
 
 // details is the per-package debug record the metric functions produce
 // beside the counts: the names behind untested_exports, the duplicate block
-// locations, the blank and dot imports, and the token counting method.
+// locations, the blank and dot imports, the token counting method, and
+// every function's complexity and fingerprint for the baseline diff.
 type details struct {
 	untestedNames, untestedExcluded []string
 	dupLocations                    []dupLocation
 	blank, dot                      []string
 	tokensMethod                    string
+	functions                       []funcComplexity
 }
 
 // assemble computes every v0 metric of p in l and maps it into RawMetrics by
@@ -100,6 +102,7 @@ func assemble(ctx context.Context, l *loaded, p *packages.Package, opts assemble
 		blank:            imp.blank,
 		dot:              imp.dot,
 		tokensMethod:     tok.method,
+		functions:        cx.perFunc,
 	})
 	return metrics.RawMetrics{
 		Files:              sz.files,
