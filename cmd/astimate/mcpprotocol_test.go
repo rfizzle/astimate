@@ -199,7 +199,8 @@ type toolsList struct {
 }
 
 // checkToolsList checks that list names the four tools, each with an
-// output schema.
+// output schema, and that check_package's success branch declares the
+// module block.
 func checkToolsList(t *testing.T, list toolsList) {
 	t.Helper()
 	names := make([]string, 0, len(list.Tools))
@@ -207,6 +208,19 @@ func checkToolsList(t *testing.T, list toolsList) {
 		names = append(names, tool.Name)
 		if len(tool.OutputSchema) == 0 {
 			t.Errorf("tools/list: %s has no outputSchema", tool.Name)
+			continue
+		}
+		if tool.Name != "check_package" {
+			continue
+		}
+		var schema struct {
+			OneOf []struct {
+				Properties map[string]json.RawMessage `json:"properties"`
+			} `json:"oneOf"`
+		}
+		if err := json.Unmarshal(tool.OutputSchema, &schema); err != nil || len(schema.OneOf) == 0 ||
+			schema.OneOf[0].Properties["module"] == nil || schema.OneOf[0].Properties["package_path"] == nil {
+			t.Errorf("tools/list: check_package outputSchema = %s, want a success branch with package_path and module", tool.OutputSchema)
 		}
 	}
 	slices.Sort(names)
@@ -224,6 +238,10 @@ type callResult struct {
 	StructuredContent struct {
 		PackagePath string `json:"package_path"`
 		Passed      *bool  `json:"passed"`
+		Module      *struct {
+			PackagePath string `json:"package_path"`
+			Passed      *bool  `json:"passed"`
+		} `json:"module"`
 	} `json:"structuredContent"`
 	IsError    bool    `json:"isError"`
 	ResultType *string `json:"resultType"`
@@ -242,6 +260,9 @@ func checkDegradedResult(t *testing.T, res callResult) {
 	}
 	if p := res.StructuredContent.Passed; p == nil || *p {
 		t.Errorf("check_package structuredContent.passed = %v, want false", p)
+	}
+	if m := res.StructuredContent.Module; m == nil || m.PackagePath != "module" || m.Passed == nil {
+		t.Errorf("check_package structuredContent.module = %+v, want the gated module row", m)
 	}
 	if len(res.Content) == 0 || res.Content[0].Type != "text" || !strings.HasPrefix(res.Content[0].Text, "FAILED") {
 		t.Errorf("check_package content = %+v, want text starting with FAILED", res.Content)

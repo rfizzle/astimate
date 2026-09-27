@@ -139,9 +139,10 @@ func (c *BaselineCache) get(key string, load func() (baseline.Baseline, error)) 
 // and every other rule on package rows only (gate.ForRow), so one
 // cross-package copy is one finding. A baseline file without that row, one
 // written before it existed, skips the module-wide rules with one info log
-// rather than treating the row as new. A check of opts.Packages has no module
-// row: it answers for those packages only. A module row that fails to
-// extract is logged and returned in failed like a package.
+// rather than treating the row as new. A check of opts.Packages carries the
+// row too, so a package's self-check (the MCP check_package tool) fails on
+// a cross-package copy made in it. A module row that fails to extract is
+// logged and returned in failed like a package.
 //
 // When t's extractor implements metrics.FunctionLister, each package's
 // changed_func_cognitive_max is computed here, from its functions at head
@@ -218,7 +219,7 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 		logger.Info("rule skipped", "metric", "changed_func_cognitive_max",
 			"reason", "the baseline records no functions to diff; rewrite the baseline file with astimate baseline write")
 	}
-	if mm, ok := t.Ext.(metrics.ModuleMetrics); ok && len(opts.Packages) == 0 && len(selected) > 0 {
+	if mm, ok := t.Ext.(metrics.ModuleMetrics); ok && len(selected) > 0 {
 		m, err := checkModule(ctx, ht, mm, base, src.file != nil, eff, gate.ForRow(eff.Thresholds, gate.ModuleRow))
 		if err != nil {
 			logger.Error("checking module row failed", "err", err)

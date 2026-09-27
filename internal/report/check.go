@@ -20,8 +20,8 @@ type Check struct {
 	// metrics.ModuleRowID: module-wide metrics such as the number of
 	// distinct cross-package duplicate blocks, gated by the rules on those
 	// metrics only. It is rendered before the packages. Nil when the check
-	// has none, as for a check of chosen packages or an extractor without
-	// module metrics.
+	// has none, as for a check that selected no package or an extractor
+	// without module metrics.
 	Module *CheckedPackage
 	// Packages are the checked packages, in the order they are rendered.
 	Packages []CheckedPackage

@@ -137,20 +137,36 @@ func TestCheckModuleRow(t *testing.T) {
 	}
 }
 
+// TestCheckModuleRowChosenPackages checks that a check of named packages,
+// as the MCP check_package tool runs, still gates the module row, so a
+// cross-package copy fails a one-package self-check.
+func TestCheckModuleRowChosenPackages(t *testing.T) {
+	t.Parallel()
+
+	one := 1
+	c, failed, err := Check(t.Context(), moduleTarget(2, nil), CheckOptions{
+		BaselineFile: writeModuleBaseline(t, &one),
+		Packages:     []string{"example.com/m/a"},
+	})
+	if err != nil || len(failed) != 0 {
+		t.Fatalf("Check = (%v, %v), want no error", failed, err)
+	}
+	if len(c.Packages) != 1 || c.Packages[0].Report.PackagePath != "a" {
+		t.Fatalf("checked %d packages, want only a", len(c.Packages))
+	}
+	if c.Module == nil {
+		t.Fatal("check of a chosen package has no module row")
+	}
+	if v := c.Module.Report.Violations; len(v) != 1 || v[0].Metric != "dup_blocks_cross_pkg" || !c.Failed() {
+		t.Errorf("module row violations = %+v, check failed = %v; want one dup_blocks_cross_pkg violation failing the check",
+			v, c.Failed())
+	}
+}
+
 func TestCheckModuleRowAbsent(t *testing.T) {
 	t.Parallel()
 
 	one := 1
-	t.Run("chosen packages", func(t *testing.T) {
-		t.Parallel()
-		c, _, err := Check(t.Context(), moduleTarget(5, nil), CheckOptions{
-			BaselineFile: writeModuleBaseline(t, &one),
-			Packages:     []string{"example.com/m/a"},
-		})
-		if err != nil || c.Module != nil {
-			t.Errorf("Check = module %+v, %v; want no module row for chosen packages", c.Module, err)
-		}
-	})
 	t.Run("no module metrics", func(t *testing.T) {
 		t.Parallel()
 		c, _, err := Check(t.Context(), fakeTarget(""), CheckOptions{BaselineFile: writeFakeBaseline(t), All: true})

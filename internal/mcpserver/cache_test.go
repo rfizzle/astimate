@@ -5,8 +5,6 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
-
-	"github.com/rfizzle/astimate/internal/report"
 )
 
 func TestStampTree(t *testing.T) {
@@ -93,9 +91,9 @@ func TestSessionCacheInvalidation(t *testing.T) {
 		if err != nil || res.IsError {
 			t.Fatalf("checkPackage = (%v, %v)", resultText(res), err)
 		}
-		r, ok := out.(*report.Report)
+		r, ok := out.(*CheckResult)
 		if !ok {
-			t.Fatalf("structured output is %T, want a report", out)
+			t.Fatalf("structured output is %T, want a check result", out)
 		}
 		return r.Metrics.TokensEst
 	}

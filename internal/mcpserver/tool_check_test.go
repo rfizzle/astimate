@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -13,6 +14,8 @@ import (
 
 	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/engine"
+	"github.com/rfizzle/astimate/internal/gate"
+	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/report"
 )
 
@@ -87,21 +90,35 @@ func resultText(res *mcp.CallToolResult) string {
 	return b.String()
 }
 
-// decodeReport decodes the structured content of res as a report,
-// rejecting unknown fields.
-func decodeReport(t *testing.T, res *mcp.CallToolResult) report.Report {
+// decodeStrict decodes the structured content of res as a T, rejecting
+// unknown fields.
+func decodeStrict[T any](t *testing.T, res *mcp.CallToolResult) T {
 	t.Helper()
 	data, err := json.Marshal(res.StructuredContent)
 	if err != nil {
 		t.Fatalf("encoding structured content: %v", err)
 	}
-	var r report.Report
+	var v T
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.DisallowUnknownFields()
-	if err := dec.Decode(&r); err != nil {
-		t.Fatalf("decoding structured content as a report: %v\n%s", err, data)
+	if err := dec.Decode(&v); err != nil {
+		t.Fatalf("decoding structured content as a %T: %v\n%s", v, err, data)
 	}
-	return r
+	return v
+}
+
+// decodeReport decodes the structured content of res as a report,
+// rejecting unknown fields.
+func decodeReport(t *testing.T, res *mcp.CallToolResult) report.Report {
+	t.Helper()
+	return decodeStrict[report.Report](t, res)
+}
+
+// decodeCheck decodes the structured content of res as a check_package
+// result, rejecting unknown fields.
+func decodeCheck(t *testing.T, res *mcp.CallToolResult) CheckResult {
+	t.Helper()
+	return decodeStrict[CheckResult](t, res)
 }
 
 func TestCheckPackageTool(t *testing.T) {
@@ -131,7 +148,11 @@ func TestCheckPackageTool(t *testing.T) {
 			if res.IsError {
 				t.Fatalf("IsError = true, want a gate result; text:\n%s", text)
 			}
-			r := decodeReport(t, res)
+			cr := decodeCheck(t, res)
+			r := cr.Report
+			if cr.Module == nil || cr.Module.PackagePath != "module" || cr.Module.Passed == nil {
+				t.Errorf("module block = %+v, want the gated module row", cr.Module)
+			}
 			if r.Passed == nil || *r.Passed != tt.wantPassed {
 				t.Fatalf("passed = %v, want %v; text:\n%s", r.Passed, tt.wantPassed, text)
 			}
@@ -233,8 +254,146 @@ func TestCheckPackageToolErrors(t *testing.T) {
 		if res.IsError {
 			t.Fatalf("IsError = true with --allow-any-path; text:\n%s", resultText(res))
 		}
-		if r := decodeReport(t, res); r.PackagePath != "hub" || r.Passed == nil || !*r.Passed {
+		if r := decodeCheck(t, res); r.PackagePath != "hub" || r.Passed == nil || !*r.Passed {
 			t.Errorf("report = (%q, passed %v), want hub passing", r.PackagePath, r.Passed)
 		}
 	})
+}
+
+// gitIn runs git with args in dir, isolated from the user's and the
+// system's configuration and from any repository a git hook points at.
+func gitIn(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	env := slices.DeleteFunc(os.Environ(), func(kv string) bool {
+		return strings.HasPrefix(kv, "GIT_DIR=") || strings.HasPrefix(kv, "GIT_WORK_TREE=") ||
+			strings.HasPrefix(kv, "GIT_INDEX_FILE=")
+	})
+	env = append(env,
+		"GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1",
+		"GIT_AUTHOR_NAME=test", "GIT_AUTHOR_EMAIL=test@example.com",
+		"GIT_COMMITTER_NAME=test", "GIT_COMMITTER_EMAIL=test@example.com",
+	)
+	cmd.Env = env
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git %s: %v\n%s", strings.Join(args, " "), err, out)
+	}
+}
+
+// crossPackageConfig returns the default configuration with exactly one
+// rule on dup_blocks_cross_pkg: max_delta 0 with ratchet_from_zero.
+func crossPackageConfig(t *testing.T) *config.Config {
+	t.Helper()
+	cfg, err := config.Parse(config.Default())
+	if err != nil {
+		t.Fatal(err)
+	}
+	zero := 0.0
+	cfg.Thresholds = slices.DeleteFunc(cfg.Thresholds, func(r gate.Threshold) bool { return metrics.ModuleWide(r.Metric) })
+	cfg.Thresholds = append(cfg.Thresholds, gate.Threshold{
+		Metric: "dup_blocks_cross_pkg", Kind: gate.Density, MaxDelta: &zero, RatchetFromZero: true,
+	})
+	return cfg
+}
+
+// copiedSumOrders is an unexported copy of dupes.SumOrders under other
+// names, written into package b: code the fixture repeats only within
+// dupes, now shared with a second package, so new cross-package blocks. b
+// already nests as deep and is as complex, so its own rules still pass.
+const copiedSumOrders = `package b
+
+func sumLines(lines []int, least int) (int, string) {
+	count := 0
+	missed := 0
+	for k, l := range lines {
+		if k >= 40 {
+			break
+		}
+		if l < least {
+			missed++
+			continue
+		}
+		count += l * 5
+	}
+	if missed > 3 {
+		return count, "lines-partial"
+	}
+	return count, "lines"
+}
+`
+
+// TestCheckPackageModuleRow checks the fixture, committed on master, with a
+// rule on dup_blocks_cross_pkg: a copy of another package's code made in
+// the checked package fails check_package through the module block, while
+// the package's own report has no violation; without the copy it passes.
+func TestCheckPackageModuleRow(t *testing.T) {
+	if testing.Short() {
+		t.Skip("integration test: runs git and loads Go packages")
+	}
+	t.Parallel()
+
+	for _, copied := range []bool{true, false} {
+		name := map[bool]string{true: "cross-package copy", false: "no copy"}[copied]
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			repo, err := filepath.EvalSymlinks(t.TempDir())
+			if err != nil {
+				t.Fatal(err)
+			}
+			// The repository holds the module the fixture's replace
+			// directive points at, so the baseline worktree resolves it.
+			for dst, from := range map[string]string{"fixture": fixtureDir, "extmod": extmodDir} {
+				if err := os.CopyFS(filepath.Join(repo, dst), os.DirFS(from)); err != nil {
+					t.Fatalf("copying %s: %v", from, err)
+				}
+			}
+			gitIn(t, repo, "init", "-q", "-b", "master")
+			gitIn(t, repo, "add", "-A")
+			gitIn(t, repo, "commit", "-q", "--no-verify", "-m", "pristine fixture")
+			if copied {
+				path := filepath.Join(repo, "fixture", "b", "copy.go")
+				if err := os.WriteFile(path, []byte(copiedSumOrders), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			cs := newTestClient(t, Options{Config: crossPackageConfig(t), WorkDir: repo, Version: "test"})
+			res := callCheck(t, cs, map[string]any{"path": "fixture/b", "base": "master"})
+			text := resultText(res)
+			if res.IsError {
+				t.Fatalf("IsError = true, want a gate result; text:\n%s", text)
+			}
+			cr := decodeCheck(t, res)
+			if cr.PackagePath != "b" || len(cr.Violations) != 0 {
+				t.Errorf("package report = %s with violations %+v, want b with none", cr.PackagePath, cr.Violations)
+			}
+			m := cr.Module
+			if m == nil || m.PackagePath != metrics.ModuleRowID || m.Passed == nil {
+				t.Fatalf("module block = %+v, want the gated module row", m)
+			}
+			var got []string
+			for _, v := range m.Violations {
+				got = append(got, v.Metric)
+			}
+			var wantViolations []string
+			if copied {
+				wantViolations = []string{"dup_blocks_cross_pkg"}
+			}
+			if !slices.Equal(got, wantViolations) || *m.Passed != !copied {
+				t.Errorf("module violations = %v, passed %v; want %v", got, *m.Passed, wantViolations)
+			}
+			if cr.Passed == nil || *cr.Passed != !copied {
+				t.Fatalf("passed = %v, want %v; text:\n%s", cr.Passed, !copied, text)
+			}
+			wantText := map[bool]string{true: "FAILED", false: "PASSED"}[copied]
+			if !strings.HasPrefix(text, wantText) {
+				t.Errorf("text = %q, want it to start with %q", text, wantText)
+			}
+			if copied && !strings.Contains(text, "\n  module\n    dup_blocks_cross_pkg: 1 -> ") {
+				t.Errorf("text does not list the module violation under module:\n%s", text)
+			}
+		})
+	}
 }
