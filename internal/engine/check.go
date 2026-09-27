@@ -137,7 +137,9 @@ func (c *BaselineCache) get(key string, load func() (baseline.Baseline, error)) 
 // (checkModule), gated against the baseline's row of the same id. Rules on
 // module-wide metrics (metrics.ModuleWide) are evaluated on that row only
 // and every other rule on package rows only (gate.ForRow), so one
-// cross-package copy is one finding. A check of opts.Packages has no module
+// cross-package copy is one finding. A baseline file without that row, one
+// written before it existed, skips the module-wide rules with one info log
+// rather than treating the row as new. A check of opts.Packages has no module
 // row: it answers for those packages only. A module row that fails to
 // extract is logged and returned in failed like a package.
 //
@@ -217,7 +219,7 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 			"reason", "the baseline records no functions to diff; rewrite the baseline file with astimate baseline write")
 	}
 	if mm, ok := t.Ext.(metrics.ModuleMetrics); ok && len(opts.Packages) == 0 && len(selected) > 0 {
-		m, err := checkModule(ctx, ht, mm, base, eff, gate.ForRow(eff.Thresholds, gate.ModuleRow))
+		m, err := checkModule(ctx, ht, mm, base, src.file != nil, eff, gate.ForRow(eff.Thresholds, gate.ModuleRow))
 		if err != nil {
 			logger.Error("checking module row failed", "err", err)
 			failed = append(failed, &PackageError{Path: metrics.ModuleRowID, Err: err})
@@ -427,20 +429,31 @@ func selectPackages(ctx context.Context, t *Target, head []string, src baselineS
 // The row's suggestions name no functions or locations, and it carries no
 // baseline agent passes, since its rebuild estimate is of an empty
 // package.
-func checkModule(ctx context.Context, t *Target, mm metrics.ModuleMetrics, base baseline.Baseline, eff config.Effective, rules []gate.Threshold) (report.CheckedPackage, error) {
+//
+// fromFile says base was read from a baseline file. A file written before
+// the module row existed has none, and the blocks it would have counted
+// are not new: the rules are skipped for this run with one info log, and
+// the row's metrics are still reported. A baseline extracted from a commit
+// always has the row.
+func checkModule(ctx context.Context, t *Target, mm metrics.ModuleMetrics, base baseline.Baseline, fromFile bool,
+	eff config.Effective, rules []gate.Threshold,
+) (report.CheckedPackage, error) {
 	m, err := mm.ModuleRow(ctx, t.Mod)
 	if err != nil {
 		return report.CheckedPackage{}, err
 	}
+	logger := t.logger()
 	var bm *metrics.RawMetrics
 	if v, ok := base.Metrics(metrics.ModuleRowID); ok {
 		bm = &v
+	} else if fromFile && len(rules) > 0 {
+		logger.Info("baseline file has no module row; module-wide rules skipped; run `astimate baseline write` to add it")
+		rules = nil
 	}
 	suggest := func(metric string, h float64, hm metrics.RawMetrics) string {
 		return score.MetricSuggestion(metric, h, hm, score.Names{})
 	}
 	res := gate.Evaluate(m, bm, rules, suggest)
-	logger := t.logger()
 	for _, n := range res.Notes {
 		logger.Info("rule skipped", "path", metrics.ModuleRowID, "metric", n.Metric, "reason", n.Text)
 	}

@@ -16,9 +16,12 @@ func TestFileRoundTrip(t *testing.T) {
 	t.Parallel()
 
 	ratio := 0.25
+	cross := 3
 	pkgs := map[string]metrics.RawMetrics{
 		"example.com/m/a": {Files: 2, SLOC: 40, Globals: 1, DuplicationPct: 12.5, HasTests: true},
 		"example.com/m/b": {Files: 1, SLOC: 7, Instability: &ratio},
+		// The module row is written and read back like a package.
+		metrics.ModuleRowID: {DupBlocksCrossPkg: &cross},
 	}
 	dir := t.TempDir()
 	path := filepath.Join(dir, "baseline.json")
@@ -64,6 +67,9 @@ func TestFileRoundTrip(t *testing.T) {
 	}
 	if raw.ModulePath != "example.com/m" || len(raw.Packages) != len(pkgs) {
 		t.Errorf("module_path = %q with %d packages, want example.com/m with %d", raw.ModulePath, len(raw.Packages), len(pkgs))
+	}
+	if _, ok := raw.Packages[metrics.ModuleRowID]; !ok {
+		t.Errorf("packages = %v, want the module row under %q", raw.Packages, metrics.ModuleRowID)
 	}
 	at, err := time.Parse(time.RFC3339, raw.GeneratedAt)
 	if err != nil {

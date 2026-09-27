@@ -1,10 +1,13 @@
 package engine
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"log/slog"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/baseline"
@@ -68,6 +71,10 @@ func writeModuleBaseline(t *testing.T, cross *int) string {
 	return path
 }
 
+// noModuleRowNote is the log check writes when a baseline file has no
+// module row.
+const noModuleRowNote = "baseline file has no module row; module-wide rules skipped; run `astimate baseline write` to add it"
+
 func TestCheckModuleRow(t *testing.T) {
 	t.Parallel()
 
@@ -78,23 +85,33 @@ func TestCheckModuleRow(t *testing.T) {
 		base       *int
 		wantPassed bool
 		wantBase   bool
+		wantNote   bool
 	}{
 		{name: "unchanged", head: 1, base: &one, wantPassed: true, wantBase: true},
 		{name: "improved", head: 1, base: &two, wantPassed: true, wantBase: true},
 		{name: "one more shared block", head: 2, base: &one, wantBase: true},
-		{name: "no module row in the baseline, none at head", head: 0, wantPassed: true},
-		{name: "no module row in the baseline, ratchets from zero", head: 1},
+		{name: "no module row in the baseline, none at head", head: 0, wantPassed: true, wantNote: true},
+		// A file written before the module row existed: its shared blocks
+		// are not new, so the rule is skipped rather than ratcheted from
+		// zero.
+		{name: "no module row in the baseline, rules skipped", head: 1, wantPassed: true, wantNote: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			c, failed, err := Check(t.Context(), moduleTarget(tt.head, nil), CheckOptions{
+			var logs bytes.Buffer
+			tg := moduleTarget(tt.head, nil)
+			tg.Logger = slog.New(slog.NewTextHandler(&logs, nil))
+			c, failed, err := Check(t.Context(), tg, CheckOptions{
 				BaselineFile: writeModuleBaseline(t, tt.base),
 				All:          true,
 			})
 			if err != nil || len(failed) != 0 {
 				t.Fatalf("Check = (%v, %v), want no error", failed, err)
+			}
+			if n, want := strings.Count(logs.String(), noModuleRowNote), map[bool]int{true: 1}[tt.wantNote]; n != want {
+				t.Errorf("logged %d no-module-row notes, want %d; logs:\n%s", n, want, logs.String())
 			}
 			if c.Module == nil {
 				t.Fatal("check has no module row")
@@ -175,16 +192,12 @@ func TestCollectModuleRow(t *testing.T) {
 	}
 }
 
-// TestCheckCrossPackageCopyOneFinding checks the fixture pair a and b, which
-// share one block, against a baseline from before the copy: a rule on
-// dup_blocks_cross_pkg yields exactly one violation, on the module row,
-// while a and b still report their own count.
-func TestCheckCrossPackageCopyOneFinding(t *testing.T) {
-	if testing.Short() {
-		t.Skip("integration test: loads Go packages")
-	}
-	t.Parallel()
-
+// crossPackageTarget loads the fixture module with the default rules plus
+// exactly one rule on dup_blocks_cross_pkg, max_delta 0 with
+// ratchet_from_zero, and returns it with its collected rows, the module
+// row included.
+func crossPackageTarget(t *testing.T) (*Target, map[string]metrics.RawMetrics) {
+	t.Helper()
 	cfg, err := config.Parse(config.Default())
 	if err != nil {
 		t.Fatal(err)
@@ -204,6 +217,20 @@ func TestCheckCrossPackageCopyOneFinding(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	return tg, pkgs
+}
+
+// TestCheckCrossPackageCopyOneFinding checks the fixture pair a and b, which
+// share one block, against a baseline from before the copy: a rule on
+// dup_blocks_cross_pkg yields exactly one violation, on the module row,
+// while a and b still report their own count.
+func TestCheckCrossPackageCopyOneFinding(t *testing.T) {
+	if testing.Short() {
+		t.Skip("integration test: loads Go packages")
+	}
+	t.Parallel()
+
+	tg, pkgs := crossPackageTarget(t)
 	// Before the copy no row counted a cross-package block.
 	for id, m := range pkgs {
 		n := 0
@@ -238,5 +265,50 @@ func TestCheckCrossPackageCopyOneFinding(t *testing.T) {
 	want := []finding{{metrics.ModuleRowID, "dup_blocks_cross_pkg"}}
 	if !slices.Equal(got, want) {
 		t.Errorf("violations = %v, want exactly %v", got, want)
+	}
+}
+
+// TestCheckCrossPackageBaselineWithoutModuleRow checks the fixture pair a
+// and b, which share one block, against a baseline file written before the
+// module row existed: the shared block was already there, so the rule on
+// dup_blocks_cross_pkg is skipped with one note instead of ratcheting from
+// zero, and the module row still reports its count.
+func TestCheckCrossPackageBaselineWithoutModuleRow(t *testing.T) {
+	if testing.Short() {
+		t.Skip("integration test: loads Go packages")
+	}
+	t.Parallel()
+
+	tg, pkgs := crossPackageTarget(t)
+	var logs bytes.Buffer
+	tg.Logger = slog.New(slog.NewTextHandler(&logs, nil))
+	delete(pkgs, metrics.ModuleRowID)
+	path := filepath.Join(t.TempDir(), "baseline.json")
+	if err := baseline.Write(path, "", tg.Mod.ModulePath, TokenizerEst, pkgs); err != nil {
+		t.Fatal(err)
+	}
+
+	c, failed, err := Check(t.Context(), tg, CheckOptions{BaselineFile: path, All: true})
+	if err != nil || len(failed) != 0 {
+		t.Fatalf("Check = (%v, %v), want no error", failed, err)
+	}
+	if c.Module == nil {
+		t.Fatal("check has no module row")
+	}
+	var got []string
+	rows := append([]report.CheckedPackage{*c.Module}, c.Packages...)
+	for i := range rows {
+		for _, v := range rows[i].Report.Violations {
+			got = append(got, rows[i].Report.PackagePath+": "+v.Metric)
+		}
+	}
+	if len(got) != 0 {
+		t.Errorf("violations = %v, want none", got)
+	}
+	if m := c.Module.Report.Metrics.DupBlocksCrossPkg; m == nil || *m != 1 {
+		t.Errorf("module row dup_blocks_cross_pkg = %v, want 1 reported", m)
+	}
+	if n := strings.Count(logs.String(), noModuleRowNote); n != 1 {
+		t.Errorf("logged %d no-module-row notes, want 1; logs:\n%s", n, logs.String())
 	}
 }
