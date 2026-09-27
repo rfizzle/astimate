@@ -30,6 +30,7 @@ func commands() map[string]command {
 	return map[string]command{
 		"assess":  runAssess,
 		"config":  runConfig,
+		"rank":    runRank,
 		"version": runVersion,
 	}
 }
