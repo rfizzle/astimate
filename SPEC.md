@@ -261,7 +261,7 @@ All parameters live in the `rebuild:` section of the config and are labelled unc
 
 - Go stdlib `errors` is ONE_PASS; `net/http` is PARTITION.
 - A package with zero fan-in, tests present, no duplication and under 5k tokens is ONE_PASS.
-- Monotonicity: increasing `tokens_est`, `exported_symbols`, `untested_exports`, `globals` or `init_funcs` never lowers `agent_passes`; increasing `duplication_pct` alone never raises it; adding tests never raises it.
+- Monotonicity: increasing `tokens_est`, `exported_symbols`, `untested_exports`, `globals` or `init_funcs` never lowers `agent_passes`; increasing `duplication_pct` alone never raises it; adding test tokens raises only the `spec` term (on the worked example, 1,000 more test tokens move `agent_passes` from 1.1803 to 1.2346), and adding tests never raises `human_days`.
 
 ## 8. Quality gate
 
@@ -271,7 +271,7 @@ All parameters live in the `rebuild:` section of the config and are labelled unc
 
 **Density rules** measure how the code is written, independent of how much there is. Adding features should never raise them, so they are gated on the change itself with `max_delta`: the largest permitted increase from baseline to head, usually 0. A feature written without copy-paste adds no duplicate blocks; ten new exports with tests leave `untested_exports` unchanged. Negative values require improvement. A density rule may also carry a `max`, but it is a ceiling on what a change may introduce, not a retroactive judgment: it is evaluated for a package with no baseline, and for a package whose value rose from baseline to head. An unchanged or improved legacy value above the `max` passes, so a package that was already at 80% duplication before a change is not failed for that history; a change that pushes it higher is.
 
-**Capacity rules** measure how much code there is. They are supposed to grow with features, so they carry no delta. They have an absolute `max` that answers a different question: has the package outgrown what one agent can hold in context? The fix for a capacity breach is a split, not a smaller feature. Each capacity rule also has a `warn_at` fraction (default 0.75) above which `check` emits a non-failing warning naming the headroom, so a split can be planned before a hard failure lands mid-feature.
+**Capacity rules** measure how much code there is. They are supposed to grow with features, so they carry no delta. They have an absolute `max` that answers a different question: has the package outgrown what one agent can hold in context? The fix for a capacity breach is a split, not a smaller feature. Like a density `max`, the ceiling is a violation for a new package or when the value rose; a legacy package already over the ceiling whose value is unchanged or fell gets a warning saying so, not a violation, so identical head and baseline trees never fail the gate. Each capacity rule also has a `warn_at` fraction (default 0.75) above which `check` emits a non-failing warning naming the headroom, so a split can be planned before a hard failure lands mid-feature.
 
 Boolean metrics use `require: true` with an optional `when` guard (for example `has_tests` when `sloc > 100`). Requirements, like density `max`, do not fire on an unchanged legacy package: `has_tests` fails a package that lacks tests only when it is new or when its `sloc` grew.
 
