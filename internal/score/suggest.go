@@ -54,6 +54,9 @@ func driverSuggestion(d Driver, m *metrics.RawMetrics, n Names) string {
 		s := "The package is " + strconv.Itoa(m.TokensEst) + " tokens of non-test source"
 		if m.DuplicationPct > 0 {
 			s += ", " + formatPct(m.DuplicationPct) + "% of it duplicated"
+			if len(n.DupLocations) > 0 {
+				s += ", starting with " + n.DupLocations[0]
+			}
 		}
 		return s + "; its volume is " + tokens + " tokens of the rebuild; split the package to shrink it."
 	case TermSpec:

@@ -183,6 +183,52 @@ func TestDriverSuggestionVolumeWithoutDuplication(t *testing.T) {
 	}
 }
 
+func TestDriverSuggestionVolumeDupLocation(t *testing.T) {
+	t.Parallel()
+
+	locs := []string{"parse.go:40-58", "encode.go:12-30"}
+	tests := []struct {
+		name string
+		pct  float64
+		locs []string
+		want string
+	}{
+		{
+			name: "duplication with locations",
+			pct:  12.5, locs: locs,
+			want: "The package is 9000 tokens of non-test source, 12.5% of it duplicated, starting with parse.go:40-58; its volume is 900 tokens of the rebuild; split the package to shrink it.",
+		},
+		{
+			name: "duplication without locations",
+			pct:  12.5,
+			want: "The package is 9000 tokens of non-test source, 12.5% of it duplicated; its volume is 900 tokens of the rebuild; split the package to shrink it.",
+		},
+		{
+			name: "locations without duplication",
+			locs: locs,
+			want: "The package is 9000 tokens of non-test source; its volume is 900 tokens of the rebuild; split the package to shrink it.",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			m := metrics.RawMetrics{TokensEst: 9000, DuplicationPct: tt.pct, Globals: 1}
+			// Volume is exactly 10% of the rebuild, the smallest share that
+			// still earns a suggestion.
+			got := DriverSuggestions(rebuildOf(900, 0, 0, 0, 8100), m, Names{DupLocations: tt.locs})
+			for _, s := range got {
+				if strings.HasPrefix(s, "The package is") {
+					if s != tt.want {
+						t.Errorf("got  %q\nwant %q", s, tt.want)
+					}
+					return
+				}
+			}
+			t.Fatalf("DriverSuggestions = %q, want a volume suggestion", got)
+		})
+	}
+}
+
 func TestDriverSuggestionsCutoff(t *testing.T) {
 	t.Parallel()
 
