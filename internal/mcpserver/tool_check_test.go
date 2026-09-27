@@ -222,6 +222,9 @@ func TestCheckPackageToolErrors(t *testing.T) {
 			wantText: "mutually exclusive"},
 		{name: "no baseline", opts: Options{Config: cfg, WorkDir: ws},
 			in: map[string]any{"path": "mod/tested"}, wantText: "pass base (a git ref) or baseline_file"},
+		{name: "staged outside a repository", opts: Options{Config: cfg, WorkDir: ws},
+			in:       map[string]any{"path": "mod/tested", "baseline_file": "baseline.json", "staged": true},
+			wantText: "not in a git repository"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -396,4 +399,72 @@ func TestCheckPackageModuleRow(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestCheckPackageStaged checks the fixture, committed on master, with a
+// good change staged and a new global left unstaged in the same file:
+// staged: true judges the index and passes, while the working tree fails
+// on globals; once the global is staged, staged: true fails too.
+func TestCheckPackageStaged(t *testing.T) {
+	if testing.Short() {
+		t.Skip("integration test: runs git and loads Go packages")
+	}
+	t.Parallel()
+
+	repo, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for dst, from := range map[string]string{"fixture": fixtureDir, "extmod": extmodDir} {
+		if err := os.CopyFS(filepath.Join(repo, dst), os.DirFS(from)); err != nil {
+			t.Fatalf("copying %s: %v", from, err)
+		}
+	}
+	gitIn(t, repo, "init", "-q", "-b", "master")
+	gitIn(t, repo, "add", "-A")
+	gitIn(t, repo, "commit", "-q", "--no-verify", "-m", "pristine fixture")
+
+	src := filepath.Join(repo, "fixture", "tested", "tested.go")
+	pristine, err := os.ReadFile(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	good := append(slices.Clip(pristine), "\n// Join and Bounded are covered by tested_test.go.\n"...)
+	if err := os.WriteFile(src, good, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	gitIn(t, repo, "add", "fixture/tested/tested.go")
+	degraded := append(slices.Clip(good), "\nvar calls int\n"...)
+	if err := os.WriteFile(src, degraded, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cs := newTestClient(t, Options{Config: defaultConfig(t), WorkDir: repo, Version: "test"})
+	check := func(t *testing.T, staged any, wantPassed bool) {
+		t.Helper()
+		in := map[string]any{"path": "fixture/tested", "base": "master"}
+		if staged != nil {
+			in["staged"] = staged
+		}
+		res := callCheck(t, cs, in)
+		text := resultText(res)
+		if res.IsError {
+			t.Fatalf("IsError = true, want a gate result; text:\n%s", text)
+		}
+		cr := decodeCheck(t, res)
+		if cr.Passed == nil || *cr.Passed != wantPassed {
+			t.Fatalf("passed = %v, want %v; text:\n%s", cr.Passed, wantPassed, text)
+		}
+		hasGlobals := slices.ContainsFunc(cr.Violations, func(v report.Finding) bool { return v.Metric == "globals" })
+		if hasGlobals == wantPassed {
+			t.Errorf("globals violation = %v, want %v; text:\n%s", hasGlobals, !wantPassed, text)
+		}
+	}
+
+	// The subtests share one repository and run in order.
+	t.Run("unstaged degradation, staged true", func(t *testing.T) { check(t, true, true) })
+	t.Run("unstaged degradation, staged false", func(t *testing.T) { check(t, false, false) })
+	t.Run("unstaged degradation, staged absent", func(t *testing.T) { check(t, nil, false) })
+	gitIn(t, repo, "add", "fixture/tested/tested.go")
+	t.Run("staged degradation, staged true", func(t *testing.T) { check(t, true, false) })
 }

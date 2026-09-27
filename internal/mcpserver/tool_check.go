@@ -28,7 +28,8 @@ const checkToolDescription = "Run the astimate quality gate on one Go package yo
 	"copied between packages, are in the module block and fail the check too. Warnings do not " +
 	"fail the gate. Do not call it on " +
 	"packages you did not touch. The baseline is the merge-base of HEAD and the default branch " +
-	"unless base or baseline_file says otherwise."
+	"unless base or baseline_file says otherwise. Before a partial commit, pass staged: true to " +
+	"judge what the git index holds rather than the working tree."
 
 // CheckInput is the input of the check_package tool.
 type CheckInput struct {
@@ -39,6 +40,10 @@ type CheckInput struct {
 	Base string `json:"base,omitempty" jsonschema:"Git ref to compare against: the baseline is the merge-base of HEAD and this ref. Defaults to origin/master, then master, origin/main, main. Do not combine with baseline_file."`
 	// BaselineFile is a baseline file written by `astimate baseline write`.
 	BaselineFile string `json:"baseline_file,omitempty" jsonschema:"Baseline file written by 'astimate baseline write' to compare against instead of a git ref, relative to the server's working directory or absolute."`
+	// Staged checks the tree the git index holds instead of the working
+	// tree (engine.CheckOptions.Staged). The server is not a git hook, so
+	// it reads the repository's own index.
+	Staged bool `json:"staged,omitempty" jsonschema:"Check what the git index holds instead of the working tree, so a partial commit is judged on what it commits and unstaged changes are ignored. Needs a git repository. Defaults to false."`
 }
 
 // CheckResult is the structured content of a successful check_package
@@ -149,6 +154,7 @@ func (s *session) runCheck(ctx context.Context, in CheckInput) (*CheckResult, st
 		BaselineFile: baselineFile,
 		Packages:     []string{t.ImportPath},
 		Baselines:    rc.baselines,
+		Staged:       in.Staged,
 	})
 	if err != nil {
 		return nil, "", err

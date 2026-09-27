@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"maps"
 	"os/exec"
 	"path/filepath"
 	"slices"
@@ -193,14 +194,17 @@ func requireError(t *testing.T, what string, r rpcResponse, code int) {
 // toolsList is the part of a tools/list result the tests inspect.
 type toolsList struct {
 	Tools []struct {
-		Name         string          `json:"name"`
+		Name        string `json:"name"`
+		InputSchema struct {
+			Properties map[string]json.RawMessage `json:"properties"`
+		} `json:"inputSchema"`
 		OutputSchema json.RawMessage `json:"outputSchema"`
 	} `json:"tools"`
 }
 
 // checkToolsList checks that list names the four tools, each with an
-// output schema, and that check_package's success branch declares the
-// module block.
+// output schema, that check_package's input schema declares staged, and
+// that its output schema's success branch declares the module block.
 func checkToolsList(t *testing.T, list toolsList) {
 	t.Helper()
 	names := make([]string, 0, len(list.Tools))
@@ -212,6 +216,9 @@ func checkToolsList(t *testing.T, list toolsList) {
 		}
 		if tool.Name != "check_package" {
 			continue
+		}
+		if tool.InputSchema.Properties["staged"] == nil {
+			t.Errorf("tools/list: check_package inputSchema properties = %v, want staged", slices.Collect(maps.Keys(tool.InputSchema.Properties)))
 		}
 		var schema struct {
 			OneOf []struct {
