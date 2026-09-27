@@ -68,6 +68,18 @@ func TestParseDefault(t *testing.T) {
 			t.Errorf("%s metrics = %q, want %q", k, got, w)
 		}
 	}
+	var ratchet []string
+	for _, th := range cfg.Thresholds {
+		if th.RatchetFromZero {
+			ratchet = append(ratchet, th.Metric)
+		}
+		if th.Metric == "cognitive_p90" && (th.Max == nil || *th.Max != 25) {
+			t.Errorf("cognitive_p90 max = %v, want 25", th.Max)
+		}
+	}
+	if got, w := strings.Join(ratchet, " "), "dup_blocks untested_exports globals init_funcs"; got != w {
+		t.Errorf("ratchet_from_zero metrics = %q, want %q", got, w)
+	}
 	last := cfg.Thresholds[len(cfg.Thresholds)-1]
 	if last.When == nil || *last.When != (gate.Condition{Metric: "sloc", Value: 100}) {
 		t.Errorf("has_tests when = %+v, want sloc > 100", last.When)
@@ -108,6 +120,8 @@ func TestParseErrors(t *testing.T) {
 		{name: "unknown key", old: "dup_min_tokens: 40", repl: "dup_min_tokens: 40\ndup_min_tokenz: 40", wantErr: "dup_min_tokenz"},
 		{name: "threshold with no limit", old: "    kind: density\n    max_delta: 3\n", repl: "    kind: density\n", wantErr: `"cognitive_p90": density rule needs max_delta`},
 		{name: "capacity with max_delta", old: capacityRule, repl: capacityRule + "    max_delta: 0\n", wantErr: `"sloc": capacity rule must not set max_delta`},
+		{name: "ratchet_from_zero on capacity", old: capacityRule, repl: capacityRule + "    ratchet_from_zero: true\n", wantErr: `"sloc": ratchet_from_zero applies only to density rules`},
+		{name: "ratchet_from_zero not a bool", old: "    ratchet_from_zero: true\n", repl: "    ratchet_from_zero: sometimes\n", wantErr: "`sometimes` into bool"},
 		{name: "warn_at out of range", old: capacityRule, repl: strings.Replace(capacityRule, "0.75", "1.5", 1), wantErr: "warn_at must be in (0, 1)"},
 		{name: "unknown metric", old: "metric: dup_blocks", repl: "metric: dupe_blocks", wantErr: `"dupe_blocks": unknown metric`},
 		{name: "missing kind", old: "metric: dup_blocks\n    kind: density\n", repl: "metric: dup_blocks\n", wantErr: "kind is required"},

@@ -66,8 +66,9 @@ type Result struct {
 type Suggester func(metric string, head float64, m metrics.RawMetrics) string
 
 // Evaluate checks head, and base when it is non-nil, against rules per
-// SPEC.md section 8.1. A nil base means the package is new at head: density
-// deltas are taken against zero. Density rules fail when head minus base
+// SPEC.md section 8.1. A nil base means the package is new at head: every
+// density rule still applies its Max, but MaxDelta is taken against zero only
+// for rules with RatchetFromZero set. Density rules fail when head minus base
 // exceeds MaxDelta or head exceeds Max; capacity rules fail above Max and
 // warn at or above WarnAt of Max; requirement rules fail when the metric's
 // boolean disagrees with Require while When holds. A rule whose metric is
@@ -112,7 +113,9 @@ func (e *evaluator) rule(r Threshold) {
 
 func (e *evaluator) density(r Threshold, h float64) {
 	b, hasBase, ok := e.baseValue(r.Metric)
-	if r.MaxDelta != nil {
+	// Intensive metrics are not ratcheted from zero: every real package has
+	// some nesting, so a new package faces only their absolute max.
+	if r.MaxDelta != nil && (e.base != nil || r.RatchetFromZero) {
 		switch {
 		case !ok:
 			e.res.Notes = append(e.res.Notes, Note{
@@ -175,9 +178,9 @@ func (e *evaluator) requirement(r Threshold, h float64) {
 }
 
 // baseValue returns the metric's baseline value and whether a baseline value
-// exists. Without a baseline the value is zero and ok is true, so density
-// deltas run against zero; ok is false only for a metric the baseline did
-// not compute.
+// exists. Without a baseline the value is zero and ok is true, so
+// ratchet-from-zero deltas run against zero; ok is false only for a metric
+// the baseline did not compute.
 func (e *evaluator) baseValue(metric string) (v float64, hasBase, ok bool) {
 	if e.base == nil {
 		return 0, false, true

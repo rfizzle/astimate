@@ -235,9 +235,12 @@ func TestEvaluateRules(t *testing.T) {
 func TestEvaluateNoBaseline(t *testing.T) {
 	t.Parallel()
 
+	untested := density("untested_exports", 0, nil)
+	untested.RatchetFromZero = true
 	rules := []gate.Threshold{
-		density("untested_exports", 0, nil),
+		untested,
 		density("duplication_pct", 0.5, ptr(5.0)),
+		density("max_nesting", 0, ptr(5.0)),
 		capacity("tokens_est", 30000, 0.75),
 	}
 	tests := []struct {
@@ -246,16 +249,24 @@ func TestEvaluateNoBaseline(t *testing.T) {
 		want gate.Result
 	}{
 		{
-			name: "density against zero fails on any increase",
+			name: "ratchet from zero fails on any increase",
 			head: metrics.RawMetrics{UntestedExports: 1, TokensEst: 1000},
 			want: gate.Result{Violations: []gate.Violation{
 				{Metric: "untested_exports", Head: 1, Limit: "max_delta +0"},
 			}},
 		},
 		{
-			name: "density fraction within delta against zero",
-			head: metrics.RawMetrics{DuplicationPct: 0.5},
+			name: "intensive density skips delta without a baseline",
+			head: metrics.RawMetrics{DuplicationPct: 4.0, MaxNesting: 4},
 			want: gate.Result{Passed: true},
+		},
+		{
+			name: "intensive density keeps its max without a baseline",
+			head: metrics.RawMetrics{DuplicationPct: 5.5, MaxNesting: 6},
+			want: gate.Result{Violations: []gate.Violation{
+				{Metric: "duplication_pct", Head: 5.5, Limit: "max 5"},
+				{Metric: "max_nesting", Head: 6, Limit: "max 5"},
+			}},
 		},
 		{
 			name: "capacity is absolute without a baseline",
@@ -359,15 +370,15 @@ func healthy() metrics.RawMetrics {
 	}
 }
 
-// fresh is a package new at head with forty tested exports under every
-// ceiling. Density rules run against zero without a baseline (SPEC.md
-// section 8.1), so it passes only with flat code: max_nesting 0, cognitive_p90
-// within the +3 drift and no duplication.
+// fresh is a realistic package new at head: forty tested exports, ordinary
+// nesting and complexity, no duplication, and under every ceiling. Without a
+// baseline only ratchet_from_zero rules take max_delta against zero; nesting
+// and cognitive_p90 face only their absolute max (SPEC.md section 8.1).
 func fresh() metrics.RawMetrics {
 	return metrics.RawMetrics{
-		Files: 5, SLOC: 900, LargestFileSLOC: 250, TokensEst: 7000,
-		InternalImports: 2, ExportedSymbols: 40, CognitiveP90: 3,
-		TestFiles: 5, TestFuncs: 40, HasTests: true,
+		Files: 8, SLOC: 2500, LargestFileSLOC: 450, TokensEst: 20000,
+		InternalImports: 3, ExportedSymbols: 40, MaxNesting: 3, CognitiveP90: 8,
+		TestFiles: 8, TestFuncs: 60, HasTests: true,
 	}
 }
 
@@ -420,13 +431,55 @@ func TestEvaluateDefaultConfig(t *testing.T) {
 		}
 	})
 
-	t.Run("new package with forty tested exports passes", func(t *testing.T) {
+	t.Run("new package with realistic nesting and complexity passes", func(t *testing.T) {
 		t.Parallel()
 
 		head := fresh()
 		got := gate.Evaluate(head, nil, rules, nil)
 		if !reflect.DeepEqual(got, gate.Result{Passed: true}) {
 			t.Errorf("Evaluate() = %+v, want passed with no findings", got)
+		}
+	})
+
+	t.Run("new package with one global fails", func(t *testing.T) {
+		t.Parallel()
+
+		head := fresh()
+		head.Globals = 1
+		got := gate.Evaluate(head, nil, rules, nil)
+		want := gate.Result{Violations: []gate.Violation{
+			{Metric: "globals", Head: 1, Limit: "max_delta +0"},
+		}}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("Evaluate() =\n%+v\nwant\n%+v", got, want)
+		}
+	})
+
+	t.Run("new package nested past the ceiling fails on max", func(t *testing.T) {
+		t.Parallel()
+
+		head := fresh()
+		head.MaxNesting = 6
+		got := gate.Evaluate(head, nil, rules, nil)
+		want := gate.Result{Violations: []gate.Violation{
+			{Metric: "max_nesting", Head: 6, Limit: "max 5"},
+		}}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("Evaluate() =\n%+v\nwant\n%+v", got, want)
+		}
+	})
+
+	t.Run("new package with complexity past the ceiling fails on max", func(t *testing.T) {
+		t.Parallel()
+
+		head := fresh()
+		head.CognitiveP90 = 26
+		got := gate.Evaluate(head, nil, rules, nil)
+		want := gate.Result{Violations: []gate.Violation{
+			{Metric: "cognitive_p90", Head: 26, Limit: "max 25"},
+		}}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("Evaluate() =\n%+v\nwant\n%+v", got, want)
 		}
 	})
 

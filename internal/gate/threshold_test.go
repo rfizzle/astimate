@@ -79,6 +79,9 @@ func TestThresholdValidate(t *testing.T) {
 		{name: "capacity warn_at one", th: Threshold{Metric: "tokens_est", Kind: Capacity, Max: ptr(1.0), WarnAt: 1}, wantErr: "warn_at must be in (0, 1)"},
 		{name: "requirement no require", th: Threshold{Metric: "has_tests", Kind: Requirement}, wantErr: `"has_tests": requirement rule needs require`},
 		{name: "requirement with max", th: Threshold{Metric: "has_tests", Kind: Requirement, Require: ptr(true), Max: ptr(1.0)}, wantErr: "must not set max"},
+		{name: "density ratchet from zero", th: Threshold{Metric: "dup_blocks", Kind: Density, MaxDelta: ptr(0.0), RatchetFromZero: true}},
+		{name: "capacity ratchet from zero", th: Threshold{Metric: "tokens_est", Kind: Capacity, Max: ptr(1.0), WarnAt: 0.75, RatchetFromZero: true}, wantErr: `"tokens_est": ratchet_from_zero applies only to density rules`},
+		{name: "requirement ratchet from zero", th: Threshold{Metric: "has_tests", Kind: Requirement, Require: ptr(true), RatchetFromZero: true}, wantErr: `"has_tests": ratchet_from_zero applies only to density rules`},
 		{name: "require on density", th: Threshold{Metric: "dup_blocks", Kind: Density, MaxDelta: ptr(0.0), Require: ptr(true)}, wantErr: "require applies only"},
 		{name: "when unknown metric", th: Threshold{Metric: "has_tests", Kind: Requirement, Require: ptr(true), When: &Condition{Metric: "nope"}}, wantErr: `when: unknown metric "nope"`},
 	}

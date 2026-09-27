@@ -38,14 +38,18 @@ rebuild:
     few_passes_max: 3.0
 
 # Gate thresholds (SPEC.md section 8.2). Density rules ratchet on the change
-# via max_delta and may add a max; capacity rules carry an absolute max with a
-# warn_at band (default 0.75); requirement rules demand a boolean, optionally
-# guarded by when: "<metric> > <number>".
+# via max_delta and may add a max; for a package new at head only their max
+# applies, plus max_delta against zero where ratchet_from_zero is true.
+# Capacity rules carry an absolute max with a warn_at band (default 0.75);
+# requirement rules demand a boolean, optionally guarded by
+# when: "<metric> > <number>".
 thresholds:
   # No new duplicate blocks; copy-paste is the primary target.
   - metric: dup_blocks
     kind: density
     max_delta: 0
+    # Counted from zero for a package with no baseline.
+    ratchet_from_zero: true
   # Guards against a large duplicated feature that adds only one block.
   - metric: duplication_pct
     kind: density
@@ -55,14 +59,20 @@ thresholds:
   - metric: untested_exports
     kind: density
     max_delta: 0
+    # Counted from zero for a package with no baseline.
+    ratchet_from_zero: true
   # No new package-level state.
   - metric: globals
     kind: density
     max_delta: 0
+    # Counted from zero for a package with no baseline.
+    ratchet_from_zero: true
   # No new init functions.
   - metric: init_funcs
     kind: density
     max_delta: 0
+    # Counted from zero for a package with no baseline.
+    ratchet_from_zero: true
   # Never nest deeper than today, and never past the ceiling.
   - metric: max_nesting
     kind: density
@@ -72,6 +82,8 @@ thresholds:
   - metric: cognitive_p90
     kind: density
     max_delta: 3
+    # What a new package, which has no baseline to drift from, is judged by.
+    max: 25
   # The rebuild bar: past this a rebuild no longer fits one agent pass; split.
   - metric: tokens_est
     kind: capacity

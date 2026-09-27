@@ -82,13 +82,14 @@ type fileTiers struct {
 }
 
 type fileThreshold struct {
-	Metric   string   `yaml:"metric"`
-	Kind     string   `yaml:"kind"`
-	Max      *float64 `yaml:"max"`
-	MaxDelta *float64 `yaml:"max_delta"`
-	WarnAt   *float64 `yaml:"warn_at"`
-	Require  *bool    `yaml:"require"`
-	When     string   `yaml:"when"`
+	Metric          string   `yaml:"metric"`
+	Kind            string   `yaml:"kind"`
+	Max             *float64 `yaml:"max"`
+	MaxDelta        *float64 `yaml:"max_delta"`
+	RatchetFromZero bool     `yaml:"ratchet_from_zero"`
+	WarnAt          *float64 `yaml:"warn_at"`
+	Require         *bool    `yaml:"require"`
+	When            string   `yaml:"when"`
 }
 
 // Default returns the embedded default configuration file. Each call returns a
@@ -262,11 +263,12 @@ func (fc *fileConfig) build() (*Config, error) {
 	cfg.Thresholds = make([]gate.Threshold, 0, len(fc.Thresholds))
 	for i, ft := range fc.Thresholds {
 		t := gate.Threshold{
-			Metric:   ft.Metric,
-			Kind:     gate.Kind(ft.Kind),
-			Max:      ft.Max,
-			MaxDelta: ft.MaxDelta,
-			Require:  ft.Require,
+			Metric:          ft.Metric,
+			Kind:            gate.Kind(ft.Kind),
+			Max:             ft.Max,
+			MaxDelta:        ft.MaxDelta,
+			Require:         ft.Require,
+			RatchetFromZero: ft.RatchetFromZero,
 		}
 		switch {
 		case ft.WarnAt != nil:
