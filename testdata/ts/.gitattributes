@@ -1,0 +1,3 @@
+# The fixture goldens count bytes (tokens_est) and lines exactly. Keep the
+# sources byte-identical on every checkout, including Windows.
+* -text

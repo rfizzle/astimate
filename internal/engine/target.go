@@ -11,6 +11,7 @@ import (
 
 	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/lang/golang"
+	"github.com/rfizzle/astimate/internal/lang/typescript"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/score"
 )
@@ -91,11 +92,17 @@ func ValidTokenizer(name string) bool {
 	return name == TokenizerEst || name == TokenizerO200k
 }
 
-// LoadTarget resolves dir to its module root, module path and import path,
-// resolves the configuration and builds an extractor from both. Every
-// operation resolves its target this way. A dir outside any module yields
-// an error wrapping golang.ErrNoModule, whose text names go.mod; an unknown
-// tokenizer yields ErrUnknownTokenizer.
+// LoadTarget resolves dir to its module root, module path and package
+// identifier, resolves the configuration and builds the extractor for the
+// module's language from both. Every operation resolves its target this
+// way. The module root is the nearest directory at or above dir that a
+// registered extractor detects: a go.mod for Go, a package.json for
+// TypeScript. When both are at the same root, Go is chosen and a warning
+// logged. A Go module's packages are named by import path; a TypeScript
+// module has no module path and names its packages by their directory
+// relative to the root. A dir outside any module yields an error wrapping
+// golang.ErrNoModule, whose text names go.mod; an unknown tokenizer yields
+// ErrUnknownTokenizer.
 func LoadTarget(dir string, opts TargetOptions) (*Target, error) {
 	tokenizer := opts.Tokenizer
 	if tokenizer == "" {
@@ -115,18 +122,6 @@ func LoadTarget(dir string, opts TargetOptions) (*Target, error) {
 	if !fi.IsDir() {
 		return nil, fmt.Errorf("resolving %s: %w", dir, ErrNotDir)
 	}
-	root, err := golang.FindModuleRoot(abs)
-	if err != nil {
-		return nil, fmt.Errorf("resolving %s: %w", dir, err)
-	}
-	modPath, err := golang.ModulePath(root)
-	if err != nil {
-		return nil, fmt.Errorf("reading module path of %s: %w", root, err)
-	}
-	pkgPath, importPath, err := packagePaths(root, abs, modPath)
-	if err != nil {
-		return nil, err
-	}
 
 	cfg, source := opts.Config, ""
 	if cfg == nil {
@@ -140,16 +135,24 @@ func LoadTarget(dir string, opts TargetOptions) (*Target, error) {
 			}
 		}
 	}
-	ext := golang.New(
-		golang.WithCharsPerToken(cfg.CharsPerToken),
-		golang.WithDupMinTokens(cfg.Duplication.MinTokens),
-		golang.WithDupIgnoreLiteralOnly(cfg.Duplication.IgnoreLiteralOnly),
-		golang.WithDupFoldSigns(cfg.Duplication.FoldSigns),
-		golang.WithTokenizer(tokenizer),
-		golang.WithLogger(opts.Logger),
-	)
-	if !ext.Detect(root) {
-		return nil, fmt.Errorf("detecting language of %s: %w", root, ErrNoLanguage)
+	reg, err := newRegistry(cfg, tokenizer, opts.Logger)
+	if err != nil {
+		return nil, err
+	}
+	root, ext, err := detectModule(abs, reg, opts.Logger)
+	if err != nil {
+		return nil, fmt.Errorf("resolving %s: %w", dir, err)
+	}
+	modPath := ""
+	if ext.Language() == languageGo {
+		modPath, err = golang.ModulePath(root)
+		if err != nil {
+			return nil, fmt.Errorf("reading module path of %s: %w", root, err)
+		}
+	}
+	pkgPath, importPath, err := packagePaths(root, abs, modPath)
+	if err != nil {
+		return nil, err
 	}
 	return &Target{
 		Mod:          &metrics.ModuleContext{Root: root, ModulePath: modPath},
@@ -164,25 +167,97 @@ func LoadTarget(dir string, opts TargetOptions) (*Target, error) {
 	}, nil
 }
 
+// languageGo is the language identifier of the Go extractor.
+const languageGo = "go"
+
+// newRegistry returns every supported extractor configured from cfg, the
+// tokenizer and logger, Go first so that it wins a tie.
+func newRegistry(cfg *config.Config, tokenizer string, logger *slog.Logger) (*metrics.Registry, error) {
+	reg, err := metrics.NewRegistry(
+		golang.New(
+			golang.WithCharsPerToken(cfg.CharsPerToken),
+			golang.WithDupMinTokens(cfg.Duplication.MinTokens),
+			golang.WithDupIgnoreLiteralOnly(cfg.Duplication.IgnoreLiteralOnly),
+			golang.WithDupFoldSigns(cfg.Duplication.FoldSigns),
+			golang.WithTokenizer(tokenizer),
+			golang.WithLogger(logger),
+		),
+		typescript.New(
+			typescript.WithCharsPerToken(cfg.CharsPerToken),
+			typescript.WithDuplication(cfg.Duplication.MinTokens, cfg.Duplication.IgnoreLiteralOnly,
+				cfg.Duplication.FoldSigns),
+			typescript.WithTokenizer(tokenizer),
+			typescript.WithLogger(logger),
+		),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("registering extractors: %w", err)
+	}
+	return reg, nil
+}
+
+// detectModule walks up from the absolute directory dir to the nearest
+// directory some extractor of reg detects, and returns it with that
+// extractor. When several detect the same directory, the first registered
+// wins and logger, if set, is warned. It wraps golang.ErrNoModule when no
+// directory up to the file system root is detected.
+func detectModule(dir string, reg *metrics.Registry, logger *slog.Logger) (string, metrics.Extractor, error) {
+	for {
+		ext, err := reg.Detect(dir)
+		switch {
+		case err == nil:
+			return dir, ext, nil
+		case errors.Is(err, metrics.ErrAmbiguousLanguage):
+			ext = firstDetecting(dir, reg)
+			if logger != nil {
+				logger.Warn("several languages detected; using the first", "root", dir, "language", ext.Language(), "detail", err.Error())
+			}
+			return dir, ext, nil
+		case !errors.Is(err, metrics.ErrNoExtractor):
+			return "", nil, err
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", nil, fmt.Errorf("%w (nor any package.json): %w", golang.ErrNoModule, ErrNoLanguage)
+		}
+		dir = parent
+	}
+}
+
+// firstDetecting returns the first extractor of reg, in registration order,
+// that detects root. Call it only when one does.
+func firstDetecting(root string, reg *metrics.Registry) metrics.Extractor {
+	var first metrics.Extractor
+	for _, lang := range reg.Languages() {
+		if ext, ok := reg.Lookup(lang); ok && first == nil && ext.Detect(root) {
+			first = ext
+		}
+	}
+	return first
+}
+
 // packagePaths returns the slash-separated path of dir relative to root ("."
-// for root itself) and the import path it has in module modPath. Both root
-// and dir must be absolute, with dir at or below root.
+// for root itself) and the package identifier it has in module modPath: its
+// import path, or, when modPath is empty as for a TypeScript module, the
+// relative path itself. Both root and dir must be absolute, with dir at or
+// below root.
 func packagePaths(root, dir, modPath string) (pkgPath, importPath string, err error) {
 	rel, err := filepath.Rel(root, dir)
 	if err != nil {
 		return "", "", fmt.Errorf("relating %s to module root %s: %w", dir, root, err)
 	}
 	rel = filepath.ToSlash(rel)
-	if rel == "." {
-		return rel, modPath, nil
-	}
-	return rel, modPath + "/" + rel, nil
+	return rel, importPathOf(modPath, rel), nil
 }
 
 // modulePathRel returns the directory of the package with import path
 // importPath relative to the root of module modPath, in slash form: "." for
-// the root package, matching assess's package_path.
+// the root package, matching assess's package_path. With an empty modPath
+// the identifier already is that directory.
 func modulePathRel(modPath, importPath string) string {
+	if modPath == "" {
+		return importPath
+	}
 	if importPath == modPath {
 		return "."
 	}
@@ -190,8 +265,12 @@ func modulePathRel(modPath, importPath string) string {
 }
 
 // importPathOf returns the import path of the package in the module-relative
-// slash directory dir of module modPath; the inverse of modulePathRel.
+// slash directory dir of module modPath, or dir itself when modPath is
+// empty; the inverse of modulePathRel.
 func importPathOf(modPath, dir string) string {
+	if modPath == "" {
+		return dir
+	}
 	if dir == "." {
 		return modPath
 	}

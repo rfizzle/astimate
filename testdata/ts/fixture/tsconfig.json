@@ -1,0 +1,10 @@
+{
+  // Path aliases resolve inside the module; trailing commas are allowed.
+  "compilerOptions": {
+    "strict": true,
+    "baseUrl": ".",
+    "paths": {
+      "@app/*": ["./*"],
+    },
+  },
+}
