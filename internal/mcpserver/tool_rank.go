@@ -49,11 +49,11 @@ type rankResult struct {
 
 // addRankTool registers rank_packages on srv, backed by s.
 func addRankTool(srv *mcp.Server, s *session) {
-	mcp.AddTool(srv, &mcp.Tool{
+	mcp.AddTool(srv, withOutputSchema[rankResult](&mcp.Tool{
 		Name:        rankToolName,
 		Title:       "Rank a module's packages by rebuild effort",
 		Description: rankToolDescription,
-	}, s.rankPackages)
+	}, s.opts.logger()), s.rankPackages)
 }
 
 // rankPackages handles a rank_packages call. Packages that fail to extract

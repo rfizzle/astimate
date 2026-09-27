@@ -25,6 +25,10 @@ const serveChildEnv = "ASTIMATE_TEST_SERVE"
 // --config.
 const serveChildConfigEnv = "ASTIMATE_TEST_SERVE_CONFIG"
 
+// serveChildAllowAnyPathEnv, when set to 1 in the child, passes
+// --allow-any-path to serve.
+const serveChildAllowAnyPathEnv = "ASTIMATE_TEST_SERVE_ALLOW_ANY_PATH"
+
 // TestServeChild is the body of the child process the serve tests start: it
 // runs the real main with `serve` on the process's own stdin and stdout. It
 // does nothing in a normal test run.
@@ -35,6 +39,9 @@ func TestServeChild(t *testing.T) {
 	os.Args = []string{"astimate", "serve"}
 	if path := os.Getenv(serveChildConfigEnv); path != "" {
 		os.Args = append(os.Args, "--config", path)
+	}
+	if os.Getenv(serveChildAllowAnyPathEnv) == "1" {
+		os.Args = append(os.Args, "--allow-any-path")
 	}
 	main()
 }
@@ -69,19 +76,28 @@ func (s *logSink) String() string {
 	return s.buf.String()
 }
 
-// startServe starts `astimate serve` in a child process and returns it with
-// pipes to its stdin and stdout and the sink collecting its stderr. It
-// returns once the server has logged that its session is up, so a caller
-// timing shutdown does not also time process start, which on a fresh test
-// binary can take most of a second.
+// startServe starts `astimate serve` in a child process in an empty
+// directory, so with the embedded default config, and returns it with pipes
+// to its stdin and stdout and the sink collecting its stderr. It returns
+// once the server has logged that its session is up, so a caller timing
+// shutdown does not also time process start, which on a fresh test binary
+// can take most of a second.
 func startServe(t *testing.T) (*exec.Cmd, io.WriteCloser, io.ReadCloser, *logSink) {
+	t.Helper()
+	return startServeIn(t, t.TempDir())
+}
+
+// startServeIn is startServe with the child's working directory set to dir
+// and env added to the child's environment.
+func startServeIn(t *testing.T, dir string, env ...string) (*exec.Cmd, io.WriteCloser, io.ReadCloser, *logSink) {
 	t.Helper()
 
 	cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^TestServeChild$")
 	// Under -race the runtime sleeps a second before exiting by default,
 	// which would hide how fast serve itself exits.
 	cmd.Env = append(os.Environ(), serveChildEnv+"=1", "GORACE=atexit_sleep_ms=0")
-	cmd.Dir = t.TempDir() // no astimate.yaml: the embedded default config
+	cmd.Env = append(cmd.Env, env...)
+	cmd.Dir = dir
 	stderr := &logSink{ready: make(chan struct{})}
 	cmd.Stderr = stderr
 	stdin, err := cmd.StdinPipe()

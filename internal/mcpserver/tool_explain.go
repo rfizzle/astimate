@@ -51,11 +51,11 @@ type explainThreshold struct {
 
 // addExplainTool registers explain_metric on srv, backed by s.
 func addExplainTool(srv *mcp.Server, s *session) {
-	mcp.AddTool(srv, &mcp.Tool{
+	mcp.AddTool(srv, withOutputSchema[explainResult](&mcp.Tool{
 		Name:        explainToolName,
 		Title:       "Explain a metric",
 		Description: explainToolDescription,
-	}, s.explainMetric)
+	}, s.opts.logger()), s.explainMetric)
 }
 
 // explainMetric handles an explain_metric call. An unknown metric is a

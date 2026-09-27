@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 
+	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/rfizzle/astimate/internal/engine"
@@ -37,18 +39,50 @@ type CheckInput struct {
 	BaselineFile string `json:"baseline_file,omitempty" jsonschema:"Baseline file written by 'astimate baseline write' to compare against instead of a git ref, relative to the server's working directory or absolute."`
 }
 
-// checkError is the structured content of a failed check_package call.
+// checkError is the structured content of a failed call to any tool.
 type checkError struct {
 	Error string `json:"error"`
 }
 
+// outputSchema returns the output schema of a tool whose structured content
+// is a T on success and a checkError on failure: a oneOf of the two schemas
+// inferred from the Go types. Inferred struct schemas forbid undeclared
+// properties, so the error branch rejects a report and the success branch
+// rejects {"error": ...}, and every result matches exactly one branch. The
+// SDK validates each result's structured content against it before sending.
+func outputSchema[T any]() (*jsonschema.Schema, error) {
+	ok, err := jsonschema.For[T](nil)
+	if err != nil {
+		return nil, fmt.Errorf("inferring the result schema: %w", err)
+	}
+	failed, err := jsonschema.For[checkError](nil)
+	if err != nil {
+		return nil, fmt.Errorf("inferring the error schema: %w", err)
+	}
+	return &jsonschema.Schema{Type: "object", OneOf: []*jsonschema.Schema{ok, failed}}, nil
+}
+
+// withOutputSchema sets t's output schema to outputSchema[T] and returns t.
+// Inference only fails on a result type it cannot describe, a programming
+// error the tool listing tests catch; the tool is then registered without
+// an output schema and the failure is logged.
+func withOutputSchema[T any](t *mcp.Tool, logger *slog.Logger) *mcp.Tool {
+	schema, err := outputSchema[T]()
+	if err != nil {
+		logger.Error("tool registered without an output schema", "tool", t.Name, "err", err)
+		return t
+	}
+	t.OutputSchema = schema
+	return t
+}
+
 // addCheckTool registers check_package on srv, backed by s.
 func addCheckTool(srv *mcp.Server, s *session) {
-	mcp.AddTool(srv, &mcp.Tool{
+	mcp.AddTool(srv, withOutputSchema[report.Report](&mcp.Tool{
 		Name:        checkToolName,
 		Title:       "Check a package against its baseline",
 		Description: checkToolDescription,
-	}, s.checkPackage)
+	}, s.opts.logger()), s.checkPackage)
 }
 
 // checkPackage handles a check_package call. A gate failure is a normal

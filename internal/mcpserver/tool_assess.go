@@ -33,11 +33,11 @@ type AssessInput struct {
 
 // addAssessTool registers assess_package on srv, backed by s.
 func addAssessTool(srv *mcp.Server, s *session) {
-	mcp.AddTool(srv, &mcp.Tool{
+	mcp.AddTool(srv, withOutputSchema[report.Report](&mcp.Tool{
 		Name:        assessToolName,
 		Title:       "Assess a package's rebuild estimate",
 		Description: assessToolDescription,
-	}, s.assessPackage)
+	}, s.opts.logger()), s.assessPackage)
 }
 
 // assessPackage handles an assess_package call. An input, resolution or
