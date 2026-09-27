@@ -125,7 +125,7 @@ jobs:
 
       - uses: ./action
         with:
-          version: source
+          version: v0.1.0
           base: origin/${{ github.base_ref }}
 
   # release-snapshot builds the release with goreleaser without publishing

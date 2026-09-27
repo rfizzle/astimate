@@ -45,7 +45,7 @@ Install the snippet in a scratch repository, have the agent add an untested expo
 
 | Check | Status |
 | --- | --- |
-| Release install: `version: <tag>` in a workflow downloads and runs the published release | _pending the first `v*` tag_ |
+| Release install: `version: <tag>` in a workflow downloads and runs the published release | 2026-09-28: tag `v0.1.0` (commit 3d49744) was published by the release workflow (https://github.com/rfizzle/astimate/actions/runs/36339878200, 2m11s) with the four archives and `checksums.txt`. `action/install.sh` with `ASTIMATE_VERSION=v0.1.0`, `RUNNER_OS=macOS`, `RUNNER_ARCH=ARM64` downloaded `astimate_0.1.0_darwin_arm64.tar.gz` from the live release, verified it (`OK`), and the installed binary reported `version: v0.1.0`, commit 3d49744. The `gate` job now uses `version: v0.1.0`; its first run on a pull request is still to be recorded under GitHub Action below. |
 
 ## GitHub Action
 
