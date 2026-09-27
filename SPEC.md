@@ -183,6 +183,7 @@ Rules that the section 6 table leaves implicit, fixed here so goldens and implem
 - `tokens_est` sums bytes across files first, then divides by `chars_per_token` and truncates.
 - `fan_in_tests` counts other packages whose test files import this package; a package's own external test package importing it does not count.
 - `sloc` counts a line with code and a trailing comment as code.
+- For a cgo package, every syntactic metric is counted from the package's Go source files, never from the files cgo generates; `import "C"` is not an import of any class. The type-dependent `untested_exports` uses the type-checked trees, whose declarations and doc comments match the source.
 
 ## 7. Rebuild estimate
 
