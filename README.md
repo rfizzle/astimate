@@ -58,7 +58,7 @@ The default thresholds are placeholders until they are calibrated against a corp
 
 ### GitHub Action
 
-The composite action in [`action/`](action/action.yml) installs astimate and runs `astimate check --format github`. Violations become `::error` annotations and warnings `::warning` annotations, each on the package directory. Exit 3 (gate failed) and exit 2 (analysis failed) both fail the job.
+The composite action in [`action/`](action/action.yml) installs astimate and runs `astimate check --format github`. Violations become `::error` annotations and warnings `::warning` annotations, each on the file and line that caused it where the extractor can say (a duplicate block, an untested export's or a global's declaration, the complex function, the largest file for size rules, else the package's `doc.go` or first file), so they land on the pull request's diff; paths are relative to the repository root even for a module below it. Exit 3 (gate failed) and exit 2 (analysis failed) both fail the job.
 
 ```yaml
 on: pull_request
@@ -82,6 +82,7 @@ jobs:
 | `base` | `origin/master` | Ref whose merge-base with `HEAD` is the baseline. Empty uses astimate's default ref. |
 | `config` | empty | Path to `astimate.yaml`; empty uses `./astimate.yaml`, then the embedded default. |
 | `all` | `false` | `true` checks every package, not only those changed since the merge-base. |
+| `path` | `.` | Module root to check, relative to the repository root, for a module below it such as `services/api`. Annotation paths stay relative to the repository root. |
 | `format` | `github` | `check --format` value. |
 
 `fetch-depth: 0` is required: with the default shallow clone the merge-base does not exist and the action stops with exit 2 (`base ref ... not found`) or warns that the clone is shallow. For a `pull_request` event the checkout is the merge commit, so the packages checked are those the pull request changes. If `origin/<base>` might be missing, fetch it first with `git fetch --no-tags origin "+refs/heads/<base>:refs/remotes/origin/<base>"`, as this repository's `gate` job in [`ci.yml`](.github/workflows/ci.yml) does.

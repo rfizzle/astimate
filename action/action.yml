@@ -25,6 +25,13 @@ inputs:
     description: '"true" checks every package instead of only the packages changed since the merge-base.'
     required: false
     default: "false"
+  path:
+    description: >-
+      Module root to check, relative to the repository root, for a module
+      below it such as services/api. Annotation paths stay relative to the
+      repository root, so they land on the pull request's diff.
+    required: false
+    default: "."
   format:
     description: Output format passed to astimate check; github emits ::error and ::warning annotations.
     required: false
@@ -47,5 +54,6 @@ runs:
         ASTIMATE_CONFIG: ${{ inputs.config }}
         ASTIMATE_ALL: ${{ inputs.all }}
         ASTIMATE_FORMAT: ${{ inputs.format }}
+        ASTIMATE_PATH: ${{ inputs.path }}
         ACTION_DIR: ${{ github.action_path }}
       run: '"$ACTION_DIR/run.sh"'

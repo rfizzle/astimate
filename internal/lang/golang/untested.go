@@ -23,6 +23,9 @@ type untestedCounts struct {
 	// names are the untested funcs and methods, written Func or
 	// Type.Method, sorted.
 	names []string
+	// pos holds the declaring identifier of each of names, index for
+	// index, for annotations.
+	pos []token.Pos
 	// excluded are the exported funcs and methods carrying the
 	// //astimate:untested directive, in the same form, sorted. They are a
 	// debug record of what the directive removed from the count.
@@ -71,6 +74,8 @@ func untestedExports(l *loaded, p *packages.Package) untestedCounts {
 	// recvs maps a method name to the receiver type names declaring it, for
 	// interface dispatch.
 	recvs := make(map[string][]string)
+	// declared holds the position of each counted key's identifier.
+	declared := make(map[string]token.Pos)
 	for _, f := range p.Syntax {
 		for _, d := range f.Decls {
 			fd, ok := d.(*ast.FuncDecl)
@@ -90,6 +95,7 @@ func untestedExports(l *loaded, p *packages.Package) untestedCounts {
 				continue
 			}
 			marked[key] = false
+			declared[key] = fd.Name.Pos()
 			if recv != "" {
 				recvs[fn.Name()] = append(recvs[fn.Name()], recv)
 			}
@@ -105,6 +111,10 @@ func untestedExports(l *loaded, p *packages.Package) untestedCounts {
 	}
 	slices.Sort(c.names)
 	slices.Sort(c.excluded)
+	c.pos = make([]token.Pos, len(c.names))
+	for i, key := range c.names {
+		c.pos[i] = declared[key]
+	}
 	c.untested = len(c.names)
 	return c
 }

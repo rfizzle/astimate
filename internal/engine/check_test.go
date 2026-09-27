@@ -79,12 +79,18 @@ func TestCheckTokenizerMismatch(t *testing.T) {
 			tg := fakeTarget("")
 			tg.Tokenizer = tt.check
 			tg.Logger = slog.New(slog.NewTextHandler(&logs, nil))
-			_, failed, err := Check(t.Context(), tg, CheckOptions{
+			c, failed, err := Check(t.Context(), tg, CheckOptions{
 				BaselineFile: writeFakeBaselineTokenizer(t, tt.file),
 				Packages:     []string{"example.com/m/big"},
 			})
 			if err != nil || len(failed) != 0 {
 				t.Fatalf("Check = (%v, %v), want no error despite the tokenizers", failed, err)
+			}
+			// The report carries what the log says, for JSON, hook and
+			// GitHub consumers that never see stderr.
+			b := c.Packages[0].Report.Baseline
+			if b == nil || b.Tokenizer != tt.file || b.TokensComparable != (tt.wantWarns == 0) {
+				t.Errorf("baseline block = %+v, want tokenizer %s, comparable %v", b, tt.file, tt.wantWarns == 0)
 			}
 			if got := strings.Count(logs.String(), "differs from check tokenizer"); got != tt.wantWarns {
 				t.Errorf("logged %d tokenizer warnings, want %d; logs:\n%s", got, tt.wantWarns, logs.String())

@@ -3,6 +3,7 @@ package golang
 import (
 	"context"
 	"fmt"
+	"go/token"
 
 	"github.com/rfizzle/astimate/internal/lang/duptok"
 	"github.com/rfizzle/astimate/internal/metrics"
@@ -30,6 +31,13 @@ type details struct {
 	blank, dot                      []string
 	tokensMethod                    string
 	functions                       []funcComplexity
+	// untestedPos and globalPos are the declarations behind
+	// untestedNames, index for index, and globals.
+	untestedPos, globalPos []token.Pos
+	// largestFile is the absolute filename of the largest non-test file.
+	largestFile string
+	// files are the absolute filenames of the non-test files.
+	files []string
 }
 
 // assemble computes every v0 metric of p in l and maps it into RawMetrics by
@@ -109,6 +117,10 @@ func assemble(ctx context.Context, l *loaded, p *packages.Package, opts assemble
 		dot:              imp.dot,
 		tokensMethod:     tok.method,
 		functions:        cx.perFunc,
+		untestedPos:      un.pos,
+		globalPos:        gl.pos,
+		largestFile:      sz.largestFile,
+		files:            p.GoFiles,
 	})
 	return metrics.RawMetrics{
 		Files:              sz.files,

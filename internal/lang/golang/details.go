@@ -14,9 +14,11 @@ import (
 
 // Details returns the names behind untested_exports, the duplicate block
 // locations and the cross-package blocks touching the package with import
-// path pkg, from the details its most recent Extract on mod recorded and
-// the memoized cross-package pass. When nothing is recorded it runs Extract
-// first, so it fails exactly when Extract would.
+// path pkg, the declarations of its untested exports and globals, its
+// largest file and its source files, from the details its most recent
+// Extract on mod recorded and the memoized cross-package pass. When nothing
+// is recorded it runs Extract first, so it fails exactly when Extract
+// would.
 func (e *Extractor) Details(ctx context.Context, mod *metrics.ModuleContext, pkg string) (metrics.Details, error) {
 	d, l, dir, err := e.recorded(ctx, mod, pkg)
 	if err != nil {
@@ -36,12 +38,40 @@ func (e *Extractor) Details(ctx context.Context, mod *metrics.ModuleContext, pkg
 		}
 		cross = crossBlocksOf(c, pkg)
 	}
+	files := make([]string, 0, len(d.files))
+	for _, f := range d.files {
+		files = append(files, relFile(dir, f))
+	}
+	slices.Sort(files)
 	return metrics.Details{
-		UntestedExports:  slices.Clone(d.untestedNames),
-		UntestedExcluded: slices.Clone(d.untestedExcluded),
-		DupLocations:     locs,
-		CrossBlocks:      cross,
+		UntestedExports:   slices.Clone(d.untestedNames),
+		UntestedExcluded:  slices.Clone(d.untestedExcluded),
+		DupLocations:      locs,
+		CrossBlocks:       cross,
+		UntestedPositions: positions(l.fset, dir, d.untestedPos),
+		GlobalPositions:   positions(l.fset, dir, d.globalPos),
+		LargestFile:       relFile(dir, d.largestFile),
+		SourceFiles:       files,
 	}, nil
+}
+
+// positions resolves each of ps in fset to a file relative to dir and a
+// line, honoring //line directives, so a cgo package's rewritten sources
+// map back to the files cgo read. It returns nil for no positions, and an
+// invalid position, or a nil fset, yields an empty Position.
+func positions(fset *token.FileSet, dir string, ps []token.Pos) []metrics.Position {
+	if len(ps) == 0 {
+		return nil
+	}
+	out := make([]metrics.Position, len(ps))
+	for i, p := range ps {
+		if fset == nil || !p.IsValid() {
+			continue
+		}
+		pos := fset.Position(p)
+		out[i] = metrics.Position{File: relFile(dir, pos.Filename), Line: pos.Line}
+	}
+	return out
 }
 
 // Functions returns the top-level functions and methods of the package with

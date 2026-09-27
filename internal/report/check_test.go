@@ -244,6 +244,159 @@ func TestWriteGitHub(t *testing.T) {
 	}
 }
 
+// TestWriteGitHubLocations annotates a fixed check of a module below the
+// repository root: located findings on their file and line, an unlocated
+// one on its package directory and a module-row finding on its block, all
+// prefixed with the module's directory.
+func TestWriteGitHubLocations(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		moduleDir string
+		want      string
+	}{
+		{name: "module below the repository root", moduleDir: "services/api", want: "" +
+			"::error file=services/api/internal/billing/dupes.go,line=40::module: dup_blocks_cross_pkg: 0 -> 1, max_delta +0.\n" +
+			"::error file=services/api/internal/billing/dupes.go,line=12::dup_blocks: 1 -> 3, max_delta +0. Extract helpers.\n" +
+			"::error file=services/api/internal/billing::globals: 0 -> 1, max_delta +0. Pass it explicitly.\n" +
+			"::warning file=services/api/internal/billing/billing.go::tokens_est: 24100 (no baseline), max 30000. at 80%25 of the 30000 ceiling; plan a split.\n" +
+			"::warning file=services/api/main.go,line=1::tokens_est: 25000 (no baseline), max 30000. at 83%25 of the 30000 ceiling.\n"},
+		{name: "module at the repository root", want: "" +
+			"::error file=internal/billing/dupes.go,line=40::module: dup_blocks_cross_pkg: 0 -> 1, max_delta +0.\n" +
+			"::error file=internal/billing/dupes.go,line=12::dup_blocks: 1 -> 3, max_delta +0. Extract helpers.\n" +
+			"::error file=internal/billing::globals: 0 -> 1, max_delta +0. Pass it explicitly.\n" +
+			"::warning file=internal/billing/billing.go::tokens_est: 24100 (no baseline), max 30000. at 80%25 of the 30000 ceiling; plan a split.\n" +
+			"::warning file=main.go,line=1::tokens_est: 25000 (no baseline), max 30000. at 83%25 of the 30000 ceiling.\n"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			c := fixedCheck()
+			c.ModuleDir = tt.moduleDir
+			billing := &c.Packages[0].Report
+			billing.Violations[0].File, billing.Violations[0].Line = "internal/billing/dupes.go", 12
+			billing.Warnings[0].File = "internal/billing/billing.go" // a file without a line
+			root := &c.Packages[1].Report
+			root.PackagePath = "."
+			root.Warnings[0].File, root.Warnings[0].Line = "main.go", 1
+			zero, one := 0, 1
+			mod := Build(&Input{Language: "go", PackagePath: metrics.ModuleRowID, ModulePath: "example.com/app",
+				Metrics: metrics.RawMetrics{DupBlocksCrossPkg: &one}, Params: params()})
+			ApplyGate(&mod, "a1b2c3d", &metrics.RawMetrics{DupBlocksCrossPkg: &zero}, &gate.Result{
+				Violations: []gate.Violation{{Metric: "dup_blocks_cross_pkg", Head: 1, HasBase: true, Limit: "max_delta +0"}},
+			})
+			mod.Violations[0].File, mod.Violations[0].Line = "internal/billing/dupes.go", 40
+			c.Module = &CheckedPackage{Report: mod}
+
+			var buf bytes.Buffer
+			if err := WriteGitHub(&buf, c); err != nil {
+				t.Fatal(err)
+			}
+			if buf.String() != tt.want {
+				t.Errorf("github =\n%s\nwant\n%s", buf.String(), tt.want)
+			}
+		})
+	}
+}
+
+// tokenizerCheck returns fixedCheck with each baseline block marked as
+// counted with baseTokenizer by a check counting with est.
+func tokenizerCheck(baseTokenizer string) *Check {
+	c := fixedCheck()
+	c.Tokenizer = "est"
+	for i := range c.Packages {
+		MarkTokenizer(&c.Packages[i].Report, baseTokenizer, c.Tokenizer)
+	}
+	return c
+}
+
+func TestMarkTokenizer(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name           string
+		base           string
+		wantComparable string
+	}{
+		{name: "same tokenizer", base: "est", wantComparable: "true"},
+		{name: "other tokenizer", base: "o200k", wantComparable: "false"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			c := tokenizerCheck(tt.base)
+			if c.Packages[1].Report.Baseline != nil {
+				t.Error("MarkTokenizer added a baseline block to a package without one")
+			}
+			var buf bytes.Buffer
+			if err := WriteCheckJSON(&buf, c); err != nil {
+				t.Fatal(err)
+			}
+			var got []struct {
+				Baseline map[string]json.RawMessage `json:"baseline"`
+			}
+			if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
+				t.Fatalf("decoding %s: %v", buf.String(), err)
+			}
+			b := got[0].Baseline
+			if string(b["tokenizer"]) != `"`+tt.base+`"` || string(b["tokens_comparable"]) != tt.wantComparable {
+				t.Errorf("baseline tokenizer %s, tokens_comparable %s; want %q, %s",
+					b["tokenizer"], b["tokens_comparable"], tt.base, tt.wantComparable)
+			}
+		})
+	}
+}
+
+// TestTokenizerNote checks that the hook and GitHub formats say when the
+// baseline's token counts are not comparable, and stay silent otherwise.
+func TestTokenizerNote(t *testing.T) {
+	t.Parallel()
+
+	const note = "baseline tokenizer o200k differs from check tokenizer est; token counts are not comparable"
+	for _, base := range []string{"est", "o200k"} {
+		t.Run(base, func(t *testing.T) {
+			t.Parallel()
+
+			want := base != "est"
+			var gh bytes.Buffer
+			if err := WriteGitHub(&gh, tokenizerCheck(base)); err != nil {
+				t.Fatal(err)
+			}
+			if got := strings.HasPrefix(gh.String(), "::warning title=astimate::"+note+"\n"); got != want {
+				t.Errorf("github leads with the tokenizer warning = %v, want %v:\n%s", got, want, gh.String())
+			}
+			var out, warn bytes.Buffer
+			if err := WriteHook(&out, &warn, tokenizerCheck(base)); err != nil {
+				t.Fatal(err)
+			}
+			var block hookBlock
+			if err := json.Unmarshal(out.Bytes(), &block); err != nil {
+				t.Fatal(err)
+			}
+			if got := strings.Contains(block.Reason, "warning: "+note+"\n"); got != want {
+				t.Errorf("hook reason has the tokenizer warning = %v, want %v:\n%s", got, want, block.Reason)
+			}
+		})
+	}
+	t.Run("hook success", func(t *testing.T) {
+		t.Parallel()
+
+		c := passingCheck()
+		c.Tokenizer = "est"
+		MarkTokenizer(&c.Packages[0].Report, "o200k", "est")
+		var out, warn bytes.Buffer
+		if err := WriteHook(&out, &warn, c); err != nil {
+			t.Fatal(err)
+		}
+		if out.String() != "{}\n" || warn.String() != "warning: "+note+"\n" {
+			t.Errorf("stdout = %q, warnings = %q, want {} and the tokenizer warning", out.String(), warn.String())
+		}
+	})
+}
+
 func TestWorkflowEscapes(t *testing.T) {
 	t.Parallel()
 

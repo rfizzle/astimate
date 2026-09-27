@@ -26,6 +26,29 @@ type Details struct {
 	// row's dup_blocks_cross_pkg. Blocks are in order of first occurrence.
 	// Nil when there are none or the implementation does not compute them.
 	CrossBlocks []CrossBlock
+	// UntestedPositions are the declarations of UntestedExports, index for
+	// index. Nil when the implementation does not record them.
+	UntestedPositions []Position
+	// GlobalPositions are the declarations of the names counted by globals,
+	// in declaration order. Nil when there are none or the implementation
+	// does not record them.
+	GlobalPositions []Position
+	// LargestFile is the non-test file with the most source lines, the one
+	// largest_file_sloc measures, relative to the package directory in
+	// slash form; the first such file on a tie. Empty when unknown.
+	LargestFile string
+	// SourceFiles are the package's non-test source files relative to the
+	// package directory in slash form, sorted. Nil when unknown.
+	SourceFiles []string
+}
+
+// Position is a place in a package's source, for renderers that annotate
+// the line a finding refers to.
+type Position struct {
+	// File is relative to the package directory, in slash form.
+	File string
+	// Line is 1-based; 0 when unknown.
+	Line int
 }
 
 // CrossBlock is one duplicate block whose occurrences lie in two or more

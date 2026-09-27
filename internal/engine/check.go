@@ -6,8 +6,11 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path"
 	"path/filepath"
+	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 
@@ -151,6 +154,13 @@ func (c *BaselineCache) get(key string, load func() (baseline.Baseline, error)) 
 // file that records no functions, it stays null and its rule is skipped,
 // the latter with one info log.
 //
+// Each finding is located on the file and line that caused it where the
+// extractor can say (locateFindings, locateCross), and the result carries
+// the module root's directory in its repository (baseline.RepoDir) so
+// renderers can make those paths repository-relative. Each baseline block
+// records the baseline's tokenizer and whether it is t's
+// (report.MarkTokenizer).
+//
 // With opts.Staged the head packages are listed and extracted from a
 // temporary copy of the index (stagedTarget), removed before Check
 // returns, also on SIGINT or SIGTERM; git commands and the baseline still
@@ -206,7 +216,12 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 		}
 	}
 
-	c = &report.Check{Packages: make([]report.CheckedPackage, 0, len(selected)), Deleted: deleted}
+	c = &report.Check{
+		Packages:  make([]report.CheckedPackage, 0, len(selected)),
+		Deleted:   deleted,
+		ModuleDir: baseline.RepoDir(ctx, t.Mod.Root),
+		Tokenizer: t.tokenizer(),
+	}
 	noFunctions := false
 	eff := t.langConfig()
 	pkgRules := gate.ForRow(eff.Thresholds, gate.PackageRow)
@@ -499,6 +514,7 @@ func checkModule(ctx context.Context, t *Target, mm metrics.ModuleMetrics, base 
 		AstimateVersion: t.Version,
 	})
 	report.ApplyGate(&r, base.Ref(), bm, &res)
+	report.MarkTokenizer(&r, base.Tokenizer(), t.tokenizer())
 	located := names.CrossBlocks
 	if blame != nil && len(blame.blocks) > 0 {
 		located = blame.blocks
@@ -543,17 +559,19 @@ func locateCross(r *report.Report, blocks []metrics.CrossBlock) {
 // the function-level diff against base (changedFunctions), evaluates it
 // against its baseline metrics, if base has any, and rules, the configured
 // thresholds that apply to a package row, and builds its report with eff,
-// the configuration of t's language. unrecorded reports that the diff was
-// skipped because base has pkg but no functions for it.
+// the configuration of t's language, its findings located where the
+// extractor's details say (locateFindings). unrecorded reports that the
+// diff was skipped because base has pkg but no functions for it.
 func checkPackage(ctx context.Context, t *Target, base baseline.Baseline, pkg string, eff config.Effective, rules []gate.Threshold) (p report.CheckedPackage, unrecorded bool, err error) {
 	m, err := t.Ext.Extract(ctx, t.Mod, pkg)
 	if err != nil {
 		return report.CheckedPackage{}, false, err
 	}
-	names, err := Names(ctx, t, pkg)
+	det, err := packageDetails(ctx, t.Ext, t.Mod, pkg)
 	if err != nil {
 		return report.CheckedPackage{}, false, err
 	}
+	names := namesOf(&det)
 	var bm *metrics.RawMetrics
 	if v, ok := base.Metrics(pkg); ok {
 		bm = &v
@@ -587,6 +605,8 @@ func checkPackage(ctx context.Context, t *Target, base baseline.Baseline, pkg st
 		AstimateVersion: t.Version,
 	})
 	report.ApplyGate(&r, base.Ref(), bm, &res)
+	report.MarkTokenizer(&r, base.Tokenizer(), t.tokenizer())
+	locateFindings(&r, &det, worst)
 	p = report.CheckedPackage{Report: r}
 	if bm != nil {
 		passes := score.Estimate(*bm, eff.Rebuild).AgentPassesRounded()
@@ -596,7 +616,8 @@ func checkPackage(ctx context.Context, t *Target, base baseline.Baseline, pkg st
 }
 
 // changedFunction is the most complex function added or modified since the
-// baseline: its cognitive complexity and its display name.
+// baseline: its cognitive complexity, its display name and its location,
+// with the files every changed function lies in.
 type changedFunction struct {
 	// cognitive is the function's cognitive complexity; 0 when no function
 	// changed.
@@ -604,6 +625,13 @@ type changedFunction struct {
 	// name is the qualified name with "(file:line)" when the location is
 	// known; empty when no function changed.
 	name string
+	// file and line locate the function's declaration, file relative to
+	// the package directory; empty when unknown or no function changed.
+	file string
+	line int
+	// files holds the file, relative to the package directory, of each
+	// changed function whose file is known; nil when none is.
+	files map[string]bool
 }
 
 // changedFunctions diffs pkg's functions at head against base's
@@ -639,5 +667,134 @@ func changedFunctions(ctx context.Context, t *Target, base baseline.Baseline, pk
 	if f.File != "" {
 		name += " (" + f.File + ":" + strconv.Itoa(f.Line) + ")"
 	}
-	return &changedFunction{cognitive: f.Cognitive, name: name}, false, nil
+	w := &changedFunction{cognitive: f.Cognitive, name: name, file: f.File, line: f.Line}
+	for j := range changed {
+		if file := changed[j].File; file != "" {
+			if w.files == nil {
+				w.files = make(map[string]bool)
+			}
+			w.files[file] = true
+		}
+	}
+	return w, false, nil
+}
+
+// packageDetails returns the details of pkg when ext implements
+// metrics.Detailer, and the zero metrics.Details otherwise. Call it after
+// Extract for pkg on mod.
+func packageDetails(ctx context.Context, ext metrics.Extractor, mod *metrics.ModuleContext, pkg string) (metrics.Details, error) {
+	d, ok := ext.(metrics.Detailer)
+	if !ok {
+		return metrics.Details{}, nil
+	}
+	det, err := d.Details(ctx, mod, pkg)
+	if err != nil {
+		return metrics.Details{}, fmt.Errorf("naming suggestions for %s: %w", pkg, err)
+	}
+	return det, nil
+}
+
+// namesOf returns the names in d that suggestions quote.
+func namesOf(d *metrics.Details) score.Names {
+	return score.Names{UntestedExports: d.UntestedExports, DupLocations: d.DupLocations, CrossBlocks: d.CrossBlocks}
+}
+
+// locateFindings locates each of r's findings on the file and line that
+// caused it, as far as d, the package's details, and worst, its most
+// complex changed function (nil when unknown), can say:
+//
+//   - dup_blocks and duplication_pct on a duplicate block's occurrence,
+//   - untested_exports on an untested export's declaration,
+//   - globals on a global's declaration,
+//   - sloc, largest_file_sloc, tokens_est and tokens_est_with_tests on the
+//     largest file,
+//   - changed_func_cognitive_max on the function it measures,
+//   - any other metric, or one of the above with nothing recorded, on the
+//     package's doc.go, else its first source file.
+//
+// Among several candidates it takes the first in a file holding a changed
+// function, so the annotation lands on the diff, else the first. Files are
+// made module-relative by joining r's package path. A finding with no
+// candidate keeps no location, and renderers fall back to the package
+// directory.
+func locateFindings(r *report.Report, d *metrics.Details, worst *changedFunction) {
+	for _, fs := range [][]report.Finding{r.Violations, r.Warnings} {
+		for i := range fs {
+			if pos := findingPosition(fs[i].Metric, d, worst); pos.File != "" {
+				fs[i].File, fs[i].Line = path.Join(r.PackagePath, pos.File), pos.Line
+			}
+		}
+	}
+}
+
+// findingPosition returns the package-relative position locateFindings
+// puts a finding on metric at; its File is empty when there is none.
+func findingPosition(metric string, d *metrics.Details, worst *changedFunction) metrics.Position {
+	var changed map[string]bool
+	if worst != nil {
+		changed = worst.files
+	}
+	var pos metrics.Position
+	switch metric {
+	case "dup_blocks", "duplication_pct":
+		pos = pickPosition(dupPositions(d.DupLocations), changed)
+	case "untested_exports":
+		pos = pickPosition(d.UntestedPositions, changed)
+	case "globals":
+		pos = pickPosition(d.GlobalPositions, changed)
+	case "sloc", "largest_file_sloc", "tokens_est", "tokens_est_with_tests":
+		pos = metrics.Position{File: d.LargestFile, Line: 1}
+	case "changed_func_cognitive_max":
+		if worst != nil {
+			pos = metrics.Position{File: worst.file, Line: worst.line}
+		}
+	}
+	if pos.File != "" {
+		return pos
+	}
+	if slices.Contains(d.SourceFiles, "doc.go") {
+		return metrics.Position{File: "doc.go", Line: 1}
+	}
+	if len(d.SourceFiles) > 0 {
+		return metrics.Position{File: d.SourceFiles[0], Line: 1}
+	}
+	return metrics.Position{}
+}
+
+// pickPosition returns the first of ps in a file of changed, else the first
+// with a file, else the zero Position.
+func pickPosition(ps []metrics.Position, changed map[string]bool) metrics.Position {
+	first := metrics.Position{}
+	for _, p := range ps {
+		if p.File == "" {
+			continue
+		}
+		if changed[p.File] {
+			return p
+		}
+		if first.File == "" {
+			first = p
+		}
+	}
+	return first
+}
+
+// dupPositions parses metrics.Details.DupLocations, each "file:start-end",
+// into the position of each occurrence's first line, skipping any that
+// does not parse.
+func dupPositions(locs []string) []metrics.Position {
+	ps := make([]metrics.Position, 0, len(locs))
+	for _, loc := range locs {
+		i := strings.LastIndexByte(loc, ':')
+		if i <= 0 {
+			continue
+		}
+		start, _, _ := strings.Cut(loc[i+1:], "-")
+		line, err := strconv.Atoi(start)
+		if err != nil {
+			continue
+		}
+		ps = append(ps, metrics.Position{File: loc[:i], Line: line})
+	}
+	return ps
 }

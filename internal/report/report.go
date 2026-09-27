@@ -72,12 +72,21 @@ type Driver struct {
 	Detail string `json:"detail"`
 }
 
-// Baseline is the baseline block: the ref the metrics were taken at.
+// Baseline is the baseline block: the ref the metrics were taken at and
+// the tokenizer they were counted with.
 type Baseline struct {
 	// Ref names the baseline, for example a commit hash.
 	Ref string `json:"ref"`
 	// Metrics is the package's metrics at Ref.
 	Metrics metrics.RawMetrics `json:"metrics"`
+	// Tokenizer is the tokenizer the baseline counted tokens with; empty
+	// when unknown.
+	Tokenizer string `json:"tokenizer,omitempty"`
+	// TokensComparable reports whether Tokenizer is the check's own, so
+	// that token deltas against the baseline mean something. A baseline
+	// file written with another tokenizer leaves it false; the gate still
+	// runs, since capacity rules are absolute.
+	TokensComparable bool `json:"tokens_comparable"`
 }
 
 // Finding is one gate violation or warning.
@@ -92,12 +101,14 @@ type Finding struct {
 	Limit string `json:"limit"`
 	// Suggestion is the fix sentence.
 	Suggestion string `json:"suggestion"`
-	// File and Line locate the finding, for renderers that annotate a
-	// file, such as the module row's dup_blocks_cross_pkg finding on the
-	// first occurrence of the first shared block: File is relative to the
-	// module root in slash form and Line is 1-based. Empty when the finding
-	// has no location; a package finding is located by its package path.
-	// Neither is part of the SPEC.md 10.2 schema.
+	// File and Line locate the finding, for renderers that annotate the
+	// line that caused it, such as a dup_blocks finding on a duplicate
+	// block or the module row's dup_blocks_cross_pkg finding on the first
+	// occurrence of the first shared block: File is relative to the module
+	// root in slash form and Line is 1-based, 0 when only the file is
+	// known. Empty when the finding has no location; a package finding is
+	// then located by its package path. Neither is part of the SPEC.md
+	// 10.2 schema.
 	File string `json:"-"`
 	Line int    `json:"-"`
 }

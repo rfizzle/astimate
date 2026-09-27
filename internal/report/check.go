@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"path"
 	"strconv"
 	"strings"
 
@@ -29,6 +30,15 @@ type Check struct {
 	// files since the baseline. They appear in a summary line only, never as
 	// violations (SPEC.md 8.4).
 	Deleted []string
+	// ModuleDir is the module root's directory relative to the top level
+	// of the repository holding it, in slash form; empty when the module
+	// root is the top level or in no repository. WriteGitHub prefixes
+	// every file it annotates with it, since GitHub resolves annotation
+	// paths from the repository root.
+	ModuleDir string
+	// Tokenizer is the tokenizer the check counted tokens with, named in
+	// the line saying a baseline's token counts are not comparable.
+	Tokenizer string
 }
 
 // CheckedPackage is one checked package: its report with the gate outcome
@@ -75,6 +85,31 @@ func ApplyGate(r *Report, ref string, base *metrics.RawMetrics, res *gate.Result
 	r.Warnings = findings(res.Warnings)
 	passed := res.Passed
 	r.Passed = &passed
+}
+
+// MarkTokenizer records on r's baseline block, if it has one, the
+// tokenizer base the baseline counted tokens with and whether it is check,
+// the tokenizer of the check, so consumers of the report know when token
+// deltas are not comparable.
+func MarkTokenizer(r *Report, base, check string) {
+	if r.Baseline == nil {
+		return
+	}
+	r.Baseline.Tokenizer = base
+	r.Baseline.TokensComparable = base == check
+}
+
+// tokenizerNote returns the line saying token counts are not comparable
+// when a row's baseline counted tokens with another tokenizer than the
+// check did, and "" otherwise.
+func tokenizerNote(c *Check) string {
+	for _, p := range c.rows() {
+		if b := p.Report.Baseline; b != nil && b.Tokenizer != "" && !b.TokensComparable {
+			return "baseline tokenizer " + b.Tokenizer + " differs from check tokenizer " + c.Tokenizer +
+				"; token counts are not comparable"
+		}
+	}
+	return ""
 }
 
 // findings converts gate violations or warnings to report findings; the
@@ -278,11 +313,15 @@ type hookBlock struct {
 // {"decision":"block","reason":...} when any package has a violation, the
 // reason being the violations and warnings as text, and {} otherwise. When
 // the check passes, any warnings are written as text to warnings instead,
-// so w carries exactly one JSON object and nothing else.
+// so w carries exactly one JSON object and nothing else. A baseline whose
+// token counts are not comparable adds a "warning: " line saying so.
 func WriteHook(w, warnings io.Writer, c *Check) error {
 	var text strings.Builder
 	bw := bufio.NewWriter(&text)
 	writeFindings(bw, c)
+	if note := tokenizerNote(c); note != "" {
+		_, _ = bw.WriteString("warning: " + note + "\n")
+	}
 	_ = bw.Flush() // a strings.Builder never fails a write
 
 	if !c.Failed() {
@@ -309,29 +348,36 @@ func WriteHook(w, warnings io.Writer, c *Check) error {
 }
 
 // WriteGitHub writes GitHub Actions workflow commands (SPEC.md 8.5): one
-// "::error file=<dir>::" annotation per violation and one
-// "::warning file=<dir>::" per warning, package by package, with the
-// property and message escaped per the workflow-command rules. The module
-// row's findings come first, and their message leads with "module: ". The
-// module row has no directory: a finding of it with a location
-// (Finding.File and Line, as the dup_blocks_cross_pkg finding has when the
-// extractor names the shared blocks) is annotated "file=<file>,line=<line>"
-// on it, and one without carries no file.
+// "::error" annotation per violation and one "::warning" per warning,
+// package by package, with the property and message escaped per the
+// workflow-command rules. A finding with a location (Finding.File and
+// Line) is annotated "file=<file>,line=<line>" on it, so it lands on the
+// line that caused it; a package finding without one is annotated
+// "file=<dir>" on its package directory. Every file is prefixed with
+// c.ModuleDir, so paths are relative to the repository top level. The
+// module row's findings come first and their message leads with
+// "module: "; the module row has no directory, so one of its findings
+// without a location carries no file. A baseline whose token counts are
+// not comparable adds one "::warning title=astimate::" line saying so,
+// before the findings.
 func WriteGitHub(w io.Writer, c *Check) error {
 	bw := bufio.NewWriter(w)
+	if note := tokenizerNote(c); note != "" {
+		_, _ = bw.WriteString("::warning title=astimate::" + escapeData(note) + "\n")
+	}
 	for _, p := range c.rows() {
 		r := &p.Report
-		prop, lead := " file="+escapeProperty(r.PackagePath), ""
+		prop, lead := " file="+escapeProperty(c.repoPath(r.PackagePath)), ""
 		if p == c.Module {
 			prop, lead = "", r.PackagePath+": "
 		}
 		for j := range r.Violations {
 			f := &r.Violations[j]
-			_, _ = bw.WriteString("::error" + findingProperty(prop, f) + "::" + escapeData(lead+findingText(f)) + "\n")
+			_, _ = bw.WriteString("::error" + c.findingProperty(prop, f) + "::" + escapeData(lead+findingText(f)) + "\n")
 		}
 		for j := range r.Warnings {
 			f := &r.Warnings[j]
-			_, _ = bw.WriteString("::warning" + findingProperty(prop, f) + "::" + escapeData(lead+findingText(f)) + "\n")
+			_, _ = bw.WriteString("::warning" + c.findingProperty(prop, f) + "::" + escapeData(lead+findingText(f)) + "\n")
 		}
 	}
 	if err := bw.Flush(); err != nil {
@@ -340,13 +386,23 @@ func WriteGitHub(w io.Writer, c *Check) error {
 	return nil
 }
 
-// findingProperty returns the annotation properties of f: its own file and
-// line when it has a location, and prop, its row's, otherwise.
-func findingProperty(prop string, f *Finding) string {
+// repoPath returns the module-relative path p relative to the repository
+// top level: p prefixed with c.ModuleDir.
+func (c *Check) repoPath(p string) string {
+	if c.ModuleDir == "" {
+		return p
+	}
+	return path.Join(c.ModuleDir, p)
+}
+
+// findingProperty returns the annotation properties of f: its own file,
+// relative to the repository top level, and line when it has a location,
+// and prop, its row's, otherwise.
+func (c *Check) findingProperty(prop string, f *Finding) string {
 	if f.File == "" {
 		return prop
 	}
-	s := " file=" + escapeProperty(f.File)
+	s := " file=" + escapeProperty(c.repoPath(f.File))
 	if f.Line > 0 {
 		s += ",line=" + strconv.Itoa(f.Line)
 	}

@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -35,6 +36,18 @@ const (
 // one function of cognitive complexity 40.
 func degradedMetrics() []string {
 	return []string{"changed_func_cognitive_max", "dup_blocks", "globals", "untested_exports"}
+}
+
+// degradedLocations maps each of degradedMetrics to the file, relative to
+// the degraded fixture's tested package, and line its annotation lands on:
+// the lines the degraded copy adds.
+func degradedLocations() map[string]string {
+	return map[string]string{
+		"changed_func_cognitive_max": "grade.go,line=8",
+		"dup_blocks":                 "degraded.go,line=15",
+		"globals":                    "degraded.go,line=9",
+		"untested_exports":           "degraded.go,line=13",
+	}
 }
 
 // degradedGrade is the start of the changed_func_cognitive_max suggestion
@@ -281,10 +294,18 @@ func TestCheckFixtures(t *testing.T) {
 				if len(errs) != want {
 					t.Errorf("github has %d ::error annotations, want one per violation (%d):\n%s", len(errs), want, out)
 				}
-				for _, m := range degradedMetrics() {
-					got := strings.Contains(out, "::error file=tested::"+m+": ")
+				// Annotation paths are relative to the repository holding
+				// the fixture, so each lands on the line the degraded copy
+				// added.
+				abs, err := filepath.Abs(fx.dir)
+				if err != nil {
+					t.Fatal(err)
+				}
+				tested := path.Join(baseline.RepoDir(t.Context(), abs), "tested")
+				for m, loc := range degradedLocations() {
+					got := strings.Contains(out, "::error file="+tested+"/"+loc+"::"+m+": ")
 					if got != failing {
-						t.Errorf("github annotates %s on tested = %v, want %v:\n%s", m, got, failing, out)
+						t.Errorf("github annotates %s on %s/%s = %v, want %v:\n%s", m, tested, loc, got, failing, out)
 					}
 				}
 			})

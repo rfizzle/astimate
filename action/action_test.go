@@ -162,6 +162,40 @@ func goEnv(t *testing.T, key string) string {
 	return strings.TrimSpace(string(out))
 }
 
+// moduleBelowRoot creates a git repository with one commit and returns the
+// absolute path of the directory services/api inside it, a module root
+// below the repository root. It skips the test when git is missing.
+func moduleBelowRoot(t *testing.T) string {
+	t.Helper()
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not on PATH")
+	}
+	repo := t.TempDir()
+	module := filepath.Join(repo, "services", "api")
+	if err := os.MkdirAll(module, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(module, "go.mod"), []byte("module example.com/api\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{
+		{"init", "-q"},
+		{"add", "-A"},
+		{"commit", "-q", "--no-verify", "-m", "init"},
+	} {
+		cmd := exec.CommandContext(t.Context(), "git", args...)
+		cmd.Dir = repo
+		cmd.Env = append(os.Environ(),
+			"GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1",
+			"GIT_AUTHOR_NAME=test", "GIT_AUTHOR_EMAIL=test@example.com",
+			"GIT_COMMITTER_NAME=test", "GIT_COMMITTER_EMAIL=test@example.com")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %s: %v\n%s", strings.Join(args, " "), err, out)
+		}
+	}
+	return module
+}
+
 // TestRun runs run.sh with a fake astimate on PATH that prints its
 // arguments and exits with FAKE_EXIT, outside any git repository.
 func TestRun(t *testing.T) {
@@ -170,6 +204,7 @@ func TestRun(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(bin, "astimate"), []byte(fake), 0o755); err != nil {
 		t.Fatal(err)
 	}
+	module := moduleBelowRoot(t)
 	tests := []struct {
 		name       string
 		env        []string
@@ -178,10 +213,16 @@ func TestRun(t *testing.T) {
 		wantStderr string
 	}{
 		{name: "pass", env: []string{"FAKE_EXIT=0"},
-			wantStdout: "::error file=pkg::args check --format github\n"},
+			wantStdout: "::error file=pkg::args check --format github -- .\n"},
 		{name: "gate failed", env: []string{"FAKE_EXIT=3", "ASTIMATE_ALL=true", "ASTIMATE_CONFIG=a.yaml"},
-			wantCode: 3, wantStdout: "::error file=pkg::args check --format github --all --config a.yaml\n",
+			wantCode: 3, wantStdout: "::error file=pkg::args check --format github --all --config a.yaml -- .\n",
 			wantStderr: "the gate failed (exit 3)"},
+		// The base ref is looked up in the module's repository, not the
+		// working directory's, which is in none.
+		{name: "path input", env: []string{"ASTIMATE_PATH=" + module, "ASTIMATE_BASE=HEAD"},
+			wantStdout: "::error file=pkg::args check --format github --base HEAD -- " + module + "\n"},
+		{name: "missing path", env: []string{"ASTIMATE_PATH=" + filepath.Join(module, "absent")},
+			wantCode: 2, wantStderr: "input path " + filepath.Join(module, "absent") + " is not a directory"},
 		{name: "analysis failed", env: []string{"FAKE_EXIT=2"}, wantCode: 2, wantStderr: "analysis failed (exit 2)"},
 		{name: "bad all", env: []string{"ASTIMATE_ALL=yes"}, wantCode: 2, wantStderr: "input all must be true or false"},
 		{name: "missing base", env: []string{"ASTIMATE_BASE=origin/master", "GIT_CEILING_DIRECTORIES=/"},

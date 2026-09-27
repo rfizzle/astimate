@@ -18,6 +18,9 @@ type globalCounts struct {
 	// exported and unexported are the counted global names, split by
 	// visibility, in declaration order. They are a debug breakdown of globals.
 	exported, unexported []string
+	// pos holds the declaring identifier of each counted global, in
+	// declaration order, for annotations.
+	pos []token.Pos
 }
 
 // globals counts the package-level variables and init functions declared in
@@ -57,6 +60,7 @@ func (c *globalCounts) addVars(d *ast.GenDecl) {
 				continue
 			}
 			c.globals++
+			c.pos = append(c.pos, n.Pos())
 			if n.IsExported() {
 				c.exported = append(c.exported, n.Name)
 			} else {

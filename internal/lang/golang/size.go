@@ -15,6 +15,9 @@ type sizeCounts struct {
 	files           int
 	sloc            int
 	largestFileSLOC int
+	// largestFile is the absolute filename of the first file with
+	// largestFileSLOC lines; empty when the package has no files.
+	largestFile string
 	// exports holds exported_symbols and the exported type counts that
 	// abstractness is computed from.
 	exports exportCounts
@@ -50,7 +53,9 @@ func size(l *loaded, p *packages.Package, src fileSource) (sizeCounts, error) {
 		n := fileSLOC(tf, f, data)
 		c.perFile[tf.Name()] = n
 		c.sloc += n
-		c.largestFileSLOC = max(c.largestFileSLOC, n)
+		if c.largestFile == "" || n > c.largestFileSLOC {
+			c.largestFile, c.largestFileSLOC = tf.Name(), n
+		}
 		c.exports.add(exportedSymbols(f, scope))
 	}
 	return c, nil
