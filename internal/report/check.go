@@ -2,7 +2,6 @@ package report
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"io"
 	"math"
@@ -296,9 +295,7 @@ func WriteCheckJSON(w io.Writer, c *Check) error {
 	for _, p := range rows {
 		reports = append(reports, p.Report)
 	}
-	enc := json.NewEncoder(w)
-	enc.SetEscapeHTML(false)
-	enc.SetIndent("", "  ")
+	enc := newEncoder(w, "  ")
 	if err := enc.Encode(reports); err != nil {
 		return fmt.Errorf("writing json check report: %w", err)
 	}
@@ -339,10 +336,9 @@ func WriteHook(w, warnings io.Writer, c *Check) error {
 		}
 		return nil
 	}
-	// Without SetEscapeHTML(false) the module row's heading, "<module>",
-	// would reach the reason as "\u003cmodule\u003e".
-	enc := json.NewEncoder(w)
-	enc.SetEscapeHTML(false)
+	// newEncoder does not HTML-escape; with escaping the module row's
+	// heading, "<module>", would reach the reason as "\u003cmodule\u003e".
+	enc := newEncoder(w, "")
 	if err := enc.Encode(hookBlock{Decision: "block", Reason: text.String()}); err != nil {
 		return fmt.Errorf("writing hook output: %w", err)
 	}

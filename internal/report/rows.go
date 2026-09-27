@@ -3,7 +3,6 @@ package report
 import (
 	"bufio"
 	"cmp"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -97,13 +96,12 @@ func SortRows(rows []Row, key string) error {
 }
 
 // WriteRowsJSON writes rows to w as an indented JSON array followed by a
-// newline; no rows is an empty array, never null.
+// newline, without HTML escaping; no rows is an empty array, never null.
 func WriteRowsJSON(w io.Writer, rows []Row) error {
 	if rows == nil {
 		rows = []Row{}
 	}
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
+	enc := newEncoder(w, "  ")
 	if err := enc.Encode(rows); err != nil {
 		return fmt.Errorf("writing json ranking: %w", err)
 	}

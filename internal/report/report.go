@@ -174,10 +174,23 @@ func Build(in *Input) Report {
 	}
 }
 
-// WriteJSON writes r to w as indented JSON followed by a newline.
-func WriteJSON(w io.Writer, r *Report) error {
+// newEncoder returns the JSON encoder every writer in this package uses:
+// it writes to w, indents by indent per level when indent is not empty, and
+// never HTML-escapes, so "<", ">" and "&" in paths, suggestions and the
+// module row's "<module>" read the same in JSON as in text.
+func newEncoder(w io.Writer, indent string) *json.Encoder {
 	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
+	enc.SetEscapeHTML(false)
+	if indent != "" {
+		enc.SetIndent("", indent)
+	}
+	return enc
+}
+
+// WriteJSON writes r to w as indented JSON followed by a newline, without
+// HTML escaping.
+func WriteJSON(w io.Writer, r *Report) error {
+	enc := newEncoder(w, "  ")
 	if err := enc.Encode(r); err != nil {
 		return fmt.Errorf("writing json report: %w", err)
 	}
