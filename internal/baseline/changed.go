@@ -11,32 +11,41 @@ import (
 	"slices"
 	"strings"
 	"syscall"
+
+	"github.com/rfizzle/astimate/internal/metrics"
 )
 
 // Change is the set of packages a change touches relative to a merge-base
 // (SPEC.md 8.4).
 type Change struct {
 	// Packages are the module-relative, slash-separated package directories
-	// ("." for the module root, matching assess's package_path) that have Go
-	// files in the working tree and a changed Go file, test files included.
-	// Sorted.
+	// ("." for the module root, matching assess's package_path) that a
+	// changed source file belongs to, test files included, and that still
+	// hold a file making them a package in the working tree. Sorted.
 	Packages []string
-	// Deleted are the module-relative directories that have a changed Go
-	// file but no Go files left in the working tree: packages removed or
-	// renamed away since the merge-base. Callers report them in a summary
-	// line, never as violations. Sorted.
+	// Deleted are the module-relative directories that a changed file
+	// making them a package belongs to but that hold no such file in the
+	// working tree: packages removed or renamed away since the merge-base.
+	// Callers report them in a summary line, never as violations. Sorted.
 	Deleted []string
+	// All reports that a changed file can move every package's metrics,
+	// such as configuration that import resolution reads; callers then
+	// check every package. Packages and Deleted are filled regardless.
+	All bool
 }
 
-// ChangedPackages returns the packages of the module at root whose Go files
-// differ between the commit mergeBase and the working tree. Committed,
-// staged, unstaged and untracked (but not ignored) files all count. Non-Go
-// files, files outside root, files in a module nested below root and files
-// under a testdata directory are ignored.
+// ChangedPackages returns the packages of the module at root whose source
+// files differ between the commit mergeBase and the working tree, with sc
+// saying which files are source and which package each belongs to.
+// Committed, staged, unstaged and untracked (but not ignored) files all
+// count. Files sc classifies as metrics.NotSource, files outside root and
+// files in a module nested below root are ignored; a directory is in a
+// nested module when it or an ancestor below root holds a file sc reports
+// as a module marker.
 //
 // Selecting every package (--all) is the caller's concern: it checks every
 // package the extractor lists and does not call ChangedPackages.
-func ChangedPackages(ctx context.Context, root, mergeBase string) (Change, error) {
+func ChangedPackages(ctx context.Context, root, mergeBase string, sc metrics.SourceClassifier) (Change, error) {
 	if mergeBase == "" || strings.HasPrefix(mergeBase, "-") {
 		return Change{}, fmt.Errorf("listing changes since %q: not a valid commit", mergeBase)
 	}
@@ -58,20 +67,36 @@ func ChangedPackages(ctx context.Context, root, mergeBase string) (Change, error
 	paths := append(splitNUL(diff), splitNUL(untracked)...)
 
 	var c Change
-	for _, dir := range packageDirs(paths, filepath.ToSlash(rel)) {
-		if inNestedModule(root, dir) {
-			continue
-		}
-		has, err := hasGoFiles(filepath.Join(root, filepath.FromSlash(dir)))
-		if err != nil {
-			return Change{}, err
-		}
-		if has {
-			c.Packages = append(c.Packages, dir)
-		} else {
-			c.Deleted = append(c.Deleted, dir)
+	nested := make(map[string]bool)
+	files := sourceFiles(paths, filepath.ToSlash(rel), sc)
+	for _, f := range files.module {
+		if !inNestedModule(root, path.Dir(f), sc, nested) {
+			c.All = true
+			break
 		}
 	}
+	isPkg := make(map[string]bool, len(files.dirs))
+	for _, d := range files.dirs {
+		if inNestedModule(root, d.dir, sc, nested) {
+			continue
+		}
+		has, ok := isPkg[d.pkg]
+		if !ok {
+			has, err = hasPackageFiles(root, d.pkg, sc)
+			if err != nil {
+				return Change{}, err
+			}
+			isPkg[d.pkg] = has
+		}
+		switch {
+		case has:
+			c.Packages = append(c.Packages, d.pkg)
+		case d.defines:
+			c.Deleted = append(c.Deleted, d.pkg)
+		}
+	}
+	c.Packages = slices.Compact(c.Packages)
+	c.Deleted = slices.Compact(c.Deleted)
 	return c, nil
 }
 
@@ -86,20 +111,39 @@ func splitNUL(out string) []string {
 	return entries
 }
 
-// packageDirs maps paths, slash-separated and relative to the repository top
-// level, to the sorted, de-duplicated directories they are in, relative to
-// the module at prefix ("." when the module is the repository root). Only
-// files whose names end in ".go" count, test files included. Files outside
-// the module or under a testdata directory are dropped. It does not touch
+// changedDir is a package that changed source files belong to, and the
+// directory they are in.
+type changedDir struct {
+	// pkg is the module-relative package directory.
+	pkg string
+	// dir is the module-relative directory of the changed files: pkg, or
+	// one below it such as a TypeScript __tests__ directory.
+	dir string
+	// defines reports that one of the files makes pkg a package
+	// (metrics.PackageSource), so pkg is deleted when it holds none.
+	defines bool
+}
+
+// changedFiles are a module's changed source files, grouped.
+type changedFiles struct {
+	// dirs are the packages the files belong to, one entry per package
+	// and directory, sorted by pkg and then dir.
+	dirs []changedDir
+	// module are the module-relative paths of the files that can move
+	// every package (metrics.ModuleSource).
+	module []string
+}
+
+// sourceFiles makes paths, slash-separated and relative to the repository
+// top level, relative to the module at prefix ("." when the module is the
+// repository root) and groups them as sc classifies them. Files outside
+// the module or that sc says are not source are dropped. It does not touch
 // the filesystem.
-func packageDirs(paths []string, prefix string) []string {
+func sourceFiles(paths []string, prefix string, sc metrics.SourceClassifier) changedFiles {
 	prefix = path.Clean(prefix)
-	seen := make(map[string]bool, len(paths))
-	dirs := make([]string, 0, len(paths))
+	index := make(map[changedDir]int, len(paths))
+	var out changedFiles
 	for _, p := range paths {
-		if !strings.HasSuffix(p, ".go") {
-			continue
-		}
 		p = path.Clean(p)
 		if prefix != "." {
 			rest, ok := strings.CutPrefix(p, prefix+"/")
@@ -108,33 +152,70 @@ func packageDirs(paths []string, prefix string) []string {
 			}
 			p = rest
 		}
-		dir := path.Dir(p)
-		if seen[dir] || slices.Contains(strings.Split(dir, "/"), "testdata") {
+		sf := sc.ClassifyFile(p)
+		switch sf.Kind {
+		case metrics.ModuleSource:
+			out.module = append(out.module, p)
+			continue
+		case metrics.PackageSource, metrics.MemberSource:
+		default:
 			continue
 		}
-		seen[dir] = true
-		dirs = append(dirs, dir)
+		key := changedDir{pkg: sf.Package, dir: path.Dir(p)}
+		i, ok := index[key]
+		if !ok {
+			i = len(out.dirs)
+			index[key] = i
+			out.dirs = append(out.dirs, key)
+		}
+		out.dirs[i].defines = out.dirs[i].defines || sf.Kind == metrics.PackageSource
 	}
-	slices.Sort(dirs)
-	return dirs
+	slices.SortFunc(out.dirs, func(a, b changedDir) int {
+		if c := strings.Compare(a.pkg, b.pkg); c != 0 {
+			return c
+		}
+		return strings.Compare(a.dir, b.dir)
+	})
+	return out
 }
 
 // inNestedModule reports whether the module-relative, slash-separated dir
 // lies in a module nested below root: whether dir or one of its ancestors
-// below root has its own go.mod in the working tree.
-func inNestedModule(root, dir string) bool {
-	for d := dir; d != "."; d = path.Dir(d) {
-		info, err := os.Stat(filepath.Join(root, filepath.FromSlash(d), "go.mod"))
-		if err == nil && info.Mode().IsRegular() {
+// below root holds a regular file sc reports as a module marker in the
+// working tree. Answers are memoized in seen by directory.
+func inNestedModule(root, dir string, sc metrics.SourceClassifier, seen map[string]bool) bool {
+	if dir == "." {
+		return false
+	}
+	if v, ok := seen[dir]; ok {
+		return v
+	}
+	v := hasMarker(filepath.Join(root, filepath.FromSlash(dir)), sc) ||
+		inNestedModule(root, path.Dir(dir), sc, seen)
+	seen[dir] = v
+	return v
+}
+
+// hasMarker reports whether dir directly holds a regular file sc reports
+// as a module marker. A directory that cannot be read holds none.
+func hasMarker(dir string, sc metrics.SourceClassifier) bool {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return false
+	}
+	for _, e := range entries {
+		if e.Type().IsRegular() && sc.IsModuleMarker(e.Name()) {
 			return true
 		}
 	}
 	return false
 }
 
-// hasGoFiles reports whether dir directly contains a regular file whose name
-// ends in ".go". A directory that no longer exists has none.
-func hasGoFiles(dir string) (bool, error) {
+// hasPackageFiles reports whether the module-relative directory pkg of the
+// module at root directly holds a regular file that sc says makes pkg a
+// package. A directory that no longer exists holds none.
+func hasPackageFiles(root, pkg string, sc metrics.SourceClassifier) (bool, error) {
+	dir := filepath.Join(root, filepath.FromSlash(pkg))
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) || errors.Is(err, syscall.ENOTDIR) {
@@ -143,7 +224,10 @@ func hasGoFiles(dir string) (bool, error) {
 		return false, fmt.Errorf("reading %s: %w", dir, err)
 	}
 	for _, e := range entries {
-		if e.Type().IsRegular() && strings.HasSuffix(e.Name(), ".go") {
+		if !e.Type().IsRegular() {
+			continue
+		}
+		if sf := sc.ClassifyFile(path.Join(pkg, e.Name())); sf.Kind == metrics.PackageSource && sf.Package == pkg {
 			return true, nil
 		}
 	}

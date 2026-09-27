@@ -96,6 +96,33 @@ func TestCheckTokenizerMismatch(t *testing.T) {
 	}
 }
 
+// TestCheckWithoutSourceClassifier checks that an extractor that cannot
+// say which files change a package gets every package checked, with one
+// warning saying why.
+func TestCheckWithoutSourceClassifier(t *testing.T) {
+	t.Parallel()
+
+	var logs bytes.Buffer
+	tg := fakeTarget("")
+	tg.Logger = slog.New(slog.NewTextHandler(&logs, nil))
+	if _, ok := tg.Ext.(metrics.SourceClassifier); ok {
+		t.Fatal("the fake extractor implements metrics.SourceClassifier")
+	}
+	c, failed, err := Check(t.Context(), tg, CheckOptions{BaselineFile: writeFakeBaseline(t)})
+	if err != nil || len(failed) != 0 {
+		t.Fatalf("Check = (%v, %v), want no error", failed, err)
+	}
+	if len(c.Packages) != 4 {
+		t.Errorf("checked %d packages, want all 4", len(c.Packages))
+	}
+	if n := strings.Count(logs.String(), "level=WARN"); n != 1 {
+		t.Errorf("logged %d warnings, want 1:\n%s", n, logs.String())
+	}
+	if want := "cannot tell which files changed a package; checking every package"; !strings.Contains(logs.String(), want) {
+		t.Errorf("logs = %q, want %q", logs.String(), want)
+	}
+}
+
 func TestCheckNoBaseline(t *testing.T) {
 	t.Parallel()
 

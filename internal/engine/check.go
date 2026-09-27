@@ -300,7 +300,10 @@ func gitBaseline(ctx context.Context, t *Target, ref string, cache *BaselineCach
 // Otherwise it takes the packages changed since the merge-base of HEAD and
 // the baseline's ref and keeps those in head, which drops the directories
 // the go tool ignores. A file baseline whose ref does not resolve in git,
-// for example outside a repository, selects every package and says so.
+// for example outside a repository, and an extractor that does not
+// implement metrics.SourceClassifier select every package and say so. A
+// changed file that can move every package, such as a TypeScript
+// tsconfig.json, selects every package too.
 func selectPackages(ctx context.Context, t *Target, head []string, src baselineSource,
 	all bool,
 ) (selected, deleted []string, err error) {
@@ -308,6 +311,12 @@ func selectPackages(ctx context.Context, t *Target, head []string, src baselineS
 		return head, nil, nil
 	}
 	logger := t.logger()
+	sc, ok := t.Ext.(metrics.SourceClassifier)
+	if !ok {
+		logger.Warn("the extractor cannot tell which files changed a package; checking every package",
+			"language", t.Ext.Language())
+		return head, nil, nil
+	}
 	ref := src.ref
 	if src.file != nil {
 		ref = src.file.Ref()
@@ -324,9 +333,13 @@ func selectPackages(ctx context.Context, t *Target, head []string, src baselineS
 		logger.Warn("cannot resolve the baseline file's ref; checking every package", "ref", ref, "err", err)
 		return head, nil, nil
 	}
-	change, err := baseline.ChangedPackages(ctx, t.Mod.Root, mergeBase)
+	change, err := baseline.ChangedPackages(ctx, t.Mod.Root, mergeBase, sc)
 	if err != nil {
 		return nil, nil, err
+	}
+	if change.All {
+		logger.Info("a changed file can move every package; checking every package")
+		return head, change.Deleted, nil
 	}
 	changed := make(map[string]bool, len(change.Packages))
 	for _, dir := range change.Packages {
