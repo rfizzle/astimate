@@ -114,6 +114,8 @@ type Extractor interface {
 
 **Testing pattern.** The contract is defined once in `internal/metrics` and verified once by a conformance suite in `internal/metrics/metricstest`, an importable non-test package in the style of `testing/fstest`. It exports `TestExtractor(t, ext, fixture)`, which checks detection, package listing, validation, determinism, error handling, cross-package invariants (the module-wide sum of `fan_in` equals the sum of `internal_imports`; `has_tests` agrees with `test_funcs`) and golden comparison against `testdata/<lang>/fixture/golden/*.json`. Every language extractor's own tests call it once; language-specific unit tests (import path rules, statement kinds, tokenizer normalization) stay in the nested package. `metricstest` also exports a fake extractor built from a map of `RawMetrics`, so the estimate, gate and CLI can be tested without loading a real module. `Packages` returns the language's native package identifier (Go: the full import path); golden files are named by that identifier with the module path prefix removed, so `example.com/fixture/a` is `golden/a.json` and the root package is `golden/root.json`.
 
+When an extractor also implements the optional `ModuleMetrics`, the suite checks the module row: it validates, its v0 fields are 0 and its v1 fields null except the module-wide ones, it is deterministic and honours cancellation, the per-package sum of `dup_blocks_cross_pkg` is between twice the row's value and the row's value times the package count, and it matches `golden/module.json`. The fake takes a module row through `WithModuleRow`.
+
 ## 6. Raw metrics
 
 Every field is reported in output. *(v0)* fields are required for the first release.
