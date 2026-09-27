@@ -1,6 +1,6 @@
 # Astimate: Specification
 
-**Status:** draft v0.3, 2026-09-27. Supersedes v0.2, which framed the tool as a pre-work planning signal. This revision makes the post-implementation quality gate the primary use and keeps planning and ranking as secondary uses.
+**Status:** draft v0.4, 2026-09-27. Supersedes v0.2, which framed the tool as a pre-work planning signal. This revision makes the post-implementation quality gate the primary use and keeps planning and ranking as secondary uses.
 
 Astimate is a static-analysis tool that checks whether an LLM-written change left a package in a state a human or the next agent can maintain. It extracts structural metrics per package, compares them against a baseline and a set of thresholds, and fails when the package got worse. It also produces a composite **AI Friction Index** (0.0 to 10.0) for ranking and planning. It runs as a CLI, a CI step, a Claude Code hook and a Model Context Protocol (MCP) server. Go is the first supported language; everything downstream of metric extraction is language-agnostic.
 
@@ -142,6 +142,7 @@ Every field is reported in output. *(v0)* fields are required for the first rele
 | `uses_reflect` | bool | Imports `reflect` or `unsafe` | v1 |
 | `generated_files` | int | Files with a `Code generated ... DO NOT EDIT` header | v1 |
 | `coverage_pct` | float | Statement coverage from `go test -cover`, only with `--coverage` | v1 |
+| `changed_func_cognitive_max` | int | Highest cognitive complexity among functions added or modified since baseline; null without a baseline diff | v1 |
 
 ### 6.1 Token estimation
 
@@ -212,36 +213,53 @@ Output includes `drivers` (top two terms by contribution) and `suggestions` gene
 
 ### 8.1 Semantics
 
-`astimate check` evaluates every changed package (or all packages with `--all`) against a thresholds config. Each threshold names a metric and one or both of:
+`astimate check` evaluates every changed package (or all packages with `--all`) against a thresholds config. Thresholds fall into two kinds, and the distinction is what separates "got worse" from "got more features".
 
-- `max`: an absolute ceiling at head.
-- `max_delta`: the largest permitted increase from baseline to head. Negative values require improvement.
+**Density rules** measure how the code is written, independent of how much there is. Adding features should never raise them, so they are gated on the change itself with `max_delta`: the largest permitted increase from baseline to head, usually 0. A feature written without copy-paste adds no duplicate blocks; ten new exports with tests leave `untested_exports` unchanged. Negative values require improvement.
 
-A threshold with only `max_delta` is a pure ratchet: legacy debt passes, new debt fails. A threshold with only `max` is absolute. With both, either breach is a violation. Boolean metrics use `require: true` (for example `has_tests` when `sloc > 100`).
+**Capacity rules** measure how much code there is. They are supposed to grow with features, so they carry no delta. They have an absolute `max` that answers a different question: has the package outgrown what one agent can hold in context? The fix for a capacity breach is a split, not a smaller feature. Each capacity rule also has a `warn_at` fraction (default 0.75) above which `check` emits a non-failing warning naming the headroom, so a split can be planned before a hard failure lands mid-feature.
 
-Packages that are new at head have no baseline; `max_delta` rules are evaluated against zero, so a new package is judged absolutely on what it introduces.
+Boolean metrics use `require: true` with an optional `when` guard (for example `has_tests` when `sloc > 100`).
 
-Any violation fails the gate with exit code 3. Violations are reported one per line with metric, baseline value, head value, limit and a fix suggestion.
+Packages that are new at head have no baseline. They face the capacity ceilings and the density rules evaluated against zero: a new package with three untested exports fails, a new package with forty tested exports under the ceiling passes.
+
+The composite `friction_index` is not gated. It mixes size and density terms, so a large well-written feature raises it; it stays a ranking and summary signal.
+
+Any violation fails the gate with exit code 3. Warnings never change the exit code. Violations and warnings are reported one per line with metric, baseline value, head value, limit and a fix suggestion.
 
 ### 8.2 Default thresholds
 
 Uncalibrated placeholders, replaced by 90th-percentile values from the reference corpus in section 11.
 
-| Metric | `max` | `max_delta` | Rationale |
+Density rules (ratchet on the change):
+
+| Metric | `max_delta` | `max` | Rationale |
 | --- | --- | --- | --- |
-| `tokens_est` | 30,000 | +5,000 | Keep packages inside the range agents handle |
-| `largest_file_sloc` | 800 | +150 | Files past this rarely fit an edit in one view |
-| `exported_symbols` | 60 | +8 | Surface growth per change |
-| `duplication_pct` | 5.0 | +1.0 | Copy-paste is the primary target |
-| `dup_blocks` | none | +0 | No new duplicate blocks |
-| `untested_exports` | none | +0 | New exported behavior needs a test |
-| `max_nesting` | 4 | +0 | Never deeper |
-| `cognitive_p90` | 25 | +5 | |
-| `globals` | 5 | +0 | No new package state |
-| `init_funcs` | 1 | +0 | |
-| `internal_imports` | 12 | +3 | |
-| `friction_index` | none | +0.5 | Composite ratchet as a catch-all |
-| `has_tests` | require true when `sloc > 100` | | |
+| `dup_blocks` | +0 | none | No new duplicate blocks; copy-paste is the primary target |
+| `duplication_pct` | +0.5 | 5.0 | Guards against a large duplicated feature that adds one block |
+| `untested_exports` | +0 | none | New exported behavior needs a test; legacy gaps are reported, not failed |
+| `globals` | +0 | none | No new package state |
+| `init_funcs` | +0 | none | |
+| `max_nesting` | +0 | 5 | Never deeper than today |
+| `cognitive_p90` | +3 | none | Small drift allowed since p90 moves with function count |
+
+Capacity rules (absolute ceiling with a warning band):
+
+| Metric | `max` | `warn_at` | Rationale |
+| --- | --- | --- | --- |
+| `tokens_est` | 30,000 | 0.75 | Keep packages inside the range agents handle; breach means split |
+| `largest_file_sloc` | 800 | 0.75 | Files past this rarely fit an edit in one view |
+| `exported_symbols` | 60 | 0.75 | Surface past this is a package boundary problem |
+| `internal_imports` | 12 | 0.75 | |
+| `sloc` | 6,000 | 0.75 | |
+
+Requirements:
+
+| Metric | Rule |
+| --- | --- |
+| `has_tests` | `require: true` when `sloc > 100` |
+
+Known gap: a single new function with very high complexity in a package whose 90th percentile stays low is not caught by either kind. Function-level metrics on changed functions only are planned as a v1 metric (`changed_func_cognitive_max`, section 6) and gated as a density rule when available.
 
 ### 8.3 Baselines
 
@@ -256,10 +274,10 @@ Two sources, chosen by flag:
 
 ### 8.5 Output formats
 
-- `text` (default): violations then a one-line summary per package.
-- `json`: the section 10.2 report per package plus a `violations` array and `passed` bool.
-- `hook`: the JSON shape Claude Code Stop hooks consume: `{ "decision": "block", "reason": "<violations as text>" }` on failure, `{}` on success, so the agent is told to keep working and why.
-- `github`: `::error file=<pkgdir>::` workflow annotations, one per violation.
+- `text` (default): violations, then warnings, then a one-line summary per package.
+- `json`: the section 10.2 report per package plus `violations` and `warnings` arrays and a `passed` bool.
+- `hook`: the JSON shape Claude Code Stop hooks consume: `{ "decision": "block", "reason": "<violations as text>" }` on failure, `{}` on success, so the agent is told to keep working and why. Warnings are appended to the reason on failure and written to stderr on success.
+- `github`: `::error file=<pkgdir>::` annotations, one per violation, and `::warning file=<pkgdir>::` per warning.
 
 ## 9. CLI
 
@@ -306,6 +324,9 @@ Results return `content` (text) and `structuredContent` (JSON), with `isError: t
   "baseline": { "ref": "a1b2c3d", "metrics": { "...": "same fields" } },
   "violations": [
     { "metric": "dup_blocks", "base": 1, "head": 4, "limit": "max_delta +0", "suggestion": "..." }
+  ],
+  "warnings": [
+    { "metric": "tokens_est", "head": 24100, "limit": "max 30000", "suggestion": "at 80% of the ceiling; plan a split before the next feature" }
   ],
   "passed": false,
   "astimate_version": "0.3.0",
@@ -365,7 +386,7 @@ Each bullet is intended to become one story.
 
 - Unified config (weights and thresholds) loader and validation.
 - Normalization, composite, tiers, drivers, suggestions.
-- Thresholds evaluation and violation reporting.
+- Thresholds evaluation: density deltas, capacity ceilings with warning bands, requirements; violation and warning reporting.
 - `assess`, `rank`, `baseline write`, `check` with git-ref and file baselines, changed-package detection and all four output formats.
 - Section 7.4 invariants and monotonicity property test.
 
