@@ -11,6 +11,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 
@@ -45,31 +46,52 @@ type Config struct {
 	Version string
 	// CharsPerToken is bytes of source per estimated token.
 	CharsPerToken float64
-	// DupMinTokens is the minimum normalized token run counted as a
-	// duplicate block.
-	DupMinTokens int
-	// DupIgnoreLiteralOnly drops a duplicate block made only of literals
-	// and literal-table punctuation.
-	DupIgnoreLiteralOnly bool
-	// DupFoldSigns counts a unary + or - directly before a numeric literal
-	// as part of the literal when dropping literal-only blocks.
-	DupFoldSigns bool
+	// Duplication holds the duplicate-block detection settings.
+	Duplication Duplication
 	// Rebuild holds the rebuild-estimate parameters.
 	Rebuild score.RebuildParams
 	// Thresholds holds the gate rules in file order.
 	Thresholds []gate.Threshold
+	// Warnings are non-fatal findings from parsing, such as deprecated keys.
+	// Callers log each one once.
+	Warnings []string
+}
+
+// Duplication is the optional duplication section. Keys absent from the file
+// take the values of the embedded default.
+type Duplication struct {
+	// MinTokens is the minimum normalized token run counted as a duplicate
+	// block.
+	MinTokens int
+	// IgnoreLiteralOnly drops a duplicate block made only of literals and
+	// literal-table punctuation.
+	IgnoreLiteralOnly bool
+	// FoldSigns counts a unary + or - directly before a numeric literal as
+	// part of the literal when dropping literal-only blocks.
+	FoldSigns bool
 }
 
 // fileConfig mirrors the YAML schema. Pointers distinguish a missing scalar
-// from an explicit zero so missing fields fail instead of defaulting to 0.
+// from an explicit zero so missing required fields fail instead of
+// defaulting to 0, and missing optional ones take the embedded default.
 type fileConfig struct {
-	ConfigVersion        string          `yaml:"config_version"`
-	CharsPerToken        *float64        `yaml:"chars_per_token"`
-	DupMinTokens         *int            `yaml:"dup_min_tokens"`
-	DupIgnoreLiteralOnly *bool           `yaml:"dup_ignore_literal_only"`
-	DupFoldSigns         *bool           `yaml:"dup_fold_signs"`
-	Rebuild              *fileRebuild    `yaml:"rebuild"`
-	Thresholds           []fileThreshold `yaml:"thresholds"`
+	ConfigVersion string           `yaml:"config_version"`
+	CharsPerToken *float64         `yaml:"chars_per_token"`
+	Duplication   *fileDuplication `yaml:"duplication"`
+	Rebuild       *fileRebuild     `yaml:"rebuild"`
+	Thresholds    []fileThreshold  `yaml:"thresholds"`
+
+	// Deprecated top-level spellings of the duplication section, accepted
+	// with a warning for one release.
+	DupMinTokens         *int  `yaml:"dup_min_tokens"`
+	DupIgnoreLiteralOnly *bool `yaml:"dup_ignore_literal_only"`
+	DupFoldSigns         *bool `yaml:"dup_fold_signs"`
+}
+
+type fileDuplication struct {
+	MinTokens         *int  `yaml:"min_tokens"`
+	IgnoreLiteralOnly *bool `yaml:"ignore_literal_only"`
+	FoldSigns         *bool `yaml:"fold_signs"`
 }
 
 type fileRebuild struct {
@@ -189,8 +211,8 @@ func (c *Config) Validate() error {
 	if c.CharsPerToken <= 0 {
 		errs = append(errs, fmt.Errorf("chars_per_token must be > 0, got %v", c.CharsPerToken))
 	}
-	if c.DupMinTokens <= 0 {
-		errs = append(errs, fmt.Errorf("dup_min_tokens must be > 0, got %d", c.DupMinTokens))
+	if c.Duplication.MinTokens <= 0 {
+		errs = append(errs, fmt.Errorf("duplication.min_tokens must be > 0, got %d", c.Duplication.MinTokens))
 	}
 	if err := c.Rebuild.Validate(); err != nil {
 		errs = append(errs, fmt.Errorf("rebuild: %w", err))
@@ -224,20 +246,8 @@ func (fc *fileConfig) build() (*Config, error) {
 	} else {
 		cfg.CharsPerToken = *fc.CharsPerToken
 	}
-	if fc.DupMinTokens == nil {
-		missing("dup_min_tokens")
-	} else {
-		cfg.DupMinTokens = *fc.DupMinTokens
-	}
-	if fc.DupIgnoreLiteralOnly == nil {
-		missing("dup_ignore_literal_only")
-	} else {
-		cfg.DupIgnoreLiteralOnly = *fc.DupIgnoreLiteralOnly
-	}
-	if fc.DupFoldSigns == nil {
-		missing("dup_fold_signs")
-	} else {
-		cfg.DupFoldSigns = *fc.DupFoldSigns
+	if err := fc.buildDuplication(cfg); err != nil {
+		errs = append(errs, err)
 	}
 	if fc.Rebuild == nil {
 		missing("rebuild")
@@ -308,4 +318,75 @@ func (fc *fileConfig) build() (*Config, error) {
 		return nil, err
 	}
 	return cfg, nil
+}
+
+// legacyDupKey pairs a deprecated top-level key with its section key.
+type legacyDupKey struct {
+	old, key string
+	set      bool
+}
+
+// buildDuplication fills cfg.Duplication from the duplication section, or
+// from the deprecated top-level keys with a warning, taking every absent key
+// from the embedded default. Setting both forms is an error naming both.
+func (fc *fileConfig) buildDuplication(cfg *Config) error {
+	legacy := []legacyDupKey{
+		{"dup_min_tokens", "min_tokens", fc.DupMinTokens != nil},
+		{"dup_ignore_literal_only", "ignore_literal_only", fc.DupIgnoreLiteralOnly != nil},
+		{"dup_fold_signs", "fold_signs", fc.DupFoldSigns != nil},
+	}
+	var used []string
+	for _, k := range legacy {
+		if k.set {
+			used = append(used, k.old)
+		}
+	}
+	d := fc.Duplication
+	switch {
+	case len(used) > 0 && d != nil:
+		errs := make([]error, 0, len(used))
+		for _, k := range legacy {
+			if k.set {
+				errs = append(errs, fmt.Errorf("%s and duplication.%s are both set; keep only duplication.%s", k.old, k.key, k.key))
+			}
+		}
+		return errors.Join(errs...)
+	case len(used) > 0:
+		d = &fileDuplication{MinTokens: fc.DupMinTokens, IgnoreLiteralOnly: fc.DupIgnoreLiteralOnly, FoldSigns: fc.DupFoldSigns}
+		cfg.Warnings = append(cfg.Warnings, strings.Join(used, ", ")+
+			" deprecated: move under the duplication section as min_tokens, ignore_literal_only and fold_signs")
+	case d == nil:
+		d = &fileDuplication{}
+	}
+	if d.MinTokens == nil || d.IgnoreLiteralOnly == nil || d.FoldSigns == nil {
+		def, err := defaultDuplication()
+		if err != nil {
+			return err
+		}
+		if d.MinTokens == nil {
+			d.MinTokens = def.MinTokens
+		}
+		if d.IgnoreLiteralOnly == nil {
+			d.IgnoreLiteralOnly = def.IgnoreLiteralOnly
+		}
+		if d.FoldSigns == nil {
+			d.FoldSigns = def.FoldSigns
+		}
+	}
+	cfg.Duplication = Duplication{MinTokens: *d.MinTokens, IgnoreLiteralOnly: *d.IgnoreLiteralOnly, FoldSigns: *d.FoldSigns}
+	return nil
+}
+
+// defaultDuplication decodes the duplication section of the embedded
+// default, so the defaults are stated once, in default.yaml.
+func defaultDuplication() (*fileDuplication, error) {
+	var fc fileConfig
+	if err := yaml.Unmarshal([]byte(defaultYAML), &fc); err != nil {
+		return nil, fmt.Errorf("embedded default: %w", err)
+	}
+	d := fc.Duplication
+	if d == nil || d.MinTokens == nil || d.IgnoreLiteralOnly == nil || d.FoldSigns == nil {
+		return nil, errors.New("embedded default: duplication section is incomplete")
+	}
+	return d, nil
 }

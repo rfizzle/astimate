@@ -9,17 +9,18 @@ config_version: default-uncalibrated-1
 # Bytes of source per estimated token; tokens_est = bytes / chars_per_token.
 chars_per_token: 3.2
 
-# Minimum normalized token run that counts as a duplicate block.
-dup_min_tokens: 40
-
-# Drop a duplicate block made only of literals and the punctuation of a
-# literal table, so repeated runs of data tables are not duplication.
-dup_ignore_literal_only: true
-
-# Under dup_ignore_literal_only, count a unary + or - directly before a
-# numeric literal as part of the literal, so tables of negative numbers are
-# data too. Matching is unchanged.
-dup_fold_signs: true
+# Duplicate-block detection. This section is optional: any key left out, or
+# the whole section, takes the value shown here.
+duplication:
+  # Minimum normalized token run that counts as a duplicate block.
+  min_tokens: 40
+  # Drop a duplicate block made only of literals and the punctuation of a
+  # literal table, so repeated runs of data tables are not duplication.
+  ignore_literal_only: true
+  # Under ignore_literal_only, count a unary + or - directly before a
+  # numeric literal as part of the literal, so tables of negative numbers
+  # are data too. Matching is unchanged.
+  fold_signs: true
 
 # Rebuild estimate parameters (SPEC.md sections 7.2 to 7.4).
 rebuild:

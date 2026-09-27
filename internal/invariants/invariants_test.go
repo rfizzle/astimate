@@ -118,9 +118,9 @@ func TestConfigOverrideViaEnvironment(t *testing.T) {
 func extractorOptions(cfg *config.Config) []golang.Option {
 	return []golang.Option{
 		golang.WithCharsPerToken(cfg.CharsPerToken),
-		golang.WithDupMinTokens(cfg.DupMinTokens),
-		golang.WithDupIgnoreLiteralOnly(cfg.DupIgnoreLiteralOnly),
-		golang.WithDupFoldSigns(cfg.DupFoldSigns),
+		golang.WithDupMinTokens(cfg.Duplication.MinTokens),
+		golang.WithDupIgnoreLiteralOnly(cfg.Duplication.IgnoreLiteralOnly),
+		golang.WithDupFoldSigns(cfg.Duplication.FoldSigns),
 	}
 }
 

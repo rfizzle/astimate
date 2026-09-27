@@ -29,9 +29,14 @@ func TestParseDefault(t *testing.T) {
 	if cfg.Version != "default-uncalibrated-1" {
 		t.Errorf("Version = %q, want default-uncalibrated-1", cfg.Version)
 	}
-	if cfg.CharsPerToken != 3.2 || cfg.DupMinTokens != 40 || !cfg.DupIgnoreLiteralOnly || !cfg.DupFoldSigns {
-		t.Errorf("CharsPerToken, DupMinTokens, DupIgnoreLiteralOnly, DupFoldSigns = %v, %d, %v, %v; want 3.2, 40, true, true",
-			cfg.CharsPerToken, cfg.DupMinTokens, cfg.DupIgnoreLiteralOnly, cfg.DupFoldSigns)
+	if cfg.CharsPerToken != 3.2 {
+		t.Errorf("CharsPerToken = %v, want 3.2", cfg.CharsPerToken)
+	}
+	if want := (Duplication{MinTokens: 40, IgnoreLiteralOnly: true, FoldSigns: true}); cfg.Duplication != want {
+		t.Errorf("Duplication = %+v, want %+v", cfg.Duplication, want)
+	}
+	if len(cfg.Warnings) != 0 {
+		t.Errorf("Warnings = %q, want none", cfg.Warnings)
 	}
 
 	r := cfg.Rebuild
@@ -116,12 +121,11 @@ func TestParseErrors(t *testing.T) {
 		{name: "missing rebuild field", old: "  days_per_month: 19\n", repl: "", wantErr: "rebuild.days_per_month is required"},
 		{name: "missing chars_per_token", old: "chars_per_token: 3.2\n", repl: "", wantErr: "chars_per_token is required"},
 		{name: "zero chars_per_token", old: "chars_per_token: 3.2", repl: "chars_per_token: 0", wantErr: "chars_per_token must be > 0"},
-		{name: "zero dup_min_tokens", old: "dup_min_tokens: 40", repl: "dup_min_tokens: 0", wantErr: "dup_min_tokens"},
-		{name: "missing dup_ignore_literal_only", old: "dup_ignore_literal_only: true\n", repl: "", wantErr: "dup_ignore_literal_only is required"},
-		{name: "dup_ignore_literal_only not a bool", old: "dup_ignore_literal_only: true", repl: "dup_ignore_literal_only: maybe", wantErr: "`maybe` into bool"},
-		{name: "missing dup_fold_signs", old: "dup_fold_signs: true\n", repl: "", wantErr: "dup_fold_signs is required"},
+		{name: "zero min_tokens", old: "min_tokens: 40", repl: "min_tokens: 0", wantErr: "duplication.min_tokens must be > 0"},
+		{name: "ignore_literal_only not a bool", old: "ignore_literal_only: true", repl: "ignore_literal_only: maybe", wantErr: "`maybe` into bool"},
+		{name: "unknown duplication key", old: "  min_tokens: 40\n", repl: "  min_tokens: 40\n  min_tokenz: 40\n", wantErr: "min_tokenz"},
 		{name: "empty version", old: "config_version: default-uncalibrated-1", repl: "config_version: \"\"", wantErr: "config_version is required"},
-		{name: "unknown key", old: "dup_min_tokens: 40", repl: "dup_min_tokens: 40\ndup_min_tokenz: 40", wantErr: "dup_min_tokenz"},
+		{name: "unknown key", old: "chars_per_token: 3.2", repl: "chars_per_token: 3.2\nchars_per_tokenz: 3.2", wantErr: "chars_per_tokenz"},
 		{name: "threshold with no limit", old: "    kind: density\n    max_delta: 3\n", repl: "    kind: density\n", wantErr: `"cognitive_p90": density rule needs max_delta`},
 		{name: "capacity with max_delta", old: capacityRule, repl: capacityRule + "    max_delta: 0\n", wantErr: `"sloc": capacity rule must not set max_delta`},
 		{name: "ratchet_from_zero on capacity", old: capacityRule, repl: capacityRule + "    ratchet_from_zero: true\n", wantErr: `"sloc": ratchet_from_zero applies only to density rules`},
@@ -143,6 +147,75 @@ func TestParseErrors(t *testing.T) {
 			_, err := Parse([]byte(replace(t, tt.old, tt.repl)))
 			if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
 				t.Fatalf("Parse() error = %v, want error containing %q", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// defaultDupSection is the duplication section of default.yaml, comments
+// included, so tests can drop or rewrite it.
+const defaultDupSection = `duplication:
+  # Minimum normalized token run that counts as a duplicate block.
+  min_tokens: 40
+  # Drop a duplicate block made only of literals and the punctuation of a
+  # literal table, so repeated runs of data tables are not duplication.
+  ignore_literal_only: true
+  # Under ignore_literal_only, count a unary + or - directly before a
+  # numeric literal as part of the literal, so tables of negative numbers
+  # are data too. Matching is unchanged.
+  fold_signs: true
+`
+
+func TestParseDuplication(t *testing.T) {
+	t.Parallel()
+
+	defaults := Duplication{MinTokens: 40, IgnoreLiteralOnly: true, FoldSigns: true}
+	tests := []struct {
+		name         string
+		section      string
+		want         Duplication
+		wantWarnings int
+		wantErr      []string
+	}{
+		{name: "absent section", section: "", want: defaults},
+		{name: "empty section", section: "duplication: {}\n", want: defaults},
+		{name: "only min_tokens", section: "duplication:\n  min_tokens: 25\n",
+			want: Duplication{MinTokens: 25, IgnoreLiteralOnly: true, FoldSigns: true}},
+		{name: "only fold_signs", section: "duplication:\n  fold_signs: false\n",
+			want: Duplication{MinTokens: 40, IgnoreLiteralOnly: true, FoldSigns: false}},
+		{name: "old keys", section: "dup_min_tokens: 30\ndup_ignore_literal_only: false\ndup_fold_signs: false\n",
+			want: Duplication{MinTokens: 30}, wantWarnings: 1},
+		{name: "one old key", section: "dup_min_tokens: 30\n",
+			want: Duplication{MinTokens: 30, IgnoreLiteralOnly: true, FoldSigns: true}, wantWarnings: 1},
+		{name: "both forms", section: "dup_min_tokens: 30\ndup_fold_signs: false\nduplication:\n  min_tokens: 25\n",
+			wantErr: []string{"dup_min_tokens and duplication.min_tokens", "dup_fold_signs and duplication.fold_signs"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg, err := Parse([]byte(replace(t, defaultDupSection, tt.section)))
+			if tt.wantErr != nil {
+				for _, w := range tt.wantErr {
+					if err == nil || !strings.Contains(err.Error(), w) {
+						t.Errorf("Parse() error = %v, want error containing %q", err, w)
+					}
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Parse() error = %v", err)
+			}
+			if cfg.Duplication != tt.want {
+				t.Errorf("Duplication = %+v, want %+v", cfg.Duplication, tt.want)
+			}
+			if len(cfg.Warnings) != tt.wantWarnings {
+				t.Fatalf("Warnings = %q, want %d", cfg.Warnings, tt.wantWarnings)
+			}
+			for _, w := range cfg.Warnings {
+				if !strings.Contains(w, "dup_min_tokens") || !strings.Contains(w, "deprecated") {
+					t.Errorf("warning %q does not name dup_min_tokens as deprecated", w)
+				}
 			}
 		})
 	}

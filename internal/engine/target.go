@@ -131,12 +131,17 @@ func LoadTarget(dir string, opts TargetOptions) (*Target, error) {
 		if err != nil {
 			return nil, fmt.Errorf("resolving config: %w", err)
 		}
+		if opts.Logger != nil {
+			for _, w := range cfg.Warnings {
+				opts.Logger.Warn("config", "source", source, "warning", w)
+			}
+		}
 	}
 	ext := golang.New(
 		golang.WithCharsPerToken(cfg.CharsPerToken),
-		golang.WithDupMinTokens(cfg.DupMinTokens),
-		golang.WithDupIgnoreLiteralOnly(cfg.DupIgnoreLiteralOnly),
-		golang.WithDupFoldSigns(cfg.DupFoldSigns),
+		golang.WithDupMinTokens(cfg.Duplication.MinTokens),
+		golang.WithDupIgnoreLiteralOnly(cfg.Duplication.IgnoreLiteralOnly),
+		golang.WithDupFoldSigns(cfg.Duplication.FoldSigns),
 		golang.WithTokenizer(tokenizer),
 	)
 	if !ext.Detect(root) {
