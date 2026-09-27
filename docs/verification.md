@@ -37,3 +37,11 @@ Install the snippet in a scratch repository, have the agent add an untested expo
 ## Pre-commit hook
 
 2026-09-27: `TestPreCommitSnippet` installs the script from [pre-commit.md](pre-commit.md), read from the document, as `.git/hooks/pre-commit` in a temporary repository with `git` from the test machine. The first commit is allowed with the skip notice (no `HEAD`, no merge-base); a commit adding the degraded fixture's `degraded.go` is refused with `check exited 3` and the `dup_blocks`, `untested_exports` and `globals` violations on stderr; after the file is removed, a commit changing only a comment in the same package succeeds. The pre-commit framework snippet in the same document was not exercised.
+
+## GitHub Action release install
+
+2026-09-27: `goreleaser release --snapshot --clean` (goreleaser v2.17.0) built `astimate_0.0.1-next_{linux,darwin}_{amd64,arm64}.tar.gz`, each with `astimate` at the archive root, and `checksums.txt` with `<sha256>  <file>` lines, the layout of the recorded release under `action/testdata/releases/`. `action/install.sh` installed the darwin_arm64 archive from a `file://` copy of that output with a passing checksum, and the binary reported `version: v0.0.1-next`. The `release-snapshot` job in `ci.yml` repeats the name and checksum checks on every pull request.
+
+| Check | Status |
+| --- | --- |
+| Release install: `version: <tag>` in a workflow downloads and runs the published release | _pending the first `v*` tag_ |

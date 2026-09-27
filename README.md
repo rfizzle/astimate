@@ -84,7 +84,7 @@ jobs:
 
 `fetch-depth: 0` is required: with the default shallow clone the merge-base does not exist and the action stops with exit 2 (`base ref ... not found`) or warns that the clone is shallow. For a `pull_request` event the checkout is the merge commit, so the packages checked are those the pull request changes. If `origin/<base>` might be missing, fetch it first with `git fetch --no-tags origin "+refs/heads/<base>:refs/remotes/origin/<base>"`, as this repository's `gate` job in [`ci.yml`](.github/workflows/ci.yml) does.
 
-A release install downloads `astimate_<version>_<os>_<arch>.tar.gz` (`<version>` without the leading `v`, `<os>` `linux` or `darwin`, `<arch>` `amd64` or `arm64`) and `checksums.txt` from the GitHub release and refuses to install when the archive's SHA-256 does not match its line in `checksums.txt`. Linux and macOS runners are supported. No release has been published yet, so `version: latest` fails until one is; this repository's CI uses `version: source`.
+A release install downloads `astimate_<version>_<os>_<arch>.tar.gz` (`<version>` without the leading `v`, `<os>` `linux` or `darwin`, `<arch>` `amd64` or `arm64`) and `checksums.txt` from the GitHub release and refuses to install when the archive's SHA-256 does not match its line in `checksums.txt`. Linux and macOS runners are supported. Releases are built by goreleaser from [`.goreleaser.yaml`](.goreleaser.yaml) when a `v*` tag is pushed. No release has been published yet, so `version: latest` fails until one is; this repository's CI uses `version: source`.
 
 ## Layout
 

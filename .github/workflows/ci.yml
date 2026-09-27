@@ -62,3 +62,36 @@ jobs:
         with:
           version: source
           base: origin/${{ github.base_ref }}
+
+  # release-snapshot builds the release with goreleaser without publishing
+  # it and checks the assets against the names action/install.sh downloads.
+  release-snapshot:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.27"
+
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --snapshot --clean
+
+      - name: check release assets
+        run: |
+          ls dist
+          version="$(jq -r .version dist/metadata.json)"
+          for platform in linux_amd64 linux_arm64 darwin_amd64 darwin_arm64; do
+            asset="astimate_${version}_${platform}.tar.gz"
+            test -f "dist/$asset" || { echo "missing dist/$asset"; exit 1; }
+            grep -qx "[0-9a-f]\{64\}  $asset" dist/checksums.txt ||
+              { echo "no checksum line for $asset"; exit 1; }
+            tar -tzf "dist/$asset" | grep -qx astimate ||
+              { echo "$asset has no astimate at its root"; exit 1; }
+          done

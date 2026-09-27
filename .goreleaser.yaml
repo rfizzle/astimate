@@ -1,0 +1,68 @@
+# Release build for astimate, run by .github/workflows/release.yml on a v*
+# tag. The archive and checksum names are the contract action/install.sh
+# downloads: astimate_<version without v>_<os>_<arch>.tar.gz with the binary
+# at the archive root, and checksums.txt with "<sha256>  <file>" lines.
+version: 2
+
+project_name: astimate
+
+builds:
+  - id: astimate
+    main: ./cmd/astimate
+    binary: astimate
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    # Same variables as the Makefile's LDFLAGS. .Version has no leading v,
+    # so it is added back to match `git describe` in `make build`.
+    ldflags:
+      - -s -w -X main.buildVersion=v{{ .Version }} -X main.buildCommit={{ .FullCommit }} -X main.buildDate={{ .Date }}
+
+archives:
+  - id: astimate
+    ids:
+      - astimate
+    formats:
+      - tar.gz
+    name_template: "astimate_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE*
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: git
+  groups:
+    - title: Features
+      regexp: '^feat(\(.+\))?!?:'
+      order: 0
+    - title: Fixes
+      regexp: '^fix(\(.+\))?!?:'
+      order: 1
+    - title: Performance
+      regexp: '^perf(\(.+\))?!?:'
+      order: 2
+    - title: Refactoring
+      regexp: '^refactor(\(.+\))?!?:'
+      order: 3
+    - title: Other
+      order: 999
+  filters:
+    exclude:
+      - '^docs(\(.+\))?:'
+      - '^test(\(.+\))?:'
+      - '^chore(\(.+\))?:'
