@@ -216,6 +216,34 @@ func (g Gen[T]) Area() T { return g.v }
 type Lone[T any] struct{}
 
 func (Lone[T]) Area() int { return 4 }
+
+type Getter[T any] interface{ Get() T }
+
+type Box[T any] struct{ v T }
+
+func (b Box[T]) Get() T { return b.v }
+
+type StrBox struct{}
+
+func (StrBox) Get() string { return "s" }
+
+type IntBox struct{}
+
+func (IntBox) Get() int { return 1 }
+
+type FloatBox struct{}
+
+func (FloatBox) Get() float64 { return 1 }
+
+type Crate struct{}
+
+func (*Crate) Get() bool { return true }
+
+type Taker[T any] interface{ Take() T }
+
+type Tray[T any] struct{}
+
+func (Tray[T]) Take() T { var v T; return v }
 `,
 		"u_test.go": `package u
 
@@ -226,6 +254,12 @@ import (
 
 func area[S Shape](s S) int { return s.Area() }
 
+func get[T any](g Getter[T]) T { return g.Get() }
+
+func via[T any, G Getter[T]](g G) T { return g.Get() }
+
+func take[T any](k Taker[T]) T { return k.Take() }
+
 func TestDispatch(t *testing.T) {
 	var s Shape = &Circle{}
 	_ = s.Area()
@@ -234,6 +268,10 @@ func TestDispatch(t *testing.T) {
 	_ = st.String()
 	_ = area(&Ptr[int]{})
 	_ = Gen[string]{}
+	_ = get[string](Box[string]{})
+	_ = get(IntBox{})
+	_ = via[bool](&Crate{})
+	_ = Tray[string]{}
 }
 `,
 	})
@@ -242,7 +280,13 @@ func TestDispatch(t *testing.T) {
 	// Gen[string].Area returns a string, so the only instantiation the test
 	// holds does not implement Shape. Lone is never instantiated, so no
 	// value of it can reach Shape.Area even though its method matches.
-	want := []string{"Blob.Area", "Gen.Area", "Lone.Area", "Other.Len"}
+	// get's instantiations are [string] and [int]: Box[string] and StrBox
+	// implement Getter[string] and IntBox implements Getter[int], but
+	// FloatBox implements no Getter the tests instantiate. The int
+	// instantiation is inferred from the argument. via selects Get
+	// on its type argument *Crate directly. take is never called, so
+	// Tray.Take stays untested although the test holds Tray[string].
+	want := []string{"Blob.Area", "FloatBox.Get", "Gen.Area", "Lone.Area", "Other.Len", "Tray.Take"}
 	if got.untested != len(want) || !slices.Equal(got.names, want) {
 		t.Errorf("untested = %d %v, want %d %v", got.untested, got.names, len(want), want)
 	}
