@@ -124,10 +124,10 @@ func TestImportGraph(t *testing.T) {
 	root := t.TempDir()
 	writeTree(t, root, map[string]string{
 		"package.json": "{}",
-		"a/a.ts":       "import { b } from \"../b\";\nimport { x } from \"./x\";\nexport { c1, c2 } from \"../c\";\nexport { y } from \"./x\";\nexport const a = b;\n",
+		"a/a.ts":       "import { b } from \"../b/b\";\nimport { x } from \"./x\";\nexport { c1, c2 } from \"../c/c\";\nexport { y } from \"./x\";\nexport const a = b;\n",
 		"a/x.ts":       "export const x = 1, y = 2;\n",
-		"b/b.ts":       "import \"../c\";\nexport const b = 1;\n",
-		"b/b.test.ts":  "import { a } from \"../a\";\nimport { c1 } from \"../c\";\nit(\"b\", () => {});\n",
+		"b/b.ts":       "import \"../c/c\";\nexport const b = 1;\n",
+		"b/b.test.ts":  "import { a } from \"../a/a\";\nimport { c1 } from \"../c/c\";\nit(\"b\", () => {});\n",
 		"c/c.ts":       "export const c1 = 1, c2 = 2;\n",
 	})
 	e := New()

@@ -52,14 +52,23 @@ are the same on every checkout.
   specifier naming a file or directory under `baseUrl` (`hub` in
   `b/esm.mts`). A specifier resolving to the importing package itself
   (`./count` in `tested`) is intra-package and not counted. A specifier
-  resolves to the file it names, with `.ts`, `.tsx`, `.d.ts`, `.js` or
-  `.jsx` appended, or with a JavaScript extension replaced by its
-  TypeScript one (`.js` by `.ts`, `.tsx` or `.d.ts`; `.jsx` by `.tsx`;
-  `.mjs` by `.mts` or `.d.mts`; `.cjs` by `.cts` or `.d.cts`), before a
-  directory of that name; the package is the file's directory, or the
-  directory itself. Of several alias targets the first that exists wins,
-  else the first.
-- **external_imports**: distinct npm package names of bare specifiers.
+  resolves to a TypeScript file only, as `tsc` resolves it: the file it
+  names when that has a TypeScript source or declaration extension; with
+  a JavaScript extension replaced by its TypeScript one (`.js` by `.ts`,
+  `.tsx` or `.d.ts`; `.jsx` by `.tsx`; `.mjs` by `.mts` or `.d.mts`;
+  `.cjs` by `.cts` or `.d.cts`); with no extension, with `.ts`, `.tsx` or
+  `.d.ts` appended. Failing a file, a directory of that name resolves
+  through its `package.json` `typings`, `types` or `main` target, else its
+  `index` file (`.ts`, `.tsx`, `.d.ts`, then the `.mts` and `.cts` forms);
+  `.`, `..` and a trailing `/` resolve as a directory only. The package is
+  the resolved file's directory. So `../hub` is `hub/index.ts`, while
+  `./trivial` and `./tested`, which have no index file, resolve to
+  nothing. Of several alias targets the first that resolves wins. A
+  relative specifier that resolves to nothing counts nowhere; a bare one
+  under `baseUrl`, or an alias none of whose targets resolves, is
+  classified as an npm package or built-in instead (see `b`).
+- **external_imports**: distinct npm package names of bare specifiers,
+  including those that fall through from `baseUrl` or an alias.
 - **stdlib_imports**: distinct Node built-ins, with or without `node:`.
 - **fan_in / fan_in_tests**: as for Go: packages whose non-test files import
   this one, and packages that import it from test files only.
@@ -133,15 +142,17 @@ Two files: `trivial.ts` (109 bytes, 3 SLOC) and `wrappers.ts` (577 bytes,
 - `fan_in=1`: `b/esm.mts` imports `@multi/trivial.js`. The first `@multi/*`
   target, `./missing/trivial.js`, does not exist; the second,
   `./trivial/trivial.js`, exists as `trivial.ts` through the `.js` to `.ts`
-  mapping. `fan_in_tests=1`: `dupes/dupes.test.ts` imports `@app/trivial`
-  and `dupes`' source does not.
+  mapping. `b/rejected.ts` imports `../trivial` too, but the directory has
+  no index file, so that import counts nowhere. `fan_in_tests=1`:
+  `dupes/dupes.test.ts` imports `@app/trivial/trivial` and `dupes`' source
+  does not.
 - instability `0 / (1 + 0) = 0`; abstractness `0 / 1 = 0` (`Box`, no
   interface); main_sequence_distance `|0 + 0 - 1| = 1`.
 
 ## a
 
-One file, `a.ts`, 154 bytes. Imports `../hub`, which resolves to the `hub`
-directory.
+One file, `a.ts`, 154 bytes. Imports `../hub`, which resolves to
+`hub/index.ts`.
 
 - `sloc=4`: import, function line, return, closing brace.
 - `tokens_est = 154 / 3.2 = 48.1 -> 48`.
@@ -150,20 +161,28 @@ directory.
 
 ## b
 
-Three non-test files: `b.ts` (143 bytes, 2 SLOC), `esm.mts` (238 bytes,
-6 SLOC) and `common.cts` (118 bytes, 3 SLOC). One test file, `esm.test.mts`
-(129 bytes). `types.d.mts` is a declaration file and counts nowhere.
+Four non-test files: `b.ts` (143 bytes, 2 SLOC), `esm.mts` (238 bytes,
+6 SLOC), `common.cts` (118 bytes, 3 SLOC) and `rejected.ts` (355 bytes,
+3 SLOC). One test file, `esm.test.mts` (129 bytes). `types.d.mts` is a
+declaration file and counts nowhere.
 
 - `b.ts` SLOC: the import and the `export const limit = ...` line.
   `esm.mts`: three imports and `bounded` 3 lines. `common.cts`: `scale` 3
-  lines. `sloc=11`, `largest_file_sloc=6`.
-- `tokens_est = (143 + 238 + 118) / 3.2 = 499 / 3.2 = 155.9 -> 155`.
-- `tokens_est_with_tests = (499 + 129) / 3.2 = 628 / 3.2 = 196.25 -> 196`.
+  lines. `rejected.ts`: three side-effect imports under a four-line
+  comment. `sloc=14`, `largest_file_sloc=6`.
+- `tokens_est = (143 + 238 + 118 + 355) / 3.2 = 854 / 3.2 = 266.9 -> 266`.
+- `tokens_est_with_tests = (854 + 129) / 3.2 = 983 / 3.2 = 307.2 -> 307`.
 - Imports: `@app/hub` (alias to `./hub`) and bare `hub` (resolved under the
-  inherited `baseUrl` to the `hub` directory) are package `hub`;
+  inherited `baseUrl` to `hub/index.ts`) are package `hub`;
   `@multi/trivial.js` is package `trivial` (see `trivial`); `./common.cjs`
   resolves to `common.cts` in `b` itself and is not counted.
-  `internal_imports=2`, `external_imports=0`. Were `extends` not followed,
+  `rejected.ts` holds the imports `tsc` does not resolve inside the
+  module: `../trivial` names a directory with no index file and counts
+  nowhere; bare `trivial` names the same directory under `baseUrl`, which
+  does not resolve, so it is the npm package `trivial`; `@app/tested`
+  matches `@app/*`, whose target `./tested` has no index file either, so
+  it falls through to the npm package `@app/tested`.
+  `internal_imports=2`, `external_imports=2`. Were `extends` not followed,
   there would be no `baseUrl` and `hub` would count as an external package.
 - `exported_symbols=3`: `limit`, `bounded`, `scale`.
 - Functions: `limit` (arrow function bound to a `const`), `bounded` and
@@ -244,15 +263,17 @@ Non-test files: `tested.ts` (539 bytes, 15 SLOC) and `count.ts` (154 bytes,
 ## dupes
 
 One non-test file, `dupes.ts` (1689 bytes, 66 SLOC), and one test file,
-`dupes.test.ts` (347 bytes).
+`dupes.test.ts` (355 bytes).
 
 - `sloc=66`: the five-line comment is excluded; three copies of 18 lines
   each, `const partialLimit = 7;` 1, `type Tally = { n: number }` 1,
   `describeValue` 10. 54 + 1 + 1 + 10 = 66.
 - `tokens_est = 1689 / 3.2 = 527.8 -> 527`.
-- `tokens_est_with_tests = 2036 / 3.2 = 636.3 -> 636`.
-- No imports in the non-test file. The test's import of `@app/trivial` is
-  `trivial`'s `fan_in_tests`.
+- `tokens_est_with_tests = 2044 / 3.2 = 638.75 -> 638`.
+- No imports in the non-test file. The test's import of
+  `@app/trivial/trivial` is `trivial`'s `fan_in_tests`; it names the file,
+  as `@app/trivial` would name a directory with no index file, which `tsc`
+  does not resolve.
 - Functions: `sumOrders`, `tallyScores`, `countVisits` 6 each (`for...of`
   +1, two `if` at nesting 1 +2 each, a top-level `if` +1; unlabeled `break`
   and `continue` add nothing), `describeValue` 1 (`switch`). Sorted

@@ -17,10 +17,13 @@
 //     to the package containing that directory.
 //   - An internal import is a relative specifier, one matching a
 //     compilerOptions.paths alias of the root tsconfig.json with its
-//     extends chain applied, or a bare specifier naming a path under its
-//     baseUrl, that resolves to another package of the module. Any other
-//     bare specifier is external, counted by npm package name, unless it
-//     names a Node built-in, which is counted as stdlib.
+//     extends chain applied, or a bare specifier under its baseUrl, that
+//     resolves as tsc does to a TypeScript file (or a directory's
+//     package.json entry or index file) in another package of the module.
+//     Any other bare specifier, including one under baseUrl or matching an
+//     alias that resolves to no such file, is external, counted by npm
+//     package name, unless it names a Node built-in, which is counted as
+//     stdlib.
 //   - An exported function or public method whose doc comment holds the
 //     line comment //astimate:untested is left out of untested_exports,
 //     as in Go.

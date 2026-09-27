@@ -1,5 +1,5 @@
 import { expect, it, test } from "vitest";
-import { answer } from "@app/trivial";
+import { answer } from "@app/trivial/trivial";
 import { describeValue, sumOrders, tallyScores } from "./dupes";
 
 it("describes negatives", () => {
