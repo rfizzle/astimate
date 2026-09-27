@@ -120,10 +120,12 @@ func (c *BaselineCache) get(key string, load func() (baseline.Baseline, error)) 
 //
 // When t's extractor implements metrics.ModuleMetrics and at least one
 // package is selected, the result also carries the module-level row
-// (checkModule), gated against the baseline's row of the same id. A check
-// of opts.Packages has no module row: it answers for those packages only.
-// A module row that fails to extract is logged and returned in failed like
-// a package.
+// (checkModule), gated against the baseline's row of the same id. Rules on
+// module-wide metrics (metrics.ModuleWide) are evaluated on that row only
+// and every other rule on package rows only (gate.ForRow), so one
+// cross-package copy is one finding. A check of opts.Packages has no module
+// row: it answers for those packages only. A module row that fails to
+// extract is logged and returned in failed like a package.
 //
 // When t's extractor implements metrics.FunctionLister, each package's
 // changed_func_cognitive_max is computed here, from its functions at head
@@ -167,8 +169,9 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 
 	c = &report.Check{Packages: make([]report.CheckedPackage, 0, len(selected)), Deleted: deleted}
 	noFunctions := false
+	pkgRules := gate.ForRow(t.Cfg.Thresholds, gate.PackageRow)
 	for _, pkg := range selected {
-		p, unrecorded, err := checkPackage(ctx, t, base, pkg)
+		p, unrecorded, err := checkPackage(ctx, t, base, pkg, pkgRules)
 		if err != nil {
 			path := modulePathRel(t.Mod.ModulePath, pkg)
 			logger.Error("checking package failed", "path", path, "err", err)
@@ -183,7 +186,7 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 			"reason", "the baseline records no functions to diff; rewrite the baseline file with astimate baseline write")
 	}
 	if mm, ok := t.Ext.(metrics.ModuleMetrics); ok && len(opts.Packages) == 0 && len(selected) > 0 {
-		m, err := checkModule(ctx, t, mm, base)
+		m, err := checkModule(ctx, t, mm, base, gate.ForRow(t.Cfg.Thresholds, gate.ModuleRow))
 		if err != nil {
 			logger.Error("checking module row failed", "err", err)
 			failed = append(failed, &PackageError{Path: metrics.ModuleRowID, Err: err})
@@ -355,11 +358,12 @@ func selectPackages(ctx context.Context, t *Target, head []string, src baselineS
 
 // checkModule builds the module-level row of t's module with mm, evaluates
 // it against the baseline's row under metrics.ModuleRowID, if base has one,
-// and the configured thresholds, as checkPackage does for a package, and
-// builds its report under package path metrics.ModuleRowID. The row's
-// suggestions name no functions or locations, and it carries no baseline
-// agent passes, since its rebuild estimate is of an empty package.
-func checkModule(ctx context.Context, t *Target, mm metrics.ModuleMetrics, base baseline.Baseline) (report.CheckedPackage, error) {
+// and rules, the configured thresholds that apply to the module row, as
+// checkPackage does for a package, and builds its report under package
+// path metrics.ModuleRowID. The row's suggestions name no functions or
+// locations, and it carries no baseline agent passes, since its rebuild
+// estimate is of an empty package.
+func checkModule(ctx context.Context, t *Target, mm metrics.ModuleMetrics, base baseline.Baseline, rules []gate.Threshold) (report.CheckedPackage, error) {
 	m, err := mm.ModuleRow(ctx, t.Mod)
 	if err != nil {
 		return report.CheckedPackage{}, err
@@ -371,7 +375,7 @@ func checkModule(ctx context.Context, t *Target, mm metrics.ModuleMetrics, base 
 	suggest := func(metric string, h float64, hm metrics.RawMetrics) string {
 		return score.MetricSuggestion(metric, h, hm, score.Names{})
 	}
-	res := gate.Evaluate(m, bm, t.Cfg.Thresholds, suggest)
+	res := gate.Evaluate(m, bm, rules, suggest)
 	logger := t.logger()
 	for _, n := range res.Notes {
 		logger.Info("rule skipped", "path", metrics.ModuleRowID, "metric", n.Metric, "reason", n.Text)
@@ -391,10 +395,11 @@ func checkModule(ctx context.Context, t *Target, mm metrics.ModuleMetrics, base 
 
 // checkPackage extracts pkg at head, fills changed_func_cognitive_max from
 // the function-level diff against base (changedFunctions), evaluates it
-// against its baseline metrics, if base has any, and the configured
-// thresholds, and builds its report. unrecorded reports that the diff was
-// skipped because base has pkg but no functions for it.
-func checkPackage(ctx context.Context, t *Target, base baseline.Baseline, pkg string) (p report.CheckedPackage, unrecorded bool, err error) {
+// against its baseline metrics, if base has any, and rules, the configured
+// thresholds that apply to a package row, and builds its report. unrecorded
+// reports that the diff was skipped because base has pkg but no functions
+// for it.
+func checkPackage(ctx context.Context, t *Target, base baseline.Baseline, pkg string, rules []gate.Threshold) (p report.CheckedPackage, unrecorded bool, err error) {
 	m, err := t.Ext.Extract(ctx, t.Mod, pkg)
 	if err != nil {
 		return report.CheckedPackage{}, false, err
@@ -418,7 +423,7 @@ func checkPackage(ctx context.Context, t *Target, base baseline.Baseline, pkg st
 	suggest := func(metric string, h float64, hm metrics.RawMetrics) string {
 		return score.MetricSuggestion(metric, h, hm, names)
 	}
-	res := gate.Evaluate(m, bm, t.Cfg.Thresholds, suggest)
+	res := gate.Evaluate(m, bm, rules, suggest)
 	path := modulePathRel(t.Mod.ModulePath, pkg)
 	logger := t.logger()
 	for _, n := range res.Notes {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/baseline"
@@ -11,6 +12,7 @@ import (
 	"github.com/rfizzle/astimate/internal/gate"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/metrics/metricstest"
+	"github.com/rfizzle/astimate/internal/report"
 )
 
 // moduleExtractor is a fake extractor with a module row carrying
@@ -170,5 +172,71 @@ func TestCollectModuleRow(t *testing.T) {
 	}
 	if _, err := baseline.Collect(t.Context(), moduleTarget(0, errors.New("boom")).Ext, tg.Mod); err == nil {
 		t.Error("Collect with a failing module row returned no error")
+	}
+}
+
+// TestCheckCrossPackageCopyOneFinding checks the fixture pair a and b, which
+// share one block, against a baseline from before the copy: a rule on
+// dup_blocks_cross_pkg yields exactly one violation, on the module row,
+// while a and b still report their own count.
+func TestCheckCrossPackageCopyOneFinding(t *testing.T) {
+	if testing.Short() {
+		t.Skip("integration test: loads Go packages")
+	}
+	t.Parallel()
+
+	cfg, err := config.Parse(config.Default())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The default rules, whatever they say on dup_blocks_cross_pkg, plus
+	// exactly one rule on it.
+	zero := 0.0
+	cfg.Thresholds = slices.DeleteFunc(cfg.Thresholds, func(r gate.Threshold) bool { return metrics.ModuleWide(r.Metric) })
+	cfg.Thresholds = append(cfg.Thresholds, gate.Threshold{
+		Metric: "dup_blocks_cross_pkg", Kind: gate.Density, MaxDelta: &zero, RatchetFromZero: true,
+	})
+	tg, err := LoadTarget(fixtureDir, TargetOptions{Config: cfg, Tokenizer: TokenizerEst})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pkgs, err := baseline.Collect(t.Context(), tg.Ext, tg.Mod)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Before the copy no row counted a cross-package block.
+	for id, m := range pkgs {
+		n := 0
+		m.DupBlocksCrossPkg = &n
+		pkgs[id] = m
+	}
+	path := filepath.Join(t.TempDir(), "baseline.json")
+	if err := baseline.Write(path, "", tg.Mod.ModulePath, TokenizerEst, pkgs); err != nil {
+		t.Fatal(err)
+	}
+
+	c, failed, err := Check(t.Context(), tg, CheckOptions{BaselineFile: path, All: true})
+	if err != nil || len(failed) != 0 {
+		t.Fatalf("Check = (%v, %v), want no error", failed, err)
+	}
+	if c.Module == nil {
+		t.Fatal("check has no module row")
+	}
+	type finding struct{ row, metric string }
+	var got []finding
+	rows := append([]report.CheckedPackage{*c.Module}, c.Packages...)
+	for i := range rows {
+		r := &rows[i].Report
+		for _, v := range r.Violations {
+			got = append(got, finding{r.PackagePath, v.Metric})
+		}
+		if (r.PackagePath == "a" || r.PackagePath == "b") &&
+			(r.Metrics.DupBlocksCrossPkg == nil || *r.Metrics.DupBlocksCrossPkg != 1) {
+			t.Errorf("%s: dup_blocks_cross_pkg = %v, want 1 reported", r.PackagePath, r.Metrics.DupBlocksCrossPkg)
+		}
+	}
+	want := []finding{{metrics.ModuleRowID, "dup_blocks_cross_pkg"}}
+	if !slices.Equal(got, want) {
+		t.Errorf("violations = %v, want exactly %v", got, want)
 	}
 }

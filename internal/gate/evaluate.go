@@ -65,6 +65,35 @@ type Result struct {
 // through a closure that supplies its Names argument.
 type Suggester func(metric string, head float64, m metrics.RawMetrics) string
 
+// Row is the kind of row a set of rules is evaluated on (SPEC.md 8.1).
+type Row int
+
+// Row kinds.
+const (
+	// PackageRow is one package's metrics.
+	PackageRow Row = iota
+	// ModuleRow is the module-level row, which carries the module-wide
+	// metrics (metrics.ModuleWide) and zero or null everywhere else.
+	ModuleRow
+)
+
+// ForRow returns the rules of rules that apply to a row of kind row: on
+// the module row, the rules whose metric is module-wide (metrics.ModuleWide);
+// on a package row, every other rule. A package row still reports its value
+// of a module-wide metric, but one cross-package copy is gated once, on the
+// module row, not once per package it touches; and the module row, whose
+// package metrics are all zero, is not judged by package rules. The result
+// is a new slice; rules is not modified.
+func ForRow(rules []Threshold, row Row) []Threshold {
+	out := make([]Threshold, 0, len(rules))
+	for _, r := range rules {
+		if metrics.ModuleWide(r.Metric) == (row == ModuleRow) {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
 // Evaluate checks head, and base when it is non-nil, against rules per
 // SPEC.md section 8.1. A nil base means the package is new at head: every
 // density rule still applies its Max, but MaxDelta is taken against zero only
@@ -80,7 +109,8 @@ type Suggester func(metric string, head float64, m metrics.RawMetrics) string
 // covers rebuild outputs the config loader already rejects; a v1 metric
 // computed at head but null at base skips only its delta rule and adds a
 // Note. Suggestions come from s; a nil s leaves them empty. Evaluate does no
-// I/O.
+// I/O. Evaluate applies every rule it is given, whatever the row; callers
+// select a row's rules with ForRow.
 func Evaluate(head metrics.RawMetrics, base *metrics.RawMetrics, rules []Threshold, s Suggester) Result {
 	e := evaluator{head: head, base: base, suggest: s}
 	for _, r := range rules {

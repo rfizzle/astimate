@@ -18,9 +18,10 @@ import (
 type Check struct {
 	// Module is the module-level row, with package path
 	// metrics.ModuleRowID: module-wide metrics such as the number of
-	// distinct cross-package duplicate blocks, gated like a package. It is
-	// rendered before the packages. Nil when the check has none, as for a
-	// check of chosen packages or an extractor without module metrics.
+	// distinct cross-package duplicate blocks, gated by the rules on those
+	// metrics only. It is rendered before the packages. Nil when the check
+	// has none, as for a check of chosen packages or an extractor without
+	// module metrics.
 	Module *CheckedPackage
 	// Packages are the checked packages, in the order they are rendered.
 	Packages []CheckedPackage

@@ -96,8 +96,10 @@ func explanations() map[string]Explanation {
 		"dup_blocks_cross_pkg": {
 			Definition: "Duplicate blocks shared with other packages in the module: exact normalized repeats of at " +
 				"least duplication.min_tokens found over one module-wide stream, counted once per package they touch. " +
-				"The module-level row (package path \"module\") counts the distinct blocks and is baselined and gated " +
-				"like a package, because one edit that copies code across packages changes two packages' counts.",
+				"The module-level row (package path \"module\") counts the distinct blocks and is baselined like a " +
+				"package, because one edit that copies code across packages changes two packages' counts. A rule on " +
+				"it is gated on the module row only: package rows report their count but are not gated on it, so one " +
+				"cross-package copy is one finding.",
 			Evidence: evidenceDuplication + " Measured before it is gated: the default configuration has no rule " +
 				"on it until the reference corpus shows its spread; a config can gate the module row with " +
 				"max_delta 0 and ratchet_from_zero.",

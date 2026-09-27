@@ -414,6 +414,75 @@ func TestEvaluateNoBaseline(t *testing.T) {
 	}
 }
 
+// TestForRow checks that a rule on a module-wide metric is evaluated on
+// the module row only and every other rule on package rows only, so one
+// cross-package copy is one finding and the module row, whose package
+// metrics are zero, is not failed by a package rule.
+func TestForRow(t *testing.T) {
+	t.Parallel()
+
+	cross := density("dup_blocks_cross_pkg", 0, nil)
+	cross.RatchetFromZero = true
+	dup := density("dup_blocks", 0, nil)
+	dup.RatchetFromZero = true
+	rules := []gate.Threshold{dup, cross, capacity("sloc", 100, 0.75), require("has_tests", true, nil)}
+	tests := []struct {
+		name string
+		row  gate.Row
+		head metrics.RawMetrics
+		base *metrics.RawMetrics
+		want gate.Result
+	}{
+		{
+			name: "module-wide rule skipped on a package row",
+			row:  gate.PackageRow,
+			head: metrics.RawMetrics{SLOC: 10, HasTests: true, DupBlocksCrossPkg: ptr(1)},
+			base: &metrics.RawMetrics{SLOC: 10, HasTests: true, DupBlocksCrossPkg: ptr(0)},
+			want: gate.Result{Passed: true},
+		},
+		{
+			name: "package rules still apply on a package row",
+			row:  gate.PackageRow,
+			head: metrics.RawMetrics{SLOC: 10, DupBlocks: 1, DupBlocksCrossPkg: ptr(1)},
+			base: &metrics.RawMetrics{SLOC: 9, DupBlocksCrossPkg: ptr(0)},
+			want: gate.Result{Violations: []gate.Violation{
+				{Metric: "dup_blocks", Base: 0, Head: 1, HasBase: true, Limit: "max_delta +0"},
+				{Metric: "has_tests", Base: 0, Head: 0, HasBase: true, Limit: "require true"},
+			}},
+		},
+		{
+			name: "package rule skipped on the module row",
+			row:  gate.ModuleRow,
+			head: metrics.RawMetrics{DupBlocksCrossPkg: ptr(0)},
+			want: gate.Result{Passed: true},
+		},
+		{
+			name: "module-wide rule applies on the module row",
+			row:  gate.ModuleRow,
+			head: metrics.RawMetrics{DupBlocksCrossPkg: ptr(1)},
+			base: &metrics.RawMetrics{DupBlocksCrossPkg: ptr(0)},
+			want: gate.Result{Violations: []gate.Violation{
+				{Metric: "dup_blocks_cross_pkg", Base: 0, Head: 1, HasBase: true, Limit: "max_delta +0"},
+			}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Without ForRow, has_tests would fail the module row: it is new
+			// and has no tests.
+			if tt.row == gate.ModuleRow && tt.base == nil && gate.Evaluate(tt.head, nil, rules, nil).Passed {
+				t.Fatal("unfiltered rules pass the module row; the case no longer shows a skipped package rule")
+			}
+			got := gate.Evaluate(tt.head, tt.base, gate.ForRow(rules, tt.row), nil)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Evaluate(ForRow) =\n%+v\nwant\n%+v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestEvaluateOrderingAndSuggestions(t *testing.T) {
 	t.Parallel()
 
