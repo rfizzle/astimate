@@ -31,6 +31,8 @@ const (
 	casePositions    = "positions-length"
 	caseGlobalNames  = "global-names-length"
 	caseModuleCross  = "module-cross"
+	caseGenerated    = "generated"
+	unmarkedRoot     = "/fake/unmarked"
 	fakeRoot         = "/fake/module"
 	thisPackage      = "github.com/rfizzle/astimate/internal/metrics"
 	metricstestPkgID = thisPackage + "/metricstest"
@@ -184,6 +186,68 @@ func TestSuitePassesOnFake(t *testing.T) {
 	dir := writeGoldens(t, syntheticGoldens())
 	ext := metricstest.NewFake("fake", fakeRoot, syntheticPackages())
 	metricstest.TestExtractor(t, ext, syntheticFixture(dir))
+}
+
+// generatedPackages returns syntheticPackages with one generated file in
+// beta worth 50 tokens, and the same module with its marker removed: beta
+// then counts the file's 5 lines, 50 tokens and one unexported function of
+// cognitive complexity 1, and alpha, which holds none, gains a
+// cross-package block, which is allowed.
+func generatedPackages() (marked, unmarked map[string]metrics.RawMetrics) {
+	one, fifty, zero, two := 1, 50, 0, 2
+	marked = syntheticPackages()
+	beta := marked["beta"]
+	beta.Files = 2
+	beta.GeneratedFiles, beta.TokensEstGenerated = &one, &fifty
+	marked["beta"] = beta
+
+	unmarked = syntheticPackages()
+	ub := unmarked["beta"]
+	ub.Files = 2
+	ub.SLOC += 5
+	ub.TokensEst += 50
+	ub.TokensEstWithTests += 50
+	ub.FuncCount++
+	ub.CognitiveTotal++
+	ub.GeneratedFiles, ub.TokensEstGenerated = &zero, &zero
+	unmarked["beta"] = ub
+	ua := unmarked["alpha"]
+	ua.DupBlocksCrossPkg = &two
+	unmarked["alpha"] = ua
+	return marked, unmarked
+}
+
+// generatedGoldens returns syntheticGoldens with beta's second, generated
+// file counted in files.
+func generatedGoldens() map[string]string {
+	goldens := syntheticGoldens()
+	goldens["beta"] = strings.Replace(goldens["beta"], `"files": 1`, `"files": 2`, 1)
+	return goldens
+}
+
+func TestSuitePassesOnFakeWithUnmarkedCopy(t *testing.T) {
+	marked, unmarked := generatedPackages()
+	fx := syntheticFixture(writeGoldens(t, generatedGoldens()))
+	fx.Unmarked = unmarkedRoot
+	ext := metricstest.NewFake("fake", fakeRoot, marked, metricstest.WithModule(unmarkedRoot, unmarked))
+	metricstest.TestExtractor(t, ext, fx)
+}
+
+func TestFakeWithModuleServesBothRoots(t *testing.T) {
+	marked, unmarked := generatedPackages()
+	ext := metricstest.NewFake("fake", fakeRoot, marked, metricstest.WithModule(unmarkedRoot, unmarked))
+	if !ext.Detect(unmarkedRoot) || !ext.Detect(fakeRoot) {
+		t.Errorf("Detect does not report both roots")
+	}
+	if pkgs, err := ext.Packages(unmarkedRoot + "/"); err != nil || !slices.Equal(pkgs, []string{"alpha", "beta", "gamma"}) {
+		t.Errorf("Packages(unmarked) = %v, %v", pkgs, err)
+	}
+	for root, want := range map[string]int{fakeRoot: 40, unmarkedRoot: 45} {
+		m, err := ext.Extract(t.Context(), &metrics.ModuleContext{Root: root}, "beta")
+		if err != nil || m.SLOC != want {
+			t.Errorf("Extract(beta) at %s = sloc %d, %v, want %d", root, m.SLOC, err, want)
+		}
+	}
 }
 
 // syntheticDetails names as many untested exports per package as
@@ -450,6 +514,31 @@ func TestSuiteSubprocess(t *testing.T) {
 		beta.GlobalNames = append(beta.GlobalNames, "extra")
 		details["beta"] = beta
 		opts = append(opts, metricstest.WithDetails(details))
+	case caseGenerated:
+		// beta's generated volume never reaches tokens_est, its imports and
+		// sloc move, and the unmarked copy still reports a generated file;
+		// alpha, which has none, changes sloc; gamma reports generated
+		// tokens without a generated file.
+		marked, unmarked := generatedPackages()
+		ub := unmarked["beta"]
+		ub.TokensEst -= 50
+		ub.StdlibImports = 0
+		ub.SLOC = 30
+		ub.GeneratedFiles = ptrTo(1)
+		unmarked["beta"] = ub
+		ua := unmarked["alpha"]
+		ua.SLOC++
+		unmarked["alpha"] = ua
+		mg := marked["gamma"]
+		mg.GeneratedFiles, mg.TokensEstGenerated = ptrTo(0), ptrTo(3)
+		marked["gamma"] = mg
+		ug := unmarked["gamma"]
+		ug.GeneratedFiles, ug.TokensEstGenerated = ptrTo(0), ptrTo(3)
+		unmarked["gamma"] = ug
+		pkgs = marked
+		goldens = generatedGoldens()
+		fx.Unmarked = unmarkedRoot
+		opts = append(opts, metricstest.WithModule(unmarkedRoot, unmarked))
 	case caseModuleCross:
 		// The module details name two blocks for a row of one, and the
 		// shared block is missing from beta's details.
@@ -588,6 +677,21 @@ func TestSuiteDetectsModuleCrossMismatch(t *testing.T) {
 	if strings.Contains(out, "--- FAIL: TestSuiteSubprocess/Details") {
 		t.Errorf("nil CrossBlocks in beta's details must pass the package check:\n%s", out)
 	}
+}
+
+func TestSuiteDetectsGeneratedViolation(t *testing.T) {
+	out := runSubprocess(t, caseGenerated)
+	requireContains(t, out,
+		"--- FAIL: TestSuiteSubprocess/Invariants",
+		"gamma: tokens_est_generated 3 without a generated file",
+		"--- FAIL: TestSuiteSubprocess/Generated",
+		"beta: unmarked copy reports generated_files 1, want 0",
+		"gamma: unmarked copy reports tokens_est_generated 3, want 0",
+		"alpha: no generated file, yet the unmarked copy differs",
+		"beta: stdlib_imports 1, unmarked 0: generated files count in it like any other",
+		"beta: sloc 40 exceeds unmarked 30: a generated file cannot add to it",
+		"beta: unmarked tokens_est 300, want tokens_est 300 + tokens_est_generated 50 (within 1)",
+	)
 }
 
 func TestSuiteDetectsInvariantViolation(t *testing.T) {
@@ -763,3 +867,6 @@ func TestImportBoundary(t *testing.T) {
 		}
 	}
 }
+
+// ptrTo returns a pointer to v.
+func ptrTo[T any](v T) *T { return &v }

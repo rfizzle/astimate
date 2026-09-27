@@ -2,7 +2,7 @@
 
 `native.json` and `user.json` hold every v0 field from `SPEC.md` section 6,
 plus the non-null v1 fields `instability`, `dup_blocks_cross_pkg`,
-`uses_cgo`, `uses_reflect` and `generated_files`, for the two packages of the `example.com/cgo` module. `module.json` holds the
+`uses_cgo`, `uses_reflect`, `generated_files` and `tokens_est_generated`, for the two packages of the `example.com/cgo` module. `module.json` holds the
 module-level row: every v0 field 0, every v1 field null except
 `dup_blocks_cross_pkg` 0, since no block of `native` repeats in `user`; the
 per-package counts sum to 0, twice the row. They are counted by
@@ -62,8 +62,12 @@ the same change. Do not regenerate goldens from the extractor.
 - **uses_reflect** false: the source imports neither `reflect` nor
   `unsafe`. The `unsafe` import cgo writes into its generated files does not
   count, because the flags are read from the source files.
-- **generated_files** 0: the files cgo generates are not source files of
-  the package, and `native.go` has no generated-file header.
+- **generated_files** 0 and **tokens_est_generated** 0: the files cgo
+  generates are not source files of the package, and `native.go` has no
+  generated-file header. cgo does mark every file it writes as generated,
+  so `untested_exports` matches a type-checked tree to a generated source
+  file by name, never by its own header; here no source file is
+  generated, so `Add` is still a counted export.
 - **dup_blocks_cross_pkg** 0: nothing in `user` repeats `native`'s code.
 
 ## user
@@ -87,4 +91,4 @@ blank.
   **abstractness** and **main_sequence_distance** are null and absent.
 - **uses_cgo** false and **uses_reflect** false: `user` imports only
   `native`; a pure Go package importing a cgo package is not itself cgo.
-- **generated_files** 0, **dup_blocks_cross_pkg** 0.
+- **generated_files** 0, **tokens_est_generated** 0, **dup_blocks_cross_pkg** 0.

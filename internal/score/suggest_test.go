@@ -395,6 +395,7 @@ func TestMetricSuggestionV1Templates(t *testing.T) {
 		{"uses_reflect", 1, "imports reflect or unsafe"},
 		{"generated_files", 2, "2 files are generated; change the generator or its input, not the output."},
 		{"generated_files", 1, "1 file is generated"},
+		{"tokens_est_generated", 240240, "240240 tokens of generated source, outside the rebuild estimate"},
 	}
 	for _, tt := range tests {
 		got := MetricSuggestion(tt.metric, tt.head, metrics.RawMetrics{}, Names{})

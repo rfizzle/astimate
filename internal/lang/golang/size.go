@@ -9,28 +9,31 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-// sizeCounts holds the size metrics of one package, computed from its
-// non-test files, generated files included.
+// sizeCounts holds the size metrics of one package. files counts every
+// non-test file; the rest are computed from the non-test files a person
+// wrote, generated files excluded (see authoredSyntax).
 type sizeCounts struct {
 	files           int
 	sloc            int
 	largestFileSLOC int
 	// largestFile is the absolute filename of the first file with
-	// largestFileSLOC lines; empty when the package has no files.
+	// largestFileSLOC lines; empty when the package has no authored files.
 	largestFile string
 	// exports holds exported_symbols and the exported type counts that
 	// abstractness is computed from.
 	exports exportCounts
-	// perFile maps the absolute filename of each non-test file to its SLOC,
-	// for metrics that weigh lines per file, such as duplication coverage.
+	// perFile maps the absolute filename of each authored non-test file to
+	// its SLOC, for metrics that weigh lines per file, such as duplication
+	// coverage.
 	perFile map[string]int
 }
 
-// size computes files, sloc, largest_file_sloc and exported_symbols for p
-// from its non-test files, with the exported type counts behind
-// abstractness, read through src to count source lines. It iterates
-// sourceSyntax, the trees of p.GoFiles, so for a cgo package too perFile has
-// one entry per counted file. Interface types are recognized through p's
+// size computes files over every non-test file of p, and sloc,
+// largest_file_sloc and exported_symbols, with the exported type counts
+// behind abstractness, over the authored ones (authoredSyntax), read through
+// src to count source lines. A generated file is counted in files only. It
+// iterates the trees of p.GoFiles, so for a cgo package too perFile has one
+// entry per counted file. Interface types are recognized through p's
 // package scope when p has type information (see exportedInSpec).
 func size(l *loaded, p *packages.Package, src fileSource) (sizeCounts, error) {
 	c := sizeCounts{
@@ -41,7 +44,7 @@ func size(l *loaded, p *packages.Package, src fileSource) (sizeCounts, error) {
 	if p.Types != nil {
 		scope = p.Types.Scope()
 	}
-	for _, f := range sourceSyntax(l, p) {
+	for _, f := range authoredSyntax(l, p) {
 		tf := l.fset.File(f.FileStart)
 		if tf == nil {
 			return sizeCounts{}, fmt.Errorf("counting lines of %s: file not in file set", p.PkgPath)

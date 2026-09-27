@@ -48,14 +48,19 @@ const (
 		"unsafe memory, generator output). Informational: reported, not gated, and no default threshold."
 )
 
+// generatedExcluded ends the definition of every size and structure metric
+// that counts only the files a person wrote (SPEC.md 6.5).
+const generatedExcluded = " Generated files, those with a \"Code generated ... DO NOT EDIT.\" header, " +
+	"are left out: a rebuild regenerates them; see tokens_est_generated."
+
 // explanations returns a fresh table of every metric's explanation.
 func explanations() map[string]Explanation {
 	return map[string]Explanation{
-		"files":                 {Definition: "Non-test source files.", Evidence: evidenceContext, Release: "v0"},
-		"sloc":                  {Definition: "Non-blank, non-comment lines in non-test files.", Evidence: evidenceBloat, Release: "v0", Gated: true},
-		"largest_file_sloc":     {Definition: "SLOC of the largest non-test file.", Evidence: evidenceBloat + " Files past the ceiling rarely fit an edit in one view.", Release: "v0", Gated: true},
-		"tokens_est":            {Definition: "Estimated tokens of non-test source: bytes divided by chars_per_token.", Evidence: evidenceBloat, Release: "v0", Gated: true},
-		"tokens_est_with_tests": {Definition: "Estimated tokens of all source, test files included.", Evidence: evidenceContext, Release: "v0"},
+		"files":                 {Definition: "Non-test source files, generated files included.", Evidence: evidenceContext, Release: "v0"},
+		"sloc":                  {Definition: "Non-blank, non-comment lines in non-test files." + generatedExcluded, Evidence: evidenceBloat, Release: "v0", Gated: true},
+		"largest_file_sloc":     {Definition: "SLOC of the largest non-test file." + generatedExcluded, Evidence: evidenceBloat + " Files past the ceiling rarely fit an edit in one view.", Release: "v0", Gated: true},
+		"tokens_est":            {Definition: "Estimated tokens of non-test source: bytes divided by chars_per_token." + generatedExcluded, Evidence: evidenceBloat, Release: "v0", Gated: true},
+		"tokens_est_with_tests": {Definition: "Estimated tokens of all source, test files included." + generatedExcluded, Evidence: evidenceContext, Release: "v0"},
 		"internal_imports": {
 			Definition: "Fan-out: distinct module-internal packages imported by non-test files.",
 			Evidence: "Coupling growth: agent failures come from coupled facts absent from context. " +
@@ -72,24 +77,24 @@ func explanations() map[string]Explanation {
 		},
 		"fan_in_tests": {Definition: "Module packages importing this package from test files only.", Evidence: evidenceContext, Release: "v0"},
 		"exported_symbols": {
-			Definition: "Exported funcs, methods, types, vars and consts in non-test files.",
+			Definition: "Exported funcs, methods, types, vars and consts in non-test files." + generatedExcluded,
 			Evidence: "Exporting everything: no direct study; a wider API surface raises fan-in cost and " +
 				"the facts the next agent must hold. Indirect evidence.",
 			Release: "v0", Gated: true,
 		},
-		"globals":         {Definition: "Names declared by package-level var in non-test files, excluding _.", Evidence: evidenceHiddenState, Release: "v0", Gated: true},
-		"init_funcs":      {Definition: "Number of init() functions.", Evidence: evidenceHiddenState, Release: "v0", Gated: true},
-		"max_nesting":     {Definition: "Deepest nesting of if, for, range, switch, select and func literal.", Evidence: evidenceNesting, Release: "v0", Gated: true},
-		"cognitive_total": {Definition: "Sum of cognitive complexity over all functions (gocognit rules).", Evidence: evidenceContext, Release: "v0"},
-		"cognitive_p90":   {Definition: "Nearest-rank 90th percentile of per-function cognitive complexity.", Evidence: evidenceNesting, Release: "v0", Gated: true},
-		"func_count":      {Definition: "Functions and methods in non-test files.", Evidence: evidenceContext, Release: "v0"},
-		"dup_blocks":      {Definition: "Distinct maximal duplicate token sequences of at least duplication.min_tokens within the package.", Evidence: evidenceDuplication, Release: "v0", Gated: true},
-		"duplication_pct": {Definition: "Share of non-test SLOC covered by a duplicate block, as a percentage.", Evidence: evidenceDuplication, Release: "v0", Gated: true},
+		"globals":         {Definition: "Names declared by package-level var in non-test files, excluding _." + generatedExcluded, Evidence: evidenceHiddenState, Release: "v0", Gated: true},
+		"init_funcs":      {Definition: "Number of init() functions." + generatedExcluded, Evidence: evidenceHiddenState, Release: "v0", Gated: true},
+		"max_nesting":     {Definition: "Deepest nesting of if, for, range, switch, select and func literal." + generatedExcluded, Evidence: evidenceNesting, Release: "v0", Gated: true},
+		"cognitive_total": {Definition: "Sum of cognitive complexity over all functions (gocognit rules)." + generatedExcluded, Evidence: evidenceContext, Release: "v0"},
+		"cognitive_p90":   {Definition: "Nearest-rank 90th percentile of per-function cognitive complexity." + generatedExcluded, Evidence: evidenceNesting, Release: "v0", Gated: true},
+		"func_count":      {Definition: "Functions and methods in non-test files." + generatedExcluded, Evidence: evidenceContext, Release: "v0"},
+		"dup_blocks":      {Definition: "Distinct maximal duplicate token sequences of at least duplication.min_tokens within the package." + generatedExcluded, Evidence: evidenceDuplication, Release: "v0", Gated: true},
+		"duplication_pct": {Definition: "Share of non-test SLOC covered by a duplicate block, as a percentage." + generatedExcluded, Evidence: evidenceDuplication, Release: "v0", Gated: true},
 		"test_files":      {Definition: "_test.go files.", Evidence: evidenceContext, Release: "v0"},
 		"test_funcs":      {Definition: "Test, Benchmark, Fuzz and Example functions.", Evidence: evidenceContext, Release: "v0"},
 		"has_tests":       {Definition: "Whether test_funcs is above 0.", Evidence: evidenceTests, Release: "v0", Gated: true},
 		"untested_exports": {
-			Definition: "Exported funcs and methods not referenced from any test file in the package.",
+			Definition: "Exported funcs and methods not referenced from any test file in the package." + generatedExcluded,
 			Evidence:   evidenceTests,
 			Release:    "v0", Gated: true,
 		},
@@ -112,7 +117,7 @@ func explanations() map[string]Explanation {
 			Release:  "v1",
 		},
 		"abstractness": {
-			Definition: "Exported interface types over all exported types. Null with no exported types.",
+			Definition: "Exported interface types over all exported types. Null with no exported types." + generatedExcluded,
 			Evidence:   evidenceCoupling,
 			Release:    "v1",
 		},
@@ -130,9 +135,17 @@ func explanations() map[string]Explanation {
 		},
 		"generated_files": {
 			Definition: "Non-test files with a \"// Code generated ... DO NOT EDIT.\" line before the package clause, " +
-				"Go's generated-file convention.",
+				"Go's generated-file convention. They count in files and the import metrics and in no other " +
+				"size or structure metric; tokens_est_generated carries their volume.",
 			Evidence: evidenceOpacity,
 			Release:  "v1",
+		},
+		"tokens_est_generated": {
+			Definition: "Estimated tokens of the generated non-test files that tokens_est leaves out, by the same " +
+				"method. Null for a language with no generated-file convention.",
+			Evidence: evidenceOpacity + " The rebuild estimate leaves this volume out, since a rebuild reruns " +
+				"the generator.",
+			Release: "v1",
 		},
 		"coverage_pct": {
 			Definition: "Statement coverage of the package's own statements from go test -cover -count=1 -run ., " +

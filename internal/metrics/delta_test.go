@@ -56,19 +56,21 @@ func TestDeltaIncreasedAndDecreased(t *testing.T) {
 	head.UsesReflect = ptr(true)
 	head.CoveragePct = ptr(*base.CoveragePct - 10)
 	head.GeneratedFiles = ptr(*base.GeneratedFiles + 4)
+	head.TokensEstGenerated = ptr(*base.TokensEstGenerated - 6)
 	head.Instability = ptr(*base.Instability + 0.5)
 
 	d := head.Delta(base)
 	want := map[string]float64{
-		"dup_blocks":       2,
-		"untested_exports": -3,
-		"duplication_pct":  1.5,
-		"has_tests":        -1,
-		"uses_cgo":         -1,
-		"uses_reflect":     1,
-		"coverage_pct":     -10,
-		"generated_files":  4,
-		"instability":      0.5,
+		"dup_blocks":           2,
+		"untested_exports":     -3,
+		"duplication_pct":      1.5,
+		"has_tests":            -1,
+		"uses_cgo":             -1,
+		"uses_reflect":         1,
+		"coverage_pct":         -10,
+		"generated_files":      4,
+		"tokens_est_generated": -6,
+		"instability":          0.5,
 	}
 	for _, name := range MetricNames() {
 		got, ok := d.Value(name)

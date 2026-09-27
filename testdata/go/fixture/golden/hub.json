@@ -1,9 +1,9 @@
 {
   "files": 2,
-  "sloc": 24,
+  "sloc": 20,
   "largest_file_sloc": 20,
-  "tokens_est": 212,
-  "tokens_est_with_tests": 212,
+  "tokens_est": 177,
+  "tokens_est_with_tests": 177,
   "internal_imports": 0,
   "external_imports": 1,
   "stdlib_imports": 1,
@@ -15,7 +15,7 @@
   "max_nesting": 1,
   "cognitive_total": 2,
   "cognitive_p90": 2,
-  "func_count": 4,
+  "func_count": 3,
   "dup_blocks": 0,
   "duplication_pct": 0,
   "test_files": 0,
@@ -26,5 +26,6 @@
   "instability": 0,
   "uses_cgo": false,
   "uses_reflect": false,
-  "generated_files": 1
+  "generated_files": 1,
+  "tokens_est_generated": 34
 }

@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -62,6 +63,7 @@ func TestExplainCrossPackageAndOpacityNotGated(t *testing.T) {
 		"uses_cgo":             "not gated",
 		"uses_reflect":         "not gated",
 		"generated_files":      "not gated",
+		"tokens_est_generated": "not gated",
 	}
 	for name, want := range tests {
 		e, ok := Explain(name)
@@ -77,5 +79,24 @@ func TestExplainCrossPackageAndOpacityNotGated(t *testing.T) {
 	}
 	if e, _ := Explain("dup_blocks_cross_pkg"); !strings.Contains(e.Definition, "gated on the module row only") {
 		t.Errorf("dup_blocks_cross_pkg definition does not say it is gated on the module row only: %s", e.Definition)
+	}
+}
+
+// TestExplainGeneratedExcluded checks that every metric generated files
+// stay out of says so, and that the ones counting them do not.
+func TestExplainGeneratedExcluded(t *testing.T) {
+	excluded := []string{
+		"sloc", "largest_file_sloc", "tokens_est", "tokens_est_with_tests", "exported_symbols",
+		"globals", "init_funcs", "max_nesting", "cognitive_total", "cognitive_p90", "func_count",
+		"dup_blocks", "duplication_pct", "untested_exports", "abstractness",
+	}
+	for _, name := range MetricNames() {
+		e, _ := Explain(name)
+		if got, want := strings.HasSuffix(e.Definition, generatedExcluded), slices.Contains(excluded, name); got != want {
+			t.Errorf("Explain(%q) says generated files are left out: %v, want %v", name, got, want)
+		}
+	}
+	if e, _ := Explain("files"); !strings.Contains(e.Definition, "generated files included") {
+		t.Errorf("files definition does not say generated files count: %s", e.Definition)
 	}
 }

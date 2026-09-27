@@ -75,6 +75,9 @@ type MetricDeltas struct {
 	// GeneratedFiles is the change in generated_files, nil when head did not
 	// compute it.
 	GeneratedFiles *int `json:"generated_files"`
+	// TokensEstGenerated is the change in tokens_est_generated, nil when
+	// head did not compute it.
+	TokensEstGenerated *int `json:"tokens_est_generated"`
 	// CoveragePct is the change in coverage_pct, in percentage points, nil
 	// when head did not compute it.
 	CoveragePct *float64 `json:"coverage_pct"`
@@ -117,6 +120,7 @@ func (m *RawMetrics) Delta(base RawMetrics) MetricDeltas {
 		UsesCgo:                 deltaOptBool(m.UsesCgo, base.UsesCgo),
 		UsesReflect:             deltaOptBool(m.UsesReflect, base.UsesReflect),
 		GeneratedFiles:          deltaOpt(m.GeneratedFiles, base.GeneratedFiles),
+		TokensEstGenerated:      deltaOpt(m.TokensEstGenerated, base.TokensEstGenerated),
 		CoveragePct:             deltaOpt(m.CoveragePct, base.CoveragePct),
 		ChangedFuncCognitiveMax: deltaOpt(m.ChangedFuncCognitiveMax, base.ChangedFuncCognitiveMax),
 	}
@@ -187,6 +191,8 @@ func (d *MetricDeltas) Value(name string) (float64, bool) {
 		return optInt(d.UsesReflect)
 	case "generated_files":
 		return optInt(d.GeneratedFiles)
+	case "tokens_est_generated":
+		return optInt(d.TokensEstGenerated)
 	case "coverage_pct":
 		return optFloat(d.CoveragePct)
 	case "changed_func_cognitive_max":

@@ -25,5 +25,6 @@
   "dup_blocks_cross_pkg": 0,
   "uses_cgo": false,
   "uses_reflect": false,
-  "generated_files": 0
+  "generated_files": 0,
+  "tokens_est_generated": 0
 }

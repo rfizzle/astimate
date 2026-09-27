@@ -45,13 +45,15 @@ type funcComplexity struct {
 }
 
 // complexity measures the nesting depth and cognitive complexity of every
-// top-level function and method in p's non-test files, init functions
-// included (SPEC.md 6.5), and fingerprints each body in the same walk that
-// measures its nesting. Function literals are scored as part of the
+// top-level function and method in p's authored non-test files, init
+// functions included and generated files left out (SPEC.md 6.5; see
+// authoredSyntax), so the function list changed_func_cognitive_max diffs
+// holds no generated function either, and fingerprints each body in the
+// same walk that measures its nesting. Function literals are scored as part of the
 // function that contains them.
 func complexity(l *loaded, p *packages.Package) complexityCounts {
 	var c complexityCounts
-	for _, f := range sourceSyntax(l, p) {
+	for _, f := range authoredSyntax(l, p) {
 		for _, d := range f.Decls {
 			fn, ok := d.(*ast.FuncDecl)
 			if !ok {

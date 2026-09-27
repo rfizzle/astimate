@@ -26,5 +26,6 @@
   "instability": 0,
   "uses_cgo": true,
   "uses_reflect": false,
-  "generated_files": 0
+  "generated_files": 0,
+  "tokens_est_generated": 0
 }

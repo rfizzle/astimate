@@ -17,7 +17,7 @@ func ptr[T any](v T) *T { return &v }
 func v1Names() []string {
 	return []string{
 		"dup_blocks_cross_pkg", "instability", "abstractness", "main_sequence_distance",
-		"uses_cgo", "uses_reflect", "generated_files", "coverage_pct", "changed_func_cognitive_max",
+		"uses_cgo", "uses_reflect", "generated_files", "tokens_est_generated", "coverage_pct", "changed_func_cognitive_max",
 	}
 }
 
@@ -55,6 +55,7 @@ func fullMetrics() RawMetrics {
 		UsesCgo:                 ptr(true),
 		UsesReflect:             ptr(false),
 		GeneratedFiles:          ptr(24),
+		TokensEstGenerated:      ptr(26),
 		CoveragePct:             ptr(87.5),
 		ChangedFuncCognitiveMax: ptr(25),
 	}
@@ -183,6 +184,10 @@ func TestRawMetricsValidate(t *testing.T) {
 		{name: "negative globals", mutate: func(m *RawMetrics) { m.Globals = -2 }, wantErr: "globals is negative"},
 		{name: "negative untested exports", mutate: func(m *RawMetrics) { m.UntestedExports = -1 }, wantErr: "untested_exports is negative"},
 		{name: "negative v1 count", mutate: func(m *RawMetrics) { m.GeneratedFiles = ptr(-1) }, wantErr: "generated_files is negative"},
+		{name: "negative generated tokens", mutate: func(m *RawMetrics) { m.TokensEstGenerated = ptr(-1) }, wantErr: "tokens_est_generated is negative"},
+		{name: "generated tokens without generated files", mutate: func(m *RawMetrics) { m.GeneratedFiles = ptr(0) }, wantErr: "tokens_est_generated 26 with generated_files 0"},
+		{name: "no generated files and no generated tokens", mutate: func(m *RawMetrics) { m.GeneratedFiles, m.TokensEstGenerated = ptr(0), ptr(0) }},
+		{name: "generated tokens without a generated_files count", mutate: func(m *RawMetrics) { m.GeneratedFiles = nil }},
 		{name: "negative changed func max", mutate: func(m *RawMetrics) { m.ChangedFuncCognitiveMax = ptr(-3) }, wantErr: "changed_func_cognitive_max is negative"},
 		{name: "duplication above 100", mutate: func(m *RawMetrics) { m.DuplicationPct = 100.1 }, wantErr: "duplication_pct"},
 		{name: "duplication negative", mutate: func(m *RawMetrics) { m.DuplicationPct = -0.1 }, wantErr: "duplication_pct"},

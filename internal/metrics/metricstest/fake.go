@@ -14,7 +14,8 @@ import (
 // serves the records in pkgs. Use it wherever code needs an Extractor but not
 // a real module: the estimate, the gate, the CLI and registry tests.
 //
-// Detect reports true only for root (compared after filepath.Clean).
+// Detect reports true only for root (compared after filepath.Clean), or a
+// root added with WithModule.
 // Packages returns the keys of pkgs sorted, and an error for any other root.
 // Extract returns the stored record, an error for an unknown package, and
 // ctx.Err() when the context is done. The map is copied, so later changes by
@@ -55,6 +56,20 @@ func NewFake(lang, root string, pkgs map[string]metrics.RawMetrics, opts ...Fake
 // FakeOption configures the extractor NewFake returns.
 type FakeOption func(*fake)
 
+// WithModule makes the fake serve a second module at root, whose Packages
+// are the keys of pkgs and whose Extract, for a ModuleContext with that
+// Root, returns pkgs[pkg]. It models a copy of the module, such as
+// Fixture.Unmarked. Details and the module row are the first module's
+// whatever the root. The map is copied.
+func WithModule(root string, pkgs map[string]metrics.RawMetrics) FakeOption {
+	return func(f *fake) {
+		if f.others == nil {
+			f.others = make(map[string]map[string]metrics.RawMetrics)
+		}
+		f.others[filepath.Clean(root)] = maps.Clone(pkgs)
+	}
+}
+
 // WithDetails makes the fake implement metrics.Detailer, serving details[pkg]
 // for each package. Details returns the zero value for a package of the fake
 // missing from details, an error for an unknown package, and ctx.Err() when
@@ -91,6 +106,8 @@ type fake struct {
 	details       map[string]metrics.Details
 	row           *metrics.RawMetrics
 	moduleDetails *metrics.Details
+	// others holds the modules WithModule added, by cleaned root.
+	others map[string]map[string]metrics.RawMetrics
 }
 
 // detailFake is a fake that also implements metrics.Detailer.
@@ -210,9 +227,16 @@ func cloneCrossBlocks(bs []metrics.CrossBlock) []metrics.CrossBlock {
 
 func (f *fake) Language() string { return f.lang }
 
-func (f *fake) Detect(root string) bool { return filepath.Clean(root) == f.root }
+func (f *fake) Detect(root string) bool {
+	root = filepath.Clean(root)
+	_, other := f.others[root]
+	return root == f.root || other
+}
 
 func (f *fake) Packages(root string) ([]string, error) {
+	if pkgs, ok := f.others[filepath.Clean(root)]; ok {
+		return slices.Sorted(maps.Keys(pkgs)), nil
+	}
 	if !f.Detect(root) {
 		return nil, fmt.Errorf("fake %s extractor: listing packages: %s is not the configured root %s",
 			f.lang, root, f.root)
@@ -220,11 +244,17 @@ func (f *fake) Packages(root string) ([]string, error) {
 	return slices.Sorted(maps.Keys(f.pkgs)), nil
 }
 
-func (f *fake) Extract(ctx context.Context, _ *metrics.ModuleContext, pkg string) (metrics.RawMetrics, error) {
+func (f *fake) Extract(ctx context.Context, mod *metrics.ModuleContext, pkg string) (metrics.RawMetrics, error) {
 	if err := ctx.Err(); err != nil {
 		return metrics.RawMetrics{}, fmt.Errorf("fake %s extractor: extracting %s: %w", f.lang, pkg, err)
 	}
-	m, ok := f.pkgs[pkg]
+	pkgs := f.pkgs
+	if mod != nil {
+		if other, ok := f.others[filepath.Clean(mod.Root)]; ok {
+			pkgs = other
+		}
+	}
+	m, ok := pkgs[pkg]
 	if !ok {
 		return metrics.RawMetrics{}, fmt.Errorf("fake %s extractor: unknown package %q", f.lang, pkg)
 	}

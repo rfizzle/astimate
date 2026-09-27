@@ -5,7 +5,11 @@ package metrics
 // values; v1 fields are pointers so that "not computed" serializes as null and
 // stays distinguishable from zero.
 type RawMetrics struct {
-	// Files is the number of non-test source files.
+	// Files is the number of non-test source files, generated files
+	// included. Every other size and structure field counts only the files
+	// a person wrote: a file with a generated-code header is left out of
+	// them and reported in GeneratedFiles and TokensEstGenerated instead
+	// (SPEC.md 6.5).
 	Files int `json:"files"`
 	// SLOC is the number of non-blank, non-comment lines in non-test files.
 	SLOC int `json:"sloc"`
@@ -82,6 +86,11 @@ type RawMetrics struct {
 	// GeneratedFiles counts files with a "Code generated ... DO NOT EDIT"
 	// header. Nil when not computed (v1).
 	GeneratedFiles *int `json:"generated_files"`
+	// TokensEstGenerated is the estimated tokens of the generated non-test
+	// source that tokens_est leaves out, by the same method as tokens_est.
+	// Nil when not computed, as for a language with no generated-file
+	// convention (v1).
+	TokensEstGenerated *int `json:"tokens_est_generated"`
 	// CoveragePct is statement coverage from go test -cover, only with
 	// --coverage, as a percentage in [0, 100]. Nil when not computed (v1).
 	CoveragePct *float64 `json:"coverage_pct"`
@@ -125,6 +134,7 @@ func MetricNames() []string {
 		"uses_cgo",
 		"uses_reflect",
 		"generated_files",
+		"tokens_est_generated",
 		"coverage_pct",
 		"changed_func_cognitive_max",
 	}
@@ -195,6 +205,8 @@ func (m *RawMetrics) Value(name string) (float64, bool) {
 		return optBool(m.UsesReflect)
 	case "generated_files":
 		return optInt(m.GeneratedFiles)
+	case "tokens_est_generated":
+		return optInt(m.TokensEstGenerated)
 	case "coverage_pct":
 		return optFloat(m.CoveragePct)
 	case "changed_func_cognitive_max":

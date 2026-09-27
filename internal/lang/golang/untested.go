@@ -33,8 +33,10 @@ type untestedCounts struct {
 }
 
 // untestedExports counts the exported funcs and methods declared in p's
-// non-test files that no identifier in any _test.go file of p's in-package
-// test variant or external test package refers to (SPEC.md 6.4).
+// authored non-test files that no identifier in any _test.go file of p's
+// in-package test variant or external test package refers to (SPEC.md
+// 6.4). A generated file's exports are left out (see authoredSyntax): a
+// rebuild regenerates them, so they need no test.
 //
 // The non-test package and its test variants are separate type-checks, so
 // their objects are not pointer-equal. Declarations are identified by a key
@@ -66,7 +68,10 @@ type untestedCounts struct {
 // because p.TypesInfo.Defs is keyed by the identifiers of those trees. For a
 // cgo package they are the files cgo generated: the rewritten sources keep
 // every declaration and doc comment of the original, and the helper files
-// declare nothing exported, so the count matches the source files.
+// declare nothing exported, so the count matches the source files. Because
+// cgo marks every file it writes as generated, a tree of p.Syntax is
+// matched to a generated source file by name, its own or the one its
+// package clause's //line directive names, never by its own header.
 func untestedExports(l *loaded, p *packages.Package) untestedCounts {
 	var c untestedCounts
 	// marked holds every counted key, true once a test refers to it.
@@ -76,7 +81,11 @@ func untestedExports(l *loaded, p *packages.Package) untestedCounts {
 	recvs := make(map[string][]string)
 	// declared holds the position of each counted key's identifier.
 	declared := make(map[string]token.Pos)
+	generated := generatedNames(l, p)
 	for _, f := range p.Syntax {
+		if isGeneratedTree(l, p, f, generated) {
+			continue
+		}
 		for _, d := range f.Decls {
 			fd, ok := d.(*ast.FuncDecl)
 			if !ok || !fd.Name.IsExported() {
@@ -117,6 +126,28 @@ func untestedExports(l *loaded, p *packages.Package) untestedCounts {
 	}
 	c.untested = len(c.names)
 	return c
+}
+
+// isGeneratedTree reports whether f, a tree of p.Syntax, is one of the
+// generated source files named in generated: by its file name, which is the
+// source name unless p uses cgo, or by the file its package clause is
+// attributed to through a //line directive, which for a cgo-rewritten tree
+// is the source file cgo read. A nil l resolves positions in p.Fset.
+func isGeneratedTree(l *loaded, p *packages.Package, f *ast.File, generated map[string]bool) bool {
+	if len(generated) == 0 {
+		return false
+	}
+	fset := p.Fset
+	if l != nil && l.fset != nil {
+		fset = l.fset
+	}
+	if fset == nil {
+		return false
+	}
+	if tf := fset.File(f.FileStart); tf != nil && generated[tf.Name()] {
+		return true
+	}
+	return generated[fset.Position(f.Package).Filename]
 }
 
 // markTestRefs sets marked[key] for every key of the package at pkgPath

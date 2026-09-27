@@ -114,7 +114,8 @@ func typeCheckForSize(t *testing.T, src string) (*ast.File, *types.Scope) {
 }
 
 // TestSizePerFile checks the per-file SLOC map duplication weighs lines by:
-// absolute keys, one per non-test file, summing to sloc.
+// absolute keys, one per authored non-test file, summing to sloc, while
+// files still counts the generated ones.
 func TestSizePerFile(t *testing.T) {
 	l := loadFixture(t)
 	for _, path := range l.paths {
@@ -130,9 +131,10 @@ func TestSizePerFile(t *testing.T) {
 				}
 				sum += n
 			}
-			if len(got.perFile) != got.files || sum != got.sloc {
+			authored := got.files - len(generatedNames(l, l.pkgs[path]))
+			if len(got.perFile) != authored || sum != got.sloc {
 				t.Errorf("perFile has %d files summing to %d, want %d files summing to %d",
-					len(got.perFile), sum, got.files, got.sloc)
+					len(got.perFile), sum, authored, got.sloc)
 			}
 		})
 	}

@@ -50,14 +50,13 @@ package golang
 // multi-line raw string spans several), and a covered line counts only if
 // it is a source line by the same rule size uses: at least one non-space
 // byte outside comments. duplication_pct is covered lines over the package
-// SLOC from size (which includes generated files), times 100, rounded to
-// one decimal.
+// SLOC from size, which leaves generated files out as the stream does, times
+// 100, rounded to one decimal.
 
 import (
 	"bytes"
 	"errors"
 	"fmt"
-	"go/ast"
 	"go/scanner"
 	"go/token"
 	"strings"
@@ -156,10 +155,7 @@ func duplication(l *loaded, p *packages.Package, src fileSource, sz sizeCounts, 
 // appendPackage scans the non-test, non-generated files of p, read through
 // src and positioned in fs, into sink, closing each file.
 func (z *dupTokenizer) appendPackage(fs *token.FileSet, l *loaded, p *packages.Package, src fileSource, sink tokenSink) error {
-	for _, f := range sourceSyntax(l, p) {
-		if ast.IsGenerated(f) {
-			continue
-		}
+	for _, f := range authoredSyntax(l, p) {
 		tf := l.fset.File(f.FileStart)
 		if tf == nil {
 			return errors.New("file not in file set")

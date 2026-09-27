@@ -21,11 +21,12 @@ const (
 	methodO200k = "o200k"
 )
 
-// tokenCounts holds tokens_est and tokens_est_with_tests of one package, and
-// the method that produced them for debugging.
+// tokenCounts holds tokens_est, tokens_est_with_tests and
+// tokens_est_generated of one package, and the method that produced them for
+// debugging.
 type tokenCounts struct {
-	tokensEst, tokensEstWithTests int
-	method                        string
+	tokensEst, tokensEstWithTests, tokensEstGenerated int
+	method                                            string
 }
 
 // tokenCounter counts the tokens of a set of source files. The extractor
@@ -39,22 +40,46 @@ type tokenCounter interface {
 	Method() string
 }
 
-// tokens computes tokens_est over p's non-test files and
-// tokens_est_with_tests over those plus the _test.go files of p's in-package
-// test variant and external test package. A file listed by both variants is
-// counted once. File contents and lengths come from src.
+// tokens computes tokens_est over p's authored non-test files,
+// tokens_est_generated over its generated ones (see authoredSyntax), and
+// tokens_est_with_tests over the authored files plus the _test.go files of
+// p's in-package test variant and external test package. A file listed by
+// both variants is counted once. A generated _test.go file stays in
+// tokens_est_with_tests: SPEC.md 6.5 excludes generated non-test files only.
+// File contents and lengths come from src.
 func tokens(l *loaded, p *packages.Package, src fileSource, c tokenCounter) (tokenCounts, error) {
-	est, err := c.Count(src, p.GoFiles)
+	generated := generatedNames(l, p)
+	authored := p.GoFiles
+	var genFiles []string
+	if len(generated) > 0 {
+		authored = make([]string, 0, len(p.GoFiles))
+		genFiles = make([]string, 0, len(generated))
+		for _, name := range p.GoFiles {
+			if generated[name] {
+				genFiles = append(genFiles, name)
+			} else {
+				authored = append(authored, name)
+			}
+		}
+	}
+	est, err := c.Count(src, authored)
 	if err != nil {
 		return tokenCounts{}, fmt.Errorf("counting tokens of %s: %w", p.PkgPath, err)
+	}
+	gen := 0
+	if len(genFiles) > 0 {
+		gen, err = c.Count(src, genFiles)
+		if err != nil {
+			return tokenCounts{}, fmt.Errorf("counting generated tokens of %s: %w", p.PkgPath, err)
+		}
 	}
 
 	all := make([]string, 0, len(p.GoFiles))
 	seen := make(map[string]bool, len(p.GoFiles))
 	for _, name := range p.GoFiles {
 		seen[name] = true
-		all = append(all, name)
 	}
+	all = append(all, authored...)
 	for _, tp := range testPackagesFor(l, p) {
 		for _, name := range tp.GoFiles {
 			if !strings.HasSuffix(name, "_test.go") || seen[name] {
@@ -65,13 +90,13 @@ func tokens(l *loaded, p *packages.Package, src fileSource, c tokenCounter) (tok
 		}
 	}
 	withTests := est
-	if len(all) > len(p.GoFiles) {
+	if len(all) > len(authored) {
 		withTests, err = c.Count(src, all)
 		if err != nil {
 			return tokenCounts{}, fmt.Errorf("counting tokens of %s with tests: %w", p.PkgPath, err)
 		}
 	}
-	return tokenCounts{tokensEst: est, tokensEstWithTests: withTests, method: c.Method()}, nil
+	return tokenCounts{tokensEst: est, tokensEstWithTests: withTests, tokensEstGenerated: gen, method: c.Method()}, nil
 }
 
 // ratioCounter estimates tokens as total bytes divided by charsPerToken.

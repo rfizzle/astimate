@@ -41,15 +41,30 @@ are the same on every checkout.
 
 ## Counting rules used
 
+**Generated files** (`SPEC.md` 6.5): a non-test file with a
+`// Code generated ... DO NOT EDIT.` line before its package clause
+(`ast.IsGenerated`) counts in `files`, `generated_files`,
+`tokens_est_generated` and the import metrics (`internal_imports`,
+`external_imports`, `stdlib_imports`, `fan_in`), because generated code
+imports real packages, and in nothing else: every size and structure metric
+below reads only the files a person wrote. A rebuild reruns the generator;
+it does not write its output. `hub/zz_generated.go` is the fixture's one
+generated file.
+
 - **files**: non-test `.go` files, generated files included.
-- **sloc**: lines of non-test files that are not blank and whose first
-  non-space characters are not `//`. The fixture has no `/* */` comments.
+- **sloc**: lines of non-test, non-generated files that are not blank and
+  whose first non-space characters are not `//`. The fixture has no `/* */` comments.
   Lines with code and a trailing comment would count, but there are none.
-- **largest_file_sloc**: the largest per-file `sloc`.
-- **tokens_est**: total bytes of non-test files divided by 3.2, truncated
-  toward zero. Bytes are summed first, then divided once.
-- **tokens_est_with_tests**: the same over all `.go` files in the directory,
-  including internal and external test files.
+- **largest_file_sloc**: the largest per-file `sloc` over non-generated
+  files.
+- **tokens_est**: total bytes of non-test, non-generated files divided by
+  3.2, truncated toward zero. Bytes are summed first, then divided once.
+- **tokens_est_with_tests**: the same over the non-generated `.go` files in
+  the directory, including internal and external test files.
+- **tokens_est_generated** (v1): total bytes of the non-test generated
+  files divided by 3.2, truncated, by the same rule as `tokens_est`, so the
+  generated volume is reported but stays out of the rebuild estimate. 34
+  for `hub`, 0 elsewhere.
 - **internal_imports / external_imports / stdlib_imports**: distinct imported
   packages in non-test files, keyed by package path. Blank (`_`) and dot (`.`)
   imports count like any other; the fixture has none. Internal means the path
@@ -64,27 +79,32 @@ are the same on every checkout.
   No fixture test file imports another fixture package, so this is 0
   everywhere.
 - **exported_symbols**: exported top-level funcs, methods, types, and var and
-  const names in non-test files. The fixture has no exported types, vars,
+  const names in non-test, non-generated files. The fixture has no exported types, vars,
   consts or methods, so this equals the exported func count.
-- **globals**: names declared by package-level `var` in non-test files,
-  excluding `_`. See the `hidden` section for why specs and names agree here.
-- **init_funcs**: top-level `func init()` declarations.
+- **globals**: names declared by package-level `var` in non-test,
+  non-generated files, excluding `_`. See the `hidden` section for why specs and names agree here.
+- **init_funcs**: top-level `func init()` declarations in non-generated
+  files.
 - **max_nesting**: deepest stack of `if`, `for`, `range`, `switch`, type
   switch, `select` and func literal inside any function body. The function
   body itself is depth 0; `case` clauses and `else` add nothing.
-- **func_count**: top-level funcs and methods in non-test files, including
-  `init` functions and functions in generated files.
+- **func_count**: top-level funcs and methods in non-test, non-generated
+  files, including `init` functions. The same functions, and only those,
+  are listed for `changed_func_cognitive_max`, and `max_nesting` is taken
+  over them.
 - **cognitive_total / cognitive_p90**: gocognit rules per function in
-  non-test files. p90 is nearest-rank: sort the per-function scores
+  non-test, non-generated files. p90 is nearest-rank: sort the per-function scores
   ascending, take the value at rank `ceil(0.9 * n)` (1-based).
 - **dup_blocks / duplication_pct**: see `dupes` below. Generated files and
-  test files are excluded from duplication.
+  test files are excluded from duplication, from the token stream and from
+  the `sloc` denominator of the percentage alike.
 - **test_files**: `_test.go` files, internal and external test packages.
 - **test_funcs**: top-level `Test*`, `Benchmark*`, `Fuzz*` and `Example*`
   funcs in test files.
 - **has_tests**: `test_funcs > 0`.
-- **untested_exports**: exported funcs and methods with no reference from any
-  test file of the package (section 6.4).
+- **untested_exports**: exported funcs and methods of non-generated files
+  with no reference from any test file of the package (section 6.4). A
+  generated export needs no test: a rebuild regenerates it.
 - **instability**, **abstractness**, **main_sequence_distance** (v1) are
   rounded to 3 decimals; the distance is computed from the unrounded ratios.
   Every fixture value is 0 or 1, so rounding changes none.
@@ -92,8 +112,8 @@ are the same on every checkout.
   null when both are 0. Present in a golden only when non-null: `hub` is 0
   (fan-in 4, fan-out 0); `a`, `b`, `hidden` and `tested` are 1 (fan-in 0,
   fan-out 1); `dupes` and `trivial` have no internal edges and are null.
-- **abstractness** (v1): exported interface types over exported types, null
-  with no exported types. A type counts as an interface when its underlying
+- **abstractness** (v1): exported interface types over exported types of
+  non-generated files, null with no exported types. A type counts as an interface when its underlying
   type is one, so `type R io.Reader` and `type R = io.Reader` count. No
   fixture package exports a type (`dupes`' `tally`
   is unexported), so it is null everywhere and absent from every golden.
@@ -174,27 +194,45 @@ copies lie in one package and are not cross-package.
 ## hub
 
 Two files: `hub.go` (568 bytes, 20 SLOC) and `zz_generated.go` (111 bytes,
-4 SLOC). The generated file's first line is
+4 SLOC: package, `func double(n int) int {`, `return n * 2`, `}`). The
+generated file's first line is
 `// Code generated by hand for the fixture. DO NOT EDIT.`, which matches Go's
-generated-file convention. It is excluded from duplication only; every other
-metric counts it. So `files=2`, `sloc=24`, `func_count=4`, and its bytes are
-in `tokens_est`. It is the one file that `generated_files=1` counts.
+generated-file convention. It counts in `files` and `generated_files` and
+nowhere else among the size and structure metrics (see "Generated files"
+above), so every such value of `hub` is that of `hub.go` alone: `files=2`
+but `sloc=20`, `func_count=3`, and its bytes are in `tokens_est_generated`,
+not `tokens_est`. It is the one file that `generated_files=1` counts. It
+imports nothing, so the import metrics would be the same either way.
 
 - `hub.go` SLOC: package, `import (`, `"strings"`, `"example.com/extmod"`,
   `)`, then `Normalize` (3 lines), `Clamp` (9 lines), `Twice` (3 lines) = 20.
-- `largest_file_sloc=20`.
-- `tokens_est = (568 + 111) / 3.2 = 679 / 3.2 = 212.2 -> 212`.
+  The 4 SLOC of `zz_generated.go` do not count, so `sloc=20`.
+- `largest_file_sloc=20` (`hub.go`, the only counted file).
+- `tokens_est = 568 / 3.2 = 177.5 -> 177`, and `tokens_est_with_tests` is
+  the same, 177, with no test files.
+- `tokens_est_generated = 111 / 3.2 = 34.7 -> 34`. Before generated files
+  were excluded, `tokens_est` was `(568 + 111) / 3.2 = 212.2 -> 212`;
+  177 + 34 = 211 is one less because each sum is truncated on its own.
 - Imports: `strings` (stdlib 1), `example.com/extmod` (external 1). No
   internal imports.
 - `fan_in=4`: `tested`, `hidden`, `a` and `b` each import `hub` from a
   non-test file.
 - Functions: `Normalize` 0, `Clamp` 2 (two top-level `if`, +1 each), `Twice`
-  0, `double` 0 (generated file). Sorted `[0, 0, 0, 2]`, rank
-  `ceil(3.6) = 4` -> p90 2. Total 2.
+  0; `double` in the generated file is not counted. Sorted `[0, 0, 2]`, rank
+  `ceil(2.7) = 3` -> p90 2. Total 2. `func_count=3`.
 - `max_nesting=1` (the `if` statements in `Clamp`).
-- `exported_symbols=3` (`Normalize`, `Clamp`, `Twice`; `double` is
-  unexported). No test files, so `untested_exports=3`.
+- `exported_symbols=3` (`Normalize`, `Clamp`, `Twice`), all in `hub.go`;
+  `double` would not count even outside the generated file, being
+  unexported. No test files, so `untested_exports=3`.
 - `instability = 0 / (4 + 0) = 0`: the most stable package in the fixture.
+
+The conformance suite also checks the rule without the goldens: it copies
+the module, defaces the marker of `zz_generated.go` in place (keeping its
+length) so the extractor reads it as hand-written, and requires the copy's
+`hub` to report the same `files` and import metrics, `generated_files` 0,
+no smaller size or structure metric, and `tokens_est` 212, which is
+`177 + 34` within one token of truncation, while every other package is
+unchanged.
 
 ## tested
 
@@ -308,7 +346,7 @@ are fixed in section 6.5.
 
 All other packages have no repeated 40-token sequence: `dup_blocks=0`,
 `duplication_pct=0`. `hub`'s generated file would not count even if it
-repeated.
+repeated, and its lines are not in `hub`'s `sloc`, the denominator.
 
 ## module
 

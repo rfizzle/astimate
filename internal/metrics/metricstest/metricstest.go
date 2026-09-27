@@ -47,6 +47,17 @@ type Fixture struct {
 	// holds module.json, the golden of the module row, so no package's
 	// golden may be named module.
 	GoldenDir string
+	// Unmarked is optional: the root of a copy of the module at Root in
+	// which every generated file has lost its generated-file marker (for
+	// Go, the "// Code generated ... DO NOT EDIT." line), so the extractor
+	// reads it as hand-written. The copy must list the same packages and
+	// keep every file's length, defacing the marker rather than deleting
+	// it, so the token counts of the two compare. When it is set,
+	// TestExtractor extracts every package of the copy and checks that a
+	// generated file adds nothing to the size and structure metrics; see
+	// checkGenerated. Leave it empty for a language with no generated-file
+	// convention or a fixture with no generated file.
+	Unmarked string
 	// Update makes the golden subtest rewrite every golden from the
 	// extractor's output instead of comparing against the files on disk. Set
 	// it only from an explicit -update flag in the implementation's test,
@@ -60,7 +71,8 @@ type Fixture struct {
 // and keeps only language-specific unit tests locally. It checks Detect,
 // Packages, Validate on every Extract result, byte-identical determinism
 // across two module contexts, errors for an unknown package and a cancelled
-// context, module-wide invariants, and every golden in fx.GoldenDir. When ext
+// context, module-wide invariants, the generated-file invariants when
+// fx.Unmarked is set, and every golden in fx.GoldenDir. When ext
 // also implements the optional metrics.Detailer, it checks that Details
 // succeeds for every package after Extract and names as many untested
 // exports as untested_exports counts; that recorded positions number one
@@ -159,6 +171,22 @@ func TestExtractor(t *testing.T, ext metrics.Extractor, fx Fixture) {
 
 	t.Run("Invariants", func(t *testing.T) { checkInvariants(t, fx.Packages, got) })
 
+	if fx.Unmarked != "" {
+		t.Run("Generated", func(t *testing.T) {
+			unmarked := make(map[string]metrics.RawMetrics, len(fx.Packages))
+			umod := &metrics.ModuleContext{Root: fx.Unmarked}
+			for _, pkg := range fx.Packages {
+				m, err := ext.Extract(t.Context(), umod, pkg)
+				if err != nil {
+					t.Errorf("Extract(%s) in the unmarked copy: %v", pkg, err)
+					continue
+				}
+				unmarked[pkg] = m
+			}
+			checkGenerated(t, fx.Packages, got, unmarked)
+		})
+	}
+
 	if d, ok := ext.(metrics.Detailer); ok {
 		t.Run("Details", func(t *testing.T) { checkDetails(t, d, mod, fx.Packages, got) })
 	}
@@ -234,8 +262,9 @@ func checkDeterministic(t *testing.T, ext metrics.Extractor, fx Fixture, got map
 
 // checkInvariants checks relations that hold for any correct extractor and
 // need no golden. Fan-in and fan-out are two views of the same internal
-// import edges, so their module-wide sums agree, and the coupling ratios
-// are consistent and free of float noise (see checkRatios).
+// import edges, so their module-wide sums agree; generated tokens need a
+// generated file; and the coupling ratios are consistent and free of float
+// noise (see checkRatios).
 func checkInvariants(t *testing.T, pkgs []string, got map[string]metrics.RawMetrics) {
 	t.Helper()
 	var fanIn, fanOut int
@@ -252,12 +281,114 @@ func checkInvariants(t *testing.T, pkgs []string, got map[string]metrics.RawMetr
 		if m.TokensEstWithTests < m.TokensEst {
 			t.Errorf("%s: tokens_est_with_tests %d is below tokens_est %d", pkg, m.TokensEstWithTests, m.TokensEst)
 		}
+		if optCount(m.TokensEstGenerated) > 0 && optCount(m.GeneratedFiles) == 0 {
+			t.Errorf("%s: tokens_est_generated %d without a generated file", pkg, *m.TokensEstGenerated)
+		}
 		checkRatios(t, pkg, m)
 	}
 	if fanIn != fanOut {
 		t.Errorf("module-wide sum(fan_in) %d != sum(internal_imports) %d; each internal import edge must count once on each side",
 			fanIn, fanOut)
 	}
+}
+
+// generatedExcluded returns the size and structure metrics that count only
+// the files a person wrote (SPEC.md 6.5) and can only grow when a file is
+// counted too: sums, and maxima over files or functions. The token counts,
+// which the generated volume moves between, are checked separately, and
+// cognitive_p90, dup_blocks and duplication_pct are left to the goldens,
+// since one more file can lower a percentile, merge blocks or dilute a
+// share; see checkGenerated.
+func generatedExcluded() []string {
+	return []string{
+		"sloc", "largest_file_sloc", "exported_symbols", "globals", "init_funcs", "max_nesting",
+		"cognitive_total", "func_count", "untested_exports",
+	}
+}
+
+// generatedCounted returns the metrics that read generated files like any
+// other: files, which counts them, and the import metrics, since generated
+// code imports real packages. Test metrics never see a non-test file.
+func generatedCounted() []string {
+	return []string{
+		"files", "internal_imports", "external_imports", "stdlib_imports", "fan_in", "fan_in_tests",
+		"test_files", "test_funcs", "has_tests",
+	}
+}
+
+// checkGenerated compares every package as extracted (marked) with the same
+// package in the unmarked copy of the module, where no file is generated.
+// The copy must report no generated file and no generated tokens. A
+// package with no generated file must be identical in both, except for
+// dup_blocks_cross_pkg, which another package's file can move. A package with
+// one must agree on the metrics in generatedCounted, and its generated
+// volume must move into tokens_est and tokens_est_with_tests once the
+// marker is gone: unmarked tokens_est is marked tokens_est plus marked
+// tokens_est_generated, and likewise with tests, within one token for the
+// truncation of a ratio estimate. Every metric in generatedExcluded must be
+// at least as large unmarked, since the unmarked copy counts the same files
+// plus the formerly generated ones; with the token identity this is the
+// black-box form of "a generated file adds nothing to the excluded
+// metrics", which the goldens then pin exactly.
+func checkGenerated(t *testing.T, pkgs []string, marked, unmarked map[string]metrics.RawMetrics) {
+	t.Helper()
+	for _, pkg := range pkgs {
+		m, u := marked[pkg], unmarked[pkg]
+		if n := optCount(u.GeneratedFiles); n != 0 {
+			t.Errorf("%s: unmarked copy reports generated_files %d, want 0", pkg, n)
+		}
+		if n := optCount(u.TokensEstGenerated); n != 0 {
+			t.Errorf("%s: unmarked copy reports tokens_est_generated %d, want 0", pkg, n)
+		}
+		if optCount(m.GeneratedFiles) == 0 {
+			// Another package's formerly generated file joins the module-wide
+			// duplication stream, so only dup_blocks_cross_pkg may move.
+			m.DupBlocksCrossPkg = u.DupBlocksCrossPkg
+			a, errA := json.Marshal(m)
+			b, errB := json.Marshal(u)
+			if errA != nil || errB != nil {
+				t.Errorf("%s: encoding metrics: %v, %v", pkg, errA, errB)
+			} else if string(a) != string(b) {
+				t.Errorf("%s: no generated file, yet the unmarked copy differs:\nmarked:   %s\nunmarked: %s", pkg, a, b)
+			}
+			continue
+		}
+		for _, name := range generatedCounted() {
+			mv, _ := m.Value(name)
+			uv, _ := u.Value(name)
+			if mv != uv {
+				t.Errorf("%s: %s %v, unmarked %v: generated files count in it like any other", pkg, name, mv, uv)
+			}
+		}
+		for _, name := range generatedExcluded() {
+			mv, _ := m.Value(name)
+			uv, _ := u.Value(name)
+			if mv > uv {
+				t.Errorf("%s: %s %v exceeds unmarked %v: a generated file cannot add to it", pkg, name, mv, uv)
+			}
+		}
+		gen := optCount(m.TokensEstGenerated)
+		for _, tok := range []struct {
+			name           string
+			marked, unmark int
+		}{
+			{"tokens_est", m.TokensEst, u.TokensEst},
+			{"tokens_est_with_tests", m.TokensEstWithTests, u.TokensEstWithTests},
+		} {
+			if d := tok.unmark - (tok.marked + gen); d < -1 || d > 1 {
+				t.Errorf("%s: unmarked %s %d, want %s %d + tokens_est_generated %d (within 1)",
+					pkg, tok.name, tok.unmark, tok.name, tok.marked, gen)
+			}
+		}
+	}
+}
+
+// optCount returns *p, or 0 for nil.
+func optCount(p *int) int {
+	if p == nil {
+		return 0
+	}
+	return *p
 }
 
 // ratioDecimals is the number of decimal places the coupling ratios

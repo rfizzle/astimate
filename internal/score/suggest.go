@@ -96,8 +96,9 @@ func driverSuggestion(d Driver, m *metrics.RawMetrics, n Names) string {
 // on metric, whose value at head is head. m supplies related values quoted in
 // the text and n the names, when known. It returns "" for a metric without a
 // template; every metric with a default threshold in SPEC.md 8.2 has one, and
-// so do dup_blocks_cross_pkg and the informational flags uses_cgo,
-// uses_reflect and generated_files, which a config may gate.
+// so do dup_blocks_cross_pkg, the informational flags uses_cgo,
+// uses_reflect and generated_files, and tokens_est_generated, which a config
+// may gate.
 func MetricSuggestion(metric string, head float64, m metrics.RawMetrics, n Names) string {
 	v := formatNum(head)
 	switch metric {
@@ -141,6 +142,8 @@ func MetricSuggestion(metric string, head float64, m metrics.RawMetrics, n Names
 		return "The package imports reflect or unsafe; what they do is invisible in signatures, so keep their use small and tested."
 	case "generated_files":
 		return count(int(head), "file is", "files are") + " generated; change the generator or its input, not the output."
+	case "tokens_est_generated":
+		return "The package carries " + v + " tokens of generated source, outside the rebuild estimate; change the generator or its input, not the output."
 	default:
 		return ""
 	}

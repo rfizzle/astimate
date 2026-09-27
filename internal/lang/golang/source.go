@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/parser"
+	"slices"
 
 	"golang.org/x/tools/go/packages"
 )
@@ -24,6 +25,58 @@ func sourceSyntax(l *loaded, p *packages.Package) []*ast.File {
 		}
 	}
 	return p.Syntax
+}
+
+// authoredSyntax returns the trees of sourceSyntax(l, p) that ast.IsGenerated
+// does not report: the files a person wrote, which the size and structure
+// metrics count (SPEC.md 6.5). A generated file, one with a
+// "// Code generated ... DO NOT EDIT." line before its package clause, is
+// regenerated in a rebuild, not written, so it adds nothing to sloc,
+// largest_file_sloc, tokens_est, func_count, the cognitive metrics,
+// max_nesting, globals, init_funcs, exported_symbols, untested_exports or
+// duplication. files, generated_files and the import metrics still read
+// every tree through sourceSyntax, since generated code imports real
+// packages. When no file is generated the result is sourceSyntax's slice
+// itself, not a copy, so callers must not modify it.
+func authoredSyntax(l *loaded, p *packages.Package) []*ast.File {
+	files := sourceSyntax(l, p)
+	i := slices.IndexFunc(files, ast.IsGenerated)
+	if i < 0 {
+		return files
+	}
+	out := make([]*ast.File, i, len(files)-1)
+	copy(out, files[:i])
+	for _, f := range files[i+1:] {
+		if !ast.IsGenerated(f) {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
+// generatedNames returns the absolute names of p's non-test source files
+// that ast.IsGenerated reports, the files authoredSyntax leaves out, or nil
+// when there are none. The names are those of p.GoFiles: sourceSyntax
+// parses each entry of p.GoFiles into l.fset under its own name. A nil l
+// resolves the trees in p.Fset.
+func generatedNames(l *loaded, p *packages.Package) map[string]bool {
+	fset := p.Fset
+	if l != nil && l.fset != nil {
+		fset = l.fset
+	}
+	var names map[string]bool
+	for _, f := range sourceSyntax(l, p) {
+		if !ast.IsGenerated(f) || fset == nil {
+			continue
+		}
+		if tf := fset.File(f.FileStart); tf != nil {
+			if names == nil {
+				names = make(map[string]bool)
+			}
+			names[tf.Name()] = true
+		}
+	}
+	return names
 }
 
 // parseSources parses the source files of every non-test module package
