@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
@@ -33,6 +34,9 @@ type Extractor struct {
 	tokenizer string
 	// dup configures duplicate detection.
 	dup dupOptions
+	// logger receives an info record per module directory a load skipped;
+	// nil discards them.
+	logger *slog.Logger
 
 	// o200kOnce guards the one-time build of o200k, because
 	// tiktoken.SetBpeLoader writes an unguarded library global.
@@ -91,6 +95,14 @@ func WithDupIgnoreLiteralOnly(on bool) Option {
 // dropped like any other. Matching is unchanged (SPEC.md 6.3; default true).
 func WithDupFoldSigns(on bool) Option {
 	return func(e *Extractor) { e.dup.foldSigns = on }
+}
+
+// WithLogger sets the logger that receives, at info level, one record per
+// module directory whose Go files build constraints exclude entirely, such
+// as a package made only of cgo files when cgo is disabled. Each is logged
+// once per module load. Nil, the default, discards them.
+func WithLogger(logger *slog.Logger) Option {
+	return func(e *Extractor) { e.logger = logger }
 }
 
 // New returns a Go extractor configured by opts.
@@ -187,6 +199,17 @@ func (e *Extractor) cached(ctx context.Context, mod *metrics.ModuleContext) (*lo
 	return l, nil
 }
 
+// logSkipped logs each module directory l skipped at info level, when e has
+// a logger.
+func (e *Extractor) logSkipped(l *loaded) {
+	if e.logger == nil {
+		return
+	}
+	for _, s := range l.skipped {
+		e.logger.Info("skipped package", "package", s.importPath, "dir", s.dir, "reason", s.reason)
+	}
+}
+
 // module returns the load of the module at root, performing it on the first
 // call for that root. Concurrent callers for the same root wait for a single
 // load. A failed load is not kept, so a later call retries it; a waiter whose
@@ -212,6 +235,8 @@ func (e *Extractor) module(ctx context.Context, root string) (*loaded, error) {
 				e.mu.Lock()
 				delete(e.modules, abs)
 				e.mu.Unlock()
+			} else {
+				e.logSkipped(m.l)
 			}
 			close(m.done)
 			return m.l, m.err

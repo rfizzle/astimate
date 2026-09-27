@@ -1,8 +1,10 @@
 package golang
 
 import (
+	"bytes"
 	"errors"
 	"io/fs"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -34,6 +36,40 @@ func cgoDependent(t *testing.T) string {
 	}
 	writeFile(t, filepath.Join(dir, "app", "app.go"), "// Package app sums through a cgo dependency.\npackage app\n\n"+
 		"import \"example.com/cgo/user\"\n\n// Total sums 1, 2 and 3.\nfunc Total() int { return user.Sum(1, 2, 3) }\n")
+	return dir
+}
+
+// cgoAlongsidePure writes a module example.com/mixed to a temporary
+// directory with a copy of the cgo fixture's native package and its test,
+// which no package imports, and a pure Go package pure, so the module loads
+// with cgo disabled. It also holds a package ignored, without tests, whose
+// only file has an ignore build constraint, and Go files the go command never loads: under
+// testdata, vendor, _hidden and .hidden directories, in a nested module, and
+// named _skip.go. It returns the root.
+func cgoAlongsidePure(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	for _, sub := range []string{"native", "pure", "ignored", "testdata", "vendor", "_hidden", ".hidden", "nested"} {
+		if err := os.Mkdir(filepath.Join(dir, sub), 0o750); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeFile(t, filepath.Join(dir, "go.mod"), "module example.com/mixed\n\ngo 1.27\n")
+	for _, name := range []string{"native.go", "native_test.go"} {
+		src, err := os.ReadFile(filepath.Join(cgoRoot(t), "native", name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeFile(t, filepath.Join(dir, "native", name), string(src))
+	}
+	writeFile(t, filepath.Join(dir, "pure", "pure.go"), "// Package pure is plain Go.\npackage pure\n\n"+
+		"// Double returns 2x.\nfunc Double(x int) int { return 2 * x }\n")
+	writeFile(t, filepath.Join(dir, "pure", "_skip.go"), "package pure\n")
+	writeFile(t, filepath.Join(dir, "ignored", "gen.go"), "//go:build ignore\n\npackage main\n")
+	for _, sub := range []string{"testdata", "vendor", "_hidden", ".hidden", "nested"} {
+		writeFile(t, filepath.Join(dir, sub, "x.go"), "//go:build ignore\n\npackage x\n")
+	}
+	writeFile(t, filepath.Join(dir, "nested", "go.mod"), "module example.com/nested\n\ngo 1.27\n")
 	return dir
 }
 
@@ -127,6 +163,81 @@ func TestLoadCgo(t *testing.T) {
 				t.Errorf("paths = %v, want %v", l.paths, tc.want)
 			}
 		})
+	}
+}
+
+func TestLoadSkipped(t *testing.T) {
+	const constraints = "build constraints exclude all Go files"
+	ignored := skippedDir{dir: "ignored", importPath: "example.com/mixed/ignored", reason: constraints}
+	for _, tc := range []struct {
+		name string
+		// cgo is CGO_ENABLED.
+		cgo string
+		// toolchain skips the case when cgo cannot run on this machine.
+		toolchain   bool
+		wantPaths   []string
+		wantSkipped []skippedDir
+	}{
+		{
+			name: "cgo disabled", cgo: "0",
+			wantPaths: []string{"example.com/mixed/pure"},
+			wantSkipped: []skippedDir{ignored, {
+				dir: "native", importPath: "example.com/mixed/native",
+				reason: constraints + "; it " + usesDisabledCgo,
+			}},
+		},
+		{
+			name: "C compiler", cgo: "1", toolchain: true,
+			wantPaths:   []string{"example.com/mixed/native", "example.com/mixed/pure"},
+			wantSkipped: []skippedDir{ignored},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.toolchain && !haveCgo(t) {
+				t.Skip("cgo or its C compiler is unavailable")
+			}
+			root := cgoAlongsidePure(t)
+			t.Setenv("CGO_ENABLED", tc.cgo)
+			l, err := loadModule(&packages.Config{Dir: root}, packages.Load)
+			if err != nil {
+				t.Fatalf("loadModule: %v", err)
+			}
+			if !slices.Equal(l.paths, tc.wantPaths) {
+				t.Errorf("paths = %v, want %v", l.paths, tc.wantPaths)
+			}
+			if !slices.Equal(l.skipped, tc.wantSkipped) {
+				t.Errorf("skipped = %+v, want %+v", l.skipped, tc.wantSkipped)
+			}
+		})
+	}
+}
+
+// TestLogSkipped checks that the extractor logs each skipped package once,
+// at info level, however many calls share the load.
+func TestLogSkipped(t *testing.T) {
+	root := cgoAlongsidePure(t)
+	t.Setenv("CGO_ENABLED", "0")
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+		ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
+			if a.Key == slog.TimeKey {
+				return slog.Attr{}
+			}
+			return a
+		},
+	}))
+	e := New(WithLogger(logger))
+	for range 2 {
+		if _, err := e.Packages(root); err != nil {
+			t.Fatalf("Packages: %v", err)
+		}
+	}
+	want := `level=INFO msg="skipped package" package=example.com/mixed/ignored dir=ignored reason="build constraints exclude all Go files"` + "\n" +
+		`level=INFO msg="skipped package" package=example.com/mixed/native dir=native reason="build constraints exclude all Go files; it ` +
+		usesDisabledCgo + `"` + "\n"
+	if got := buf.String(); got != want {
+		t.Errorf("log =\n%s\nwant\n%s", got, want)
 	}
 }
 

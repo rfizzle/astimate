@@ -146,6 +146,7 @@ func LoadTarget(dir string, opts TargetOptions) (*Target, error) {
 		golang.WithDupIgnoreLiteralOnly(cfg.Duplication.IgnoreLiteralOnly),
 		golang.WithDupFoldSigns(cfg.Duplication.FoldSigns),
 		golang.WithTokenizer(tokenizer),
+		golang.WithLogger(opts.Logger),
 	)
 	if !ext.Detect(root) {
 		return nil, fmt.Errorf("detecting language of %s: %w", root, ErrNoLanguage)

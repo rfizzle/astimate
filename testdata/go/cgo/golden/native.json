@@ -3,7 +3,7 @@
   "sloc": 5,
   "largest_file_sloc": 5,
   "tokens_est": 76,
-  "tokens_est_with_tests": 76,
+  "tokens_est_with_tests": 121,
   "internal_imports": 0,
   "external_imports": 0,
   "stdlib_imports": 0,
@@ -18,8 +18,8 @@
   "func_count": 1,
   "dup_blocks": 0,
   "duplication_pct": 0,
-  "test_files": 0,
-  "test_funcs": 0,
-  "has_tests": false,
-  "untested_exports": 1
+  "test_files": 1,
+  "test_funcs": 1,
+  "has_tests": true,
+  "untested_exports": 0
 }

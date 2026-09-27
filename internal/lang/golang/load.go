@@ -6,6 +6,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
@@ -64,6 +65,10 @@ type loaded struct {
 	// Syntax is not its source files, a cgo package, to its source files
 	// parsed into fset, one per GoFiles entry. See sourceSyntax.
 	sources map[string][]*ast.File
+	// skipped lists the module directories holding Go files that the load
+	// returned no package for, sorted by directory: build constraints
+	// exclude all their files, so "./..." dropped them without a word.
+	skipped []skippedDir
 	// reverse maps an import path to the sorted import paths of the module
 	// packages that import it. It is nil until the fan-in metrics (fan_in,
 	// fan_in_tests) build it once per load.
@@ -114,7 +119,112 @@ func loadModule(cfg *packages.Config, load loadFunc) (*loaded, error) {
 	if err := parseSources(l); err != nil {
 		return nil, fmt.Errorf("loading %s: %w", root, err)
 	}
+	if l.skipped, err = findSkipped(root, modPath, l.pkgs); err != nil {
+		return nil, fmt.Errorf("loading %s: %w", root, err)
+	}
 	return l, nil
+}
+
+// usesDisabledCgo completes a message about a package that build constraints
+// left without Go files because they import "C".
+const usesDisabledCgo = "uses cgo, which is disabled (CGO_ENABLED=0, the default when no C compiler is on PATH)"
+
+// skippedDir is a module directory with Go files that a load returned no
+// package for.
+type skippedDir struct {
+	// dir is the directory relative to the module root, in slash form.
+	dir string
+	// importPath is the import path the directory's package would have.
+	importPath string
+	// reason says why the load left it out.
+	reason string
+}
+
+// findSkipped walks the module at root, whose module path is modulePath, for
+// directories holding Go files that have no package in pkgs, and returns
+// them sorted by directory. It skips what "./..." skips: testdata and vendor
+// directories, directories whose names start with "_" or ".", and nested
+// modules; it ignores files whose names start with "_" or ".", as the go
+// command does. go list drops a directory from "./..." without a word when
+// build constraints exclude all of its Go files, as they do a package made
+// only of cgo files when cgo is disabled.
+func findSkipped(root, modulePath string, pkgs map[string]*packages.Package) ([]skippedDir, error) {
+	var skipped []skippedDir
+	var files []string // Go files of the directory being walked
+	dir := ""          // slash path of that directory
+	flush := func() {
+		if len(files) == 0 {
+			return
+		}
+		path := modulePath
+		if dir != "." {
+			path += "/" + dir
+		}
+		if _, ok := pkgs[path]; !ok {
+			skipped = append(skipped, skippedDir{dir: dir, importPath: path, reason: skipReason(files)})
+		}
+		files = files[:0]
+	}
+	err := filepath.WalkDir(root, func(name string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		base := d.Name()
+		if !d.IsDir() {
+			if strings.HasSuffix(base, ".go") && !ignoredName(base) && d.Type().IsRegular() {
+				files = append(files, name)
+			}
+			return nil
+		}
+		if name != root {
+			if base == "testdata" || base == "vendor" || ignoredName(base) {
+				return filepath.SkipDir
+			}
+			if _, err := os.Stat(filepath.Join(name, "go.mod")); err == nil {
+				return filepath.SkipDir
+			}
+		}
+		flush()
+		rel, err := filepath.Rel(root, name)
+		if err != nil {
+			return err
+		}
+		dir = filepath.ToSlash(rel)
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("finding skipped packages: %w", err)
+	}
+	flush()
+	slices.SortFunc(skipped, func(a, b skippedDir) int { return strings.Compare(a.dir, b.dir) })
+	return skipped, nil
+}
+
+// ignoredName reports whether the go command ignores a file or directory
+// named base: its name starts with "_" or ".".
+func ignoredName(base string) bool {
+	return strings.HasPrefix(base, "_") || strings.HasPrefix(base, ".")
+}
+
+// skipReason says why the directory holding the Go files named by files was
+// left out of a load: build constraints exclude them all, and, when one
+// imports "C", that cgo is the likely cause. It parses only the import
+// clauses.
+func skipReason(files []string) string {
+	const reason = "build constraints exclude all Go files"
+	fset := token.NewFileSet()
+	for _, name := range files {
+		f, err := parser.ParseFile(fset, name, nil, parser.ImportsOnly)
+		if err != nil {
+			continue
+		}
+		for _, spec := range f.Imports {
+			if spec.Path.Value == `"C"` {
+				return reason + "; it " + usesDisabledCgo
+			}
+		}
+	}
+	return reason
 }
 
 // readModulePath returns the module path declared in root/go.mod.
@@ -133,9 +243,19 @@ func readModulePath(root string) (string, error) {
 
 // index sorts the packages returned by packages.Load into loaded's maps,
 // keeping only packages inside modulePath and dropping generated test mains.
+// It also drops a package whose non-test files build constraints exclude
+// entirely, with its test variants: go list keeps such a package in "./..."
+// only for its test files, and it fails to build, while the same package
+// without tests drops out of "./..." silently. findSkipped reports both.
 // It returns the first error reported on a module package, in package ID
 // order, so the failing package is named deterministically.
 func index(modulePath string, roots []*packages.Package) (*loaded, error) {
+	excluded := make(map[string]bool)
+	for _, p := range roots {
+		if under, _ := forTest(p); under == "" && len(p.GoFiles) == 0 && len(p.IgnoredFiles) > 0 {
+			excluded[p.PkgPath] = true
+		}
+	}
 	mod := make([]*packages.Package, 0, len(roots))
 	for _, p := range roots {
 		// A test variant belongs to the package it tests; the external test
@@ -143,6 +263,9 @@ func index(modulePath string, roots []*packages.Package) (*loaded, error) {
 		under, _ := forTest(p)
 		if under == "" {
 			under = p.PkgPath
+		}
+		if excluded[under] || excluded[strings.TrimSuffix(under, ".test")] {
+			continue
 		}
 		if inModule(modulePath, under) {
 			mod = append(mod, p)
@@ -240,7 +363,7 @@ func cgoCause(p *packages.Package) string {
 		case importsCFailed(imp):
 			return "cgo dependency " + path + " needs a C compiler (" + ccSetting() + ")"
 		case cgoExcluded(imp):
-			return "dependency " + path + " uses cgo, which is disabled (CGO_ENABLED=0, the default when no C compiler is on PATH)"
+			return "dependency " + path + " " + usesDisabledCgo
 		}
 	}
 	return ""
