@@ -48,6 +48,9 @@ type Config struct {
 	// DupMinTokens is the minimum normalized token run counted as a
 	// duplicate block.
 	DupMinTokens int
+	// DupIgnoreLiteralOnly drops a duplicate block made only of literals
+	// and literal-table punctuation.
+	DupIgnoreLiteralOnly bool
 	// Rebuild holds the rebuild-estimate parameters.
 	Rebuild score.RebuildParams
 	// Thresholds holds the gate rules in file order.
@@ -57,11 +60,12 @@ type Config struct {
 // fileConfig mirrors the YAML schema. Pointers distinguish a missing scalar
 // from an explicit zero so missing fields fail instead of defaulting to 0.
 type fileConfig struct {
-	ConfigVersion string          `yaml:"config_version"`
-	CharsPerToken *float64        `yaml:"chars_per_token"`
-	DupMinTokens  *int            `yaml:"dup_min_tokens"`
-	Rebuild       *fileRebuild    `yaml:"rebuild"`
-	Thresholds    []fileThreshold `yaml:"thresholds"`
+	ConfigVersion        string          `yaml:"config_version"`
+	CharsPerToken        *float64        `yaml:"chars_per_token"`
+	DupMinTokens         *int            `yaml:"dup_min_tokens"`
+	DupIgnoreLiteralOnly *bool           `yaml:"dup_ignore_literal_only"`
+	Rebuild              *fileRebuild    `yaml:"rebuild"`
+	Thresholds           []fileThreshold `yaml:"thresholds"`
 }
 
 type fileRebuild struct {
@@ -220,6 +224,11 @@ func (fc *fileConfig) build() (*Config, error) {
 		missing("dup_min_tokens")
 	} else {
 		cfg.DupMinTokens = *fc.DupMinTokens
+	}
+	if fc.DupIgnoreLiteralOnly == nil {
+		missing("dup_ignore_literal_only")
+	} else {
+		cfg.DupIgnoreLiteralOnly = *fc.DupIgnoreLiteralOnly
 	}
 	if fc.Rebuild == nil {
 		missing("rebuild")

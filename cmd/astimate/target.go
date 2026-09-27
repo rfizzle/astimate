@@ -91,6 +91,7 @@ func loadTarget(dir string, f targetFlags) (*target, error) {
 	ext := golang.New(
 		golang.WithCharsPerToken(cfg.CharsPerToken),
 		golang.WithDupMinTokens(cfg.DupMinTokens),
+		golang.WithDupIgnoreLiteralOnly(cfg.DupIgnoreLiteralOnly),
 		golang.WithTokenizer(f.tokenizer),
 	)
 	if !ext.Detect(root) {

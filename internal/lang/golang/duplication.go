@@ -55,6 +55,14 @@ package golang
 // every shorter repeat lies inside them, so the union is the same as over
 // all repeats.
 //
+// Literal-only blocks. With dup_ignore_literal_only on, a surviving block
+// whose every code is a literal (LIT, or an interned literal text) or one of
+// the punctuation tokens , { } : [ ] ( ) and an explicit ; is dropped before
+// counting, so a repeated run of a literal table (precomputed points, lookup
+// tables) is neither a block nor coverage. Any identifier, keyword or other
+// operator keeps the block. The rule runs after merging, so a block that
+// holds a literal table next to code is kept whole.
+//
 // Coverage. A line is covered when it holds a code byte of a token in any
 // occurrence of any block, and counts only if it is a source line by the
 // same rule size uses: at least one non-space byte outside comments.
@@ -89,8 +97,9 @@ const (
 	dupSeparatorBase = int32(1 << 30)
 )
 
-// dupOptions configures duplication. The extractor option WithDupMinTokens
-// sets minTokens; the normalization toggles keep their defaults.
+// dupOptions configures duplication. The extractor options WithDupMinTokens
+// and WithDupIgnoreLiteralOnly set minTokens and ignoreLiteralOnly; the
+// normalization toggles keep their defaults.
 type dupOptions struct {
 	// minTokens is dup_min_tokens: the shortest normalized token sequence
 	// that counts as a duplicate block.
@@ -100,12 +109,15 @@ type dupOptions struct {
 	// normalizeLiterals maps every string, char and numeric literal to one
 	// code.
 	normalizeLiterals bool
+	// ignoreLiteralOnly is dup_ignore_literal_only: drop a block made only
+	// of literals and punctuation.
+	ignoreLiteralOnly bool
 }
 
 // defaultDupOptions returns the SPEC.md defaults: 40 tokens, identifiers and
-// literals normalized.
+// literals normalized, literal-only blocks ignored.
 func defaultDupOptions() dupOptions {
-	return dupOptions{minTokens: 40, normalizeIdents: true, normalizeLiterals: true}
+	return dupOptions{minTokens: 40, normalizeIdents: true, normalizeLiterals: true, ignoreLiteralOnly: true}
 }
 
 // dupCounts holds the duplication metrics of one package.
@@ -146,6 +158,9 @@ type dupStream struct {
 	// intern maps identifier or literal text to its code when a
 	// normalization toggle is off.
 	intern map[string]int32
+	// internLit reports, per interned code minus dupInternBase, whether the
+	// text is a literal.
+	internLit []bool
 }
 
 // dupRepeat is one maximal repeat: its occurrences are sa[lb..rb] and its
@@ -180,8 +195,19 @@ func duplication(l *loaded, p *packages.Package, src fileSource, sz sizeCounts, 
 			return dupCounts{}, fmt.Errorf("detecting duplication in %s: %w", p.PkgPath, err)
 		}
 	}
-	sa, reps := dupFind(s.codes, opts.minTokens)
+	sa, reps := s.find(opts)
 	return s.count(sa, reps, sz.sloc), nil
+}
+
+// find returns the suffix array of the stream and its duplicate blocks
+// under opts: the maximal repeats that survive merging, less the
+// literal-only ones when opts.ignoreLiteralOnly is set.
+func (s *dupStream) find(opts dupOptions) (sa []int32, reps []dupRepeat) {
+	sa, reps = dupFind(s.codes, opts.minTokens)
+	if opts.ignoreLiteralOnly {
+		reps = s.dropLiteralOnly(sa, reps)
+	}
+	return sa, reps
 }
 
 // scan appends the normalized tokens of one file, then its separator.
@@ -265,8 +291,40 @@ func (s *dupStream) interned(key string) int32 {
 	if !ok {
 		c = dupInternBase + int32(len(s.intern))
 		s.intern[key] = c
+		s.internLit = append(s.internLit, key[0] == 'l')
 	}
 	return c
+}
+
+// dropLiteralOnly returns reps without the repeats whose codes are all
+// literals or literal-table punctuation, reusing the backing array.
+func (s *dupStream) dropLiteralOnly(sa []int32, reps []dupRepeat) []dupRepeat {
+	return slices.DeleteFunc(reps, func(r dupRepeat) bool {
+		p := sa[r.lb]
+		for _, c := range s.codes[p : p+r.n] {
+			if !s.literalOrPunct(c) {
+				return false
+			}
+		}
+		return true
+	})
+}
+
+// literalOrPunct reports whether stream code c is a literal or one of the
+// punctuation tokens a literal table is written with.
+func (s *dupStream) literalOrPunct(c int32) bool {
+	switch {
+	case c == dupLitCode:
+		return true
+	case c >= dupInternBase && c < dupSeparatorBase:
+		return s.internLit[c-dupInternBase]
+	}
+	switch token.Token(c) {
+	case token.COMMA, token.LBRACE, token.RBRACE, token.COLON,
+		token.LBRACK, token.RBRACK, token.LPAREN, token.RPAREN, token.SEMICOLON:
+		return true
+	}
+	return false
 }
 
 // count turns the repeats found in the stream, as intervals of its suffix

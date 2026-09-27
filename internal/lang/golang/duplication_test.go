@@ -5,6 +5,8 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"math"
+	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -295,7 +297,7 @@ func dupOfSources(t *testing.T, opts dupOptions, srcs ...string) dupCounts {
 			t.Fatalf("scan: %v", err)
 		}
 	}
-	sa, reps := dupFind(s.codes, opts.minTokens)
+	sa, reps := s.find(opts)
 	return s.count(sa, reps, sloc)
 }
 
@@ -546,6 +548,157 @@ func BenchmarkDuplication(b *testing.B) {
 						b.Fatal(err)
 					}
 				}
+			}
+		})
+	}
+}
+
+// TestDupMeasureStdlibLiteralOnly measures dup_blocks and duplication_pct
+// over the standard library with dup_ignore_literal_only off and on, for
+// calibration/notes/duplication-literal-only.md. It loads every std package,
+// so it runs only with ASTIMATE_MEASURE_STDLIB=1.
+func TestDupMeasureStdlibLiteralOnly(t *testing.T) {
+	if os.Getenv("ASTIMATE_MEASURE_STDLIB") != "1" {
+		t.Skip("set ASTIMATE_MEASURE_STDLIB=1 to measure the standard library")
+	}
+	start := time.Now()
+	fset := token.NewFileSet()
+	pkgs, err := packages.Load(&packages.Config{
+		Mode: packages.NeedFiles | packages.NeedSyntax | packages.NeedName,
+		Fset: fset,
+	}, "std")
+	if err != nil {
+		t.Fatalf("loading std: %v", err)
+	}
+	l := &loaded{fset: fset}
+	var rows []dupMeasureRow
+	on := defaultDupOptions()
+	on.ignoreLiteralOnly = true
+	off := on
+	off.ignoreLiteralOnly = false
+	for _, p := range pkgs {
+		if len(p.Errors) > 0 {
+			continue
+		}
+		sz, err := size(l, p, osFiles{})
+		if err != nil {
+			t.Fatalf("size %s: %v", p.PkgPath, err)
+		}
+		if sz.sloc < 200 {
+			continue
+		}
+		a, err := duplication(l, p, osFiles{}, sz, off)
+		if err != nil {
+			t.Fatal(err)
+		}
+		b, err := duplication(l, p, osFiles{}, sz, on)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rows = append(rows, dupMeasureRow{p.PkgPath, sz.sloc, a.blocks, b.blocks, a.pct, b.pct})
+	}
+	offPct := func(r dupMeasureRow) float64 { return r.offPct }
+	onPct := func(r dupMeasureRow) float64 { return r.onPct }
+	offB := func(r dupMeasureRow) float64 { return float64(r.offB) }
+	onB := func(r dupMeasureRow) float64 { return float64(r.onB) }
+	t.Logf("packages %d, wall %v", len(rows), time.Since(start))
+	for _, q := range []float64{0.5, 0.9, 0.99} {
+		t.Logf("p%v: duplication_pct off %v on %v; dup_blocks off %v on %v", q*100,
+			dupQuantile(rows, offPct, q), dupQuantile(rows, onPct, q),
+			dupQuantile(rows, offB, q), dupQuantile(rows, onB, q))
+	}
+	totalOff, totalOn, changed := 0, 0, 0
+	for _, r := range rows {
+		totalOff += r.offB
+		totalOn += r.onB
+		if r.offB != r.onB {
+			changed++
+		}
+	}
+	t.Logf("total dup_blocks off %d on %d; packages changed %d", totalOff, totalOn, changed)
+	top := func(title string, get func(dupMeasureRow) float64) {
+		t.Log(title)
+		s := slices.Clone(rows)
+		slices.SortStableFunc(s, func(a, b dupMeasureRow) int { return cmp.Compare(get(b), get(a)) })
+		for _, r := range s[:min(10, len(s))] {
+			t.Logf("| %s | %d | %d | %d | %v | %v |", r.path, r.sloc, r.offB, r.onB, r.offPct, r.onPct)
+		}
+	}
+	t.Log("named table packages:")
+	for _, r := range rows {
+		if r.path == "crypto/internal/fips140/nistec" || r.path == "math/big" {
+			t.Logf("| %s | %d | %d | %d | %v | %v |", r.path, r.sloc, r.offB, r.onB, r.offPct, r.onPct)
+		}
+	}
+	top("largest drop:", func(r dupMeasureRow) float64 { return r.offPct - r.onPct })
+	top("top ten off:", offPct)
+	top("top ten on:", onPct)
+}
+
+// dupMeasureRow is one standard library package in the literal-only
+// measurement.
+type dupMeasureRow struct {
+	path          string
+	sloc          int
+	offB, onB     int
+	offPct, onPct float64
+}
+
+// dupQuantile returns the nearest-rank q quantile of get over rows.
+func dupQuantile(rows []dupMeasureRow, get func(dupMeasureRow) float64, q float64) float64 {
+	v := make([]float64, len(rows))
+	for i, r := range rows {
+		v[i] = get(r)
+	}
+	slices.Sort(v)
+	return v[max(0, int(math.Ceil(q*float64(len(v))))-1)]
+}
+
+// dupTable returns n copies of elem, each followed by a comma and a space.
+func dupTable(elem string, n int) string {
+	return strings.Repeat(elem+", ", n)
+}
+
+func TestDupLiteralOnly(t *testing.T) {
+	on := defaultDupOptions()
+	off := on
+	off.ignoreLiteralOnly = false
+	rawLitsOn := on
+	rawLitsOn.normalizeLiterals = false
+	rawLitsOff := rawLitsOn
+	rawLitsOff.ignoreLiteralOnly = false
+	nums := make([]string, 60)
+	for i := range nums {
+		nums[i] = strconv.Itoa(i*7919%1000) + ","
+	}
+	numTable := "package p\n\nvar t = []int{\n" + strings.Join(nums, "\n") + "\n}\n"
+	zeros := "package p\n\nvar t = []int{" + dupTable("0", 40) + "}\n"
+	mixed := "func F() []int {\n\tx := []int{" + dupTable("1", 30) + "}\n\treturn x\n}\n"
+	cases := []struct {
+		name string
+		src  string
+		opts dupOptions
+		want int
+	}{
+		{"numeric table on", numTable, on, 0},
+		{"numeric table off", numTable, off, 1},
+		{"keyed table on", "package p\n\nvar m = map[string]int{\n" + dupTable(`"k": 1`, 30) + "}\n", on, 0},
+		{"nested table on", "package p\n\nvar m = [][2]int{\n" + dupTable("{1, 2}", 30) + "}\n", on, 0},
+		{"interned literals on", zeros, rawLitsOn, 0},
+		{"interned literals off", zeros, rawLitsOff, 1},
+		{"identifier table kept", "package p\n\nvar t = []int{" + dupTable("a", 40) + "}\n", on, 1},
+		{"operator table kept", "package p\n\nvar t = []int{" + dupTable("-1", 30) + "}\n", on, 1},
+		{"mixed block kept", "package p\n\n" + mixed + "\n" + strings.Replace(mixed, "F", "G", 1), on, 1},
+		{"code copies kept", "package p\n\n" + dupCopy + "\nvar sep = 1\n\n" + dupRenamed, on, 1},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := dupOfSources(t, tc.opts, tc.src)
+			if got.blocks != tc.want {
+				t.Errorf("blocks = %d, want %d (locations %v)", got.blocks, tc.want, got.locations)
+			}
+			if tc.want == 0 && got.pct != 0 {
+				t.Errorf("pct = %v, want 0", got.pct)
 			}
 		})
 	}

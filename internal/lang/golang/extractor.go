@@ -77,6 +77,14 @@ func WithDupMinTokens(n int) Option {
 	return func(e *Extractor) { e.dup.minTokens = n }
 }
 
+// WithDupIgnoreLiteralOnly sets dup_ignore_literal_only: when on, a
+// duplicate block made only of literals and the punctuation of a literal
+// table (, { } : [ ] ( ) ;) is dropped, so repeated runs of data tables do
+// not count as duplication (SPEC.md 6.3; default true).
+func WithDupIgnoreLiteralOnly(on bool) Option {
+	return func(e *Extractor) { e.dup.ignoreLiteralOnly = on }
+}
+
 // New returns a Go extractor configured by opts.
 func New(opts ...Option) *Extractor {
 	e := &Extractor{
