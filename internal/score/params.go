@@ -26,12 +26,16 @@ type RebuildParams struct {
 	// DaysPerMonth converts person-months into working days.
 	DaysPerMonth float64
 	// Tiers bounds the agent_passes tiers.
-	Tiers struct {
-		// OnePassMax is the largest agent_passes still ONE_PASS.
-		OnePassMax float64
-		// FewPassesMax is the largest agent_passes still FEW_PASSES.
-		FewPassesMax float64
-	}
+	Tiers Tiers
+}
+
+// Tiers holds the inclusive upper bounds of the agent_passes tiers in SPEC.md
+// 7.4.
+type Tiers struct {
+	// OnePassMax is the largest agent_passes still ONE_PASS.
+	OnePassMax float64
+	// FewPassesMax is the largest agent_passes still FEW_PASSES.
+	FewPassesMax float64
 }
 
 // namedValue pairs a parameter's config name with its value for range checks.

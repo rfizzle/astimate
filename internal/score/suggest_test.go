@@ -1,0 +1,224 @@
+package score
+
+import (
+	"slices"
+	"strings"
+	"testing"
+
+	"github.com/rfizzle/astimate/internal/metrics"
+)
+
+func sevenNames() []string {
+	return []string{"Parse", "Encode", "Decode", "Flush", "Close", "Open", "Reset"}
+}
+
+// gatedMetrics lists every metric with a default threshold in SPEC.md 8.2.
+func gatedMetrics() []string {
+	return []string{
+		"dup_blocks", "duplication_pct", "untested_exports", "globals", "init_funcs",
+		"max_nesting", "cognitive_p90", "tokens_est", "largest_file_sloc",
+		"exported_symbols", "internal_imports", "sloc", "has_tests",
+	}
+}
+
+func TestMetricSuggestionEveryTemplate(t *testing.T) {
+	t.Parallel()
+
+	m := metrics.RawMetrics{SLOC: 4321, DupBlocks: 4, DuplicationPct: 9.2}
+	known := metrics.MetricNames()
+	tests := map[string]struct {
+		head float64
+		want string
+	}{
+		"dup_blocks":        {head: 4, want: "4 duplicate blocks cover 9.2% of lines"},
+		"duplication_pct":   {head: 9.2, want: "4 duplicate blocks cover 9.2% of lines"},
+		"untested_exports":  {head: 7, want: "7 exported functions have no test"},
+		"globals":           {head: 3, want: "3 package-level variables"},
+		"init_funcs":        {head: 2, want: "2 init functions"},
+		"max_nesting":       {head: 6, want: "depth 6"},
+		"cognitive_p90":     {head: 17, want: "complexity 17"},
+		"tokens_est":        {head: 31000, want: "31000 tokens"},
+		"largest_file_sloc": {head: 912, want: "912 source lines"},
+		"exported_symbols":  {head: 64, want: "64 symbols"},
+		"internal_imports":  {head: 13, want: "13 internal packages"},
+		"sloc":              {head: 6500, want: "6500 source lines"},
+		"has_tests":         {head: 0, want: "4321 source lines and no tests"},
+	}
+	for _, metric := range gatedMetrics() {
+		t.Run(metric, func(t *testing.T) {
+			t.Parallel()
+			if !slices.Contains(known, metric) {
+				t.Fatalf("%s is not in metrics.MetricNames()", metric)
+			}
+			tt, ok := tests[metric]
+			if !ok {
+				t.Fatalf("no sample values for %s", metric)
+			}
+			got := MetricSuggestion(metric, tt.head, m, Names{})
+			if !strings.Contains(got, tt.want) {
+				t.Errorf("MetricSuggestion(%s) = %q, want it to contain %q", metric, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMetricSuggestionUnknown(t *testing.T) {
+	t.Parallel()
+
+	for _, metric := range []string{"files", "fan_in", "coverage_pct", "nope"} {
+		if got := MetricSuggestion(metric, 1, metrics.RawMetrics{}, Names{}); got != "" {
+			t.Errorf("MetricSuggestion(%s) = %q, want empty", metric, got)
+		}
+	}
+}
+
+func TestMetricSuggestionSingular(t *testing.T) {
+	t.Parallel()
+
+	got := MetricSuggestion("untested_exports", 1, metrics.RawMetrics{}, Names{UntestedExports: []string{"Parse"}})
+	want := "1 exported function has no test (Parse); a rebuild would have to reverse-engineer their behavior."
+	if got != want {
+		t.Errorf("MetricSuggestion = %q, want %q", got, want)
+	}
+}
+
+func TestUntestedExportsNamesTruncated(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		head  float64
+		names []string
+		want  string
+	}{
+		{
+			name:  "seven names",
+			head:  7,
+			names: sevenNames(),
+			want:  "7 exported functions have no test (Parse, Encode, Decode, Flush, Close and 2 more); a rebuild would have to reverse-engineer their behavior.",
+		},
+		{
+			name:  "fewer names than count",
+			head:  9,
+			names: sevenNames()[:3],
+			want:  "9 exported functions have no test (Parse, Encode, Decode and 6 more); a rebuild would have to reverse-engineer their behavior.",
+		},
+		{
+			name:  "exactly five",
+			head:  5,
+			names: sevenNames()[:5],
+			want:  "5 exported functions have no test (Parse, Encode, Decode, Flush, Close); a rebuild would have to reverse-engineer their behavior.",
+		},
+		{
+			name: "no names",
+			head: 7,
+			want: "7 exported functions have no test; a rebuild would have to reverse-engineer their behavior.",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := MetricSuggestion("untested_exports", tt.head, metrics.RawMetrics{}, Names{UntestedExports: tt.names})
+			if got != tt.want {
+				t.Errorf("got  %q\nwant %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestDuplicationNamesFirstLocation(t *testing.T) {
+	t.Parallel()
+
+	m := metrics.RawMetrics{DupBlocks: 4, DuplicationPct: 9.23}
+	n := Names{DupLocations: []string{"parse.go:40", "encode.go:12"}}
+	got := MetricSuggestion("dup_blocks", 4, m, n)
+	want := "4 duplicate blocks cover 9.2% of lines; extract shared helpers, starting with parse.go:40."
+	if got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+}
+
+func TestDriverSuggestionEveryTerm(t *testing.T) {
+	t.Parallel()
+
+	m := metrics.RawMetrics{
+		TokensEst: 10000, TokensEstWithTests: 16000, DuplicationPct: 20,
+		ExportedSymbols: 30, FanIn: 4, UntestedExports: 7, Globals: 2, InitFuncs: 1,
+	}
+	tests := []struct {
+		term   string
+		tokens float64
+		want   []string
+	}{
+		{TermVolume, 8000, []string{"10000 tokens", "20% of it duplicated", "8000 tokens of the rebuild"}},
+		{TermSpec, 6000, []string{"Tests are 6000 tokens of the rebuild context"}},
+		{TermContract, 1200, []string{"30 exported symbols", "4 internal packages", "1200 tokens"}},
+		{TermUnspecified, 5600, []string{"7 exported functions have no test (Parse, Encode, Decode, Flush, Close and 2 more)"}},
+		{TermHidden, 1200, []string{"2 package-level variables", "1 init function", "1200 tokens"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.term, func(t *testing.T) {
+			t.Parallel()
+			got := driverSuggestion(Driver{Term: tt.term, Tokens: tt.tokens}, &m, Names{UntestedExports: sevenNames()})
+			for _, w := range tt.want {
+				if !strings.Contains(got, w) {
+					t.Errorf("driverSuggestion(%s) = %q, want it to contain %q", tt.term, got, w)
+				}
+			}
+		})
+	}
+}
+
+func TestDriverSuggestionVolumeWithoutDuplication(t *testing.T) {
+	t.Parallel()
+
+	got := driverSuggestion(Driver{Term: TermVolume, Tokens: 10000}, &metrics.RawMetrics{TokensEst: 10000}, Names{})
+	if strings.Contains(got, "duplicated") {
+		t.Errorf("driverSuggestion(volume) = %q, want no duplication clause", got)
+	}
+}
+
+func TestDriverSuggestionsCutoff(t *testing.T) {
+	t.Parallel()
+
+	m := metrics.RawMetrics{TokensEst: 900, UntestedExports: 1, Globals: 1}
+	tests := []struct {
+		name string
+		r    Rebuild
+		want int
+	}{
+		{name: "second driver at exactly 10%", r: rebuildOf(900, 0, 0, 100, 0), want: 2},
+		{name: "second driver below 10%", r: rebuildOf(950, 0, 0, 0, 49), want: 1},
+		{name: "only two drivers even when a third is large", r: rebuildOf(400, 300, 300, 0, 0), want: 2},
+		{name: "empty", r: rebuildOf(0, 0, 0, 0, 0), want: 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := DriverSuggestions(tt.r, m, Names{}); len(got) != tt.want {
+				t.Errorf("DriverSuggestions() = %q, want %d suggestions", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestDriverSuggestionsOrderAndUnspecified(t *testing.T) {
+	t.Parallel()
+
+	// SPEC.md 7.2 worked example; seven of the fifteen untested names are known.
+	m := metrics.RawMetrics{
+		SLOC: 1200, TokensEst: 10000, TokensEstWithTests: 16000, DuplicationPct: 20,
+		ExportedSymbols: 30, UntestedExports: 15, Globals: 2, InitFuncs: 1,
+	}
+	got := DriverSuggestions(Estimate(m, validParams()), m, Names{UntestedExports: sevenNames()})
+	if len(got) != 2 {
+		t.Fatalf("DriverSuggestions() = %q, want 2", got)
+	}
+	want := "15 exported functions have no test (Parse, Encode, Decode, Flush, Close and 10 more)"
+	if !strings.HasPrefix(got[0], want) {
+		t.Errorf("first suggestion = %q, want prefix %q", got[0], want)
+	}
+	if !strings.Contains(got[1], "8000 tokens of the rebuild") {
+		t.Errorf("second suggestion = %q, want the volume driver", got[1])
+	}
+}
