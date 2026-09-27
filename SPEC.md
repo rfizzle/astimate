@@ -152,7 +152,9 @@ Every field is reported in output. *(v0)* fields are required for the first rele
 
 ### 6.1 Token estimation
 
-Default: `tokens_est = bytes / chars_per_token`, `chars_per_token` defaulting to **3.2** for Go source. The original spec's 4.0 is a prose figure and undercounts code by 15 to 50 percent on current tokenizers. Opt-in exact counting: `--tokenizer=o200k` via `pkoukk/tiktoken-go`, offline.
+Default: `tokens_est = bytes / chars_per_token`, `chars_per_token` defaulting to **3.2**. Tokenizers differ, and the default targets the Anthropic tokenizer family, since Claude Code is the first gate consumer: published measurements put code at about 2.7 characters per token on the tokenizer introduced with Opus 4.7 and about 3.7 on the one before it, so 3.2 is a middle estimate for a Claude session. OpenAI's `o200k_base` is sparser: measured on this repository's Go source it runs about 3.75 to 4.0 bytes per token for non-test code and about 2.7 to 3.3 for test code. The original spec's 4.0 therefore happens to be close for o200k and undercounts for Claude by roughly 20 percent. The ratio is a config value so it can be set per target model.
+
+Opt-in exact counting: `--tokenizer=o200k` via `pkoukk/tiktoken-go`, offline, exact for that tokenizer only. There is no offline Anthropic tokenizer; the Anthropic count-tokens API is not called by default because it is a network dependency.
 
 ### 6.2 Test-file handling
 
