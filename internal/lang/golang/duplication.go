@@ -55,7 +55,7 @@ package golang
 // every shorter repeat lies inside them, so the union is the same as over
 // all repeats.
 //
-// Literal-only blocks. With dup_ignore_literal_only on, a surviving block
+// Literal-only blocks. With duplication.ignore_literal_only on, a surviving block
 // whose every code is a literal (LIT, or an interned literal text) or one of
 // the punctuation tokens , { } : [ ] ( ) and an explicit ; is dropped before
 // counting, so a repeated run of a literal table (precomputed points, lookup
@@ -66,12 +66,12 @@ package golang
 // Signed literals. The scanner records each + or - that directly precedes
 // an int, float, imaginary or char literal and follows a token that cannot
 // end an operand (anything but an identifier, a literal, or ) ] }), which
-// is to say a unary sign. With dup_fold_signs on, the literal-only rule
+// is to say a unary sign. With duplication.fold_signs on, the literal-only rule
 // counts such a sign as part of its literal, so a table of negative numbers
 // is dropped too. The stream keeps the sign as its own code: folding it
 // into the literal there was measured and rejected, because it lets f(-1)
 // match f(1), which merges signed coefficient tables with the code around
-// them, and it shortens code blocks below dup_min_tokens.
+// them, and it shortens code blocks below duplication.min_tokens.
 //
 // Coverage. A line is covered when it holds a code byte of a token in any
 // occurrence of any block, and counts only if it is a source line by the
@@ -113,7 +113,7 @@ const (
 // ignoreLiteralOnly and foldSigns; the normalization toggles keep their
 // defaults.
 type dupOptions struct {
-	// minTokens is dup_min_tokens: the shortest normalized token sequence
+	// minTokens is duplication.min_tokens: the shortest normalized token sequence
 	// that counts as a duplicate block.
 	minTokens int
 	// normalizeIdents maps every identifier to one code.
@@ -121,10 +121,10 @@ type dupOptions struct {
 	// normalizeLiterals maps every string, char and numeric literal to one
 	// code.
 	normalizeLiterals bool
-	// ignoreLiteralOnly is dup_ignore_literal_only: drop a block made only
+	// ignoreLiteralOnly is duplication.ignore_literal_only: drop a block made only
 	// of literals and punctuation.
 	ignoreLiteralOnly bool
-	// foldSigns is dup_fold_signs: under ignoreLiteralOnly, a unary + or -
+	// foldSigns is duplication.fold_signs: under ignoreLiteralOnly, a unary + or -
 	// directly before a numeric literal counts as part of the literal. The
 	// stream itself is unchanged, so no match is gained or lost.
 	foldSigns bool
