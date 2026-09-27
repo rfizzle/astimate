@@ -12,14 +12,53 @@ import (
 func TestRunNoArgs(t *testing.T) {
 	t.Parallel()
 
-	var stderr bytes.Buffer
-	got := run(nil, &stderr)
+	var stdout, stderr bytes.Buffer
+	got := run(nil, &stdout, &stderr)
 
 	if got != exitUsage {
 		t.Errorf("run(nil) exit code = %d, want %d", got, exitUsage)
 	}
 	if !strings.HasPrefix(stderr.String(), "usage: astimate") {
 		t.Errorf("run(nil) stderr = %q, want usage text", stderr.String())
+	}
+	if stdout.Len() != 0 {
+		t.Errorf("run(nil) stdout = %q, want empty", stdout.String())
+	}
+}
+
+func TestRunUnknownCommand(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		args      []string
+		wantName  string
+		wantUsage string
+	}{
+		{name: "top level", args: []string{"frobnicate"}, wantName: `"frobnicate"`, wantUsage: "usage: astimate <command>"},
+		{name: "config subcommand", args: []string{"config", "frobnicate"}, wantName: `"frobnicate"`, wantUsage: "usage: astimate config"},
+		{name: "config without subcommand", args: []string{"config"}, wantUsage: "usage: astimate config"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var stdout, stderr bytes.Buffer
+			got := run(tt.args, &stdout, &stderr)
+
+			if got != exitUsage {
+				t.Errorf("run(%q) exit code = %d, want %d", tt.args, got, exitUsage)
+			}
+			if !strings.Contains(stderr.String(), tt.wantName) {
+				t.Errorf("run(%q) stderr = %q, want it to name %s", tt.args, stderr.String(), tt.wantName)
+			}
+			if !strings.Contains(stderr.String(), tt.wantUsage) {
+				t.Errorf("run(%q) stderr = %q, want usage %q", tt.args, stderr.String(), tt.wantUsage)
+			}
+			if stdout.Len() != 0 {
+				t.Errorf("run(%q) stdout = %q, want empty", tt.args, stdout.String())
+			}
+		})
 	}
 }
 
