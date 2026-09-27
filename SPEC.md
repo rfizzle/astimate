@@ -339,13 +339,13 @@ Two sources, chosen by flag:
 astimate check    [<module-root>] [--base ref | --baseline file] [--all] [--thresholds file] [--format text|json|hook|github]
 astimate baseline write [<module-root>] [--out .astimate/baseline.json]
 astimate assess   <package-dir> [--json] [--config astimate.yaml] [--tokenizer=est|o200k] [--coverage]
-astimate rank     <module-root> [--json] [--top N] [--sort passes|days|fan_in|tokens|duplication]
+astimate rank     [<module-root>] [--json] [--top N] [--sort passes|days|fan_in|tokens|duplication] [--config astimate.yaml] [--tokenizer=est|o200k]
 astimate serve    [--config astimate.yaml] [--allow-any-path]
 astimate config init [--out astimate.yaml]     # rebuild parameters and thresholds in one file with comments
 astimate version
 ```
 
-Exit codes: 0 success or gate passed, 1 usage error, 2 analysis failure, 3 gate failed. Logs go to stderr only.
+Exit codes: 0 success or gate passed, 1 usage error, 2 analysis failure, 3 gate failed. Logs go to stderr only. `rank` defaults `<module-root>` to the current directory and ranks the whole module containing it; `--top 0` (the default) prints every row; a package whose extraction fails is logged and omitted, and the command exits 2 after printing the rest.
 
 Config resolution: `--config <path>`, then `./astimate.yaml`, then the embedded default. A user config must be complete; missing fields are errors rather than being filled from the default, and `config init` writes a complete file to start from.
 
