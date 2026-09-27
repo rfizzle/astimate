@@ -269,11 +269,11 @@ All parameters live in the `rebuild:` section of the config and are labelled unc
 
 `astimate check` evaluates every changed package (or all packages with `--all`) against a thresholds config. Thresholds fall into two kinds, and the distinction is what separates "got worse" from "got more features".
 
-**Density rules** measure how the code is written, independent of how much there is. Adding features should never raise them, so they are gated on the change itself with `max_delta`: the largest permitted increase from baseline to head, usually 0. A feature written without copy-paste adds no duplicate blocks; ten new exports with tests leave `untested_exports` unchanged. Negative values require improvement.
+**Density rules** measure how the code is written, independent of how much there is. Adding features should never raise them, so they are gated on the change itself with `max_delta`: the largest permitted increase from baseline to head, usually 0. A feature written without copy-paste adds no duplicate blocks; ten new exports with tests leave `untested_exports` unchanged. Negative values require improvement. A density rule may also carry a `max`, but it is a ceiling on what a change may introduce, not a retroactive judgment: it is evaluated for a package with no baseline, and for a package whose value rose from baseline to head. An unchanged or improved legacy value above the `max` passes, so a package that was already at 80% duplication before a change is not failed for that history; a change that pushes it higher is.
 
 **Capacity rules** measure how much code there is. They are supposed to grow with features, so they carry no delta. They have an absolute `max` that answers a different question: has the package outgrown what one agent can hold in context? The fix for a capacity breach is a split, not a smaller feature. Each capacity rule also has a `warn_at` fraction (default 0.75) above which `check` emits a non-failing warning naming the headroom, so a split can be planned before a hard failure lands mid-feature.
 
-Boolean metrics use `require: true` with an optional `when` guard (for example `has_tests` when `sloc > 100`).
+Boolean metrics use `require: true` with an optional `when` guard (for example `has_tests` when `sloc > 100`). Requirements, like density `max`, do not fire on an unchanged legacy package: `has_tests` fails a package that lacks tests only when it is new or when its `sloc` grew.
 
 Packages that are new at head have no baseline. They face the capacity ceilings and the absolute `max` of every density rule. Delta rules are evaluated against zero only for rules marked `ratchet_from_zero: true`, which are the count-of-things-added metrics (`dup_blocks`, `untested_exports`, `globals`, `init_funcs`): a new package with three untested exports fails, a new package with forty tested exports under the ceiling passes. Intensive metrics such as `max_nesting`, `cognitive_p90` and `duplication_pct` are not ratcheted from zero, since every real package has some nesting; for a new package only their `max` applies.
 
@@ -330,13 +330,13 @@ Two sources, chosen by flag:
 
 - `text` (default): violations, then warnings, then a one-line summary per package.
 - `json`: the section 10.2 report per package plus `violations` and `warnings` arrays and a `passed` bool.
-- `hook`: the JSON shape Claude Code Stop hooks consume: `{ "decision": "block", "reason": "<violations as text>" }` on failure, `{}` on success, so the agent is told to keep working and why. Warnings are appended to the reason on failure and written to stderr on success.
+- `hook`: the JSON shape Claude Code Stop hooks consume: `{ "decision": "block", "reason": "<violations as text>" }` on failure, `{}` on success, so the agent is told to keep working and why. Warnings are appended to the reason on failure and written to stderr on success. Because Claude Code reads a hook's JSON only when it exits 0, `--format hook` exits 0 whenever it produced a decision, whether or not there were violations; analysis failure still exits 2, which a Stop hook treats as a blocking error with stderr shown to the agent.
 - `github`: `::error file=<pkgdir>::` annotations, one per violation, and `::warning file=<pkgdir>::` per warning.
 
 ## 9. CLI
 
 ```
-astimate check    [<module-root>] [--base ref | --baseline file] [--all] [--thresholds file] [--format text|json|hook|github]
+astimate check    [<module-root>] [--base ref | --baseline file] [--all] [--config|--thresholds file] [--format text|json|hook|github] [--tokenizer=est|o200k]
 astimate baseline write [<module-root>] [--out .astimate/baseline.json]
 astimate assess   <package-dir> [--json] [--config astimate.yaml] [--tokenizer=est|o200k] [--coverage]
 astimate rank     [<module-root>] [--json] [--top N] [--sort passes|days|fan_in|tokens|duplication] [--config astimate.yaml] [--tokenizer=est|o200k]
@@ -345,7 +345,7 @@ astimate config init [--out astimate.yaml]     # rebuild parameters and threshol
 astimate version
 ```
 
-Exit codes: 0 success or gate passed, 1 usage error, 2 analysis failure, 3 gate failed. Logs go to stderr only. `rank` defaults `<module-root>` to the current directory and ranks the whole module containing it; `--top 0` (the default) prints every row; a package whose extraction fails is logged and omitted, and the command exits 2 after printing the rest.
+Exit codes: 0 success or gate passed, 1 usage error, 2 analysis failure, 3 gate failed (except `--format hook`, which exits 0 with a decision; see 8.5). When a violation and an analysis failure both occur, 3 wins because a verdict was reached. Logs go to stderr only. `rank` defaults `<module-root>` to the current directory and ranks the whole module containing it; `--top 0` (the default) prints every row; a package whose extraction fails is logged and omitted, and the command exits 2 after printing the rest.
 
 Config resolution: `--config <path>`, then `./astimate.yaml`, then the embedded default. A user config must be complete; missing fields are errors rather than being filled from the default, and `config init` writes a complete file to start from.
 
@@ -394,7 +394,7 @@ Results return `content` (text) and `structuredContent` (JSON), with `isError: t
 }
 ```
 
-`package_path` is the package directory relative to the module root (`.` for the root package); the full import path is `module_path` joined with it. `agent_passes` and `human_days` are rounded to one decimal; `rebuild_tokens` and driver `tokens` are integers. `passed`, `baseline`, `violations` and `warnings` are present only when a gate ran.
+`package_path` is the package directory relative to the module root (`.` for the root package); the full import path is `module_path` joined with it. `agent_passes` and `human_days` are rounded to one decimal; `rebuild_tokens` and driver `tokens` are integers. `passed`, `baseline`, `violations` and `warnings` are present whenever a gate ran, with `violations` and `warnings` as empty arrays rather than omitted; all four are absent from `assess` output.
 
 ## 11. Calibration
 
