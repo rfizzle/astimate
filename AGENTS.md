@@ -4,7 +4,7 @@ Guidance for any coding agent or human working in this repository. Read `SPEC.md
 
 ## What this project is
 
-Astimate is a Go static-analysis tool that computes an AI Friction Index for a package and exposes it as a CLI and a Model Context Protocol (MCP) server. The scorer is language-agnostic; extractors are per-language. Go is the first language. See `SPEC.md` for metrics, scoring, interfaces and milestones.
+Astimate is a Go static-analysis tool used as a quality gate on LLM-written changes. It extracts package metrics, compares them against a baseline and thresholds, and fails when a package got worse. It also scores and ranks packages. It runs as a CLI, a CI step, a Claude Code hook and a Model Context Protocol (MCP) server. The gate and scorer are language-agnostic; extractors are per-language. Go is the first language. See `SPEC.md` for metrics, gate semantics, interfaces and milestones.
 
 ## Workflow
 
@@ -20,7 +20,7 @@ Astimate is a Go static-analysis tool that computes an AI Friction Index for a p
 Format: `<type>(<scope>): <subject>`
 
 - Types: `feat`, `fix`, `refactor`, `perf`, `test`, `docs`, `build`, `ci`, `chore`.
-- Scopes match the story tags: `metrics`, `lang/go`, `lang/ts`, `score`, `cli`, `mcp`, `report`, `calibration`, `testdata`, `infra`, `docs`.
+- Scopes match the story tags: `metrics`, `lang/go`, `lang/ts`, `score`, `gate`, `baseline`, `cli`, `mcp`, `report`, `integrations`, `calibration`, `testdata`, `infra`, `docs`.
 - Subject: imperative mood, lower case, no trailing period, at most 72 characters.
 - Body: explain why, not what. Reference the story as `Story: S-NNN`.
 - Breaking changes to the report schema or CLI flags get a `BREAKING CHANGE:` footer.
@@ -68,8 +68,9 @@ Performance matters because agents call this tool interactively and `rank` runs 
 
 - `internal/metrics` defines `RawMetrics` and `Extractor`. It imports nothing language-specific.
 - `internal/lang/<lang>` implements one extractor. Language-specific code lives only here.
-- `internal/score` depends on `internal/metrics` only. It must not import any `internal/lang` package.
-- `internal/report` shapes output. `internal/mcpserver` and `cmd/astimate` depend on `report` and `score`, never on `lang` directly except to register extractors.
+- `internal/score` and `internal/gate` depend on `internal/metrics` only. Neither may import any `internal/lang` package.
+- `internal/baseline` may call `git` and the extractor registry, and nothing in `score` or `gate` may call `git`.
+- `internal/report` shapes output, including the hook and GitHub formats. `internal/mcpserver` and `cmd/astimate` depend on `report`, `gate`, `baseline` and `score`, never on `lang` directly except to register extractors.
 - Go analysis uses the standard toolchain (`go/packages`, `go/types`, `go/ast`). Never tree-sitter for Go.
 
 ## MCP server rules
