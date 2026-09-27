@@ -312,6 +312,15 @@ func TestUntestedDirective(t *testing.T) {
 		{"public method", "export class C {\n  //astimate:untested\n  m() {}\n  n() {}\n}\n", []string{"C.m=true", "C.n=false"}},
 		{"class comment does not apply to methods", "//astimate:untested\nexport class C {\n  m() {}\n}\n", []string{"C.m=false"}},
 		{"method of a class exported by list", "class C {\n  //astimate:untested\n  m() {}\n}\nexport { C };\n", []string{"C.m=true"}},
+		{"first overload", "//astimate:untested\nexport function f(a: string): string;\nexport function f(a: number): number;\nexport function f(a: any): any { return a; }\n", []string{"f=true"}},
+		{"middle overload", "export function f(a: string): string;\n//astimate:untested\nexport function f(a: number): number;\nexport function f(a: any): any { return a; }\n", []string{"f=true"}},
+		{"implementation after overloads", "export function f(a: string): string;\nexport function f(a: number): number;\n//astimate:untested\nexport function f(a: any): any { return a; }\n", []string{"f=true"}},
+		{"undirected overloads", "// f converts a.\nexport function f(a: string): string;\nexport function f(a: any): any { return a; }\n", []string{"f=false"}},
+		{"overload of another function", "//astimate:untested\nexport function g(): void;\nexport function g() {}\nexport function f(): void;\nexport function f() {}\n", []string{"g=true", "f=false"}},
+		{"overloads exported by list", "//astimate:untested\nfunction f(a: string): string;\nfunction f(a: any): any { return a; }\nexport { f };\n", []string{"f=true"}},
+		{"default overload", "//astimate:untested\nexport default function f(a: string): string;\nexport default function f(a: any): any { return a; }\n", []string{"f=true"}},
+		{"method overload", "export class C {\n  //astimate:untested\n  m(a: string): string;\n  m(a: number): number;\n  m(a: any): any { return a; }\n  n(): void;\n  n() {}\n}\n", []string{"C.m=true", "C.n=false"}},
+		{"middle method overload", "export class C {\n  m(a: string): string;\n  //astimate:untested\n  m(a: number): number;\n  m(a: any): any { return a; }\n}\n", []string{"C.m=true"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

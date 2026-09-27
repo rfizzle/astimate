@@ -103,7 +103,8 @@ are the same on every checkout.
   The doc comment is the run of comments directly above the declaration
   with no blank line; for an export list it is the comment above the
   function's own declaration, and a comment above a class does not reach
-  its methods.
+  its methods. The doc comment of any overload signature of a function or
+  method counts as the implementation's.
 - **instability** (v1): `internal_imports / (fan_in + internal_imports)`,
   null when both are 0.
 - **abstractness** (v1): exported interfaces over exported classes,

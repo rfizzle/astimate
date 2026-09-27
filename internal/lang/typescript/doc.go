@@ -26,7 +26,8 @@
 //     stdlib.
 //   - An exported function or public method whose doc comment holds the
 //     line comment //astimate:untested is left out of untested_exports,
-//     as in Go.
+//     as in Go. The doc comment of any overload signature of the function
+//     or method counts as its own.
 //
 // An Extractor parses each module root once, walking every file's syntax
 // tree a single time to gather the facts all metrics need, and keeps them

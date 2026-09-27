@@ -38,6 +38,10 @@ type walker struct {
 	// export lists.
 	localFuncs   map[string]bool
 	classMethods map[string][]exportedFunc
+	// overloads holds the names of top-level functions with an overload
+	// signature that carries the untested directive, which applies to the
+	// implementation.
+	overloads map[string]bool
 	// listed holds the local and exported names of export { ... } lists
 	// without a source, resolved once the whole file is walked.
 	listed [][2]string
@@ -61,6 +65,7 @@ type state struct {
 func (w *walker) program(root *sitter.Node) {
 	w.localFuncs = map[string]bool{}
 	w.classMethods = map[string][]exportedFunc{}
+	w.overloads = map[string]bool{}
 	for i := range root.ChildCount() {
 		w.statement(root.Child(i), false, w.hasDirective(root, i))
 	}
@@ -102,8 +107,16 @@ func (w *walker) statement(n *sitter.Node, exported, directed bool) {
 	switch typ := n.Type(w.lang); typ {
 	case "export_statement":
 		w.exportStatement(n, directed)
+	case "function_signature":
+		// An overload signature: the directive in its doc comment applies
+		// to the implementation that follows it.
+		if directed {
+			w.overloads[w.text(w.field(n, "name"))] = true
+		}
+		w.visit(n, state{})
 	case "function_declaration", "generator_function_declaration":
 		name := w.text(w.field(n, "name"))
+		directed = directed || w.overloads[name]
 		w.localFuncs[name] = directed
 		if exported {
 			w.f.exportedFuncs = append(w.f.exportedFuncs, exportedFunc{match: name, display: name, directed: directed})
@@ -167,7 +180,7 @@ func (w *walker) exportStatement(n *sitter.Node, directed bool) {
 		case value != nil && sameNode(c, value) && isFunctionType(c.Type(w.lang)):
 			name := w.text(w.field(c, "name"))
 			if name != "" {
-				w.f.exportedFuncs = append(w.f.exportedFuncs, exportedFunc{match: name, display: name, directed: directed})
+				w.f.exportedFuncs = append(w.f.exportedFuncs, exportedFunc{match: name, display: name, directed: directed || w.overloads[name]})
 			} else {
 				name = "default"
 			}
@@ -320,18 +333,28 @@ func (w *walker) class(n *sitter.Node, exported bool) {
 }
 
 // classBody walks the body of class cname, scoring its members, and returns
-// its candidates for untested_exports.
+// its candidates for untested_exports. The untested directive on an
+// overload signature of a method applies to the method.
 func (w *walker) classBody(cname string, body *sitter.Node) []exportedFunc {
-	var candidates []exportedFunc
+	var (
+		candidates []exportedFunc
+		overloads  map[string]bool
+	)
 	for j := range body.ChildCount() {
 		m := body.Child(j)
 		name, fn, candidate := w.member(m)
 		if fn == nil {
+			if m.Type(w.lang) == "method_signature" && w.hasDirective(body, j) {
+				if overloads == nil {
+					overloads = map[string]bool{}
+				}
+				overloads[name] = true
+			}
 			w.visit(m, state{})
 			continue
 		}
 		if candidate {
-			candidates = append(candidates, exportedFunc{match: name, display: cname + "." + name, directed: w.hasDirective(body, j)})
+			candidates = append(candidates, exportedFunc{match: name, display: cname + "." + name, directed: w.hasDirective(body, j) || overloads[name]})
 		}
 		if sameNode(fn, m) {
 			w.function(cname+"."+name, m)
