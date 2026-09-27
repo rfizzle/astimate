@@ -40,6 +40,8 @@ const cleanupTimeout = 30 * time.Second
 // commit and Tokenizer reports tokenizer, the method ext counts tokens with.
 // When ext implements metrics.FunctionLister, Functions reports each
 // package's functions at the merge-base (CollectFunctions).
+// An extraction error names paths relative to the module root
+// (TreeRelative), not the temporary worktree.
 // When ext implements metrics.Forgetter, FromGit calls Forget on the
 // worktree's module root before removing it, so ext keeps nothing loaded
 // from the baseline.
@@ -82,7 +84,7 @@ func FromGit(ctx context.Context, root, ref string, ext metrics.Extractor, modul
 		f.Forget(modRoot)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("extracting baseline at %s: %w", sha, err)
+		return nil, fmt.Errorf("extracting baseline at %s: %w", sha, TreeRelative(err, modRoot))
 	}
 	return &snapshot{ref: sha, tokenizer: tokenizer, pkgs: pkgs, funcs: funcs}, nil
 }

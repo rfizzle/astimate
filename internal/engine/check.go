@@ -154,11 +154,15 @@ func (c *BaselineCache) get(key string, load func() (baseline.Baseline, error)) 
 // temporary copy of the index (stagedTarget), removed before Check
 // returns, also on SIGINT or SIGTERM; git commands and the baseline still
 // use t's module root, and report paths are module-relative as always.
+// Errors, logged or returned, name paths relative to the module root
+// instead of the temporary copy (baseline.TreeRelative).
 func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, failed []error, err error) {
 	if opts.Base != "" && opts.BaselineFile != "" {
 		return nil, nil, ErrBaseAndBaselineFile
 	}
-	ht := t
+	// tmp is the module root in the staged copy, rewritten out of error
+	// text (baseline.TreeRelative); empty for the working tree.
+	ht, tmp := t, ""
 	if opts.Staged {
 		var stop, cleanup func()
 		ctx, stop = signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
@@ -168,12 +172,13 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 			return nil, nil, err
 		}
 		defer cleanup()
+		tmp = ht.Mod.Root
 	}
 	var head []string
 	if len(opts.Packages) == 0 {
 		head, err = ht.Ext.Packages(ht.Mod.Root)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, baseline.TreeRelative(err, tmp)
 		}
 	}
 	logger := t.logger()
@@ -188,7 +193,7 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 	if len(selected) == 0 {
 		selected, deleted, err = selectPackages(ctx, t, head, src, opts.All, headOf(ht, opts))
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, baseline.TreeRelative(err, tmp)
 		}
 	}
 	base := src.file
@@ -207,6 +212,7 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 	for _, pkg := range selected {
 		p, unrecorded, err := checkPackage(ctx, ht, base, pkg, eff, pkgRules)
 		if err != nil {
+			err = baseline.TreeRelative(err, tmp)
 			path := modulePathRel(t.Mod.ModulePath, pkg)
 			logger.Error("checking package failed", "path", path, "err", err)
 			failed = append(failed, &PackageError{Path: path, Err: err})
@@ -222,6 +228,7 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 	if mm, ok := t.Ext.(metrics.ModuleMetrics); ok && len(selected) > 0 {
 		m, err := checkModule(ctx, ht, mm, base, src.file != nil, eff, gate.ForRow(eff.Thresholds, gate.ModuleRow))
 		if err != nil {
+			err = baseline.TreeRelative(err, tmp)
 			logger.Error("checking module row failed", "err", err)
 			failed = append(failed, &PackageError{Path: metrics.ModuleRowID, Err: err})
 		} else {
