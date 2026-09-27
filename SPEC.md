@@ -1,8 +1,8 @@
 # Astimate: Specification
 
-**Status:** draft v0.4, 2026-09-27. Supersedes v0.2, which framed the tool as a pre-work planning signal. This revision makes the post-implementation quality gate the primary use and keeps planning and ranking as secondary uses.
+**Status:** draft v0.5, 2026-09-27. Supersedes v0.2, which framed the tool as a pre-work planning signal. This revision makes the post-implementation quality gate the primary use and keeps planning and ranking as secondary uses.
 
-Astimate is a static-analysis tool that checks whether an LLM-written change left a package in a state a human or the next agent can maintain. It extracts structural metrics per package, compares them against a baseline and a set of thresholds, and fails when the package got worse. It also produces a composite **AI Friction Index** (0.0 to 10.0) for ranking and planning. It runs as a CLI, a CI step, a Claude Code hook and a Model Context Protocol (MCP) server. Go is the first supported language; everything downstream of metric extraction is language-agnostic.
+Astimate is a static-analysis tool that checks whether an LLM-written change left a package in a state a human or the next agent can maintain. It extracts structural metrics per package, compares them against a baseline and a set of thresholds, and fails when the package got worse. It also produces a **rebuild estimate**: how many agent passes, and roughly how many human days, a from-scratch rebuild of the package would take. That is the microservices "rewritable in two weeks" bar, restated for packages and agents, and it drives ranking and planning. It runs as a CLI, a CI step, a Claude Code hook and a Model Context Protocol (MCP) server. Go is the first supported language; everything downstream of metric extraction is language-agnostic.
 
 Sections 8 through 11 (gate, CLI, MCP, calibration) and 14 (milestones) are written to be split directly into stories.
 
@@ -13,8 +13,8 @@ Sections 8 through 11 (gate, CLI, MCP, calibration) and 14 (milestones) are writ
 1. **Gate:** fail a change that makes a package materially less manageable, and say exactly which rule was broken so the agent can fix it without human interpretation.
 2. **Ratchet, not absolute:** judge a change against the package's own baseline, so work on legacy packages is not blocked by pre-existing debt while new debt is.
 3. **Self-check loop:** let an agent run the gate itself before declaring work done, via CLI, hook or MCP.
-4. **Rank and plan:** score every package in a module so humans and agents can see where debt is concentrated.
-5. **Honest defaults:** thresholds and weights are labelled uncalibrated until the calibration in section 11 has run.
+4. **Rank and plan:** estimate rebuild effort for every package in a module so humans and agents can see which packages have outgrown the rebuildable bar and where debt is concentrated.
+5. **Honest defaults:** thresholds and rebuild parameters are labelled uncalibrated until the calibration in section 11 has run.
 
 ## 2. Non-goals
 
@@ -37,11 +37,11 @@ Sections 8 through 11 (gate, CLI, MCP, calibration) and 14 (milestones) are writ
 | Threshold | A per-metric limit: an absolute `max`, a `max_delta` versus the baseline, or both. |
 | Violation | A metric that exceeds a threshold at head. Any violation fails the gate. |
 | Raw metrics | The language-agnostic struct in section 6 that an extractor produces. |
-| Friction Index | The 0.0 to 10.0 composite produced from raw metrics and a weights config. |
+| Rebuild estimate | Estimated agent passes and human days to rebuild the package from its tests and exported contract, computed from raw metrics and the rebuild parameters in config. |
 
 ## 4. What the gate targets (evidence summary)
 
-The gate targets the ways LLM-written changes tend to degrade a package. The metric set and default thresholds follow from that, with the composite score's evidence kept for ranking.
+The gate targets the ways LLM-written changes tend to degrade a package. The metric set and default thresholds follow from that, with the rebuild estimate's evidence kept for ranking.
 
 | Failure mode | Metric(s) | Evidence | Strength |
 | --- | --- | --- | --- |
@@ -52,7 +52,7 @@ The gate targets the ways LLM-written changes tend to degrade a package. The met
 | Hidden state | `globals`, `init_funcs` | No direct study. Plausible; kept at low weight. | Unproven |
 | Deep nesting | `max_nesting`, `cognitive_p90` | Classical complexity shows no consistent correlation with LLM performance once length is controlled (arXiv 2602.07882). Kept as a gate on regressions only. | Weak |
 | Coupling growth | `internal_imports` | Failures come from coupled facts absent from context (arXiv 2608.16630; CrossCodeEval; RepoBench). | Moderate |
-| Blast radius | `fan_in` | Strongest predictor of task difficulty (SWE-bench analyses, arXiv 2511.00197). Rarely changes within one PR, so it drives ranking more than gating. | Strong for ranking |
+| Blast radius | `fan_in` | Strongest predictor of task difficulty (SWE-bench analyses, arXiv 2511.00197). Rarely changes within one PR, so it drives the rebuild estimate more than gating. | Strong for ranking |
 
 ## 5. Architecture
 
@@ -65,10 +65,10 @@ The gate targets the ways LLM-written changes tend to degrade a package. The met
   │ Other extractors     │──┘   └──────┬──────┘   │ ratchet      │   │ Claude hook    │
   │ (tree-sitter, later) │              │          └──────────────┘   │ MCP server     │
   └──────────────────────┘              │          ┌──────────────┐   └────────────────┘
-                                        └─────────►│ Scorer       │──────────┘
-                                                   │ weights      │
+                                        └─────────►│ Rebuild est. │──────────┘
+                                                   │ params       │
                                                    └──────┬───────┘
-                                                          │ thresholds + weights
+                                                          │ thresholds + params
                                                    ┌──────┴───────┐
                                                    │ Calibration  │
                                                    │ p90 of good  │
@@ -84,10 +84,12 @@ astimate/
 ├── cmd/astimate/main.go        # CLI entrypoint; `astimate serve` starts MCP
 ├── internal/
 │   ├── metrics/                 # RawMetrics struct and Extractor interface (language-agnostic)
+│   │   └── metricstest/         # Conformance suite every extractor runs, plus a fake extractor
+│   ├── config/                  # Embedded default config and the unified loader
 │   ├── lang/
 │   │   └── golang/              # Go extractor
 │   ├── gate/                    # Thresholds config, baseline, ratchet comparison, violations
-│   ├── score/                   # Scorer, weights config, tiers, explanations
+│   ├── score/                   # Rebuild estimate, tiers, drivers, explanations
 │   ├── baseline/                # Git-ref and file baselines
 │   ├── report/                  # JSON, text and hook output shaping
 │   └── mcpserver/               # MCP tools on github.com/modelcontextprotocol/go-sdk
@@ -103,9 +105,13 @@ type Extractor interface {
     Language() string
     Detect(root string) bool
     Packages(root string) ([]string, error)
-    Extract(ctx ModuleContext, pkg string) (RawMetrics, error)
+    // Extract computes raw metrics for one package. The module context is a
+    // pointer so the extractor can fill its cache slot on first use.
+    Extract(ctx context.Context, mod *ModuleContext, pkg string) (RawMetrics, error)
 }
 ```
+
+**Testing pattern.** The contract is defined once in `internal/metrics` and verified once by a conformance suite in `internal/metrics/metricstest`, an importable non-test package in the style of `testing/fstest`. It exports `TestExtractor(t, ext, fixture)`, which checks detection, package listing, validation, determinism, error handling, cross-package invariants (the module-wide sum of `fan_in` equals the sum of `internal_imports`; `has_tests` agrees with `test_funcs`) and golden comparison against `testdata/<lang>/fixture/golden/*.json`. Every language extractor's own tests call it once; language-specific unit tests (import path rules, statement kinds, tokenizer normalization) stay in the nested package. `metricstest` also exports a fake extractor built from a map of `RawMetrics`, so the estimate, gate and CLI can be tested without loading a real module.
 
 ## 6. Raw metrics
 
@@ -160,54 +166,69 @@ Tokens are taken from `go/scanner` over non-test files. Identifiers, literals an
 
 An exported function or method counts as untested when no identifier in any test file of the package (internal or external test package) resolves, via `types.Info.Uses`, to that function or to a method with the same name on the same receiver type. Exported types, vars and consts are not counted; the metric targets behavior, not declarations. Reported as a count and, in the gate, primarily as a delta so new untested behavior fails while legacy gaps are only reported.
 
-## 7. Scoring (composite)
+## 7. Rebuild estimate
 
-The composite is secondary to the gate. It drives `rank`, the planning use and the summary line of `check`.
+The estimate answers one question: if this package were deleted and rebuilt from its tests and exported contract, how much work is that? It is secondary to the gate and drives `rank`, `assess` and the summary line of `check`. It has units, so it can be measured (section 11.2) and argued with.
 
-### 7.1 Normalization
+### 7.1 Inputs
+
+A rebuild must reproduce a contract and pass a spec, and the raw metrics describe both:
+
+| Input | From | Role |
+| --- | --- | --- |
+| Essential volume | `tokens_est * (1 - duplication_pct / 100)` | Code that must be written; duplicates collapse in a rebuild |
+| Spec | `tokens_est_with_tests - tokens_est`, `test_funcs` | Tests are the executable specification the rebuild is checked against |
+| Contract | `exported_symbols`, `fan_in` | Signatures that must survive; consumers that must keep working |
+| Unspecified behavior | `untested_exports` | Behavior that must be reverse-engineered from the old implementation |
+| Hidden contract | `globals`, `init_funcs` | State and ordering that no signature reveals |
+
+### 7.2 Agent estimate
+
+Everything a rebuild needs must fit in context at once, or the work is partitioned and pays coordination overhead. With `B` the context budget (default 25,000 tokens, the knee in the evidence):
 
 ```
-pressure(x, k) = 1 - exp(-x / k)
+rebuild_tokens = essential_volume
+               + spec_tokens
+               + exported_symbols * tokens_per_export            (default 40)
+               + untested_exports * tokens_per_untested_export   (default 800)
+               + (globals + init_funcs) * tokens_per_hidden_state (default 400)
+
+r            = rebuild_tokens / B
+agent_passes = r                       when r <= 1
+             = r ^ superlinear_exponent when r > 1     (default 1.3)
 ```
 
-`k` is the value at which pressure reaches about 0.63. Per-metric `k` values live in the weights config. No hard caps. The `has_tests` penalty is 1.0 when false, 0.0 when true, scaled by `coverage_pct` in v1.
+`agent_passes` is reported to one decimal. Below 1.0 the package is rebuildable in one pass with room to spare.
 
-### 7.2 Composite
+### 7.3 Human estimate
+
+A rough figure using published COCOMO basic organic-mode coefficients, the same model `scc` uses, with unspecified behavior inflating the effective size:
 
 ```
-friction = 10 * Σ (weight_i * pressure_i)      where Σ weight_i = 1
+kloc_eff   = (sloc * (1 - duplication_pct / 100) / 1000) * (1 + 0.5 * untested_ratio)
+person_months = 2.4 * kloc_eff ^ 1.05
+human_days = person_months * days_per_month   (default 19)
 ```
 
-Default weights, labelled uncalibrated until section 11 has run:
+where `untested_ratio = untested_exports / max(exported_symbols, 1)`. Labelled as an estimate in every output.
 
-| Term | Metric(s) | Weight | k |
-| --- | --- | --- | --- |
-| Context size | `tokens_est` | 0.20 | 25,000 |
-| Duplication | `duplication_pct` | 0.15 | 8 |
-| Blast radius | `fan_in` | 0.15 | 6 |
-| Coupling | `internal_imports` | 0.10 | 8 |
-| Feedback loop | `has_tests` penalty, `untested_exports` | 0.15 | 5 (untested) |
-| Surface | `exported_symbols` | 0.10 | 40 |
-| Hidden state | `globals + 2 * init_funcs` | 0.05 | 10 |
-| Complexity | `cognitive_p90` | 0.10 | 25 |
+### 7.4 Tiers, drivers and suggestions
 
-Terms whose metric is null are dropped and remaining weights renormalized.
+| Tier | `agent_passes` | Meaning |
+| --- | --- | --- |
+| ONE_PASS | <= 1.0 | Rebuildable by one agent in one context window. This is the bar. |
+| FEW_PASSES | 1.0 to 3.0 | Rebuildable with partitioning; plan the split |
+| PARTITION | > 3.0 | Not rebuildable as a unit; split before any large change |
 
-### 7.3 Tiers and explanations
+`drivers` lists the two largest terms of `rebuild_tokens` (volume, spec, contract, unspecified, hidden). `suggestions` are generated from drivers with the metric values, for example "7 exported functions have no test; a rebuild would have to reverse-engineer their behavior".
 
-| Tier | Range |
-| --- | --- |
-| LOW | < 3.5 |
-| MEDIUM | 3.5 to 6.5 |
-| HIGH | > 6.5 |
+All parameters live in the `rebuild:` section of the config and are labelled uncalibrated until section 11.2 has run.
 
-Output includes `drivers` (top two terms by contribution) and `suggestions` generated from those drivers.
+### 7.5 Acceptance invariants
 
-### 7.4 Acceptance invariants
-
-- Go stdlib `errors` scores LOW; `net/http` scores HIGH.
-- A package with zero fan-in, tests present, no duplication and under 5k tokens scores LOW.
-- Monotonicity: increasing any raw metric never lowers the score.
+- Go stdlib `errors` is ONE_PASS; `net/http` is PARTITION.
+- A package with zero fan-in, tests present, no duplication and under 5k tokens is ONE_PASS.
+- Monotonicity: increasing `tokens_est`, `exported_symbols`, `untested_exports`, `globals` or `init_funcs` never lowers `agent_passes`; increasing `duplication_pct` alone never raises it; adding tests never raises it.
 
 ## 8. Quality gate
 
@@ -223,7 +244,7 @@ Boolean metrics use `require: true` with an optional `when` guard (for example `
 
 Packages that are new at head have no baseline. They face the capacity ceilings and the density rules evaluated against zero: a new package with three untested exports fails, a new package with forty tested exports under the ceiling passes.
 
-The composite `friction_index` is not gated. It mixes size and density terms, so a large well-written feature raises it; it stays a ranking and summary signal.
+The rebuild estimate is not gated directly. It mixes size and density terms, so a large well-written feature raises it; it stays a ranking and summary signal. The capacity ceilings below are its gate-side expression: they are set so that a package under every ceiling is rebuildable in one pass.
 
 Any violation fails the gate with exit code 3. Warnings never change the exit code. Violations and warnings are reported one per line with metric, baseline value, head value, limit and a fix suggestion.
 
@@ -247,7 +268,7 @@ Capacity rules (absolute ceiling with a warning band):
 
 | Metric | `max` | `warn_at` | Rationale |
 | --- | --- | --- | --- |
-| `tokens_est` | 30,000 | 0.75 | Keep packages inside the range agents handle; breach means split |
+| `tokens_est` | 30,000 | 0.75 | The rebuild bar: past this a rebuild no longer fits one agent pass; breach means split |
 | `largest_file_sloc` | 800 | 0.75 | Files past this rarely fit an edit in one view |
 | `exported_symbols` | 60 | 0.75 | Surface past this is a package boundary problem |
 | `internal_imports` | 12 | 0.75 | |
@@ -284,10 +305,10 @@ Two sources, chosen by flag:
 ```
 astimate check    [<module-root>] [--base ref | --baseline file] [--all] [--thresholds file] [--format text|json|hook|github]
 astimate baseline write [<module-root>] [--out .astimate/baseline.json]
-astimate assess   <package-dir> [--json] [--config weights.yaml] [--tokenizer=est|o200k] [--coverage]
-astimate rank     <module-root> [--json] [--top N] [--sort friction|fan_in|tokens|duplication]
-astimate serve    [--config weights.yaml] [--thresholds file] [--allow-any-path]
-astimate config init [--out astimate.yaml]     # weights and thresholds in one file with comments
+astimate assess   <package-dir> [--json] [--config astimate.yaml] [--tokenizer=est|o200k] [--coverage]
+astimate rank     <module-root> [--json] [--top N] [--sort passes|days|fan_in|tokens|duplication]
+astimate serve    [--config astimate.yaml] [--allow-any-path]
+astimate config init [--out astimate.yaml]     # rebuild parameters and thresholds in one file with comments
 astimate version
 ```
 
@@ -303,7 +324,7 @@ Built on `github.com/modelcontextprotocol/go-sdk` v1.8 or later, which supports 
 | --- | --- | --- |
 | `check_package` | `{ "path": string, "base"?: string }` | Gate result: `passed`, `violations[]`, per-package report. The agent's self-check. |
 | `assess_package` | `{ "path": string, "tokenizer"?: string }` | One report (10.2) |
-| `rank_packages` | `{ "module_root": string, "top"?: int, "sort"?: string }` | Sorted array of `{ path, friction_index, tier, fan_in, tokens_est, duplication_pct }` |
+| `rank_packages` | `{ "module_root": string, "top"?: int, "sort"?: string }` | Sorted array of `{ path, agent_passes, human_days, tier, fan_in, tokens_est, duplication_pct }` |
 | `explain_metric` | `{ "metric": string }` | Definition, evidence note and default threshold for one metric |
 
 Results return `content` (text) and `structuredContent` (JSON), with `isError: true` on analysis failure. A gate failure is not an error; it is a result with `passed: false`.
@@ -315,11 +336,15 @@ Results return `content` (text) and `structuredContent` (JSON), with `isError: t
   "language": "go",
   "package_path": "internal/billing",
   "module_path": "github.com/acme/app",
-  "friction_index": 6.8,
-  "tier": "HIGH",
-  "calibrated": false,
-  "drivers": [ { "term": "duplication", "contribution": 1.4, "detail": "duplication_pct=9.2" } ],
-  "suggestions": [ "9.2% of lines are in duplicate blocks (4 blocks); extract shared helpers." ],
+  "rebuild": {
+    "agent_passes": 2.4,
+    "rebuild_tokens": 61000,
+    "human_days": 9.5,
+    "tier": "FEW_PASSES",
+    "calibrated": false,
+    "drivers": [ { "term": "unspecified", "tokens": 5600, "detail": "untested_exports=7" } ]
+  },
+  "suggestions": [ "7 exported functions have no test; a rebuild would have to reverse-engineer their behavior." ],
   "metrics": { "...": "every field from section 6" },
   "baseline": { "ref": "a1b2c3d", "metrics": { "...": "same fields" } },
   "violations": [
@@ -346,9 +371,17 @@ Two calibrations, in priority order.
 4. Ship as `config_version: thresholds-<date>`. Good code passes by construction; the gate flags what falls outside what good projects do.
 5. Re-run yearly or when the metric set changes.
 
-### 11.2 Composite weights from agent outcomes (secondary, optional)
+### 11.2 Rebuild parameters from rebuild experiments (secondary)
 
-Run an agent on 30 or more refactoring tasks with test oracles, record turns, tokens and pass/fail, and fit the composite weights. This improves `rank` and `assess` but does not affect the gate. Until it runs, reports carry `calibrated: false` for the composite; the thresholds carry their own version.
+The estimate's parameters are measured by doing the thing it estimates. For each of 30 or more packages across the reference corpus:
+
+1. Delete the non-test implementation, keeping test files and exported signatures as stubs.
+2. Have the target agent (Claude Code first) reimplement until the package's tests pass, with a turn cap.
+3. Record tokens, turns, wall time, whether tests passed, and whether importers still compile.
+4. Regress the outcomes on the section 7.1 inputs and fit `context_budget`, the per-item token costs and the superlinear exponent.
+5. Ship as `config_version: rebuild-<date>-<agent>` and flip `calibrated` to true for the estimate.
+
+This is well-defined and repeatable, unlike a refactoring-task corpus, and it directly measures what the number claims. It does not affect the gate.
 
 ## 12. Integrations
 
@@ -376,19 +409,20 @@ Each bullet is intended to become one story.
 
 ### M1: Go extractor (v0 metrics)
 
+- Conformance suite `metricstest` with a fake extractor.
 - Loader, import classification, fan-in, globals and init, nesting and cognitive complexity, size, tokens, tests.
 - Duplication (6.3) and untested exports (6.4).
-- Full assembly with golden verification and the stdlib `errors` checks.
+- Full assembly, passing the conformance suite against the fixture, plus the stdlib `errors` checks.
 
-*Accepts when:* every fixture package matches its golden; `errors` reports `globals=2`, `internal_imports=0`.
+*Accepts when:* `metricstest.TestExtractor` passes for the Go extractor on the fixture; `errors` reports `globals=2`, `internal_imports=0`.
 
 ### M2: Scorer, thresholds and CLI
 
-- Unified config (weights and thresholds) loader and validation.
-- Normalization, composite, tiers, drivers, suggestions.
+- Unified config (rebuild parameters and thresholds) loader and validation.
+- Rebuild estimate, tiers, drivers, suggestions.
 - Thresholds evaluation: density deltas, capacity ceilings with warning bands, requirements; violation and warning reporting.
 - `assess`, `rank`, `baseline write`, `check` with git-ref and file baselines, changed-package detection and all four output formats.
-- Section 7.4 invariants and monotonicity property test.
+- Section 7.5 invariants and monotonicity property test.
 
 *Accepts when:* `check` on the fixture with a deliberately degraded package exits 3 and names the violated metrics; the same package unchanged exits 0.
 
@@ -419,12 +453,12 @@ Each bullet is intended to become one story.
 ### M6: v1 metrics and second language
 
 - `concrete_param_ratio`, `dup_blocks_cross_pkg`, `uses_cgo`, `uses_reflect`, `generated_files`, `coverage_pct`.
-- TypeScript extractor behind tree-sitter with fixtures.
+- TypeScript extractor behind tree-sitter with fixtures, passing the conformance suite.
 - Per-language config overrides.
 
-### M7: Composite weight calibration (optional)
+### M7: Rebuild parameter calibration
 
-- Task corpus, agent runner, fitting, ship calibrated weights.
+- Rebuild experiment definition over the reference corpus, agent runner, fitting, ship calibrated parameters.
 
 ## 15. Open questions
 

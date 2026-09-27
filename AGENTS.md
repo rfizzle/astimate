@@ -47,6 +47,7 @@ Target Go 1.27 or later. Follow Effective Go and the Go Code Review Comments wik
 - Accept interfaces, return structs. Keep interfaces small and define them where they are consumed.
 - No package-level mutable state and no `init()` functions. This tool penalizes both; we do not ship them.
 - Table-driven tests with `t.Run` subtests. Use `t.TempDir()` for filesystem tests. Golden files under `testdata/`, regenerated with `-update` flag.
+- An interface with more than one implementation (or a planned second one) gets a conformance suite in an importable `<pkg>test` package next to it, in the style of `testing/fstest`; each implementation's own tests call it once and keep only implementation-specific tests locally. A package with one implementation and no external implementers uses ordinary local tests. See SPEC.md section 5 and the `go-conformance-suite` skill.
 - Package names are short, lower case, no underscores. No `util`, `common` or `helpers` packages.
 - Prefer the standard library. A new dependency needs a one-line justification in the commit body.
 
