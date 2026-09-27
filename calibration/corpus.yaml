@@ -20,31 +20,31 @@ modules:
   # Web frameworks and routers
   - module: github.com/gin-gonic/gin
     repo: https://github.com/gin-gonic/gin.git
-    commit: ""
+    commit: "1bd0ecf2d3e08da37efa270bb7be20c1eddb0d68"
     license: MIT
     stars_or_dependents: ~80k stars
     reason: Most used Go HTTP framework; compact, heavily reviewed middleware and routing code.
   - module: github.com/go-chi/chi/v5
     repo: https://github.com/go-chi/chi.git
-    commit: ""
+    commit: "3d1777a1ef8881f7d1da0b02c76ca8f0a29cd2bc"
     license: MIT
     stars_or_dependents: ~19k stars
     reason: Idiomatic net/http router built on the standard library's interfaces.
-  - module: github.com/labstack/echo/v4
+  - module: github.com/labstack/echo/v5
     repo: https://github.com/labstack/echo.git
-    commit: ""
+    commit: "3d084be9022432c5a5257924c7d74bfc3444b456"
     license: MIT
     stars_or_dependents: ~30k stars
     reason: Widely deployed web framework with a large middleware set.
   - module: github.com/gofiber/fiber/v3
     repo: https://github.com/gofiber/fiber.git
-    commit: ""
+    commit: "e10bca7375d87511d8c764642689db7809a4e1c8"
     license: MIT
     stars_or_dependents: ~35k stars
     reason: Popular fasthttp-based framework; a different HTTP design from net/http.
   - module: github.com/gorilla/mux
     repo: https://github.com/gorilla/mux.git
-    commit: ""
+    commit: "db9d1d0073d27a0a2d9a8c1bc52aa0af4374d265"
     license: BSD-3-Clause
     stars_or_dependents: ~21k stars, tens of thousands of dependents
     reason: Long-lived router with a very large dependent base.
@@ -52,37 +52,37 @@ modules:
   # CLI and terminal
   - module: github.com/spf13/cobra
     repo: https://github.com/spf13/cobra.git
-    commit: ""
+    commit: "adbc8813901bba65827259daa8e22ff94ec1f30e"
     license: Apache-2.0
     stars_or_dependents: ~40k stars, used by kubectl, hugo and gh
     reason: The standard CLI framework of the Go ecosystem.
   - module: github.com/urfave/cli/v3
     repo: https://github.com/urfave/cli.git
-    commit: ""
+    commit: "58ec406eff149315193d8632c08317f70f6deee1"
     license: MIT
     stars_or_dependents: ~23k stars
     reason: Second most used CLI library; a declarative style distinct from cobra.
   - module: github.com/spf13/viper
     repo: https://github.com/spf13/viper.git
-    commit: ""
+    commit: "528f7416c4b56a4948673984b190bf8713f0c3c4"
     license: MIT
     stars_or_dependents: ~28k stars
     reason: Configuration loading used alongside cobra across the ecosystem.
-  - module: github.com/charmbracelet/bubbletea
+  - module: charm.land/bubbletea/v2
     repo: https://github.com/charmbracelet/bubbletea.git
-    commit: ""
+    commit: "d5bfd5c2ff7480a6b94536c1cf4e73569b8d523e"
     license: MIT
     stars_or_dependents: ~30k stars
     reason: Leading terminal UI framework; event-loop code unlike the server libraries.
   - module: github.com/junegunn/fzf
     repo: https://github.com/junegunn/fzf.git
-    commit: ""
+    commit: "b1be3a8be1b833ce5b92fbbac11637643d60a046"
     license: MIT
     stars_or_dependents: ~70k stars
     reason: Widely installed end-user tool; performance-tuned application code.
   - module: github.com/cli/cli/v2
     repo: https://github.com/cli/cli.git
-    commit: ""
+    commit: "9b031151a825bda919203c5202876a725d637368"
     license: MIT
     stars_or_dependents: ~40k stars
     reason: GitHub's official CLI; a large, well-tested application with many packages.
@@ -90,37 +90,37 @@ modules:
   # Databases and storage
   - module: github.com/jackc/pgx/v5
     repo: https://github.com/jackc/pgx.git
-    commit: ""
+    commit: "b892c02eb0d8e56743c4f887912b45d469387e0c"
     license: MIT
     stars_or_dependents: ~12k stars, the default PostgreSQL driver
     reason: Pure-Go PostgreSQL driver and toolkit; protocol and pooling code.
   - module: github.com/go-sql-driver/mysql
     repo: https://github.com/go-sql-driver/mysql.git
-    commit: ""
+    commit: "789a82a35d04f8ab5a7b28707615ef8bf9d4f09b"
     license: MPL-2.0
     stars_or_dependents: ~15k stars, tens of thousands of dependents
     reason: The standard pure-Go MySQL driver.
   - module: github.com/redis/go-redis/v9
     repo: https://github.com/redis/go-redis.git
-    commit: ""
+    commit: "cb175c6275d8ff6d926bde492114ea56fbb1757f"
     license: BSD-2-Clause
     stars_or_dependents: ~21k stars
     reason: Official Redis client; a large command surface over one protocol core.
   - module: go.etcd.io/bbolt
     repo: https://github.com/etcd-io/bbolt.git
-    commit: ""
+    commit: "4dc08f7187c709d355a8bcf334fcbcf7d7cfedf6"
     license: MIT
     stars_or_dependents: ~8k stars, embedded in etcd and many others
     reason: Small, carefully maintained embedded B+tree store.
   - module: github.com/dgraph-io/badger/v4
     repo: https://github.com/dgraph-io/badger.git
-    commit: ""
+    commit: "5688f1406cedb8e7cd22401855a90ad6b9ce733c"
     license: Apache-2.0
     stars_or_dependents: ~14k stars
     reason: LSM key-value store; storage-engine code of a different design from bbolt.
   - module: github.com/cockroachdb/pebble
     repo: https://github.com/cockroachdb/pebble.git
-    commit: ""
+    commit: "e0818dd07ec580eb229e8291b4eefdb135cd5a55"
     license: BSD-3-Clause
     stars_or_dependents: ~5k stars, the storage engine of CockroachDB
     reason: Production LSM engine with extensive tests.
@@ -128,31 +128,31 @@ modules:
   # Logging, testing and utilities
   - module: go.uber.org/zap
     repo: https://github.com/uber-go/zap.git
-    commit: ""
+    commit: "4892335e05f14bce8a98a69a577fcf3844a42623"
     license: MIT
     stars_or_dependents: ~22k stars
     reason: High-performance structured logger with allocation-conscious code.
   - module: github.com/rs/zerolog
     repo: https://github.com/rs/zerolog.git
-    commit: ""
+    commit: "5eb5f3a76c09eeadc1f2464baf4a4e3f1037c830"
     license: MIT
     stars_or_dependents: ~11k stars
     reason: Zero-allocation JSON logger; a second logging design next to zap.
   - module: github.com/stretchr/testify
     repo: https://github.com/stretchr/testify.git
-    commit: ""
+    commit: "87a7b9d57689f6579db2da795ab8deeab29cb724"
     license: MIT
     stars_or_dependents: ~24k stars, among the most imported Go modules
     reason: The most used assertion library.
   - module: github.com/google/go-cmp
     repo: https://github.com/google/go-cmp.git
-    commit: ""
+    commit: "b133f1f1932e48f466f597a3346ce6f5a49a0dc1"
     license: BSD-3-Clause
     stars_or_dependents: ~4k stars, imported by a large share of Go modules
     reason: Deep comparison library from the Go team's orbit; reflection-heavy code.
   - module: github.com/google/uuid
     repo: https://github.com/google/uuid.git
-    commit: ""
+    commit: "2d3c2a9cc518326daf99a383f07c4d3c44317e4d"
     license: BSD-3-Clause
     stars_or_dependents: ~5k stars, among the most imported Go modules
     reason: Small, single-package library; anchors the low end of the distribution.
@@ -160,19 +160,19 @@ modules:
   # Parsers and encoding
   - module: github.com/hashicorp/hcl/v2
     repo: https://github.com/hashicorp/hcl.git
-    commit: ""
+    commit: "4932c1452af6bd71e2241ba244f253643d1828da"
     license: MPL-2.0
     stars_or_dependents: ~5k stars, the configuration language of Terraform
     reason: Hand-written parser and evaluator.
   - module: github.com/BurntSushi/toml
     repo: https://github.com/BurntSushi/toml.git
-    commit: ""
+    commit: "d733fc535e4a9f3c454e421a87b90ade5d49bf31"
     license: MIT
     stars_or_dependents: ~5k stars
     reason: Hand-written TOML lexer and decoder.
   - module: github.com/pelletier/go-toml/v2
     repo: https://github.com/pelletier/go-toml.git
-    commit: ""
+    commit: "686c980c47581bf19b6119b60e9a59f2aed04170"
     license: MIT
     stars_or_dependents: ~2k stars, the TOML library of viper
     reason: Performance-oriented TOML parser, a second parser design.
@@ -180,13 +180,13 @@ modules:
   # Infrastructure and servers
   - module: github.com/prometheus/client_golang
     repo: https://github.com/prometheus/client_golang.git
-    commit: ""
+    commit: "ae383cad8807236fc4ab113c9d98fe343daa039e"
     license: Apache-2.0
     stars_or_dependents: ~6k stars, tens of thousands of dependents
     reason: The Prometheus instrumentation library.
   - module: google.golang.org/grpc
     repo: https://github.com/grpc/grpc-go.git
-    commit: ""
+    commit: "acccf8cd101ae1eb33385f27e12740b3edd730f0"
     license: Apache-2.0
     stars_or_dependents: ~21k stars
     reason: >-
@@ -194,43 +194,43 @@ modules:
       .pb.go packages are a small share and are kept rather than hand-pruned.
   - module: github.com/hashicorp/raft
     repo: https://github.com/hashicorp/raft.git
-    commit: ""
+    commit: "871f108efbeb26c06636c4b388e18fc698de6f62"
     license: MPL-2.0
     stars_or_dependents: ~8k stars, used by Consul, Nomad and Vault
     reason: Consensus library; dense concurrent state-machine code.
   - module: github.com/nats-io/nats-server/v2
     repo: https://github.com/nats-io/nats-server.git
-    commit: ""
+    commit: "3e8ddaa7fcdf2c6a0688f8872ca465eab08f1221"
     license: Apache-2.0
     stars_or_dependents: ~16k stars
     reason: Messaging server with a few very large packages; tests the high end.
   - module: github.com/caddyserver/caddy/v2
     repo: https://github.com/caddyserver/caddy.git
-    commit: ""
+    commit: "ea1e94b89972b83b189cbb946352abd9acec0f8c"
     license: Apache-2.0
     stars_or_dependents: ~60k stars
     reason: Modular web server with a plugin architecture spread over many packages.
   - module: github.com/open-policy-agent/opa
     repo: https://github.com/open-policy-agent/opa.git
-    commit: ""
+    commit: "a6c13a96f0cd11dc7ca6db9296b2af842ffdc0fd"
     license: Apache-2.0
     stars_or_dependents: ~10k stars, CNCF graduated
     reason: Policy engine with a hand-written language front end and evaluator.
   - module: helm.sh/helm/v4
     repo: https://github.com/helm/helm.git
-    commit: ""
+    commit: "d31cd6992fc7858922de6ebe5984a06fd6aa0b80"
     license: Apache-2.0
     stars_or_dependents: ~27k stars, CNCF graduated
     reason: Kubernetes package manager; application code without the Kubernetes monorepo's generated trees.
-  - module: code.gitea.io/gitea
+  - module: gitea.dev
     repo: https://github.com/go-gitea/gitea.git
-    commit: ""
+    commit: "3c5d2d1b63935429490b9f149da38f9deb5055ce"
     license: MIT
     stars_or_dependents: ~50k stars
     reason: Large self-hosted forge; hundreds of application packages.
   - module: github.com/goreleaser/goreleaser/v2
     repo: https://github.com/goreleaser/goreleaser.git
-    commit: ""
+    commit: "ff8de3d6c38984ba20ea48e13b54d0767f123d64"
     license: MIT
     stars_or_dependents: ~14k stars
     reason: Release automation tool built from many small pipe packages.
@@ -238,13 +238,13 @@ modules:
   # Cloud SDK pieces and cryptography
   - module: github.com/aws/smithy-go
     repo: https://github.com/aws/smithy-go.git
-    commit: ""
+    commit: "9b28af0b8afffb9debb149a07df6fc40edc6e529"
     license: Apache-2.0
     stars_or_dependents: every aws-sdk-go-v2 service client depends on it
     reason: The hand-written runtime under the generated AWS SDK v2 clients.
   - module: golang.org/x/crypto
     repo: https://go.googlesource.com/crypto
-    commit: ""
+    commit: "7a4a4d6beae2222add4437a0910bd48414e19211"
     license: BSD-3-Clause
     stars_or_dependents: among the most imported Go modules
     reason: Go-team maintained cryptography outside the standard library.

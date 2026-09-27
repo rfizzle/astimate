@@ -132,13 +132,22 @@ the corpus entry to match.
 
 ## Current data
 
-`data/2026-09-27/` holds the standard-library portion only: 358 packages
-(the 381 packages of `go list std` less 23 under `vendor/`), no failures,
-Go 1.27.1, measured as one load, so `fan_in` is real: p50 2, p90 16,
-maximum 164 (`errors`). As in a module rank, cgo packages are measured
-from their Go source files, not the files cgo generates. The cloned
-modules are still to be collected with the command above; the pooled data should reach at least 2,000 packages before the
-SPEC.md 11.1 percentiles are derived from it.
+`data/2026-09-27-corpus/` is the first full run: 2,347 packages from the
+standard library and all 36 cloned modules at the commits pinned in
+`corpus.yaml` on 2026-09-27, no failures, Go 1.27.1, astimate `f64280f`
+(after the equal fan-in/fan-out edges, typed abstractness, rounded ratios,
+opacity flags and the generated-file rule). The largest modules are
+`gitea.dev` (384 packages), `std` (358), `github.com/cli/cli/v2` (309),
+`google.golang.org/grpc` (261) and `github.com/open-policy-agent/opa` (257).
+Three default branches had moved to a new module path since the corpus was
+written, and the entries now match their `go.mod`: `github.com/labstack/echo/v5`,
+`charm.land/bubbletea/v2` and `gitea.dev`. The six-month activity rule was
+not checked commit by commit; every pin is the default branch's HEAD on the
+run date. Gitea also contains TypeScript; the collector took the Go
+extractor, as its warning says.
+
+`data/2026-09-27/` is the earlier standard-library-only run (358 packages)
+under the older counting rules and is kept for comparison.
 
 ## Fitting thresholds
 
