@@ -11,8 +11,9 @@ LDFLAGS := -X main.buildVersion=$(VERSION) -X main.buildCommit=$(COMMIT) -X main
 # BUILD_TAGS makes gotreesitter embed only the grammars the TypeScript
 # extractor uses instead of all of them. The names are the grammar_subset
 # tags in gotreesitter's grammars package; a misspelled one still compiles
-# but leaves the grammar out, which test-subset catches. .goreleaser.yaml,
-# action/install.sh and the check job in ci.yml repeat this list.
+# but leaves the grammar out, which test-subset catches. .goreleaser.yaml
+# and action/install.sh repeat this list; action/tags_test.go fails if they
+# drift from it.
 BUILD_TAGS := grammar_subset grammar_subset_typescript grammar_subset_tsx
 
 # check is the full gate: workflow lint, module tidiness, format, vet, lint,

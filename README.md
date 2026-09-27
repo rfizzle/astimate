@@ -42,7 +42,7 @@ make build      # ./astimate with version, commit and date injected
 
 `golangci-lint` v2 is required for `make check`.
 
-`make build` and the release builds pass `-tags 'grammar_subset grammar_subset_typescript grammar_subset_tsx'` so only the TypeScript and TSX tree-sitter grammars are embedded; a plain `go build ./cmd/astimate` works too but embeds every grammar and is larger (`make test-subset` runs the TypeScript tests under the tags).
+`make build` and the release builds pass `-tags` with the tags listed as `BUILD_TAGS` in the Makefile so only the TypeScript and TSX tree-sitter grammars are embedded; a plain `go build ./cmd/astimate` works too but embeds every grammar and is larger (`make test-subset` runs the TypeScript tests under the tags).
 
 ## Configuration
 
