@@ -49,7 +49,7 @@ func fixtureBaseline(t *testing.T) string {
 		t.Fatalf("collecting the fixture baseline: %v", err)
 	}
 	path := filepath.Join(t.TempDir(), "baseline.json")
-	if err := baseline.Write(path, "fixture", tg.Mod.ModulePath, pkgs); err != nil {
+	if err := baseline.Write(path, "fixture", tg.Mod.ModulePath, tokenizerEst, pkgs); err != nil {
 		t.Fatalf("writing the fixture baseline: %v", err)
 	}
 	return path

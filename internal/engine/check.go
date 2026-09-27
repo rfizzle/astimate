@@ -133,6 +133,9 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 	if err != nil {
 		return nil, nil, err
 	}
+	if src.file != nil {
+		warnTokenizerMismatch(t, src.file)
+	}
 	selected, deleted := opts.Packages, []string(nil)
 	if len(selected) == 0 {
 		selected, deleted, err = selectPackages(ctx, t, head, src, opts.All)
@@ -161,6 +164,24 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 		c.Packages = append(c.Packages, p)
 	}
 	return c, failed, nil
+}
+
+// tokenizer returns t.Tokenizer, or TokenizerEst when it is empty.
+func (t *Target) tokenizer() string {
+	if t.Tokenizer == "" {
+		return TokenizerEst
+	}
+	return t.Tokenizer
+}
+
+// warnTokenizerMismatch logs one warning when the file baseline b counted
+// tokens with another tokenizer than t does. The gate still runs: capacity
+// rules are absolute, but tokens_est deltas against b are not comparable.
+func warnTokenizerMismatch(t *Target, b baseline.Baseline) {
+	if bt, ct := b.Tokenizer(), t.tokenizer(); bt != ct {
+		t.logger().Warn("baseline tokenizer " + bt + " differs from check tokenizer " + ct +
+			"; token counts are not comparable")
+	}
 }
 
 // baselineSource is where the baseline comes from: a git ref or a file,
@@ -233,7 +254,7 @@ func fileBaseline(path string, cache *BaselineCache) (baseline.Baseline, error) 
 // nil cache leaves the whole resolution to baseline.FromGit.
 func gitBaseline(ctx context.Context, t *Target, ref string, cache *BaselineCache) (baseline.Baseline, error) {
 	if cache == nil {
-		return baseline.FromGit(ctx, t.Mod.Root, ref, t.Ext, t.Mod.ModulePath)
+		return baseline.FromGit(ctx, t.Mod.Root, ref, t.Ext, t.Mod.ModulePath, t.tokenizer())
 	}
 	sha, err := baseline.MergeBase(ctx, t.Mod.Root, ref)
 	if err != nil {
@@ -241,7 +262,7 @@ func gitBaseline(ctx context.Context, t *Target, ref string, cache *BaselineCach
 	}
 	return cache.get("git:"+sha, func() (baseline.Baseline, error) {
 		// The merge-base of HEAD and one of its ancestors is that ancestor.
-		return baseline.FromGit(ctx, t.Mod.Root, sha, t.Ext, t.Mod.ModulePath)
+		return baseline.FromGit(ctx, t.Mod.Root, sha, t.Ext, t.Mod.ModulePath, t.tokenizer())
 	})
 }
 

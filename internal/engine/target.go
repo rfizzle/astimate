@@ -65,6 +65,9 @@ type Target struct {
 	Ext metrics.Extractor
 	// Cfg is the resolved configuration.
 	Cfg *config.Config
+	// Tokenizer is the method Ext counts tokens with, TokenizerEst or
+	// TokenizerO200k; empty means TokenizerEst.
+	Tokenizer string
 	// ConfigSource says where Cfg came from, as config.Resolve reports it;
 	// empty when it was passed in TargetOptions.Config.
 	ConfigSource string
@@ -153,6 +156,7 @@ func LoadTarget(dir string, opts TargetOptions) (*Target, error) {
 		ImportPath:   importPath,
 		Ext:          ext,
 		Cfg:          cfg,
+		Tokenizer:    tokenizer,
 		ConfigSource: source,
 		Version:      opts.Version,
 		Logger:       opts.Logger,

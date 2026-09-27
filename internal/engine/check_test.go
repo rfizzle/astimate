@@ -1,7 +1,9 @@
 package engine
 
 import (
+	"bytes"
 	"errors"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,9 +20,15 @@ import (
 // temporary directory and returns its path.
 func writeFakeBaseline(t *testing.T) string {
 	t.Helper()
+	return writeFakeBaselineTokenizer(t, TokenizerEst)
+}
+
+// writeFakeBaselineTokenizer is writeFakeBaseline recording tokenizer.
+func writeFakeBaselineTokenizer(t *testing.T, tokenizer string) string {
+	t.Helper()
 	path := filepath.Join(t.TempDir(), "baseline.json")
 	pkgs := map[string]metrics.RawMetrics{"example.com/m/big": {TokensEst: 39000}}
-	if err := baseline.Write(path, "", "example.com/m", pkgs); err != nil {
+	if err := baseline.Write(path, "", "example.com/m", tokenizer, pkgs); err != nil {
 		t.Fatalf("writing baseline: %v", err)
 	}
 	return path
@@ -45,6 +53,46 @@ func TestCheckPackagesOverride(t *testing.T) {
 	}
 	if c.Deleted != nil {
 		t.Errorf("Deleted = %v, want none with an explicit package list", c.Deleted)
+	}
+}
+
+func TestCheckTokenizerMismatch(t *testing.T) {
+	t.Parallel()
+
+	const warning = "baseline tokenizer o200k differs from check tokenizer est; token counts are not comparable"
+	tests := []struct {
+		name      string
+		file      string // tokenizer recorded in the baseline file
+		check     string // the target's tokenizer; empty means est
+		wantWarns int
+	}{
+		{name: "mismatch", file: TokenizerO200k, check: TokenizerEst, wantWarns: 1},
+		{name: "mismatch with default tokenizer", file: TokenizerO200k, wantWarns: 1},
+		{name: "equal", file: TokenizerEst, check: TokenizerEst},
+		{name: "equal o200k", file: TokenizerO200k, check: TokenizerO200k},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var logs bytes.Buffer
+			tg := fakeTarget("")
+			tg.Tokenizer = tt.check
+			tg.Logger = slog.New(slog.NewTextHandler(&logs, nil))
+			_, failed, err := Check(t.Context(), tg, CheckOptions{
+				BaselineFile: writeFakeBaselineTokenizer(t, tt.file),
+				Packages:     []string{"example.com/m/big"},
+			})
+			if err != nil || len(failed) != 0 {
+				t.Fatalf("Check = (%v, %v), want no error despite the tokenizers", failed, err)
+			}
+			if got := strings.Count(logs.String(), "differs from check tokenizer"); got != tt.wantWarns {
+				t.Errorf("logged %d tokenizer warnings, want %d; logs:\n%s", got, tt.wantWarns, logs.String())
+			}
+			if tt.wantWarns > 0 && !strings.Contains(logs.String(), "level=WARN msg=\""+warning+"\"") {
+				t.Errorf("logs = %q, want a warning %q", logs.String(), warning)
+			}
+		})
 	}
 }
 

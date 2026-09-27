@@ -14,16 +14,22 @@ import (
 // relative to the module root.
 const DefaultPath = ".astimate/baseline.json"
 
+// DefaultTokenizer is the tokenizer FromFile reports for a file that
+// records none, as files written before the field existed do.
+const DefaultTokenizer = "est"
+
 // fileFormat is the JSON layout of a baseline file (SPEC.md 8.3).
 type fileFormat struct {
 	Ref         string                        `json:"ref"`
 	GeneratedAt time.Time                     `json:"generated_at"`
 	ModulePath  string                        `json:"module_path"`
+	Tokenizer   string                        `json:"tokenizer,omitempty"`
 	Packages    map[string]metrics.RawMetrics `json:"packages"`
 }
 
-// FromFile reads a baseline file written by Write. Its Ref is the ref
-// recorded in the file.
+// FromFile reads a baseline file written by Write. Its Ref and Tokenizer
+// are the ones recorded in the file; a file that records no tokenizer
+// reports DefaultTokenizer.
 func FromFile(path string) (Baseline, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -36,21 +42,29 @@ func FromFile(path string) (Baseline, error) {
 	if f.Packages == nil {
 		f.Packages = map[string]metrics.RawMetrics{}
 	}
-	return &snapshot{ref: f.Ref, pkgs: f.Packages}, nil
+	if f.Tokenizer == "" {
+		f.Tokenizer = DefaultTokenizer
+	}
+	return &snapshot{ref: f.Ref, tokenizer: f.Tokenizer, pkgs: f.Packages}, nil
 }
 
 // Write stores pkgs, keyed by import path, as a baseline file at path with
-// mode 0644, recording ref, modulePath and the current time. It writes a
-// temporary file in the same directory and renames it into place, so a
-// reader never sees a partial file. The directory must exist.
-func Write(path, ref, modulePath string, pkgs map[string]metrics.RawMetrics) (err error) {
+// mode 0644, recording ref, modulePath, tokenizer (the method that counted
+// the packages' tokens_est; empty records DefaultTokenizer) and the current
+// time. It writes a temporary file in the same directory and renames it into
+// place, so a reader never sees a partial file. The directory must exist.
+func Write(path, ref, modulePath, tokenizer string, pkgs map[string]metrics.RawMetrics) (err error) {
 	if pkgs == nil {
 		pkgs = map[string]metrics.RawMetrics{}
+	}
+	if tokenizer == "" {
+		tokenizer = DefaultTokenizer
 	}
 	data, err := json.MarshalIndent(fileFormat{
 		Ref:         ref,
 		GeneratedAt: time.Now().UTC().Truncate(time.Second),
 		ModulePath:  modulePath,
+		Tokenizer:   tokenizer,
 		Packages:    pkgs,
 	}, "", "  ")
 	if err != nil {

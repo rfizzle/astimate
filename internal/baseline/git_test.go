@@ -134,12 +134,15 @@ func TestFromGitReturnsBaseCommitMetrics(t *testing.T) {
 	r.write("a/a.go", "package a\n\nvar x = 2\n\nfunc A() int { return x }\n")
 	r.commit("second")
 
-	b, err := FromGit(context.Background(), r.dir, first, golang.New(), "example.com/m")
+	b, err := FromGit(context.Background(), r.dir, first, golang.New(), "example.com/m", "est")
 	if err != nil {
 		t.Fatalf("FromGit: %v", err)
 	}
 	if b.Ref() != first {
 		t.Errorf("Ref() = %q, want first commit %q", b.Ref(), first)
+	}
+	if b.Tokenizer() != "est" {
+		t.Errorf("Tokenizer() = %q, want the one passed, est", b.Tokenizer())
 	}
 	for pkg, want := range map[string]int{"example.com/m/a": 0, "example.com/m/b": 1} {
 		m, ok := b.Metrics(pkg)
@@ -172,7 +175,7 @@ func TestFromGitUsesMergeBase(t *testing.T) {
 	r.commit("feature work")
 
 	ext := &stubExtractor{pkgs: []string{"p"}}
-	b, err := FromGit(context.Background(), r.dir, "", ext, "example.com/m")
+	b, err := FromGit(context.Background(), r.dir, "", ext, "example.com/m", "est")
 	if err != nil {
 		t.Fatalf("FromGit: %v", err)
 	}
@@ -200,7 +203,7 @@ func TestFromGitNestedModule(t *testing.T) {
 		return metrics.RawMetrics{}, nil
 	}
 	ext.pkgs = []string{"example.com/tools"}
-	if _, err := FromGit(context.Background(), filepath.Join(r.dir, "tools"), sha, ext, "example.com/tools"); err != nil {
+	if _, err := FromGit(context.Background(), filepath.Join(r.dir, "tools"), sha, ext, "example.com/tools", "est"); err != nil {
 		t.Fatalf("FromGit: %v", err)
 	}
 	if filepath.Base(ext.root) != "tools" {
@@ -255,7 +258,7 @@ func TestFromGitRemovesWorktreeOnFailure(t *testing.T) {
 			ext.extract = func(ctx context.Context) (metrics.RawMetrics, error) { return tt.extract(ctx, cancel) }
 
 			err := callRecovering(func() error {
-				_, err := FromGit(ctx, r.dir, sha, ext, "example.com/m")
+				_, err := FromGit(ctx, r.dir, sha, ext, "example.com/m", "est")
 				return err
 			})
 			if err == nil {
@@ -306,7 +309,7 @@ func TestFromGitRemovesWorktreeOnSignal(t *testing.T) {
 			return metrics.RawMetrics{}, errors.New("context not cancelled by SIGINT")
 		}
 	}
-	_, err := FromGit(context.Background(), r.dir, sha, ext, "example.com/m")
+	_, err := FromGit(context.Background(), r.dir, sha, ext, "example.com/m", "est")
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("FromGit error = %v, want context.Canceled from the signal", err)
 	}

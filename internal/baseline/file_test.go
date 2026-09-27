@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"testing"
 	"time"
 
@@ -23,7 +24,7 @@ func TestFileRoundTrip(t *testing.T) {
 	path := filepath.Join(dir, "baseline.json")
 
 	before := time.Now().UTC().Truncate(time.Second)
-	if err := Write(path, "abc123", "example.com/m", pkgs); err != nil {
+	if err := Write(path, "abc123", "example.com/m", "est", pkgs); err != nil {
 		t.Fatalf("Write: %v", err)
 	}
 
@@ -91,10 +92,10 @@ func TestWriteReplacesExistingFile(t *testing.T) {
 	t.Parallel()
 
 	path := filepath.Join(t.TempDir(), "baseline.json")
-	if err := Write(path, "old", "example.com/m", map[string]metrics.RawMetrics{"example.com/m/a": {Files: 1}}); err != nil {
+	if err := Write(path, "old", "example.com/m", "est", map[string]metrics.RawMetrics{"example.com/m/a": {Files: 1}}); err != nil {
 		t.Fatalf("first Write: %v", err)
 	}
-	if err := Write(path, "new", "example.com/m", nil); err != nil {
+	if err := Write(path, "new", "example.com/m", "est", nil); err != nil {
 		t.Fatalf("second Write: %v", err)
 	}
 	b, err := FromFile(path)
@@ -125,7 +126,7 @@ func TestFileErrors(t *testing.T) {
 		{name: "missing file", run: func() error { _, err := FromFile(filepath.Join(dir, "missing.json")); return err }},
 		{name: "malformed file", run: func() error { _, err := FromFile(bad); return err }},
 		{name: "missing directory", run: func() error {
-			return Write(filepath.Join(dir, "nope", "baseline.json"), "", "example.com/m", nil)
+			return Write(filepath.Join(dir, "nope", "baseline.json"), "", "example.com/m", "est", nil)
 		}},
 	}
 	for _, tt := range tests {
@@ -133,6 +134,62 @@ func TestFileErrors(t *testing.T) {
 			t.Parallel()
 			if err := tt.run(); err == nil {
 				t.Error("succeeded, want an error")
+			}
+		})
+	}
+}
+
+func TestFileTokenizer(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	old := filepath.Join(dir, "old.json")
+	// A file written before the tokenizer field existed.
+	body := `{"ref": "abc", "generated_at": "2026-01-01T00:00:00Z", "module_path": "example.com/m", "packages": {}}`
+	if err := os.WriteFile(old, []byte(body), 0o600); err != nil {
+		t.Fatalf("seeding old file: %v", err)
+	}
+
+	tests := []struct {
+		name  string
+		write bool   // write the file with tokenizer instead of reading old
+		tok   string // tokenizer passed to Write
+		want  string
+	}{
+		{name: "o200k round-trips", write: true, tok: "o200k", want: "o200k"},
+		{name: "est round-trips", write: true, tok: "est", want: "est"},
+		{name: "empty records est", write: true, tok: "", want: "est"},
+		{name: "old file reads as est", want: "est"},
+	}
+	for i, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			path := old
+			if tt.write {
+				path = filepath.Join(dir, "b"+strconv.Itoa(i)+".json")
+				if err := Write(path, "abc", "example.com/m", tt.tok, nil); err != nil {
+					t.Fatalf("Write: %v", err)
+				}
+				data, err := os.ReadFile(path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				var raw struct {
+					Tokenizer string `json:"tokenizer"`
+				}
+				if err := json.Unmarshal(data, &raw); err != nil {
+					t.Fatal(err)
+				}
+				if raw.Tokenizer != tt.want {
+					t.Errorf("file records tokenizer %q, want %q", raw.Tokenizer, tt.want)
+				}
+			}
+			b, err := FromFile(path)
+			if err != nil {
+				t.Fatalf("FromFile: %v", err)
+			}
+			if got := b.Tokenizer(); got != tt.want {
+				t.Errorf("Tokenizer() = %q, want %q", got, tt.want)
 			}
 		})
 	}

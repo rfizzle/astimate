@@ -37,8 +37,8 @@ const cleanupTimeout = 30 * time.Second
 // worktree is removed before FromGit returns, including on error, panic,
 // cancellation of ctx, and SIGINT or SIGTERM received meanwhile. root may be
 // a module nested below the repository root. Ref reports the merge-base
-// commit.
-func FromGit(ctx context.Context, root, ref string, ext metrics.Extractor, modulePath string) (Baseline, error) {
+// commit and Tokenizer reports tokenizer, the method ext counts tokens with.
+func FromGit(ctx context.Context, root, ref string, ext metrics.Extractor, modulePath, tokenizer string) (Baseline, error) {
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
@@ -71,7 +71,7 @@ func FromGit(ctx context.Context, root, ref string, ext metrics.Extractor, modul
 	if err != nil {
 		return nil, fmt.Errorf("extracting baseline at %s: %w", sha, err)
 	}
-	return &snapshot{ref: sha, pkgs: pkgs}, nil
+	return &snapshot{ref: sha, tokenizer: tokenizer, pkgs: pkgs}, nil
 }
 
 // DefaultRef returns the first of origin/master, master, origin/main and main

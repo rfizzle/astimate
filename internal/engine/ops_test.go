@@ -220,6 +220,9 @@ func TestWriteBaseline(t *testing.T) {
 	if _, ok := b.Metrics("example.com/w/sub"); !ok {
 		t.Error("baseline has no metrics for example.com/w/sub")
 	}
+	if b.Tokenizer() != TokenizerEst {
+		t.Errorf("baseline records tokenizer %q, want the target's %q", b.Tokenizer(), TokenizerEst)
+	}
 }
 
 // TestImportBoundary checks that engine sits below its callers: neither it

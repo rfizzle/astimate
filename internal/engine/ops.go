@@ -97,8 +97,10 @@ func Rank(ctx context.Context, t *Target, opts RankOptions) (rows []report.Row, 
 // WriteBaseline extracts every package of t's module and writes them as a
 // baseline file to out, or to DefaultBaselinePath under the module root when
 // out is empty, creating the file's directory if missing. The file records
-// HEAD's commit, or no ref outside git or before the first commit. It
-// returns the path written and the number of packages.
+// HEAD's commit, or no ref outside git or before the first commit, and t's
+// tokenizer, so a check with another tokenizer can warn that token counts
+// are not comparable. It returns the path written and the number of
+// packages.
 func WriteBaseline(ctx context.Context, t *Target, out string) (path string, n int, err error) {
 	pkgs, err := baseline.Collect(ctx, t.Ext, t.Mod)
 	if err != nil {
@@ -114,7 +116,7 @@ func WriteBaseline(ctx context.Context, t *Target, out string) (path string, n i
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return "", 0, fmt.Errorf("creating %s: %w", filepath.Dir(path), err)
 	}
-	if err := baseline.Write(path, ref, t.Mod.ModulePath, pkgs); err != nil {
+	if err := baseline.Write(path, ref, t.Mod.ModulePath, t.tokenizer(), pkgs); err != nil {
 		return "", 0, err
 	}
 	return path, len(pkgs), nil

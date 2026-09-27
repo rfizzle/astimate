@@ -83,6 +83,9 @@ func TestBaselineWrite(t *testing.T) {
 			if bm, ok := b.Metrics("example.com/m/b"); !ok || bm.Files != 2 {
 				t.Errorf("example.com/m/b = %+v (found %v), want 2 files", bm, ok)
 			}
+			if b.Tokenizer() != tokenizerEst {
+				t.Errorf("Tokenizer() = %q, want the default %q", b.Tokenizer(), tokenizerEst)
+			}
 		})
 	}
 }
@@ -101,6 +104,12 @@ func TestBaselineWriteErrors(t *testing.T) {
 			args:     func(*testing.T) []string { return []string{"one", "two"} },
 			wantCode: exitUsage,
 			want:     "want at most one module root, got 2 arguments",
+		},
+		{
+			name:     "unknown tokenizer",
+			args:     func(*testing.T) []string { return []string{"--tokenizer", "bogus"} },
+			wantCode: exitUsage,
+			want:     `unknown tokenizer "bogus"`,
 		},
 		{
 			name:     "unknown flag",

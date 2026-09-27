@@ -30,16 +30,18 @@ func runBaseline(args []string, stdout, stderr io.Writer) int {
 
 // runBaselineWrite extracts every package of the module containing the
 // optional <module-root> argument (default ".") and writes them as a baseline
-// file: `baseline write [<module-root>] [--out path] [--config path]`.
-// Without --out the file goes to .astimate/baseline.json under the module
-// root. The file's directory is created if missing.
+// file: `baseline write [<module-root>] [--out path] [--config path]
+// [--tokenizer est|o200k]`. Without --out the file goes to
+// .astimate/baseline.json under the module root. The file's directory is
+// created if missing, and the file records the tokenizer.
 func runBaselineWrite(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("astimate baseline write", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	out := fs.String("out", "", "path of the baseline file (default <module-root>/"+engine.DefaultBaselinePath+")")
 	configPath := fs.String("config", "", "configuration file (default ./astimate.yaml, then the embedded default)")
+	tokenizer := fs.String("tokenizer", tokenizerEst, "token counting method: est or o200k")
 	fs.Usage = func() {
-		_, _ = fmt.Fprintln(stderr, "usage: astimate baseline write [<module-root>] [--out path] [--config path]")
+		_, _ = fmt.Fprintln(stderr, "usage: astimate baseline write [<module-root>] [--out path] [--config path] [--tokenizer est|o200k]")
 		fs.PrintDefaults()
 	}
 	positional, err := parseInterspersed(fs, args)
@@ -51,13 +53,18 @@ func runBaselineWrite(args []string, stdout, stderr io.Writer) int {
 		fs.Usage()
 		return exitUsage
 	}
+	if !validTokenizer(*tokenizer) {
+		_, _ = fmt.Fprintf(stderr, "astimate: baseline write: unknown tokenizer %q: want %s or %s\n",
+			*tokenizer, tokenizerEst, tokenizerO200k)
+		return exitUsage
+	}
 	dir := "."
 	if len(positional) == 1 {
 		dir = positional[0]
 	}
 
 	logger := slog.New(slog.NewTextHandler(stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
-	path, n, err := writeBaseline(context.Background(), dir, *out, *configPath, logger)
+	path, n, err := writeBaseline(context.Background(), dir, *out, *configPath, *tokenizer, logger)
 	if err != nil {
 		logger.Error("baseline write failed", "dir", dir, "err", err)
 		return exitAnalysis
@@ -66,13 +73,12 @@ func runBaselineWrite(args []string, stdout, stderr io.Writer) int {
 	return exitOK
 }
 
-// writeBaseline resolves dir and writes its module's baseline file with
-// engine.WriteBaseline. It returns the path written and the number of
-// packages.
-func writeBaseline(ctx context.Context, dir, out, configPath string, logger *slog.Logger) (string, int, error) {
-	// The baseline must be comparable with the metrics check computes, which
-	// always use the default tokenizer.
-	t, err := loadTarget(dir, configPath, tokenizerEst, logger)
+// writeBaseline resolves dir with tokenizer and writes its module's baseline
+// file with engine.WriteBaseline. It returns the path written and the number
+// of packages.
+func writeBaseline(ctx context.Context, dir, out, configPath, tokenizer string, logger *slog.Logger) (string, int, error) {
+	// The file records the tokenizer, so check warns when its own differs.
+	t, err := loadTarget(dir, configPath, tokenizer, logger)
 	if err != nil {
 		return "", 0, err
 	}
