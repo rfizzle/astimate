@@ -455,6 +455,10 @@ The estimate's parameters are measured by doing the thing it estimates. For each
 
 This is well-defined and repeatable, unlike a refactoring-task corpus, and it directly measures what the number claims. It does not affect the gate.
 
+### 11.3 Gate replay
+
+`go run ./calibration/replay` measures the gate on real changes. It walks a revision range along first parents, checks each commit out into a temporary worktree and runs the engine's check against the first parent as the git baseline, as `astimate check --base <parent>` would, under a given configuration with exemption expiry judged at the committer date. A root commit, or a parent without the module, is judged against an empty baseline. It writes one row per checked package and module row to `packages.jsonl` with the findings and the full head and baseline metrics, one row per commit to `commits.jsonl` with its author, trailers, changed files and packages and whether the module loaded, and `run.json`. A commit whose module does not load is recorded with its error and skipped. Reruns resume by commit hash. Labels join the rows on the commit hash, and the gate validation re-evaluates any rule at any threshold from these rows.
+
 ## 12. Integrations
 
 - **CI:** `astimate check --format github` in a workflow step; exit 3 fails the job. A composite GitHub Action under `action/` wraps install and invocation; its `path` input names a module below the repository root. This repository gates itself: the `selfcheck` job in `ci.yml` runs `action/` with `version: source` on pull requests (changed packages against `origin/<base>`) and on pushes to master (`--all` against the previous master tip), and `make check` runs `make selfcheck`.

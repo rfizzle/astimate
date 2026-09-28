@@ -12,6 +12,9 @@ history.
 
 ### Added
 
+- Commit replay: `go run ./calibration/replay` runs the gate at every commit
+  of a repository's history against its parent and writes per-package and
+  per-commit rows for gate validation.
 - Self-check: this repository gates itself with its own action. The CI
   `selfcheck` job builds the action from source and runs `astimate check
   --format github` over the packages a pull request changes and with `--all`
