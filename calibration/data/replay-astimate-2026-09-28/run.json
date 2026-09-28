@@ -1,0 +1,30 @@
+{
+  "date": "2026-09-28",
+  "totals": {
+    "commits": 222,
+    "loaded": 214,
+    "not_loaded": 8,
+    "passed": 125,
+    "failed": 89,
+    "package_rows": 426,
+    "wall_seconds": 823.653,
+    "written": 222,
+    "skipped": 0
+  },
+  "parallel": 4,
+  "source": {
+    "first": "e40cfabb469058f2127356c877516879f4ff785c",
+    "last": "5e8c77757b1bc1374331c468e311a7bf1e95ac24",
+    "module_dir": ".",
+    "range": "master",
+    "remote": "git@github.com:rfizzle/astimate.git",
+    "repository": "astimate"
+  },
+  "tool": {
+    "astimate_commit": "5e8c77757b1bc1374331c468e311a7bf1e95ac24",
+    "config": "embedded",
+    "config_version": "thresholds-2026-09-28",
+    "go": "go1.27.1 darwin/arm64",
+    "tokenizer": "est"
+  }
+}
