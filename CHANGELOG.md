@@ -12,6 +12,9 @@ history.
 
 ### Added
 
+- Rebuild experiment definition: `calibration/rebuild` selects 34 corpus
+  packages across every tier, tested and untested, stubs them to signatures
+  deterministically and records each one's oracle, pin and pre-run estimate.
 - `duplication.split_literal_runs` (default off) cuts duplicate blocks at
   literal-only runs of at least `min_tokens`, so literal tables joined by
   their declaration headers stop counting as duplication.
