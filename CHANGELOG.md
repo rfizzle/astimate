@@ -12,6 +12,9 @@ history.
 
 ### Added
 
+- Hand-drafted block/allow labels for this repository's 222 replayed commits
+  (`calibration/replay/labels/astimate.yaml`), awaiting review; 30 block,
+  summary in `calibration/notes/astimate-labels-2026-09-28.md`.
 - Calibration: replayed and rule-labeled 812 commits (538 agent-authored) from
   roborev, github-mcp-server and beads; shared labels format and loader in
   `calibration/replay/labels`.
