@@ -2,10 +2,8 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"io"
-	"log/slog"
 	"os"
 	"os/signal"
 	"slices"
@@ -26,14 +24,9 @@ import (
 // SIGTERM, 2 when the configuration cannot be resolved or serving fails,
 // and 1 on a usage error.
 func runServe(args []string, _, stderr io.Writer) int {
-	fs := flag.NewFlagSet("astimate serve", flag.ContinueOnError)
-	fs.SetOutput(stderr)
+	fs := newFlagSet("serve", "usage: astimate serve [--config path] [--allow-any-path]", stderr)
 	configPath := fs.String("config", "", "configuration file (default ./astimate.yaml, then the embedded default)")
 	allowAnyPath := fs.Bool("allow-any-path", false, "let tools read paths outside the working directory")
-	fs.Usage = func() {
-		_, _ = fmt.Fprintln(stderr, "usage: astimate serve [--config path] [--allow-any-path]")
-		fs.PrintDefaults()
-	}
 	positional, err := parseInterspersed(fs, args)
 	if err != nil {
 		return exitUsage // the flag package has printed the error and usage
@@ -44,7 +37,7 @@ func runServe(args []string, _, stderr io.Writer) int {
 		return exitUsage
 	}
 
-	logger := slog.New(slog.NewTextHandler(stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	logger := newLogger(stderr)
 	cfg, source, err := config.Resolve(*configPath)
 	if err != nil {
 		logger.Error("serve failed", "err", fmt.Errorf("resolving config: %w", err))

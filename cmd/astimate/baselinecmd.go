@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"io"
 	"log/slog"
@@ -35,36 +34,24 @@ func runBaseline(args []string, stdout, stderr io.Writer) int {
 // .astimate/baseline.json under the module root. The file's directory is
 // created if missing, and the file records the tokenizer.
 func runBaselineWrite(args []string, stdout, stderr io.Writer) int {
-	fs := flag.NewFlagSet("astimate baseline write", flag.ContinueOnError)
-	fs.SetOutput(stderr)
+	fs := newFlagSet("baseline write", "usage: astimate baseline write [<module-root>] [--out path] [--config path] [--tokenizer est|o200k]", stderr)
 	out := fs.String("out", "", "path of the baseline file (default <module-root>/"+engine.DefaultBaselinePath+")")
-	configPath := fs.String("config", "", "configuration file (default ./astimate.yaml, then the embedded default)")
-	tokenizer := fs.String("tokenizer", tokenizerEst, "token counting method: est or o200k")
-	fs.Usage = func() {
-		_, _ = fmt.Fprintln(stderr, "usage: astimate baseline write [<module-root>] [--out path] [--config path] [--tokenizer est|o200k]")
-		fs.PrintDefaults()
-	}
+	var tf targetFlags
+	tf.register(fs, false)
 	positional, err := parseInterspersed(fs, args)
 	if err != nil {
 		return exitUsage // the flag package has printed the error and usage
 	}
-	if len(positional) > 1 {
-		_, _ = fmt.Fprintf(stderr, "astimate: baseline write: want at most one module root, got %d arguments\n", len(positional))
-		fs.Usage()
+	dir, ok := moduleRoot("baseline write", positional, fs, stderr)
+	if !ok {
 		return exitUsage
 	}
-	if !validTokenizer(*tokenizer) {
-		_, _ = fmt.Fprintf(stderr, "astimate: baseline write: unknown tokenizer %q: want %s or %s\n",
-			*tokenizer, tokenizerEst, tokenizerO200k)
+	if _, ok := tf.validate("baseline write", stderr); !ok {
 		return exitUsage
-	}
-	dir := "."
-	if len(positional) == 1 {
-		dir = positional[0]
 	}
 
-	logger := slog.New(slog.NewTextHandler(stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
-	path, n, err := writeBaseline(context.Background(), dir, *out, *configPath, *tokenizer, logger)
+	logger := newLogger(stderr)
+	path, n, err := writeBaseline(context.Background(), dir, *out, tf.config, tf.tokenizer, logger)
 	if err != nil {
 		logger.Error("baseline write failed", "dir", dir, "err", err)
 		return exitAnalysis

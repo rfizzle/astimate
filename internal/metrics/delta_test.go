@@ -123,6 +123,9 @@ func TestMetricDeltasJSONNames(t *testing.T) {
 	if got, want := jsonKeys(t, data), MetricNames(); !slices.Equal(got, want) {
 		t.Errorf("JSON keys = %v, want %v", got, want)
 	}
+	if direct, err := d.MarshalJSON(); err != nil || string(direct) != string(data) {
+		t.Errorf("MarshalJSON() = %s, %v; want %s as json.Marshal writes it", direct, err, data)
+	}
 	if _, ok := d.Value("no_such_metric"); ok {
 		t.Error("Value of unknown name reported ok")
 	}

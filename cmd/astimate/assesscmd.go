@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"flag"
 	"fmt"
@@ -19,18 +18,11 @@ import (
 // 10.2 JSON report with --json, to stdout. On failure stdout stays empty and
 // the error is logged to stderr.
 func runAssess(args []string, stdout, stderr io.Writer) int {
-	fs := flag.NewFlagSet("astimate assess", flag.ContinueOnError)
-	fs.SetOutput(stderr)
+	fs := newFlagSet("assess", "usage: astimate assess <package-dir> [--json] [--config path] [--tokenizer est|o200k] "+
+		"[--coverage] [--coverage-timeout 2m]", stderr)
 	asJSON := fs.Bool("json", false, "print the JSON report instead of the table")
-	configPath := fs.String("config", "", "configuration file (default ./astimate.yaml, then the embedded default)")
-	tokenizer := fs.String("tokenizer", tokenizerEst, "token counting method: est or o200k")
-	var cov coverageFlags
-	cov.register(fs)
-	fs.Usage = func() {
-		_, _ = fmt.Fprintln(stderr, "usage: astimate assess <package-dir> [--json] [--config path] [--tokenizer est|o200k] "+
-			"[--coverage] [--coverage-timeout 2m]")
-		fs.PrintDefaults()
-	}
+	var tf targetFlags
+	tf.register(fs, true)
 	positional, err := parseInterspersed(fs, args)
 	if err != nil {
 		return exitUsage // the flag package has printed the error and usage
@@ -41,36 +33,22 @@ func runAssess(args []string, stdout, stderr io.Writer) int {
 		return exitUsage
 	}
 	dir := positional[0]
-	if !validTokenizer(*tokenizer) {
-		_, _ = fmt.Fprintf(stderr, "astimate: assess: unknown tokenizer %q: want %s or %s\n",
-			*tokenizer, tokenizerEst, tokenizerO200k)
-		return exitUsage
-	}
-	coverage, err := cov.options()
-	if err != nil {
-		_, _ = fmt.Fprintf(stderr, "astimate: assess: %v\n", err)
+	coverage, ok := tf.validate("assess", stderr)
+	if !ok {
 		return exitUsage
 	}
 
-	logger := slog.New(slog.NewTextHandler(stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
-	r, err := assess(context.Background(), dir, *configPath, *tokenizer, engine.AssessOptions{Coverage: coverage}, logger)
-	if err != nil {
-		logger.Error("assess failed", "dir", dir, "err", err)
-		return exitAnalysis
-	}
-
-	// Render into a buffer so a write error cannot leave partial output.
-	var buf bytes.Buffer
-	if *asJSON {
-		err = report.WriteJSON(&buf, r)
-	} else {
-		err = report.WriteTable(&buf, r)
+	logger := newLogger(stderr)
+	r, err := assess(context.Background(), dir, tf.config, tf.tokenizer, engine.AssessOptions{Coverage: coverage}, logger)
+	if err == nil {
+		err = writeBuffered(stdout, func(w io.Writer) error {
+			if *asJSON {
+				return report.WriteJSON(w, r)
+			}
+			return report.WriteTable(w, r)
+		})
 	}
 	if err != nil {
-		logger.Error("assess failed", "dir", dir, "err", err)
-		return exitAnalysis
-	}
-	if _, err := stdout.Write(buf.Bytes()); err != nil {
 		logger.Error("assess failed", "dir", dir, "err", err)
 		return exitAnalysis
 	}

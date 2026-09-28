@@ -64,7 +64,7 @@ func writeExemptBaseline(t *testing.T) string {
 // rowOf returns c's row for pkg, failing the test when there is none.
 func rowOf(t *testing.T, c *report.Check, pkg string) *report.Report {
 	t.Helper()
-	if r := exemptionRow(c, pkg); r != nil {
+	if r := findRow(c, pkg); r != nil {
 		return r
 	}
 	t.Fatalf("check has no row %s", pkg)
@@ -170,7 +170,7 @@ func TestCheckExemptions(t *testing.T) {
 			if len(a.Exemptions) != 1 {
 				t.Errorf("a exempted = %+v, want globals", a.Exemptions)
 			}
-			inCheck := exemptionRow(c, "b") != nil
+			inCheck := findRow(c, "b") != nil
 			if logged := strings.Contains(logs.String(), "exemption expired; ignored") && strings.Contains(logs.String(), "old b"); logged == inCheck {
 				t.Errorf("b in check = %v, expired exemption logged = %v; want it logged only when b has no row:\n%s", inCheck, logged, logs.String())
 			}
@@ -229,6 +229,20 @@ func TestCheckExemptions(t *testing.T) {
 			}
 		}
 	})
+}
+
+// findRow returns the report of c's row whose package path is pkg, the
+// module row for metrics.ModuleRowID, or nil when c has no such row.
+func findRow(c *report.Check, pkg string) *report.Report {
+	if pkg == metrics.ModuleRowID && c.Module != nil {
+		return &c.Module.Report
+	}
+	for i := range c.Packages {
+		if c.Packages[i].Report.PackagePath == pkg {
+			return &c.Packages[i].Report
+		}
+	}
+	return nil
 }
 
 // rowPtrs returns pointers to c's package reports.

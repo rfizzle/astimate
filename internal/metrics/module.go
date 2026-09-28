@@ -16,7 +16,8 @@ const ModuleRowID = "<module>"
 // report their own value of such a metric but are not gated on it, so one
 // cross-package copy is one finding, not one per package it touches.
 func ModuleWide(name string) bool {
-	return name == "dup_blocks_cross_pkg"
+	i := fieldIndex(name)
+	return i >= 0 && fieldTable()[i].has("module-wide")
 }
 
 // ModuleMetrics is implemented by an Extractor that measures the module as

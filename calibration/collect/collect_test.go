@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rfizzle/astimate/calibration/collect/internal/modpass"
 	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/metrics"
 )
@@ -127,7 +128,7 @@ func TestCollectModuleRowOnly(t *testing.T) {
 	}
 	checkModuleRow(t, res.ModuleRow, "example.com/fixture", commit, -1, 1)
 	path := filepath.Join(t.TempDir(), "modules.jsonl")
-	if err := writeRows(path, []ModuleRow{*res.ModuleRow}); err != nil {
+	if err := writeRows(path, []modpass.Row{*res.ModuleRow}); err != nil {
 		t.Fatal(err)
 	}
 	lines := readLines(t, path)
@@ -158,7 +159,7 @@ func TestCollectModuleRowOnly(t *testing.T) {
 // row of module at commit, with dup_blocks_cross_pkg set (to want unless it
 // is -1), its package count pkgs unless that is -1, and the pass's cost
 // recorded.
-func checkModuleRow(t *testing.T, r *ModuleRow, module, commit string, pkgs, want int) {
+func checkModuleRow(t *testing.T, r *modpass.Row, module, commit string, pkgs, want int) {
 	t.Helper()
 	if r == nil {
 		t.Fatal("no module row")

@@ -103,143 +103,22 @@ type RawMetrics struct {
 // MetricNames returns every RawMetrics JSON field name in SPEC.md section 6
 // order. The slice is freshly allocated on each call.
 func MetricNames() []string {
-	return []string{
-		"files",
-		"sloc",
-		"largest_file_sloc",
-		"tokens_est",
-		"tokens_est_with_tests",
-		"internal_imports",
-		"external_imports",
-		"stdlib_imports",
-		"fan_in",
-		"fan_in_tests",
-		"exported_symbols",
-		"globals",
-		"init_funcs",
-		"max_nesting",
-		"cognitive_total",
-		"cognitive_p90",
-		"func_count",
-		"dup_blocks",
-		"duplication_pct",
-		"test_files",
-		"test_funcs",
-		"has_tests",
-		"untested_exports",
-		"dup_blocks_cross_pkg",
-		"instability",
-		"abstractness",
-		"main_sequence_distance",
-		"uses_cgo",
-		"uses_reflect",
-		"generated_files",
-		"tokens_est_generated",
-		"coverage_pct",
-		"changed_func_cognitive_max",
+	t := fieldTable()
+	names := make([]string, len(t))
+	for i := range t {
+		names[i] = t[i].name
 	}
+	return names
 }
 
 // Value returns the metric named by its JSON field name as a float64. Bools
 // are reported as 0 or 1. The second result is false when the name is unknown
 // or names a v1 field that was not computed.
 func (m *RawMetrics) Value(name string) (float64, bool) {
-	switch name {
-	case "files":
-		return float64(m.Files), true
-	case "sloc":
-		return float64(m.SLOC), true
-	case "largest_file_sloc":
-		return float64(m.LargestFileSLOC), true
-	case "tokens_est":
-		return float64(m.TokensEst), true
-	case "tokens_est_with_tests":
-		return float64(m.TokensEstWithTests), true
-	case "internal_imports":
-		return float64(m.InternalImports), true
-	case "external_imports":
-		return float64(m.ExternalImports), true
-	case "stdlib_imports":
-		return float64(m.StdlibImports), true
-	case "fan_in":
-		return float64(m.FanIn), true
-	case "fan_in_tests":
-		return float64(m.FanInTests), true
-	case "exported_symbols":
-		return float64(m.ExportedSymbols), true
-	case "globals":
-		return float64(m.Globals), true
-	case "init_funcs":
-		return float64(m.InitFuncs), true
-	case "max_nesting":
-		return float64(m.MaxNesting), true
-	case "cognitive_total":
-		return float64(m.CognitiveTotal), true
-	case "cognitive_p90":
-		return float64(m.CognitiveP90), true
-	case "func_count":
-		return float64(m.FuncCount), true
-	case "dup_blocks":
-		return float64(m.DupBlocks), true
-	case "duplication_pct":
-		return m.DuplicationPct, true
-	case "test_files":
-		return float64(m.TestFiles), true
-	case "test_funcs":
-		return float64(m.TestFuncs), true
-	case "has_tests":
-		return boolValue(m.HasTests), true
-	case "untested_exports":
-		return float64(m.UntestedExports), true
-	case "dup_blocks_cross_pkg":
-		return optInt(m.DupBlocksCrossPkg)
-	case "instability":
-		return optFloat(m.Instability)
-	case "abstractness":
-		return optFloat(m.Abstractness)
-	case "main_sequence_distance":
-		return optFloat(m.MainSequenceDistance)
-	case "uses_cgo":
-		return optBool(m.UsesCgo)
-	case "uses_reflect":
-		return optBool(m.UsesReflect)
-	case "generated_files":
-		return optInt(m.GeneratedFiles)
-	case "tokens_est_generated":
-		return optInt(m.TokensEstGenerated)
-	case "coverage_pct":
-		return optFloat(m.CoveragePct)
-	case "changed_func_cognitive_max":
-		return optInt(m.ChangedFuncCognitiveMax)
-	default:
+	i := fieldIndex(name)
+	if i < 0 {
 		return 0, false
 	}
-}
-
-func boolValue(b bool) float64 {
-	if b {
-		return 1
-	}
-	return 0
-}
-
-func optInt(p *int) (float64, bool) {
-	if p == nil {
-		return 0, false
-	}
-	return float64(*p), true
-}
-
-func optFloat(p *float64) (float64, bool) {
-	if p == nil {
-		return 0, false
-	}
-	return *p, true
-}
-
-func optBool(p *bool) (float64, bool) {
-	if p == nil {
-		return 0, false
-	}
-	return boolValue(*p), true
+	v, ok, _ := read(m.slots()[i])
+	return v, ok
 }

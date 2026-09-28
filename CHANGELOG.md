@@ -50,6 +50,13 @@ history.
   dispatch table) that the Stop hook, `make selfcheck` and CI all use. The
   `gate` CI job pinned to `v0.1.0` is removed: that release rejects the new
   config keys, and the `selfcheck` job covers pull requests.
+- Every package of the repository is now under every default ceiling:
+  `internal/engine` gates rows through `internal/engine/internal/judge`,
+  `internal/metrics` reads one field table for names, values, deltas,
+  validation and explanations, `cmd/astimate` shares its flag and output
+  handling, and `calibration/fit`, `calibration/rebuild` and
+  `calibration/collect` are split into internal packages. Output, flags and
+  reports are unchanged.
 
 - `check` summary lines count exempted violations after the warnings:
   `<pkg>: N violations, M warnings, K exempted`.

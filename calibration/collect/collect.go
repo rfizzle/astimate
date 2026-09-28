@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rfizzle/astimate/calibration/collect/internal/modpass"
 	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/engine"
 	"github.com/rfizzle/astimate/internal/lang/golang"
@@ -92,7 +93,7 @@ type moduleResult struct {
 	Rows []Row
 	// ModuleRow is the module-level row, nil when the extractor has none
 	// (metrics.ModuleMetrics).
-	ModuleRow *ModuleRow
+	ModuleRow *modpass.Row
 	// ModPath is the module path from go.mod.
 	ModPath string
 	// Failed are the packages that failed to extract.
@@ -123,7 +124,7 @@ func collectModule(ctx context.Context, dir, commit string, cfg *config.Config, 
 	}
 	loadMS := time.Since(start).Milliseconds()
 	if mm, ok := t.Ext.(metrics.ModuleMetrics); ok {
-		mr, err := moduleRow(ctx, mm, t.Mod, res.ModPath, commit, len(pkgs), loadMS)
+		mr, err := modpass.Measure(ctx, mm, t.Mod, res.ModPath, commit, len(pkgs), loadMS)
 		if err != nil {
 			return res, err
 		}

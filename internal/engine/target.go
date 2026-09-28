@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/rfizzle/astimate/internal/config"
+	"github.com/rfizzle/astimate/internal/engine/internal/judge"
 	"github.com/rfizzle/astimate/internal/lang/golang"
 	"github.com/rfizzle/astimate/internal/lang/typescript"
 	"github.com/rfizzle/astimate/internal/metrics"
@@ -280,34 +281,7 @@ func packagePaths(root, dir, modPath string) (pkgPath, importPath string, err er
 		return "", "", fmt.Errorf("relating %s to module root %s: %w", dir, root, err)
 	}
 	rel = filepath.ToSlash(rel)
-	return rel, importPathOf(modPath, rel), nil
-}
-
-// modulePathRel returns the directory of the package with import path
-// importPath relative to the root of module modPath, in slash form: "." for
-// the root package, matching assess's package_path. With an empty modPath
-// the identifier already is that directory.
-func modulePathRel(modPath, importPath string) string {
-	if modPath == "" {
-		return importPath
-	}
-	if importPath == modPath {
-		return "."
-	}
-	return strings.TrimPrefix(importPath, modPath+"/")
-}
-
-// importPathOf returns the import path of the package in the module-relative
-// slash directory dir of module modPath, or dir itself when modPath is
-// empty; the inverse of modulePathRel.
-func importPathOf(modPath, dir string) string {
-	if modPath == "" {
-		return dir
-	}
-	if dir == "." {
-		return modPath
-	}
-	return modPath + "/" + dir
+	return rel, judge.ImportPath(modPath, rel), nil
 }
 
 // Names returns the names behind the counts of the package with import path
@@ -320,16 +294,9 @@ func Names(ctx context.Context, t *Target, pkg string) (score.Names, error) {
 
 // suggestionNames returns the names behind pkg's counts for suggestions when
 // ext implements metrics.Detailer, and the zero score.Names, which yields
-// suggestions with counts only, when it does not. Call it after Extract for
-// pkg on mod.
+// suggestions with counts only, when it does not (judge.Details). Call it
+// after Extract for pkg on mod.
 func suggestionNames(ctx context.Context, ext metrics.Extractor, mod *metrics.ModuleContext, pkg string) (score.Names, error) {
-	d, ok := ext.(metrics.Detailer)
-	if !ok {
-		return score.Names{}, nil
-	}
-	det, err := d.Details(ctx, mod, pkg)
-	if err != nil {
-		return score.Names{}, fmt.Errorf("naming suggestions for %s: %w", pkg, err)
-	}
-	return score.Names{UntestedExports: det.UntestedExports, DupLocations: det.DupLocations, CrossBlocks: det.CrossBlocks, Globals: det.GlobalNames}, nil
+	_, names, err := judge.Details(ctx, ext, mod, pkg)
+	return names, err
 }

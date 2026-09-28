@@ -18,62 +18,16 @@ var ErrInvalidMetrics = errors.New("invalid metrics")
 // the record is consistent. Nil v1 fields are not checked.
 func (m *RawMetrics) Validate() error {
 	var errs []error
-	count := func(name string, v int) {
-		if v < 0 {
-			errs = append(errs, fmt.Errorf("%w: %s is negative (%d)", ErrInvalidMetrics, name, v))
+	t, slots := fieldTable(), m.slots()
+	for i := range t {
+		v, ok, k := read(slots[i])
+		switch {
+		case !ok || k == kindBool:
+		case k == kindFloat && (math.IsNaN(v) || v < 0 || v > t[i].upper):
+			errs = append(errs, fmt.Errorf("%w: %s %v outside [0, %v]", ErrInvalidMetrics, t[i].name, v, t[i].upper))
+		case k == kindInt && v < 0:
+			errs = append(errs, fmt.Errorf("%w: %s is negative (%d)", ErrInvalidMetrics, t[i].name, int(v)))
 		}
-	}
-	bounded := func(name string, v, hi float64) {
-		if math.IsNaN(v) || v < 0 || v > hi {
-			errs = append(errs, fmt.Errorf("%w: %s %v outside [0, %v]", ErrInvalidMetrics, name, v, hi))
-		}
-	}
-
-	count("files", m.Files)
-	count("sloc", m.SLOC)
-	count("largest_file_sloc", m.LargestFileSLOC)
-	count("tokens_est", m.TokensEst)
-	count("tokens_est_with_tests", m.TokensEstWithTests)
-	count("internal_imports", m.InternalImports)
-	count("external_imports", m.ExternalImports)
-	count("stdlib_imports", m.StdlibImports)
-	count("fan_in", m.FanIn)
-	count("fan_in_tests", m.FanInTests)
-	count("exported_symbols", m.ExportedSymbols)
-	count("globals", m.Globals)
-	count("init_funcs", m.InitFuncs)
-	count("max_nesting", m.MaxNesting)
-	count("cognitive_total", m.CognitiveTotal)
-	count("cognitive_p90", m.CognitiveP90)
-	count("func_count", m.FuncCount)
-	count("dup_blocks", m.DupBlocks)
-	bounded("duplication_pct", m.DuplicationPct, 100)
-	count("test_files", m.TestFiles)
-	count("test_funcs", m.TestFuncs)
-	count("untested_exports", m.UntestedExports)
-	if m.DupBlocksCrossPkg != nil {
-		count("dup_blocks_cross_pkg", *m.DupBlocksCrossPkg)
-	}
-	if m.Instability != nil {
-		bounded("instability", *m.Instability, 1)
-	}
-	if m.Abstractness != nil {
-		bounded("abstractness", *m.Abstractness, 1)
-	}
-	if m.MainSequenceDistance != nil {
-		bounded("main_sequence_distance", *m.MainSequenceDistance, 1)
-	}
-	if m.GeneratedFiles != nil {
-		count("generated_files", *m.GeneratedFiles)
-	}
-	if m.TokensEstGenerated != nil {
-		count("tokens_est_generated", *m.TokensEstGenerated)
-	}
-	if m.CoveragePct != nil {
-		bounded("coverage_pct", *m.CoveragePct, 100)
-	}
-	if m.ChangedFuncCognitiveMax != nil {
-		count("changed_func_cognitive_max", *m.ChangedFuncCognitiveMax)
 	}
 
 	if m.LargestFileSLOC > m.SLOC {

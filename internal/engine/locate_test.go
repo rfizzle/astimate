@@ -6,8 +6,6 @@ import (
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/baseline"
-	"github.com/rfizzle/astimate/internal/metrics"
-	"github.com/rfizzle/astimate/internal/report"
 )
 
 // degradedDir is the degraded copy of the fixture: its tested package adds
@@ -86,63 +84,5 @@ func TestCheckLocatesDegradedFindings(t *testing.T) {
 	}
 	if seen != len(want) {
 		t.Errorf("found %d of the %d degraded violations: %+v", seen, len(want), r.Violations)
-	}
-}
-
-func TestFindingPosition(t *testing.T) {
-	t.Parallel()
-
-	d := &metrics.Details{
-		DupLocations:      []string{"a.go:3-9", "b.go:12-18", "bad"},
-		UntestedPositions: []metrics.Position{{File: "a.go", Line: 4}, {File: "b.go", Line: 20}},
-		GlobalPositions:   []metrics.Position{{File: "a.go", Line: 1}},
-		LargestFile:       "a.go",
-		SourceFiles:       []string{"a.go", "b.go", "doc.go"},
-	}
-	worst := &changedFunction{file: "b.go", line: 11, files: map[string]bool{"b.go": true}}
-	tests := []struct {
-		name   string
-		metric string
-		d      *metrics.Details
-		worst  *changedFunction
-		want   metrics.Position
-	}{
-		{name: "duplicate in a changed file", metric: "dup_blocks", d: d, worst: worst, want: metrics.Position{File: "b.go", Line: 12}},
-		{name: "first duplicate without changes", metric: "duplication_pct", d: d, want: metrics.Position{File: "a.go", Line: 3}},
-		{name: "untested export in a changed file", metric: "untested_exports", d: d, worst: worst, want: metrics.Position{File: "b.go", Line: 20}},
-		{name: "global in no changed file", metric: "globals", d: d, worst: worst, want: metrics.Position{File: "a.go", Line: 1}},
-		{name: "largest file", metric: "tokens_est", d: d, want: metrics.Position{File: "a.go", Line: 1}},
-		{name: "changed function", metric: "changed_func_cognitive_max", d: d, worst: worst, want: metrics.Position{File: "b.go", Line: 11}},
-		{name: "other metric on doc.go", metric: "fan_in", d: d, want: metrics.Position{File: "doc.go", Line: 1}},
-		{name: "first file without doc.go", metric: "fan_in", d: &metrics.Details{SourceFiles: []string{"x.go", "y.go"}},
-			want: metrics.Position{File: "x.go", Line: 1}},
-		{name: "nothing recorded", metric: "globals", d: &metrics.Details{}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			if got := findingPosition(tt.metric, tt.d, tt.worst); got != tt.want {
-				t.Errorf("findingPosition(%s) = %+v, want %+v", tt.metric, got, tt.want)
-			}
-		})
-	}
-}
-
-func TestLocateFindingsJoinsPackagePath(t *testing.T) {
-	t.Parallel()
-
-	r := report.Report{
-		PackagePath: "internal/billing",
-		Violations:  []report.Finding{{Metric: "globals"}},
-		Warnings:    []report.Finding{{Metric: "tokens_est"}},
-	}
-	d := &metrics.Details{GlobalPositions: []metrics.Position{{File: "state.go", Line: 7}}}
-	locateFindings(&r, d, nil)
-	if l := r.Violations[0].Location; l == nil || *l != (report.Location{File: "internal/billing/state.go", Line: 7}) {
-		t.Errorf("globals located at %+v, want internal/billing/state.go:7", l)
-	}
-	if l := r.Warnings[0].Location; l != nil {
-		t.Errorf("tokens_est located at %+v with nothing recorded, want no location", l)
 	}
 }

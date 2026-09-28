@@ -10,6 +10,7 @@ import (
 
 	"github.com/rfizzle/astimate/internal/baseline"
 	"github.com/rfizzle/astimate/internal/config"
+	"github.com/rfizzle/astimate/internal/engine/internal/judge"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/report"
 )
@@ -116,7 +117,7 @@ func measureCoverage(ctx context.Context, t *Target, opts CoverageOptions, ms ma
 		if c.Reason == "" {
 			continue
 		}
-		attrs := []any{"path", modulePathRel(t.Mod.ModulePath, pkg), "reason", c.Reason}
+		attrs := []any{"path", judge.Rel(t.Mod.ModulePath, pkg), "reason", c.Reason}
 		if timedOut {
 			attrs = append(attrs, "timeout", timeout.String())
 		}
@@ -139,7 +140,7 @@ func Assess(ctx context.Context, t *Target, opts AssessOptions) (*report.Report,
 		return nil, err
 	}
 	measureCoverage(ctx, t, opts.Coverage, map[string]*metrics.RawMetrics{t.ImportPath: &m}, []string{t.ImportPath})
-	det, err := packageDetails(ctx, t.Ext, t.Mod, t.ImportPath)
+	det, names, err := judge.Details(ctx, t.Ext, t.Mod, t.ImportPath)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +150,7 @@ func Assess(ctx context.Context, t *Target, opts AssessOptions) (*report.Report,
 		PackagePath:     t.Dir,
 		ModulePath:      t.Mod.ModulePath,
 		Metrics:         m,
-		Names:           namesOf(&det),
+		Names:           names,
 		Params:          eff.Rebuild,
 		ConfigVersion:   eff.Version,
 		AstimateVersion: t.Version,
@@ -161,7 +162,7 @@ func Assess(ctx context.Context, t *Target, opts AssessOptions) (*report.Report,
 // details returns the report details block of d, with cross-package
 // occurrences named by their module-relative package path.
 func (t *Target) details(d *metrics.Details) *report.Details {
-	return report.NewDetails(d, func(pkg string) string { return modulePathRel(t.Mod.ModulePath, pkg) })
+	return report.NewDetails(d, func(pkg string) string { return judge.Rel(t.Mod.ModulePath, pkg) })
 }
 
 // Rank lists the packages of t's module with one Packages call, extracts
@@ -183,7 +184,7 @@ func Rank(ctx context.Context, t *Target, opts RankOptions) (rows []report.Row, 
 	for _, pkg := range pkgs {
 		m, err := t.Ext.Extract(ctx, t.Mod, pkg)
 		if err != nil {
-			path := modulePathRel(t.Mod.ModulePath, pkg)
+			path := judge.Rel(t.Mod.ModulePath, pkg)
 			logger.Error("extracting package failed", "path", path, "err", err)
 			failed = append(failed, &PackageError{Path: path, Err: err})
 			continue
@@ -194,7 +195,7 @@ func Rank(ctx context.Context, t *Target, opts RankOptions) (rows []report.Row, 
 	measureCoverage(ctx, t, opts.Coverage, extracted, order)
 	rows = make([]report.Row, 0, len(order))
 	for _, pkg := range order {
-		rows = append(rows, report.NewRow(modulePathRel(t.Mod.ModulePath, pkg), extracted[pkg], params))
+		rows = append(rows, report.NewRow(judge.Rel(t.Mod.ModulePath, pkg), extracted[pkg], params))
 	}
 	if err := report.SortRows(rows, opts.Sort); err != nil {
 		return nil, failed, err

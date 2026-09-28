@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"log/slog"
@@ -108,40 +107,27 @@ func runCheck(args []string, stdout, stderr io.Writer) int {
 // {} and exits 0 without analysis: the hook already blocked once, and
 // blocking again could keep the agent looping.
 func runCheckInput(args []string, hookStdin func() io.Reader, stdout, stderr io.Writer) int {
-	fs := flag.NewFlagSet("astimate check", flag.ContinueOnError)
-	fs.SetOutput(stderr)
+	fs := newFlagSet("check", "usage: astimate check [<module-root>] [--base ref | --baseline file] [--all] [--staged] "+
+		"[--config|--thresholds file] [--format text|json|hook|github] [--tokenizer est|o200k] "+
+		"[--coverage] [--coverage-timeout 2m]", stderr)
 	opts := checkOptions{hookStdin: hookStdin}
-	var configPath string
+	var tf targetFlags
+	tf.register(fs, true)
 	fs.StringVar(&opts.base, "base", "", "compare against the merge-base of HEAD and this git ref "+
 		"(default origin/master, then master, origin/main, main)")
 	fs.StringVar(&opts.baselineFile, "baseline", "", "compare against this baseline file instead of a git ref")
 	fs.BoolVar(&opts.all, "all", false, "check every package, not only the changed ones")
 	fs.BoolVar(&opts.staged, "staged", false, "check the tree the git index holds, as a commit would record it, "+
 		"instead of the working tree")
-	fs.StringVar(&configPath, "config", "", "configuration file (default ./astimate.yaml, then the embedded default)")
-	fs.StringVar(&configPath, "thresholds", "", "alias of --config")
+	fs.StringVar(&tf.config, "thresholds", "", "alias of --config")
 	fs.StringVar(&opts.format, "format", formatText, "output format: "+strings.Join(checkFormats(), ", "))
-	tokenizer := fs.String("tokenizer", tokenizerEst, "token counting method: est or o200k")
-	var cov coverageFlags
-	cov.register(fs)
-	fs.Usage = func() {
-		_, _ = fmt.Fprintln(stderr, "usage: astimate check [<module-root>] [--base ref | --baseline file] [--all] [--staged] "+
-			"[--config|--thresholds file] [--format text|json|hook|github] [--tokenizer est|o200k] "+
-			"[--coverage] [--coverage-timeout 2m]")
-		fs.PrintDefaults()
-	}
 	positional, err := parseInterspersed(fs, args)
 	if err != nil {
 		return exitUsage // the flag package has printed the error and usage
 	}
-	if len(positional) > 1 {
-		_, _ = fmt.Fprintf(stderr, "astimate: check: want at most one module root, got %d arguments\n", len(positional))
-		fs.Usage()
+	dir, ok := moduleRoot("check", positional, fs, stderr)
+	if !ok {
 		return exitUsage
-	}
-	dir := "."
-	if len(positional) == 1 {
-		dir = positional[0]
 	}
 	if opts.base != "" && opts.baselineFile != "" {
 		_, _ = fmt.Fprintln(stderr, "astimate: check: --base and --baseline are mutually exclusive")
@@ -152,17 +138,11 @@ func runCheckInput(args []string, hookStdin func() io.Reader, stdout, stderr io.
 			opts.format, strings.Join(checkFormats(), ", "))
 		return exitUsage
 	}
-	if !validTokenizer(*tokenizer) {
-		_, _ = fmt.Fprintf(stderr, "astimate: check: unknown tokenizer %q: want %s or %s\n",
-			*tokenizer, tokenizerEst, tokenizerO200k)
-		return exitUsage
-	}
-	if opts.coverage, err = cov.options(); err != nil {
-		_, _ = fmt.Fprintf(stderr, "astimate: check: %v\n", err)
+	if opts.coverage, ok = tf.validate("check", stderr); !ok {
 		return exitUsage
 	}
 
-	logger := slog.New(slog.NewTextHandler(stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	logger := newLogger(stderr)
 	if opts.format == formatHook && opts.hookStdin != nil && stopHookActive(opts.hookStdin()) {
 		logger.Info("stop hook already blocked once; allowing the stop without a check")
 		if _, err := io.WriteString(stdout, "{}\n"); err != nil {
@@ -177,7 +157,7 @@ func runCheckInput(args []string, hookStdin func() io.Reader, stdout, stderr io.
 			return exitAnalysis
 		}
 	}
-	t, err := loadTarget(dir, configPath, *tokenizer, logger)
+	t, err := tf.load(dir, logger)
 	if err != nil {
 		logger.Error("check failed", "dir", dir, "err", err)
 		return exitAnalysis

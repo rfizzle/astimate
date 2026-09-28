@@ -28,8 +28,10 @@ func TestExplainCoversEveryMetric(t *testing.T) {
 			}
 		})
 	}
-	if n := len(explanations()); n != len(names) {
-		t.Errorf("explanations has %d entries, want %d, one per metric", n, len(names))
+	for _, name := range names {
+		if e, _ := Explain(name); strings.ContainsAny(e.Definition+e.Evidence, "{}") {
+			t.Errorf("Explain(%q) keeps an unexpanded placeholder: %+v", name, e)
+		}
 	}
 	if _, ok := Explain("concrete_param_ratio"); ok {
 		t.Error("Explain(concrete_param_ratio) has an entry for a removed metric")

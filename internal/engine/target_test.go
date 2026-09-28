@@ -174,21 +174,6 @@ func TestSuggestionNames(t *testing.T) {
 	})
 }
 
-func TestModulePathRel(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct{ importPath, want string }{
-		{"example.com/m", "."},
-		{"example.com/m/a", "a"},
-		{"example.com/m/a/b", "a/b"},
-	}
-	for _, tt := range tests {
-		if got := modulePathRel("example.com/m", tt.importPath); got != tt.want {
-			t.Errorf("modulePathRel(%q) = %q, want %q", tt.importPath, got, tt.want)
-		}
-	}
-}
-
 // TestLoadTargetWarnsUnknownLanguage checks that the registry, not the
 // config package, judges language ids: an override for an id no extractor
 // reports is warned once, and overrides for shipped languages are not.

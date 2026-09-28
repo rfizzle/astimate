@@ -45,6 +45,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rfizzle/astimate/calibration/collect/internal/modpass"
 	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/engine"
 )
@@ -284,12 +285,12 @@ func collect(ctx context.Context, opts options, logger *slog.Logger) int {
 		info.Language = c.Language
 	}
 	var all []Row
-	var modRows []ModuleRow
+	var modRows []modpass.Row
 	code := exitOK
 	for _, e := range entries {
 		var (
 			rows   []Row
-			modRow *ModuleRow
+			modRow *modpass.Row
 			mr     ModuleRun
 		)
 		if c.IsTypeScript() {
@@ -332,7 +333,7 @@ func collect(ctx context.Context, opts options, logger *slog.Logger) int {
 // module row. With modulesOnly it collects the module row alone, and
 // nothing from the standard library, which has none.
 func collectEntry(ctx context.Context, e Entry, cfg *config.Config, logger *slog.Logger, modulesOnly bool,
-) ([]Row, *ModuleRow, ModuleRun) {
+) ([]Row, *modpass.Row, ModuleRun) {
 	logger = logger.With("module", e.Module)
 	logger.Info("collecting")
 	if e.Local {

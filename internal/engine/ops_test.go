@@ -229,15 +229,16 @@ func TestWriteBaseline(t *testing.T) {
 	}
 }
 
-// TestImportBoundary checks that engine sits below its callers: neither it
-// nor anything it depends on imports the CLI or the MCP server.
+// TestImportBoundary checks that engine and the packages under its
+// internal directory sit below their callers: none of them, nor anything
+// they depend on, imports the CLI or the MCP server.
 func TestImportBoundary(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs go list")
 	}
 	t.Parallel()
 
-	out, err := exec.CommandContext(t.Context(), "go", "list", "-deps", "-f", "{{.ImportPath}}", ".").Output()
+	out, err := exec.CommandContext(t.Context(), "go", "list", "-deps", "-f", "{{.ImportPath}}", "./...").Output()
 	if err != nil {
 		t.Fatalf("go list: %v", err)
 	}
@@ -245,6 +246,9 @@ func TestImportBoundary(t *testing.T) {
 		if strings.Contains(dep, "/astimate/cmd/") || strings.HasSuffix(dep, "/internal/mcpserver") {
 			t.Errorf("engine depends on %s", dep)
 		}
+	}
+	if !strings.Contains(string(out), "/internal/engine/internal/judge\n") {
+		t.Error("go list ./... does not list internal/judge; the check would pass vacuously")
 	}
 }
 

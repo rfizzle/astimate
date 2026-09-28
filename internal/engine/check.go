@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
-	"path"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -17,11 +16,9 @@ import (
 	"time"
 
 	"github.com/rfizzle/astimate/internal/baseline"
-	"github.com/rfizzle/astimate/internal/config"
-	"github.com/rfizzle/astimate/internal/gate"
+	"github.com/rfizzle/astimate/internal/engine/internal/judge"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/report"
-	"github.com/rfizzle/astimate/internal/score"
 )
 
 // ErrBaseAndBaselineFile reports CheckOptions naming both a git ref and a
@@ -146,27 +143,28 @@ func (c *BaselineCache) get(key string, load func() (baseline.Baseline, error)) 
 //
 // When t's extractor implements metrics.ModuleMetrics and at least one
 // package is selected, the result also carries the module-level row
-// (checkModule), gated against the baseline's row of the same id. Rules on
-// module-wide metrics (metrics.ModuleWide) are evaluated on that row only
-// and every other rule on package rows only (gate.ForRow), so one
+// (judge.Checker.Module), gated against the baseline's row of the same id.
+// Rules on module-wide metrics (metrics.ModuleWide) are evaluated on that
+// row only and every other rule on package rows only (gate.ForRow), so one
 // cross-package copy is one finding. A baseline file without that row, one
 // written before it existed, skips the module-wide rules with one info log
 // rather than treating the row as new. A check of opts.Packages carries the
 // row too, so a package's self-check (the MCP check_package tool) fails on
 // a cross-package copy made in it, but not on one between two other
-// packages (checkModule). A module row that fails to extract is
+// packages (judge.Checker.Module). A module row that fails to extract is
 // logged and returned in failed like a package.
 //
 // When t's extractor implements metrics.FunctionLister, each package's
 // changed_func_cognitive_max is computed here, from its functions at head
-// and in the baseline (changedFunctions); otherwise, and for a baseline
-// file that records no functions, it stays null and its rule is skipped,
-// the latter with one info log.
+// and in the baseline (judge.Checker.Package); otherwise, and for a
+// baseline file that records no functions, it stays null and its rule is
+// skipped, the latter with one info log.
 //
 // Each finding is located on the file and line that caused it where the
-// extractor can say (locateFindings, locateCross), and the result carries
-// the module root's directory in its repository (baseline.RepoDir) so
-// renderers can make those paths repository-relative. Each baseline block
+// extractor can say (judge.Checker.Package, judge.Checker.Module), and the
+// result carries the module root's directory in its repository
+// (baseline.RepoDir) so renderers can make those paths
+// repository-relative. Each baseline block
 // records the baseline's tokenizer and whether it is t's
 // (report.MarkTokenizer).
 //
@@ -191,8 +189,8 @@ func (c *BaselineCache) get(key string, load func() (baseline.Baseline, error)) 
 // reported, in every check, as a warning on its row when the check has
 // that row, else in a warning log. A check with opts.All and no
 // opts.Packages judges every row, so it also reports each exemption that
-// matched no violation as stale (exemptionNotices); no other check can
-// tell, since the rows it did not select were never evaluated.
+// matched no violation as stale (judge.Checker.Notices); no other check
+// can tell, since the rows it did not select were never evaluated.
 func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, failed []error, err error) {
 	if opts.Base != "" && opts.BaselineFile != "" {
 		return nil, nil, ErrBaseAndBaselineFile
@@ -259,36 +257,37 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 		ModuleDir: baseline.RepoDir(ctx, t.Mod.Root),
 		Tokenizer: t.tokenizer(),
 	}
-	noFunctions := false
-	eff := t.langConfig()
-	pkgRules := gate.ForRow(eff.Thresholds, gate.PackageRow)
 	now := opts.Now
 	if now.IsZero() {
 		now = time.Now()
 	}
-	ex := gate.NewExemptions(eff.Exemptions, now)
+	jc := judge.New(judge.Options{
+		Ext: ht.Ext, Mod: ht.Mod, Base: base, Config: t.langConfig(),
+		Tokenizer: t.tokenizer(), Version: t.Version, Now: now, Logger: logger,
+	})
+	fail := func(pkg string, err error) {
+		err = baseline.TreeRelative(err, tmp)
+		path := judge.Rel(t.Mod.ModulePath, pkg)
+		logger.Error("checking package failed", "path", path, "err", err)
+		failed = append(failed, &PackageError{Path: path, Err: err})
+	}
 	extracted := make(map[string]*metrics.RawMetrics, len(selected))
 	order := make([]string, 0, len(selected))
 	for _, pkg := range selected {
 		m, err := ht.Ext.Extract(ctx, ht.Mod, pkg)
 		if err != nil {
-			err = baseline.TreeRelative(err, tmp)
-			path := modulePathRel(t.Mod.ModulePath, pkg)
-			logger.Error("checking package failed", "path", path, "err", err)
-			failed = append(failed, &PackageError{Path: path, Err: err})
+			fail(pkg, err)
 			continue
 		}
 		extracted[pkg] = &m
 		order = append(order, pkg)
 	}
 	measureCoverage(ctx, ht, opts.Coverage, extracted, order)
+	noFunctions := false
 	for _, pkg := range order {
-		p, unrecorded, err := checkPackage(ctx, ht, base, pkg, *extracted[pkg], eff, pkgRules, ex)
+		p, unrecorded, err := jc.Package(ctx, pkg, *extracted[pkg])
 		if err != nil {
-			err = baseline.TreeRelative(err, tmp)
-			path := modulePathRel(t.Mod.ModulePath, pkg)
-			logger.Error("checking package failed", "path", path, "err", err)
-			failed = append(failed, &PackageError{Path: path, Err: err})
+			fail(pkg, err)
 			continue
 		}
 		noFunctions = noFunctions || unrecorded
@@ -300,7 +299,7 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 	}
 	moduleJudged := false
 	if mm, ok := t.Ext.(metrics.ModuleMetrics); ok && len(selected) > 0 {
-		m, judged, err := checkModule(ctx, ht, mm, base, src.file != nil, opts.Packages, eff, gate.ForRow(eff.Thresholds, gate.ModuleRow), ex)
+		m, judged, err := jc.Module(ctx, mm, src.file != nil, opts.Packages)
 		if err != nil {
 			err = baseline.TreeRelative(err, tmp)
 			logger.Error("checking module row failed", "err", err)
@@ -310,131 +309,12 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 			moduleJudged = judged
 		}
 	}
-	exemptionNotices(c, ex, exemptionScope{
-		all:          opts.All && len(opts.Packages) == 0,
-		rules:        eff.Thresholds,
-		failed:       failed,
-		moduleJudged: moduleJudged,
-	}, logger)
+	jc.Notices(c, judge.Scope{
+		All:          opts.All && len(opts.Packages) == 0,
+		Failed:       failedPaths(failed),
+		ModuleJudged: moduleJudged,
+	})
 	return c, failed, nil
-}
-
-// exemptionScope is what exemptionNotices needs to know about a check to
-// tell a stale exemption from one whose row it could not judge.
-type exemptionScope struct {
-	// all reports that the check judged every row of the module: --all,
-	// with no named packages.
-	all bool
-	// rules are the thresholds of the checked language.
-	rules []gate.Threshold
-	// failed are the rows that failed to extract (*PackageError).
-	failed []error
-	// moduleJudged reports that the module row was evaluated with its
-	// module-wide rules; false when the check has no module row or skipped
-	// those rules.
-	moduleJudged bool
-}
-
-// exemptionNotices reports the exemptions of ex that c ignored or did not
-// need, as warnings a reader sees in every format (SPEC.md 8.6):
-//
-//   - each exemption expired when ex was created is ignored, so the
-//     violation it would have silenced fails the gate; it is reported on
-//     its row when c has that row, and otherwise, since a check of other
-//     packages has nowhere to show it, in a warning log;
-//   - with scope.all, each unexpired exemption that matched no violation
-//     is stale and reported on its row, or, when the module has no such
-//     package, on the module row, the row about the module as a whole;
-//     without a module row it goes to a warning log.
-//
-// An exemption is not called stale when its row could not be judged: the
-// row failed to extract, the language gates no rule on its metric (one
-// config may serve modules of several languages), the metric is not
-// computed on the row, or it is on the module row and the check did not
-// evaluate that row's rules (scope.moduleJudged).
-func exemptionNotices(c *report.Check, ex *gate.Exemptions, scope exemptionScope, logger *slog.Logger) {
-	for _, e := range ex.Expired() {
-		text := "The exemption for " + e.Metric + " on " + e.Package + " expired on " + e.Expires +
-			" and no longer applies; fix the finding or renew the exemption with a new date. Its reason: " + e.Reason
-		if r := exemptionRow(c, e.Package); r != nil {
-			r.Warnings = append(r.Warnings, exemptionNotice(r, e.Metric, "exemption expired "+e.Expires, text))
-			continue
-		}
-		logger.Warn("exemption expired; ignored", "package", e.Package, "metric", e.Metric,
-			"expires", e.Expires, "reason", e.Reason)
-	}
-	if !scope.all {
-		return
-	}
-	failed := make(map[string]bool, len(scope.failed))
-	for _, err := range scope.failed {
-		var pe *PackageError
-		if errors.As(err, &pe) {
-			failed[pe.Path] = true
-		}
-	}
-	unknown := func(e gate.Exemption) bool {
-		if failed[e.Package] || !slices.ContainsFunc(scope.rules, func(r gate.Threshold) bool { return r.Metric == e.Metric }) {
-			return true
-		}
-		if e.Package == metrics.ModuleRowID && !scope.moduleJudged {
-			return true
-		}
-		if r := exemptionRow(c, e.Package); r != nil {
-			_, ok := r.Metrics.Value(e.Metric)
-			return !ok
-		}
-		return false
-	}
-	for _, e := range ex.Stale(unknown) {
-		text := "The exemption for " + e.Metric + " on " + e.Package + " matched no violation; remove it from the config. Its reason: " + e.Reason
-		r := exemptionRow(c, e.Package)
-		if r == nil {
-			text = "The exemption for " + e.Metric + " on " + e.Package + " matched no violation: the module has no such package. " +
-				"Remove it from the config. Its reason: " + e.Reason
-			if c.Module != nil {
-				r = &c.Module.Report
-			}
-		}
-		if r == nil {
-			logger.Warn("exemption matched no violation; remove it", "package", e.Package, "metric", e.Metric, "reason", e.Reason)
-			continue
-		}
-		r.Warnings = append(r.Warnings, exemptionNotice(r, e.Metric, "stale exemption", text))
-	}
-}
-
-// exemptionRow returns the report of c's row whose package path is pkg,
-// the module row for metrics.ModuleRowID, or nil when c has no such row.
-func exemptionRow(c *report.Check, pkg string) *report.Report {
-	if pkg == metrics.ModuleRowID {
-		if c.Module == nil {
-			return nil
-		}
-		return &c.Module.Report
-	}
-	for i := range c.Packages {
-		if c.Packages[i].Report.PackagePath == pkg {
-			return &c.Packages[i].Report
-		}
-	}
-	return nil
-}
-
-// exemptionNotice returns the warning an exemption notice is reported as on
-// r: metric with r's own head and baseline values of it, limit, and text as
-// its suggestion.
-func exemptionNotice(r *report.Report, metric, limit, text string) report.Finding {
-	f := report.Finding{Metric: metric, Limit: limit, Suggestion: text}
-	if v, ok := r.Metrics.Value(metric); ok {
-		f.Head = v
-	}
-	if r.Baseline != nil {
-		if v, ok := r.Baseline.Metrics.Value(metric); ok {
-			f.Base = &v
-		}
-	}
-	return f
 }
 
 // stagedTarget copies the git index of the repository holding t's module
@@ -630,7 +510,7 @@ func selectPackages(ctx context.Context, t *Target, hm *metrics.ModuleContext, h
 	}
 	changed := make(map[string]bool, len(change.Packages))
 	for _, dir := range change.Packages {
-		changed[importPathOf(t.Mod.ModulePath, dir)] = true
+		changed[judge.ImportPath(t.Mod.ModulePath, dir)] = true
 	}
 	if il, ok := t.Ext.(metrics.ImporterLister); ok && len(change.Contract)+len(change.RemovedContract) > 0 {
 		base, err := loadBase()
@@ -684,11 +564,11 @@ func selectImporters(ctx context.Context, il metrics.ImporterLister, mod *metric
 				continue
 			}
 			changed[imp] = true
-			logger.Info(msg, "package", modulePathRel(modPath, imp), "importer_of", dir)
+			logger.Info(msg, "package", judge.Rel(modPath, imp), "importer_of", dir)
 		}
 	}
 	for _, dir := range change.Contract {
-		pkg := importPathOf(modPath, dir)
+		pkg := judge.ImportPath(modPath, dir)
 		if !inHead[pkg] {
 			continue
 		}
@@ -704,7 +584,7 @@ func selectImporters(ctx context.Context, il metrics.ImporterLister, mod *metric
 		var importers []string
 		known := base != nil
 		if known {
-			importers, known = base.Importers(importPathOf(modPath, dir))
+			importers, known = base.Importers(judge.ImportPath(modPath, dir))
 		}
 		if !known {
 			if len(change.RemovedContract) > 0 {
@@ -718,369 +598,15 @@ func selectImporters(ctx context.Context, il metrics.ImporterLister, mod *metric
 	return nil
 }
 
-// checkModule builds the module-level row of t's module with mm, evaluates
-// it against the baseline's row under metrics.ModuleRowID, if base has one,
-// and rules, the configured thresholds that apply to the module row, as
-// checkPackage does for a package, and builds its report under package
-// path metrics.ModuleRowID with eff, the configuration of t's language.
-// When t's extractor implements metrics.ModuleDetailer, the
-// dup_blocks_cross_pkg suggestion names where the first shared block lives
-// and its findings are located on the block's first occurrence; otherwise
-// the row's suggestions name no locations. It carries no baseline agent
-// passes, since its rebuild estimate is of an empty package.
-//
-// named are the packages a check of named packages checks
-// (CheckOptions.Packages); empty for any other check. When it is set and
-// t's extractor implements metrics.ModuleDetailer, the rules judge
-// dup_blocks_cross_pkg on the blocks blamed on those packages only
-// (blameNamed), so a copy between two other packages neither fails the
-// check nor appears in its findings; the row still reports the full count,
-// and the suggestion names the packages sharing each blamed block.
-//
-// fromFile says base was read from a baseline file. A file written before
-// the module row existed has none, and the blocks it would have counted
-// are not new: the rules are skipped for this run with one info log, and
-// the row's metrics are still reported. A baseline extracted from a commit
-// always has the row.
-//
-// ex's exemptions are applied to the row's result (gate.Exemptions.Apply).
-// judged reports that the module-wide rules were evaluated: false when
-// rules is empty or was skipped for a baseline file without the row.
-func checkModule(ctx context.Context, t *Target, mm metrics.ModuleMetrics, base baseline.Baseline, fromFile bool,
-	named []string, eff config.Effective, rules []gate.Threshold, ex *gate.Exemptions,
-) (p report.CheckedPackage, judged bool, err error) {
-	m, err := mm.ModuleRow(ctx, t.Mod)
-	if err != nil {
-		return report.CheckedPackage{}, false, err
-	}
-	logger := t.logger()
-	var bm *metrics.RawMetrics
-	if v, ok := base.Metrics(metrics.ModuleRowID); ok {
-		bm = &v
-	} else if fromFile && len(rules) > 0 {
-		logger.Info("baseline file has no module row; module-wide rules skipped; run `astimate baseline write` to add it")
-		rules = nil
-	}
-	det, err := moduleDetails(ctx, t.Ext, t.Mod)
-	if err != nil {
-		return report.CheckedPackage{}, false, err
-	}
-	names := score.Names{CrossBlocks: det.CrossBlocks}
-	gm, blame := m, (*crossBlame)(nil)
-	if _, detailed := t.Ext.(metrics.ModuleDetailer); detailed && len(named) > 0 && len(rules) > 0 && m.DupBlocksCrossPkg != nil {
-		gm, blame = blameNamed(m, bm, base, names.CrossBlocks, named)
-	}
-	suggest := func(metric string, h float64, hm metrics.RawMetrics) string {
-		if blame != nil && metric == "dup_blocks_cross_pkg" {
-			if s := blame.suggestion(hm, t.Mod.ModulePath); s != "" {
-				return s
-			}
-		}
-		return score.MetricSuggestion(metric, h, hm, names)
-	}
-	res := gate.Evaluate(gm, bm, rules, suggest)
-	ex.Apply(metrics.ModuleRowID, &res)
-	for _, n := range res.Notes {
-		logger.Info("rule skipped", "path", metrics.ModuleRowID, "metric", n.Metric, "reason", n.Text)
-	}
-	r := report.Build(&report.Input{
-		Language:        t.Ext.Language(),
-		PackagePath:     metrics.ModuleRowID,
-		ModulePath:      t.Mod.ModulePath,
-		Metrics:         m,
-		Params:          eff.Rebuild,
-		ConfigVersion:   eff.Version,
-		AstimateVersion: t.Version,
-	})
-	report.ApplyGate(&r, base.Ref(), bm, &res)
-	report.MarkTokenizer(&r, base.Tokenizer(), t.tokenizer())
-	located := names.CrossBlocks
-	if blame != nil && len(blame.blocks) > 0 {
-		located = blame.blocks
-	}
-	locateCross(&r, located)
-	r.Details = t.details(&det)
-	return report.CheckedPackage{Report: r}, len(rules) > 0, nil
-}
-
-// moduleDetails returns the details behind the module row's counts, for
-// suggestions and the report's details block, when ext implements
-// metrics.ModuleDetailer, and the zero metrics.Details otherwise.
-func moduleDetails(ctx context.Context, ext metrics.Extractor, mod *metrics.ModuleContext) (metrics.Details, error) {
-	d, ok := ext.(metrics.ModuleDetailer)
-	if !ok {
-		return metrics.Details{}, nil
-	}
-	det, err := d.ModuleDetails(ctx, mod)
-	if err != nil {
-		return metrics.Details{}, fmt.Errorf("naming suggestions for %s: %w", metrics.ModuleRowID, err)
-	}
-	return det, nil
-}
-
-// locateCross locates r's dup_blocks_cross_pkg findings, exempted ones
-// included, on the first occurrence of the first of blocks, the one their
-// suggestion names first, so a renderer can annotate that file and line.
-func locateCross(r *report.Report, blocks []metrics.CrossBlock) {
-	if len(blocks) == 0 || len(blocks[0].Occurrences) == 0 {
-		return
-	}
-	o := blocks[0].Occurrences[0]
-	for _, f := range r.AllFindings() {
-		if f.Metric == "dup_blocks_cross_pkg" {
-			f.Location = &report.Location{File: o.File, Line: o.StartLine}
+// failedPaths returns the package paths of the rows in failed, each a
+// *PackageError.
+func failedPaths(failed []error) []string {
+	paths := make([]string, 0, len(failed))
+	for _, err := range failed {
+		var pe *PackageError
+		if errors.As(err, &pe) {
+			paths = append(paths, pe.Path)
 		}
 	}
-}
-
-// checkPackage takes m, pkg's metrics extracted at head, fills
-// changed_func_cognitive_max from the function-level diff against base
-// (changedFunctions), evaluates it against its baseline metrics, if base
-// has any, and rules, the configured thresholds that apply to a package
-// row, and builds its report with eff, the configuration of t's language,
-// its findings located where the extractor's details say (locateFindings).
-// ex's exemptions are applied to the result (gate.Exemptions.Apply) before
-// the report is built. unrecorded reports that the diff was skipped
-// because base has pkg but no functions for it.
-func checkPackage(ctx context.Context, t *Target, base baseline.Baseline, pkg string, m metrics.RawMetrics, eff config.Effective,
-	rules []gate.Threshold, ex *gate.Exemptions,
-) (p report.CheckedPackage, unrecorded bool, err error) {
-	det, err := packageDetails(ctx, t.Ext, t.Mod, pkg)
-	if err != nil {
-		return report.CheckedPackage{}, false, err
-	}
-	names := namesOf(&det)
-	var bm *metrics.RawMetrics
-	if v, ok := base.Metrics(pkg); ok {
-		bm = &v
-	}
-	worst, unrecorded, err := changedFunctions(ctx, t, base, pkg, bm != nil)
-	if err != nil {
-		return report.CheckedPackage{}, false, err
-	}
-	if worst != nil {
-		m.ChangedFuncCognitiveMax = &worst.cognitive
-		names.ChangedFunction = worst.name
-	}
-	suggest := func(metric string, h float64, hm metrics.RawMetrics) string {
-		return score.MetricSuggestion(metric, h, hm, names)
-	}
-	res := gate.Evaluate(m, bm, rules, suggest)
-	path := modulePathRel(t.Mod.ModulePath, pkg)
-	ex.Apply(path, &res)
-	logger := t.logger()
-	for _, n := range res.Notes {
-		logger.Info("rule skipped", "path", path, "metric", n.Metric, "reason", n.Text)
-	}
-
-	r := report.Build(&report.Input{
-		Language:        t.Ext.Language(),
-		PackagePath:     path,
-		ModulePath:      t.Mod.ModulePath,
-		Metrics:         m,
-		Names:           names,
-		Params:          eff.Rebuild,
-		ConfigVersion:   eff.Version,
-		AstimateVersion: t.Version,
-	})
-	report.ApplyGate(&r, base.Ref(), bm, &res)
-	report.MarkTokenizer(&r, base.Tokenizer(), t.tokenizer())
-	locateFindings(&r, &det, worst)
-	r.Details = t.details(&det)
-	p = report.CheckedPackage{Report: r}
-	if bm != nil {
-		// Baselines never measure coverage. When head did, the base is
-		// estimated with head's coverage so that the two agent_passes
-		// differ by the change, not by the opt-in.
-		be := *bm
-		if be.CoveragePct == nil && m.CoveragePct != nil {
-			be.CoveragePct = m.CoveragePct
-		}
-		passes := score.Estimate(be, eff.Rebuild).AgentPassesRounded()
-		p.BaseAgentPasses = &passes
-	}
-	return p, unrecorded, nil
-}
-
-// changedFunction is the most complex function added or modified since the
-// baseline: its cognitive complexity, its display name and its location,
-// with the files every changed function lies in.
-type changedFunction struct {
-	// cognitive is the function's cognitive complexity; 0 when no function
-	// changed.
-	cognitive int
-	// name is the qualified name with "(file:line)" when the location is
-	// known; empty when no function changed.
-	name string
-	// file and line locate the function's declaration, file relative to
-	// the package directory; empty when unknown or no function changed.
-	file string
-	line int
-	// files holds the file, relative to the package directory, of each
-	// changed function whose file is known; nil when none is.
-	files map[string]bool
-}
-
-// changedFunctions diffs pkg's functions at head against base's
-// (metrics.ChangedFunctions) and returns the most complex changed one, or
-// a zero changedFunction when none changed. inBase reports whether base
-// has pkg; a package new at head diffs against no functions, so all of its
-// functions are changed. It returns nil when there is nothing to diff:
-// t's extractor does not implement metrics.FunctionLister, or base has pkg
-// but recorded no functions for it, which unrecorded reports so the caller
-// can say why the metric is null.
-func changedFunctions(ctx context.Context, t *Target, base baseline.Baseline, pkg string, inBase bool) (worst *changedFunction, unrecorded bool, err error) {
-	fl, ok := t.Ext.(metrics.FunctionLister)
-	if !ok {
-		return nil, false, nil
-	}
-	var before []metrics.FunctionInfo
-	if inBase {
-		if before, ok = base.Functions(pkg); !ok {
-			return nil, true, nil
-		}
-	}
-	head, err := fl.Functions(ctx, t.Mod, pkg)
-	if err != nil {
-		return nil, false, err
-	}
-	changed := metrics.ChangedFunctions(before, head)
-	i := metrics.MostComplex(changed)
-	if i < 0 {
-		return &changedFunction{}, false, nil
-	}
-	f := &changed[i]
-	name := f.QualifiedName()
-	if f.File != "" {
-		name += " (" + f.File + ":" + strconv.Itoa(f.Line) + ")"
-	}
-	w := &changedFunction{cognitive: f.Cognitive, name: name, file: f.File, line: f.Line}
-	for j := range changed {
-		if file := changed[j].File; file != "" {
-			if w.files == nil {
-				w.files = make(map[string]bool)
-			}
-			w.files[file] = true
-		}
-	}
-	return w, false, nil
-}
-
-// packageDetails returns the details of pkg when ext implements
-// metrics.Detailer, and the zero metrics.Details otherwise. Call it after
-// Extract for pkg on mod.
-func packageDetails(ctx context.Context, ext metrics.Extractor, mod *metrics.ModuleContext, pkg string) (metrics.Details, error) {
-	d, ok := ext.(metrics.Detailer)
-	if !ok {
-		return metrics.Details{}, nil
-	}
-	det, err := d.Details(ctx, mod, pkg)
-	if err != nil {
-		return metrics.Details{}, fmt.Errorf("naming suggestions for %s: %w", pkg, err)
-	}
-	return det, nil
-}
-
-// namesOf returns the names in d that suggestions quote.
-func namesOf(d *metrics.Details) score.Names {
-	return score.Names{UntestedExports: d.UntestedExports, DupLocations: d.DupLocations, CrossBlocks: d.CrossBlocks, Globals: d.GlobalNames}
-}
-
-// locateFindings locates each of r's findings, exempted ones included, on
-// the file and line that
-// caused it, as far as d, the package's details, and worst, its most
-// complex changed function (nil when unknown), can say:
-//
-//   - dup_blocks and duplication_pct on a duplicate block's occurrence,
-//   - untested_exports on an untested export's declaration,
-//   - globals on a global's declaration,
-//   - sloc, largest_file_sloc, tokens_est and tokens_est_with_tests on the
-//     largest file,
-//   - changed_func_cognitive_max on the function it measures,
-//   - any other metric, or one of the above with nothing recorded, on the
-//     package's doc.go, else its first source file.
-//
-// Among several candidates it takes the first in a file holding a changed
-// function, so the annotation lands on the diff, else the first. Files are
-// made module-relative by joining r's package path. A finding with no
-// candidate keeps no location, and renderers fall back to the package
-// directory.
-func locateFindings(r *report.Report, d *metrics.Details, worst *changedFunction) {
-	for _, f := range r.AllFindings() {
-		if pos := findingPosition(f.Metric, d, worst); pos.File != "" {
-			f.Location = &report.Location{File: path.Join(r.PackagePath, pos.File), Line: pos.Line}
-		}
-	}
-}
-
-// findingPosition returns the package-relative position locateFindings
-// puts a finding on metric at; its File is empty when there is none.
-func findingPosition(metric string, d *metrics.Details, worst *changedFunction) metrics.Position {
-	var changed map[string]bool
-	if worst != nil {
-		changed = worst.files
-	}
-	var pos metrics.Position
-	switch metric {
-	case "dup_blocks", "duplication_pct":
-		pos = pickPosition(dupPositions(d.DupLocations), changed)
-	case "untested_exports":
-		pos = pickPosition(d.UntestedPositions, changed)
-	case "globals":
-		pos = pickPosition(d.GlobalPositions, changed)
-	case "sloc", "largest_file_sloc", "tokens_est", "tokens_est_with_tests":
-		pos = metrics.Position{File: d.LargestFile, Line: 1}
-	case "changed_func_cognitive_max":
-		if worst != nil {
-			pos = metrics.Position{File: worst.file, Line: worst.line}
-		}
-	}
-	if pos.File != "" {
-		return pos
-	}
-	if slices.Contains(d.SourceFiles, "doc.go") {
-		return metrics.Position{File: "doc.go", Line: 1}
-	}
-	if len(d.SourceFiles) > 0 {
-		return metrics.Position{File: d.SourceFiles[0], Line: 1}
-	}
-	return metrics.Position{}
-}
-
-// pickPosition returns the first of ps in a file of changed, else the first
-// with a file, else the zero Position.
-func pickPosition(ps []metrics.Position, changed map[string]bool) metrics.Position {
-	first := metrics.Position{}
-	for _, p := range ps {
-		if p.File == "" {
-			continue
-		}
-		if changed[p.File] {
-			return p
-		}
-		if first.File == "" {
-			first = p
-		}
-	}
-	return first
-}
-
-// dupPositions parses metrics.Details.DupLocations, each "file:start-end",
-// into the position of each occurrence's first line, skipping any that
-// does not parse.
-func dupPositions(locs []string) []metrics.Position {
-	ps := make([]metrics.Position, 0, len(locs))
-	for _, loc := range locs {
-		i := strings.LastIndexByte(loc, ':')
-		if i <= 0 {
-			continue
-		}
-		start, _, _ := strings.Cut(loc[i+1:], "-")
-		line, err := strconv.Atoi(start)
-		if err != nil {
-			continue
-		}
-		ps = append(ps, metrics.Position{File: loc[:i], Line: line})
-	}
-	return ps
+	return paths
 }

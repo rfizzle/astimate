@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/baseline"
+	"github.com/rfizzle/astimate/internal/engine/internal/judge"
 	"github.com/rfizzle/astimate/internal/metrics"
 )
 
@@ -96,7 +97,7 @@ func TestSelectImporters(t *testing.T) {
 			il := &fakeImporters{graph: graph}
 			changed := make(map[string]bool)
 			for _, dir := range tt.changed {
-				changed[importPathOf(modPath, dir)] = true
+				changed[judge.ImportPath(modPath, dir)] = true
 			}
 			var logs bytes.Buffer
 			logger := slog.New(slog.NewTextHandler(&logs, nil))
@@ -231,7 +232,7 @@ func TestSelectImportersAtBaseline(t *testing.T) {
 
 			changed := make(map[string]bool)
 			for _, dir := range tt.changed {
-				changed[importPathOf(modPath, dir)] = true
+				changed[judge.ImportPath(modPath, dir)] = true
 			}
 			var logs bytes.Buffer
 			logger := slog.New(slog.NewTextHandler(&logs, nil))

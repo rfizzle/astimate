@@ -10,9 +10,26 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rfizzle/astimate/calibration/fit/internal/emit"
+	"github.com/rfizzle/astimate/calibration/fit/internal/pool"
 	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/gate"
 )
+
+// synthRows returns n rows with sloc, largest_file_sloc and
+// duplication_pct running 1..n and has_tests set.
+func synthRows(n int) []pool.Row {
+	rows := make([]pool.Row, n)
+	for i := range rows {
+		v := i + 1
+		rows[i].Module = "example.com/m"
+		rows[i].Metrics.SLOC = v
+		rows[i].Metrics.LargestFileSLOC = v
+		rows[i].Metrics.DuplicationPct = float64(v)
+		rows[i].Metrics.HasTests = true
+	}
+	return rows
+}
 
 // tsDataPath is the committed TypeScript corpus data the shipped
 // typescript override is fitted from.
@@ -38,7 +55,7 @@ func tsOptions(dir string) options {
 
 // writeRows writes rows as a packages.jsonl file in dir and returns its
 // path.
-func writeRows(t *testing.T, dir string, rows []Row) string {
+func writeRows(t *testing.T, dir string, rows []pool.Row) string {
 	t.Helper()
 	var b bytes.Buffer
 	enc := json.NewEncoder(&b)
@@ -85,7 +102,7 @@ func TestFitLanguage(t *testing.T) {
 	if bytes.Contains(block, []byte("config_version")) || bytes.Contains(block, []byte("rebuild:")) {
 		t.Errorf("override block sets config_version or rebuild:\n%s", block)
 	}
-	merged, err := mergeLanguage(config.Default(), "typescript", block)
+	merged, err := emit.MergeLanguage(config.Default(), "typescript", block)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -162,7 +179,7 @@ func TestFitLanguageRejectsMixedRows(t *testing.T) {
 	}
 	tests := []struct {
 		name, lang, wantErr string
-		rows                []Row
+		rows                []pool.Row
 	}{
 		{"go rows as typescript", "typescript", "row 1 is go, not typescript", goRows},
 		{"typescript rows as go", "", "fit it with --language typescript", tsRows},
@@ -223,7 +240,7 @@ func TestDefaultCarriesTypeScriptOverride(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	merged, err := mergeLanguage(config.Default(), "typescript", block)
+	merged, err := emit.MergeLanguage(config.Default(), "typescript", block)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -11,8 +11,8 @@
 // The candidate copies the base configuration (the embedded default unless
 // --base names a file) with config_version thresholds-<date>, plus a
 // -stdlib-provisional suffix while every row is from the standard library,
-// and each rule's max and max_delta refitted; see methodText for the
-// rules. It is validated with config.Parse before it is written.
+// and each rule's max and max_delta refitted; see report.MethodText for
+// the rules. It is validated with config.Parse before it is written.
 // --compare adds a table of an earlier configuration's limits against the
 // candidate's to the report. --modules adds the module rows (SPEC.md 8.1)
 // the collector wrote to modules.jsonl, which a rule on a module-wide
@@ -46,6 +46,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rfizzle/astimate/calibration/fit/internal/emit"
+	"github.com/rfizzle/astimate/calibration/fit/internal/pool"
+	"github.com/rfizzle/astimate/calibration/fit/internal/report"
+	"github.com/rfizzle/astimate/calibration/fit/internal/stats"
 	"github.com/rfizzle/astimate/internal/config"
 )
 
@@ -131,118 +135,37 @@ type result struct {
 // fit reads the data and base, fits the thresholds, validates the
 // candidate and writes it and the report.
 func fit(opts options) (result, error) {
-	rows, err := loadRows(opts.data)
+	rows, baseRows, moduleRows, packageRows, err := loadFitRows(opts)
 	if err != nil {
 		return result{}, err
 	}
-	if opts.modules != "" {
-		modRows, err := loadRows(opts.modules)
-		if err != nil {
-			return result{}, err
-		}
-		for i := range modRows {
-			if !isModuleRow(&modRows[i]) {
-				return result{}, fmt.Errorf("reading %s: row %d is package %q, not a module row", opts.modules, i+1, modRows[i].Package)
-			}
-		}
-		rows = append(rows, modRows...)
-	}
-	if err := checkLanguage(rows, opts.language); err != nil {
-		return result{}, fmt.Errorf("reading %s: %w", opts.data, err)
-	}
-	var baseRows []Row
-	if opts.baseData != "" {
-		if baseRows, err = loadRows(opts.baseData); err != nil {
-			return result{}, err
-		}
-		if err := checkLanguage(baseRows, ""); err != nil {
-			return result{}, fmt.Errorf("reading %s: %w", opts.baseData, err)
-		}
-	}
-	moduleRows := countModuleRows(rows)
-	packageRows := len(rows) - moduleRows
-	baseData := config.Default()
-	if opts.base != "" {
-		if baseData, err = os.ReadFile(opts.base); err != nil {
-			return result{}, fmt.Errorf("reading base config: %w", err)
-		}
-	}
-	base, err := config.Parse(baseData)
-	if err != nil {
-		return result{}, fmt.Errorf("base config: %w", err)
-	}
-	var previous *config.Config
-	if opts.compare != "" {
-		if previous, err = config.Load(opts.compare); err != nil {
-			return result{}, fmt.Errorf("compare config: %w", err)
-		}
-	}
-
-	mods := modules(rows)
-	provisional := len(mods) == 1 && mods[0] == stdModule
-	suffix := opts.suffix
-	if suffix == suffixAuto {
-		suffix = ""
-		if provisional {
-			suffix = provisionalSuffix
-		}
-	}
-	stem := opts.date
-	if suffix != "" {
-		stem += "-" + suffix
-	}
-	version := "thresholds-" + stem
-	if opts.language != "" {
-		// An override keeps the base's config_version; reports judged
-		// with it show the language suffix.
-		stem += "-" + opts.language
-		version = base.Version + "+" + opts.language
-	}
-	res := result{version: version, out: opts.out, report: opts.report}
-	if res.out == "" {
-		res.out = filepath.Join("calibration", "thresholds", "astimate-thresholds-"+stem+".yaml")
-	}
-	if res.report == "" {
-		res.report = filepath.Join("calibration", "reports", "thresholds-"+stem+".md")
-	}
-
-	choices := fitThresholds(rows, base)
-	source := opts.data
-	if opts.modules != "" {
-		source = opts.data + " and " + strconv.Itoa(moduleRows) + " module rows in " + opts.modules
-	}
-	var out []byte
-	if opts.language != "" {
-		out, err = emitLanguage(baseData, opts.language, version, source, packageRows, choices)
-	} else {
-		out, err = emitCandidate(baseData, version, candidateHeader(version, source, packageRows, provisional), choices)
-		if err == nil {
-			if _, perr := config.Parse(out); perr != nil {
-				err = fmt.Errorf("candidate does not validate: %w", perr)
-			}
-		}
-	}
+	base, baseData, err := loadFitBase(opts)
 	if err != nil {
 		return result{}, err
 	}
-	var run *runInfo
-	if opts.language != "" {
-		if run, err = loadRun(filepath.Join(filepath.Dir(opts.data), "run.json")); err != nil {
-			return result{}, err
-		}
+	previous, err := loadFitPrevious(opts)
+	if err != nil {
+		return result{}, err
 	}
-	var baseStats []Stats
-	if baseRows != nil {
-		baseStats = make([]Stats, len(choices))
-		for i := range choices {
-			baseStats[i] = computeStats(poolValues(baseRows, choices[i].Rule.Metric, choices[i].Pool))
-		}
+
+	mods := pool.Modules(rows)
+	version, stem, provisional := planVersion(opts, base, mods)
+	res := defaultResult(opts, version, stem)
+
+	choices := pool.FitThresholds(rows, base)
+	out, err := emitFitOutput(opts, baseData, version, fitSource(opts, moduleRows), packageRows, provisional, choices)
+	if err != nil {
+		return result{}, err
 	}
-	report := renderReport(&reportInput{
+	run, err := loadFitRun(opts)
+	if err != nil {
+		return result{}, err
+	}
+	rendered := report.RenderReport(&report.Input{
 		Language:    opts.language,
 		Run:         run,
 		BaseData:    filepath.ToSlash(opts.baseData),
-		BaseStats:   baseStats,
+		BaseStats:   fitBaseStats(baseRows, choices),
 		Version:     version,
 		BaseVersion: base.Version,
 		Data:        filepath.ToSlash(opts.data),
@@ -253,7 +176,7 @@ func fit(opts options) (result, error) {
 		Modules:     mods,
 		Provisional: provisional,
 		Choices:     choices,
-		CrossPkg:    crossPkgStats(rows),
+		CrossPkg:    pool.CrossPkgStats(rows),
 
 		Previous:     previous,
 		PreviousPath: filepath.ToSlash(opts.compare),
@@ -261,24 +184,186 @@ func fit(opts options) (result, error) {
 	if err := writeFile(res.out, out); err != nil {
 		return result{}, err
 	}
-	if err := writeFile(res.report, []byte(report)); err != nil {
+	if err := writeFile(res.report, []byte(rendered)); err != nil {
 		return result{}, err
 	}
 	return res, nil
 }
 
+// loadFitRows loads and validates the rows opts names: the pooled data,
+// any module rows to combine with it from --modules, and the rows
+// --base-data names. It returns the combined rows, the base rows (nil when
+// --base-data is empty), and how many of the combined rows are module and
+// package rows.
+func loadFitRows(opts options) (rows, baseRows []pool.Row, moduleRows, packageRows int, err error) {
+	if rows, err = pool.LoadRows(opts.data); err != nil {
+		return nil, nil, 0, 0, err
+	}
+	if opts.modules != "" {
+		if rows, err = addModuleRows(rows, opts.modules); err != nil {
+			return nil, nil, 0, 0, err
+		}
+	}
+	if err = pool.CheckLanguage(rows, opts.language); err != nil {
+		return nil, nil, 0, 0, fmt.Errorf("reading %s: %w", opts.data, err)
+	}
+	if opts.baseData != "" {
+		if baseRows, err = pool.LoadRows(opts.baseData); err != nil {
+			return nil, nil, 0, 0, err
+		}
+		if err = pool.CheckLanguage(baseRows, ""); err != nil {
+			return nil, nil, 0, 0, fmt.Errorf("reading %s: %w", opts.baseData, err)
+		}
+	}
+	moduleRows = pool.CountModuleRows(rows)
+	return rows, baseRows, moduleRows, len(rows) - moduleRows, nil
+}
+
+// addModuleRows loads the module rows at path, checks that every one is a
+// module row, and appends them to rows.
+func addModuleRows(rows []pool.Row, path string) ([]pool.Row, error) {
+	modRows, err := pool.LoadRows(path)
+	if err != nil {
+		return nil, err
+	}
+	for i := range modRows {
+		if !pool.IsModuleRow(&modRows[i]) {
+			return nil, fmt.Errorf("reading %s: row %d is package %q, not a module row", path, i+1, modRows[i].Package)
+		}
+	}
+	return append(rows, modRows...), nil
+}
+
+// loadFitBase reads the base configuration opts names, or the embedded
+// default, and parses it.
+func loadFitBase(opts options) (base *config.Config, baseData []byte, err error) {
+	baseData = config.Default()
+	if opts.base != "" {
+		if baseData, err = os.ReadFile(opts.base); err != nil {
+			return nil, nil, fmt.Errorf("reading base config: %w", err)
+		}
+	}
+	if base, err = config.Parse(baseData); err != nil {
+		return nil, nil, fmt.Errorf("base config: %w", err)
+	}
+	return base, baseData, nil
+}
+
+// loadFitPrevious loads the configuration --compare names, or nil when it
+// is empty.
+func loadFitPrevious(opts options) (*config.Config, error) {
+	if opts.compare == "" {
+		return nil, nil
+	}
+	previous, err := config.Load(opts.compare)
+	if err != nil {
+		return nil, fmt.Errorf("compare config: %w", err)
+	}
+	return previous, nil
+}
+
+// planVersion picks the candidate's config_version, or with --language the
+// override's version (the base's config_version kept, per SPEC.md 13), the
+// file stem the output paths are named from, and whether the data is
+// standard-library rows alone.
+func planVersion(opts options, base *config.Config, mods []string) (version, stem string, provisional bool) {
+	provisional = len(mods) == 1 && mods[0] == pool.StdModule
+	suffix := opts.suffix
+	if suffix == suffixAuto {
+		suffix = ""
+		if provisional {
+			suffix = provisionalSuffix
+		}
+	}
+	stem = opts.date
+	if suffix != "" {
+		stem += "-" + suffix
+	}
+	version = "thresholds-" + stem
+	if opts.language != "" {
+		// An override keeps the base's config_version; reports judged
+		// with it show the language suffix.
+		stem += "-" + opts.language
+		version = base.Version + "+" + opts.language
+	}
+	return version, stem, provisional
+}
+
+// defaultResult fills opts.out and opts.report with their default paths,
+// named from stem, when they are empty.
+func defaultResult(opts options, version, stem string) result {
+	res := result{version: version, out: opts.out, report: opts.report}
+	if res.out == "" {
+		res.out = filepath.Join("calibration", "thresholds", "astimate-thresholds-"+stem+".yaml")
+	}
+	if res.report == "" {
+		res.report = filepath.Join("calibration", "reports", "thresholds-"+stem+".md")
+	}
+	return res
+}
+
+// fitSource describes the rows a fit was made from, for the candidate's
+// header and the report: the data file alone, or with the module rows
+// pooled from --modules.
+func fitSource(opts options, moduleRows int) string {
+	if opts.modules == "" {
+		return opts.data
+	}
+	return opts.data + " and " + strconv.Itoa(moduleRows) + " module rows in " + opts.modules
+}
+
+// emitFitOutput writes the fitted YAML: a languages.<id> override block
+// with --language, else a whole candidate configuration, validated with
+// config.Parse.
+func emitFitOutput(opts options, baseData []byte, version, source string, packageRows int, provisional bool, choices []pool.Choice) ([]byte, error) {
+	if opts.language != "" {
+		return emit.Language(baseData, opts.language, version, source, packageRows, choices)
+	}
+	out, err := emit.Candidate(baseData, version, candidateHeader(version, source, packageRows, provisional), choices)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := config.Parse(out); err != nil {
+		return nil, fmt.Errorf("candidate does not validate: %w", err)
+	}
+	return out, nil
+}
+
+// loadFitRun reads the collector's run.json beside the data, for a
+// --language fit's report; nil for a whole-configuration fit, which does
+// not describe the corpus.
+func loadFitRun(opts options) (*report.RunInfo, error) {
+	if opts.language == "" {
+		return nil, nil
+	}
+	return loadRun(filepath.Join(filepath.Dir(opts.data), "run.json"))
+}
+
+// fitBaseStats computes each choice's distribution over baseRows, index
+// for index; nil when baseRows is nil.
+func fitBaseStats(baseRows []pool.Row, choices []pool.Choice) []stats.Stats {
+	if baseRows == nil {
+		return nil
+	}
+	baseStats := make([]stats.Stats, len(choices))
+	for i := range choices {
+		baseStats[i] = stats.ComputeStats(pool.Values(baseRows, choices[i].Rule.Metric, choices[i].Pool))
+	}
+	return baseStats
+}
+
 // candidateHeader is the candidate file's leading comment.
 func candidateHeader(version, data string, rows int, provisional bool) string {
 	lines := []string{"Astimate configuration: rebuild parameters and gate thresholds in one file.", ""}
-	lines = append(lines, wrap(fmt.Sprintf("Candidate %s, fitted by calibration/fit (SPEC.md 11.1) from %d packages in %s.",
+	lines = append(lines, report.Wrap(fmt.Sprintf("Candidate %s, fitted by calibration/fit (SPEC.md 11.1) from %d packages in %s.",
 		version, rows, filepath.ToSlash(data)), 74)...)
 	if provisional {
-		lines = append(lines, wrap("PROVISIONAL: every row is from the Go standard library; refit after "+
+		lines = append(lines, report.Wrap("PROVISIONAL: every row is from the Go standard library; refit after "+
 			"the corpus run, before this replaces the embedded default.", 74)...)
 	}
-	for _, m := range methodText() {
+	for _, m := range report.MethodText() {
 		lines = append(lines, "")
-		lines = append(lines, wrap(m, 74)...)
+		lines = append(lines, report.Wrap(m, 74)...)
 	}
 	for i, l := range lines {
 		lines[i] = strings.TrimRight("# "+l, " ")
@@ -286,27 +371,9 @@ func candidateHeader(version, data string, rows int, provisional bool) string {
 	return strings.Join(lines, "\n")
 }
 
-// wrap breaks s into lines of at most width bytes at spaces.
-func wrap(s string, width int) []string {
-	var lines []string
-	line := ""
-	for _, word := range strings.Fields(s) {
-		switch {
-		case line == "":
-			line = word
-		case len(line)+1+len(word) > width:
-			lines = append(lines, line)
-			line = word
-		default:
-			line += " " + word
-		}
-	}
-	return append(lines, line)
-}
-
 // loadRun reads the collector's run.json at path; nil, with no error, when
 // there is none.
-func loadRun(path string) (*runInfo, error) {
+func loadRun(path string) (*report.RunInfo, error) {
 	data, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
@@ -314,7 +381,7 @@ func loadRun(path string) (*runInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("reading run info: %w", err)
 	}
-	var r runInfo
+	var r report.RunInfo
 	if err := json.Unmarshal(data, &r); err != nil {
 		return nil, fmt.Errorf("decoding %s: %w", path, err)
 	}

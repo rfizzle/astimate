@@ -10,7 +10,7 @@ turns the measurements into parameters builds on the runner's output.
 | --- | --- |
 | `rebuild.yaml` | The definition: one entry per package to rebuild. Generated; do not edit by hand. |
 | `selection.md` | The acceptance record of the selection run: every package taken, with its oracle, and every candidate rejected, with the reason. Generated. |
-| `*.go` | `go run ./calibration/rebuild`, with the `select`, `stub` and `run` subcommands, the definition's Go types and `Validate`, and the runner's row type `RunRow`. |
+| `*.go` | `go run ./calibration/rebuild`, with the `select`, `stub` and `run` subcommands. The `select` and `run` command bodies live here; the definition's Go types and `Validate` (`internal/definition`), the selection rule (`internal/selection`), the stub strategy (`internal/stub`), go/git commands and the pin checker (`internal/pin`), the agent template and prompt (`internal/agent`) and the runner and its row type `RunRow` (`internal/runner`) are each their own package under `internal/`. |
 | `dryrun-agent.sh` | The stand-in agent for a dry run of the runner; it spends no requests. |
 
 ## The definition

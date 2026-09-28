@@ -1,235 +1,87 @@
 package metrics
 
-// MetricDeltas holds the per-field difference head minus base for every
-// RawMetrics field, using the same JSON names. Bool fields are reported as -1
-// (true to false), 0 (unchanged) or +1 (false to true). A v1 field is nil when
-// head did not compute it; when head computed it and base did not, the base is
-// treated as zero so a new package against a zero baseline reports the head
-// value.
-type MetricDeltas struct {
-	// Files is the change in files.
-	Files int `json:"files"`
-	// SLOC is the change in sloc.
-	SLOC int `json:"sloc"`
-	// LargestFileSLOC is the change in largest_file_sloc.
-	LargestFileSLOC int `json:"largest_file_sloc"`
-	// TokensEst is the change in tokens_est.
-	TokensEst int `json:"tokens_est"`
-	// TokensEstWithTests is the change in tokens_est_with_tests.
-	TokensEstWithTests int `json:"tokens_est_with_tests"`
-	// InternalImports is the change in internal_imports.
-	InternalImports int `json:"internal_imports"`
-	// ExternalImports is the change in external_imports.
-	ExternalImports int `json:"external_imports"`
-	// StdlibImports is the change in stdlib_imports.
-	StdlibImports int `json:"stdlib_imports"`
-	// FanIn is the change in fan_in.
-	FanIn int `json:"fan_in"`
-	// FanInTests is the change in fan_in_tests.
-	FanInTests int `json:"fan_in_tests"`
-	// ExportedSymbols is the change in exported_symbols.
-	ExportedSymbols int `json:"exported_symbols"`
-	// Globals is the change in globals.
-	Globals int `json:"globals"`
-	// InitFuncs is the change in init_funcs.
-	InitFuncs int `json:"init_funcs"`
-	// MaxNesting is the change in max_nesting.
-	MaxNesting int `json:"max_nesting"`
-	// CognitiveTotal is the change in cognitive_total.
-	CognitiveTotal int `json:"cognitive_total"`
-	// CognitiveP90 is the change in cognitive_p90.
-	CognitiveP90 int `json:"cognitive_p90"`
-	// FuncCount is the change in func_count.
-	FuncCount int `json:"func_count"`
-	// DupBlocks is the change in dup_blocks.
-	DupBlocks int `json:"dup_blocks"`
-	// DuplicationPct is the change in duplication_pct, in percentage points.
-	DuplicationPct float64 `json:"duplication_pct"`
-	// TestFiles is the change in test_files.
-	TestFiles int `json:"test_files"`
-	// TestFuncs is the change in test_funcs.
-	TestFuncs int `json:"test_funcs"`
-	// HasTests is the change in has_tests as -1, 0 or +1.
-	HasTests int `json:"has_tests"`
-	// UntestedExports is the change in untested_exports.
-	UntestedExports int `json:"untested_exports"`
+import (
+	"encoding/json"
+	"strconv"
+)
 
-	// DupBlocksCrossPkg is the change in dup_blocks_cross_pkg, nil when head
-	// did not compute it.
-	DupBlocksCrossPkg *int `json:"dup_blocks_cross_pkg"`
-	// Instability is the change in instability, nil when head did not
-	// compute it.
-	Instability *float64 `json:"instability"`
-	// Abstractness is the change in abstractness, nil when head did not
-	// compute it.
-	Abstractness *float64 `json:"abstractness"`
-	// MainSequenceDistance is the change in main_sequence_distance, nil when
-	// head did not compute it.
-	MainSequenceDistance *float64 `json:"main_sequence_distance"`
-	// UsesCgo is the change in uses_cgo as -1, 0 or +1, nil when head did not
-	// compute it.
-	UsesCgo *int `json:"uses_cgo"`
-	// UsesReflect is the change in uses_reflect as -1, 0 or +1, nil when head
-	// did not compute it.
-	UsesReflect *int `json:"uses_reflect"`
-	// GeneratedFiles is the change in generated_files, nil when head did not
-	// compute it.
-	GeneratedFiles *int `json:"generated_files"`
-	// TokensEstGenerated is the change in tokens_est_generated, nil when
-	// head did not compute it.
-	TokensEstGenerated *int `json:"tokens_est_generated"`
-	// CoveragePct is the change in coverage_pct, in percentage points, nil
-	// when head did not compute it.
-	CoveragePct *float64 `json:"coverage_pct"`
-	// ChangedFuncCognitiveMax is the change in changed_func_cognitive_max, nil
-	// when head did not compute it.
-	ChangedFuncCognitiveMax *int `json:"changed_func_cognitive_max"`
+// MetricDeltas holds the per-field difference head minus base for every
+// RawMetrics field, and encodes as a JSON object with the same names in the
+// same order. Bool fields are reported as -1 (true to false), 0 (unchanged)
+// or +1 (false to true) and encode, like counts, as integers. A v1 field is
+// null when head did not compute it; when head computed it and base did
+// not, the base is treated as zero so a new package against a zero baseline
+// reports the head value.
+type MetricDeltas struct {
+	d [numFields]delta
+}
+
+// delta is one field's difference.
+type delta struct {
+	// v is head minus base.
+	v float64
+	// ok is false when head did not compute the field.
+	ok bool
+	// integral says the field is a count or a bool, encoded as an integer.
+	integral bool
 }
 
 // Delta returns head minus base for every field, where the receiver is head.
 // Pass a zero RawMetrics as base for a package that is new at head.
 func (m *RawMetrics) Delta(base RawMetrics) MetricDeltas {
-	return MetricDeltas{
-		Files:                   m.Files - base.Files,
-		SLOC:                    m.SLOC - base.SLOC,
-		LargestFileSLOC:         m.LargestFileSLOC - base.LargestFileSLOC,
-		TokensEst:               m.TokensEst - base.TokensEst,
-		TokensEstWithTests:      m.TokensEstWithTests - base.TokensEstWithTests,
-		InternalImports:         m.InternalImports - base.InternalImports,
-		ExternalImports:         m.ExternalImports - base.ExternalImports,
-		StdlibImports:           m.StdlibImports - base.StdlibImports,
-		FanIn:                   m.FanIn - base.FanIn,
-		FanInTests:              m.FanInTests - base.FanInTests,
-		ExportedSymbols:         m.ExportedSymbols - base.ExportedSymbols,
-		Globals:                 m.Globals - base.Globals,
-		InitFuncs:               m.InitFuncs - base.InitFuncs,
-		MaxNesting:              m.MaxNesting - base.MaxNesting,
-		CognitiveTotal:          m.CognitiveTotal - base.CognitiveTotal,
-		CognitiveP90:            m.CognitiveP90 - base.CognitiveP90,
-		FuncCount:               m.FuncCount - base.FuncCount,
-		DupBlocks:               m.DupBlocks - base.DupBlocks,
-		DuplicationPct:          m.DuplicationPct - base.DuplicationPct,
-		TestFiles:               m.TestFiles - base.TestFiles,
-		TestFuncs:               m.TestFuncs - base.TestFuncs,
-		HasTests:                boolInt(m.HasTests) - boolInt(base.HasTests),
-		UntestedExports:         m.UntestedExports - base.UntestedExports,
-		DupBlocksCrossPkg:       deltaOpt(m.DupBlocksCrossPkg, base.DupBlocksCrossPkg),
-		Instability:             deltaOpt(m.Instability, base.Instability),
-		Abstractness:            deltaOpt(m.Abstractness, base.Abstractness),
-		MainSequenceDistance:    deltaOpt(m.MainSequenceDistance, base.MainSequenceDistance),
-		UsesCgo:                 deltaOptBool(m.UsesCgo, base.UsesCgo),
-		UsesReflect:             deltaOptBool(m.UsesReflect, base.UsesReflect),
-		GeneratedFiles:          deltaOpt(m.GeneratedFiles, base.GeneratedFiles),
-		TokensEstGenerated:      deltaOpt(m.TokensEstGenerated, base.TokensEstGenerated),
-		CoveragePct:             deltaOpt(m.CoveragePct, base.CoveragePct),
-		ChangedFuncCognitiveMax: deltaOpt(m.ChangedFuncCognitiveMax, base.ChangedFuncCognitiveMax),
+	var d MetricDeltas
+	hs, bs := m.slots(), base.slots()
+	for i := range hs {
+		h, ok, k := read(hs[i])
+		if !ok {
+			continue
+		}
+		b, _, _ := read(bs[i])
+		d.d[i] = delta{v: h - b, ok: true, integral: k != kindFloat}
 	}
+	return d
 }
 
 // Value returns the delta named by its JSON field name as a float64. The
 // second result is false when the name is unknown or names a v1 field whose
-// delta is nil.
+// delta is null.
 func (d *MetricDeltas) Value(name string) (float64, bool) {
-	switch name {
-	case "files":
-		return float64(d.Files), true
-	case "sloc":
-		return float64(d.SLOC), true
-	case "largest_file_sloc":
-		return float64(d.LargestFileSLOC), true
-	case "tokens_est":
-		return float64(d.TokensEst), true
-	case "tokens_est_with_tests":
-		return float64(d.TokensEstWithTests), true
-	case "internal_imports":
-		return float64(d.InternalImports), true
-	case "external_imports":
-		return float64(d.ExternalImports), true
-	case "stdlib_imports":
-		return float64(d.StdlibImports), true
-	case "fan_in":
-		return float64(d.FanIn), true
-	case "fan_in_tests":
-		return float64(d.FanInTests), true
-	case "exported_symbols":
-		return float64(d.ExportedSymbols), true
-	case "globals":
-		return float64(d.Globals), true
-	case "init_funcs":
-		return float64(d.InitFuncs), true
-	case "max_nesting":
-		return float64(d.MaxNesting), true
-	case "cognitive_total":
-		return float64(d.CognitiveTotal), true
-	case "cognitive_p90":
-		return float64(d.CognitiveP90), true
-	case "func_count":
-		return float64(d.FuncCount), true
-	case "dup_blocks":
-		return float64(d.DupBlocks), true
-	case "duplication_pct":
-		return d.DuplicationPct, true
-	case "test_files":
-		return float64(d.TestFiles), true
-	case "test_funcs":
-		return float64(d.TestFuncs), true
-	case "has_tests":
-		return float64(d.HasTests), true
-	case "untested_exports":
-		return float64(d.UntestedExports), true
-	case "dup_blocks_cross_pkg":
-		return optInt(d.DupBlocksCrossPkg)
-	case "instability":
-		return optFloat(d.Instability)
-	case "abstractness":
-		return optFloat(d.Abstractness)
-	case "main_sequence_distance":
-		return optFloat(d.MainSequenceDistance)
-	case "uses_cgo":
-		return optInt(d.UsesCgo)
-	case "uses_reflect":
-		return optInt(d.UsesReflect)
-	case "generated_files":
-		return optInt(d.GeneratedFiles)
-	case "tokens_est_generated":
-		return optInt(d.TokensEstGenerated)
-	case "coverage_pct":
-		return optFloat(d.CoveragePct)
-	case "changed_func_cognitive_max":
-		return optInt(d.ChangedFuncCognitiveMax)
-	default:
+	i := fieldIndex(name)
+	if i < 0 || !d.d[i].ok {
 		return 0, false
 	}
+	return d.d[i].v, true
 }
 
-func boolInt(b bool) int {
-	if b {
-		return 1
+// MarshalJSON encodes d as an object keyed by the RawMetrics JSON names, in
+// MetricNames order: null for a field head did not compute, an integer for
+// a count or a bool, and a number as encoding/json writes a float64
+// otherwise.
+func (d MetricDeltas) MarshalJSON() ([]byte, error) {
+	b := []byte{'{'}
+	for i, name := range MetricNames() {
+		if i > 0 {
+			b = append(b, ',')
+		}
+		b = strconv.AppendQuote(b, name)
+		b = append(b, ':')
+		v, err := d.d[i].encode()
+		if err != nil {
+			return nil, err
+		}
+		b = append(b, v...)
 	}
-	return 0
+	return append(b, '}'), nil
 }
 
-// deltaOpt returns head minus base, nil when head is nil and treating a nil
-// base as zero.
-func deltaOpt[T int | float64](head, base *T) *T {
-	if head == nil {
-		return nil
+// encode returns x in JSON as MetricDeltas.MarshalJSON describes.
+func (x delta) encode() ([]byte, error) {
+	switch {
+	case !x.ok:
+		return []byte("null"), nil
+	case x.integral:
+		return strconv.AppendInt(nil, int64(x.v), 10), nil
+	default:
+		return json.Marshal(x.v)
 	}
-	d := *head
-	if base != nil {
-		d -= *base
-	}
-	return &d
-}
-
-// deltaOptBool is deltaOpt for bools, reporting -1, 0 or +1.
-func deltaOptBool(head, base *bool) *int {
-	if head == nil {
-		return nil
-	}
-	d := boolInt(*head)
-	if base != nil {
-		d -= boolInt(*base)
-	}
-	return &d
 }
