@@ -220,18 +220,18 @@ Everything a rebuild needs must fit in context at once, or the work is partition
 ```
 rebuild_tokens = essential_volume
                + spec_tokens
-               + exported_symbols * tokens_per_export            (default 40)
-               + untested_exports * tokens_per_untested_export * (1 - coverage_pct / 100)   (default 800)
-               + (globals + init_funcs) * tokens_per_hidden_state (default 400)
+               + exported_symbols * tokens_per_export            (default 0, fitted)
+               + untested_exports * tokens_per_untested_export * (1 - coverage_pct / 100)   (default 120, fitted)
+               + (globals + init_funcs) * tokens_per_hidden_state (default 0, fitted)
 
 r            = rebuild_tokens / B
 agent_passes = r                       when r <= 1
-             = r ^ superlinear_exponent when r > 1     (default 1.3)
+             = r ^ superlinear_exponent when r > 1     (default 2.79, fitted)
 ```
 
 `agent_passes` is reported to one decimal. Below 1.0 the package is rebuildable in one pass with room to spare. The coverage factor applies only when `coverage_pct` is non-null (`--coverage`); without it the term is the full step penalty of `tokens_per_untested_export` per untested export, as in the worked example. The unspecified driver's detail then records `coverage_pct`, and its suggestion says what coverage scaled the term to. `human_days` (7.3) does not read coverage. In `check`, the baseline has no coverage, so the summary's baseline `agent_passes` is estimated with head's `coverage_pct`.
 
-Worked example (the reference test reproduces every value to four decimals): `sloc` 1200, `tokens_est` 10000, `tokens_est_with_tests` 16000, `duplication_pct` 20, `exported_symbols` 30, `untested_exports` 15, `globals` 2, `init_funcs` 1, default parameters.
+Worked example (the reference test reproduces every value to four decimals) under the placeholder parameters of `configs/uncalibrated.yaml` (40, 800, 400, exponent 1.3), which keep every term visible: `sloc` 1200, `tokens_est` 10000, `tokens_est_with_tests` 16000, `duplication_pct` 20, `exported_symbols` 30, `untested_exports` 15, `globals` 2, `init_funcs` 1.
 
 ```
 volume      = 10000 * 0.8          =  8000
@@ -243,6 +243,8 @@ rebuild_tokens                     = 28400
 r           = 28400 / 25000        = 1.136
 agent_passes = 1.136 ^ 1.3         = 1.1803   (reported as 1.2)
 ```
+
+Under the shipped defaults (0, 120, 0, 2.79) the same package is volume 8000 + spec 6000 + contract 0 + unspecified 1800 + hidden 0 = 15800 tokens, r = 0.632, `agent_passes` 0.632 (reported as 0.6).
 
 Note that `duplication_pct` also lowers `human_days` through 7.3; "halves the volume term and nothing else" in the tests refers to the five token terms.
 
@@ -268,13 +270,13 @@ where `untested_ratio = untested_exports / max(exported_symbols, 1)`, clamped to
 
 `drivers` lists the two largest non-zero terms of `rebuild_tokens` (volume, spec, contract, unspecified, hidden). `suggestions` are generated from drivers whose term is at least 10% of `rebuild_tokens`, with the metric values, for example "7 exported functions have no test (Parse, Encode, Decode, Flush, Close and 2 more); a rebuild would have to reverse-engineer their behavior". At most five names are listed. Gate violations and warnings always carry a suggestion from the same per-metric templates.
 
-All parameters live in the `rebuild:` section of the config. Until section 11.2 has run, the text report labels the estimate line `(estimate from uncalibrated parameters)` and the JSON report carries `rebuild.calibrated: false`; the label describes the estimate only, never the gate thresholds, which section 11.1 calibrates independently.
+All parameters live in the `rebuild:` section of the config. The shipped default carries the parameters fitted by section 11.2 on 2026-09-28 (`rebuild-2026-09-28-claude-code-opus`), so the text report labels the estimate line `(estimate from calibrated parameters)` and the JSON report carries `rebuild.calibrated: true`; a config whose version does not start with `rebuild-` is labelled `(estimate from uncalibrated parameters)` with `calibrated: false`; the label describes the estimate only, never the gate thresholds, which section 11.1 calibrates independently.
 
 ### 7.5 Acceptance invariants
 
 - Go stdlib `errors` is ONE_PASS; `net/http` is PARTITION.
 - A package with zero fan-in, tests present, no duplication and under 5k tokens is ONE_PASS.
-- Monotonicity: increasing `tokens_est`, `exported_symbols`, `untested_exports`, `globals` or `init_funcs` never lowers `agent_passes`; increasing `duplication_pct` alone never raises it; raising `coverage_pct`, or measuring it where it was null, never raises it; adding test tokens raises only the `spec` term (on the worked example, 1,000 more test tokens move `agent_passes` from 1.1803 to 1.2346), and adding tests never raises `human_days`.
+- Monotonicity: increasing `tokens_est`, `exported_symbols`, `untested_exports`, `globals` or `init_funcs` never lowers `agent_passes`; increasing `duplication_pct` alone never raises it; raising `coverage_pct`, or measuring it where it was null, never raises it; adding test tokens raises only the `spec` term (on the worked example under the placeholder parameters, 1,000 more test tokens move `agent_passes` from 1.1803 to 1.2346; under the shipped defaults from 0.632 to 0.672), and adding tests never raises `human_days`.
 
 ## 8. Quality gate
 
@@ -419,7 +421,7 @@ Results return `content` (text) and `structuredContent` (JSON), with `isError: t
   ],
   "passed": false,
   "astimate_version": "0.3.0",
-  "config_version": "thresholds-2026-09-28"
+  "config_version": "rebuild-2026-09-28-claude-code-opus"
 }
 ```
 
@@ -453,7 +455,8 @@ The estimate's parameters are measured by doing the thing it estimates. For each
 3. Record tokens, turns, wall time, whether tests passed, and whether importers still compile.
    Each run appends one row to `runs.jsonl`: the experiment and run index, the agent command and model, the pre-run estimate (`agent_passes`, `rebuild_tokens`, `human_days`, tier), the `RawMetrics`, `config_version` and `go_version`, the measured input, output and cache tokens, cost, turns, tool calls, wall time, session id and whether the turn cap was hit (null when the agent does not report one), whether the oracle's tests passed and whether `go build ./...` still compiles, whether the agent changed test files or other packages, and timestamps. `run.json` records the environment and totals. A rerun skips the (package, run) pairs whose oracle completed.
 4. Regress the outcomes on the section 7.1 inputs and fit `context_budget`, the per-item token costs and the superlinear exponent.
-5. Ship as `config_version: rebuild-<date>-<agent>` and flip `calibrated` to true for the estimate.
+   `calibration/rebuild/fit` takes each package's median measured tokens over its passing runs, where tokens are the session footprint: input + cache writes + output. It fits the 7.2 form, measured = overhead + scale × B × passes(`rebuild_tokens`/B), by nonlinear least squares, with the per-session overhead and the scale as terms outside the configuration and heteroscedasticity-consistent (HC3) standard errors. B is held and refitted at other budgets; the exponent is fitted from packages past the knee (at least three at r ≥ 1.1). Failed runs are censored and reported, and a negative fitted cost is clamped to 0 with a note. On 2026-09-28, 26 runs of 26 packages (one run each, model claude-opus-5-5), 25 passing, gave: overhead 23,694 ± 21,009, scale 4.35 ± 3.27, `tokens_per_export` −58.9 ± 231 (clamped to 0), `tokens_per_untested_export` 116.6 ± 457 (120), `tokens_per_hidden_state` −778 ± 962 (clamped to 0), `superlinear_exponent` 2.79 ± 2.89, from four packages past the knee. B = 25,000 fitted best of the budgets tried. The form explains 93.5% of the variance in measured tokens. Only volume showed a measurable contribution; `exported_symbols`, `untested_exports`, `globals` + `init_funcs`, `test_funcs`, `cognitive_p90`, `max_nesting` and `fan_in` showed none, and `cognitive_total` and `func_count` predict passing but add nothing to the token cost beyond volume. Fitted freely, a test token costs 0.70 volume tokens (95% interval −0.5 to 1.9), so the data cannot tell whether tests are cost or help, and 7.2 keeps them at 1.
+5. Ship as `config_version: rebuild-<date>-<agent>` and flip `calibrated` to true for the estimate. Shipped as `rebuild-2026-09-28-claude-code-opus` (report `calibration/reports/rebuild-2026-09-28-claude-code-opus.md`); with one run per package the per-item costs and the exponent are weakly determined, and a refit with three runs per package is the next step.
 
 This is well-defined and repeatable, unlike a refactoring-task corpus, and it directly measures what the number claims. It does not affect the gate.
 
