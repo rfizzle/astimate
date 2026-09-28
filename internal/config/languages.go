@@ -22,6 +22,10 @@ type Effective struct {
 	// when the override disables it, then the override's rules on metrics
 	// the top level does not gate. Callers must not modify it.
 	Thresholds []gate.Threshold
+	// Exemptions holds the top-level exemptions (SPEC.md 8.6), the same for
+	// every language: an override carries none. Callers must not modify
+	// it.
+	Exemptions []gate.Exemption
 }
 
 // fileLanguage mirrors one entry of the languages section.
@@ -77,9 +81,9 @@ func (c *Config) Languages() []string {
 func (c *Config) ForLanguage(lang string) Effective {
 	o, ok := c.languages[lang]
 	if !ok || o.empty() {
-		return Effective{Version: c.Version, Rebuild: c.Rebuild, Thresholds: c.Thresholds}
+		return Effective{Version: c.Version, Rebuild: c.Rebuild, Thresholds: c.Thresholds, Exemptions: c.Exemptions}
 	}
-	eff := Effective{Version: c.Version + "+" + lang, Rebuild: c.Rebuild}
+	eff := Effective{Version: c.Version + "+" + lang, Rebuild: c.Rebuild, Exemptions: c.Exemptions}
 	if o.rebuild != nil {
 		for _, f := range o.rebuild.fields(&eff.Rebuild) {
 			if f.src != nil {

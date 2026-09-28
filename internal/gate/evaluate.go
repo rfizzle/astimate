@@ -50,7 +50,8 @@ type Note struct {
 
 // Result is the outcome of evaluating one package.
 type Result struct {
-	// Passed is true when there are no violations; warnings never fail.
+	// Passed is true when there are no violations; warnings and exempted
+	// violations never fail.
 	Passed bool
 	// Violations are sorted by metric name.
 	Violations []Violation
@@ -58,6 +59,10 @@ type Result struct {
 	Warnings []Warning
 	// Notes are sorted by metric name.
 	Notes []Note
+	// Exempted are the violations an exemption silenced
+	// (Exemptions.Apply), in the order Violations had; Evaluate leaves it
+	// nil.
+	Exempted []Exempted
 }
 
 // Suggester returns the fix sentence for a metric at its head value. The gate

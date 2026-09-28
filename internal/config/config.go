@@ -52,6 +52,9 @@ type Config struct {
 	Rebuild score.RebuildParams
 	// Thresholds holds the gate rules in file order.
 	Thresholds []gate.Threshold
+	// Exemptions holds the exemptions in file order (SPEC.md 8.6). They
+	// apply to every language: a languages override carries none.
+	Exemptions []gate.Exemption
 	// Warnings are non-fatal findings from parsing, such as deprecated keys.
 	// Callers log each one once.
 	Warnings []string
@@ -88,6 +91,7 @@ type fileConfig struct {
 	Duplication   *fileDuplication `yaml:"duplication"`
 	Rebuild       *fileRebuild     `yaml:"rebuild"`
 	Thresholds    []fileThreshold  `yaml:"thresholds"`
+	Exemptions    []fileExemption  `yaml:"exemptions"`
 	// Languages holds the optional per-language overrides by language id.
 	Languages map[string]*fileLanguage `yaml:"languages"`
 
@@ -133,6 +137,16 @@ type fileThreshold struct {
 	When            string   `yaml:"when"`
 	// Disabled drops the top-level rule on Metric; only under languages.
 	Disabled bool `yaml:"disabled"`
+}
+
+// fileExemption mirrors one entry of the exemptions section.
+type fileExemption struct {
+	Package string `yaml:"package"`
+	Metric  string `yaml:"metric"`
+	Reason  string `yaml:"reason"`
+	// Expires is a YYYY-MM-DD date; YAML resolves an unquoted date as a
+	// timestamp, which decodes into a string as written.
+	Expires string `yaml:"expires"`
 }
 
 // Default returns the embedded default configuration file. Each call returns a
@@ -214,8 +228,11 @@ func isRebuildOutput(name string) bool {
 	return false
 }
 
-// Validate checks the top-level scalars, the rebuild parameters and every
-// threshold, joining all errors.
+// Validate checks the top-level scalars, the rebuild parameters, every
+// threshold and every exemption, joining all errors. An exemption's errors
+// name its index, as in "exemptions[2]: reason is required", and it may
+// name only a metric some rule gates, at the top level or in a languages
+// override.
 func (c *Config) Validate() error {
 	var errs []error
 	if c.Version == "" {
@@ -237,7 +254,45 @@ func (c *Config) Validate() error {
 		}
 	}
 	errs = append(errs, c.validateLanguages(isKnown)...)
+	gated := c.gatedMetric()
+	for i, e := range c.Exemptions {
+		errs = append(errs, prefixEach(fmt.Sprintf("exemptions[%d]", i), e.Validate(gated))...)
+	}
 	return errors.Join(errs...)
+}
+
+// prefixEach returns each error err joins (errors.Join), or err alone,
+// prefixed with prefix, so every line of a multi-error names what it is
+// about; nil for a nil err.
+func prefixEach(prefix string, err error) []error {
+	if err == nil {
+		return nil
+	}
+	errs := []error{err}
+	if j, ok := err.(interface{ Unwrap() []error }); ok {
+		errs = j.Unwrap()
+	}
+	out := make([]error, 0, len(errs))
+	for _, e := range errs {
+		out = append(out, fmt.Errorf("%s: %w", prefix, e))
+	}
+	return out
+}
+
+// gatedMetric returns a lookup of the metrics some rule gates, at the top
+// level or in any language override, which are the metrics an exemption may
+// name.
+func (c *Config) gatedMetric() func(string) bool {
+	gated := make(map[string]bool, len(c.Thresholds))
+	for _, t := range c.Thresholds {
+		gated[t.Metric] = true
+	}
+	for _, o := range c.languages {
+		for _, t := range o.rules {
+			gated[t.Metric] = true
+		}
+	}
+	return func(m string) bool { return gated[m] }
 }
 
 // knownMetric returns a lookup of the RawMetrics field names.
@@ -300,6 +355,14 @@ func (fc *fileConfig) build() (*Config, error) {
 			continue
 		}
 		cfg.Thresholds = append(cfg.Thresholds, t)
+	}
+	if len(fc.Exemptions) > 0 {
+		cfg.Exemptions = make([]gate.Exemption, 0, len(fc.Exemptions))
+		for _, fe := range fc.Exemptions {
+			cfg.Exemptions = append(cfg.Exemptions, gate.Exemption{
+				Package: fe.Package, Metric: fe.Metric, Reason: fe.Reason, Expires: fe.Expires,
+			})
+		}
 	}
 	if err := fc.buildLanguages(cfg); err != nil {
 		errs = append(errs, err)

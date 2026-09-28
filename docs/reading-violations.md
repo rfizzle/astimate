@@ -11,11 +11,11 @@ violations:
 warnings:
   big
     tokens_est: 11000 -> 12800, max 16000. at 80% of the 16000 ceiling; plan a split before the next feature. The package is 12800 tokens of non-test source; split it so a rebuild fits one agent pass.
-tested: 1 violation, 0 warnings
-big: 0 violations, 1 warning
+tested: 1 violation, 0 warnings, 0 exempted
+big: 0 violations, 1 warning, 0 exempted
 ```
 
-Violations come first, then warnings, each grouped under the package directory, then one summary line per package (the `big` lines are illustrative). The summary line counts the findings and says `new since baseline` for a package the baseline lacks. It leaves out the rebuild estimate: until its parameters are calibrated (a `config_version` starting `rebuild-`), the estimate can contradict the gate, rating a duplicated package one pass while the gate asks for a split. Under a calibrated config the line leads with the agent passes and tier and ends with the change from the baseline, as in `tested: 0.1 passes (ONE_PASS), 1 violation, 0 warnings, +0.1 passes from baseline`. `astimate assess` and `rank` always show the estimate, labeled uncalibrated until then. Each finding line is `metric: baseline -> head, limit. suggestion`; a package new since the baseline shows `head (no baseline)` instead, and `changed_func_cognitive_max`, which is itself measured against the baseline, shows `head (changed since baseline)`. The suggestion names the identifiers or file lines to start with when the extractor knows them. The Claude Code hook sends the same findings, without the summary lines, as its `reason`; the JSON format carries the same fields as `violations` and `warnings` arrays.
+Violations come first, then warnings, then any exempted violations (see [Exemptions](#exemptions)), each grouped under the package directory, then one summary line per package (the `big` lines are illustrative). The summary line counts the findings and says `new since baseline` for a package the baseline lacks. It leaves out the rebuild estimate: until its parameters are calibrated (a `config_version` starting `rebuild-`), the estimate can contradict the gate, rating a duplicated package one pass while the gate asks for a split. Under a calibrated config the line leads with the agent passes and tier and ends with the change from the baseline, as in `tested: 0.1 passes (ONE_PASS), 1 violation, 0 warnings, 0 exempted, +0.1 passes from baseline`. `astimate assess` and `rank` always show the estimate, labeled uncalibrated until then. Each finding line is `metric: baseline -> head, limit. suggestion`; a package new since the baseline shows `head (no baseline)` instead, and `changed_func_cognitive_max`, which is itself measured against the baseline, shows `head (changed since baseline)`. The suggestion names the identifiers or file lines to start with when the extractor knows them. The Claude Code hook sends the same findings, without the summary lines, as its `reason`; the JSON format carries the same fields as `violations`, `warnings` and `exemptions` arrays.
 
 **Fix every violation; read the warnings.** Violations fail the gate (exit 3, or a block decision in the hook). Warnings never do: they say a package is approaching a size ceiling. Do not trade a violation for a warning, and do not spend the turn on warnings while a violation remains.
 
@@ -34,6 +34,22 @@ Fix in this order. Earlier fixes often clear later violations, and the later one
 **4. `max_nesting` and `cognitive_p90`.** Structural complexity. Return early instead of nesting `if` inside `if`, move the body of a deep loop into a named function, and split a function that does several things. `cognitive_p90` is the 90th percentile over the package's functions, so it moves when the most complex tenth of functions gets worse; simplify the function you just made hard to read rather than adding trivial functions to dilute the percentile. `changed_func_cognitive_max` catches the case the percentile misses: one function you added or modified since the baseline is past the ceiling on its own. The suggestion names it with its file and line; split it or flatten its branching. Editing only comments or formatting does not mark a function changed, and a legacy function you did not touch is never counted.
 
 **5. Capacity rules: `tokens_est`, `sloc`, `largest_file_sloc`, `exported_symbols`, `internal_imports`.** These measure how much code there is, not how it is written. A warning means "plan a split": the package is past `warn_at` of its ceiling and one more feature may breach it; say so in your summary so a person can schedule it, and keep going. A capacity violation means the package no longer fits one agent pass and must be split along a real boundary before the change lands: move a cohesive group of types and their functions into a new package, or split an oversized file by concern. Do not shrink the feature or compress the code to squeeze under the ceiling.
+
+## Exemptions
+
+A person can accept one rule's violation on one package by recording why in `astimate.yaml`:
+
+```yaml
+exemptions:
+  - package: internal/registry   # module-relative directory; . for the root package, <module> for the module row
+    metric: globals               # a metric some threshold gates
+    reason: the registry is process-wide by design; see ADR 12   # required
+    expires: 2026-12-31           # optional; the exemption applies through that day
+```
+
+An exempted violation does not fail the gate, but it never disappears: every format still reports it, with its reason. The text format lists it under `exempted:` after the warnings, each line ending `Exempted: <reason>`, and the summary line counts it (`K exempted`); the JSON report moves it from `violations` to an `exemptions` array whose entries add a `reason` (the array is empty, not absent, whenever a gate ran); the hook puts it in the block reason on failure and on stderr on success; and the GitHub format writes it as a `::notice` annotation. Warnings are never exempted, since they never fail. An exemption past its `expires` date is ignored, so the violation fails again, and a warning names it. `check --all` also warns about an exemption that matched no violation, on its package or, for a package the module no longer has, on `<module>`, so stale ones get removed; a check of the changed packages cannot tell and says nothing.
+
+If you are an agent, do not add, widen or extend an exemption to get past the gate: that is the same as editing a threshold. Exemptions are a person's decision, and the reason is there for the reviewer who reads it. Treat an exempted finding as settled and leave it alone.
 
 ## When the check itself fails
 

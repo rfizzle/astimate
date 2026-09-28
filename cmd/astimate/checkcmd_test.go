@@ -255,7 +255,7 @@ func TestCheckFixtures(t *testing.T) {
 				t.Parallel()
 
 				out, _ := check(t, formatText)
-				if !strings.Contains("\n"+out, "\n<module>: dup_blocks_cross_pkg 1, 0 violations, 0 warnings\n") {
+				if !strings.Contains("\n"+out, "\n<module>: dup_blocks_cross_pkg 1, 0 violations, 0 warnings, 0 exempted\n") {
 					t.Errorf("text has no module summary line:\n%s", out)
 				}
 				// The embedded default's rebuild estimate is uncalibrated,
@@ -416,7 +416,7 @@ func TestCheckCalibratedText(t *testing.T) {
 
 		uncal := check(t, formatText)
 		assertNoEstimate(t, uncal)
-		if !strings.Contains("\n"+uncal, "\ntested: 5 violations, 0 warnings\n") {
+		if !strings.Contains("\n"+uncal, "\ntested: 5 violations, 0 warnings, 0 exempted\n") {
 			t.Errorf("uncalibrated text has no plain summary line for tested:\n%s", uncal)
 		}
 		cal := check(t, formatText, "--config", cfg)

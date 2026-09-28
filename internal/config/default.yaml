@@ -220,3 +220,20 @@ languages:
         kind: capacity
         max: 2500
         warn_at: 0.75
+
+# Exemptions (optional; SPEC.md 8.6) accept one rule's violations on one
+# package, with the reason recorded beside them. An exempted violation does
+# not fail the gate, but every output format still reports it, as exempted,
+# with its reason. package is a directory relative to the module root (. for
+# the root package, <module> for the module row), metric a gated metric and
+# reason is required; expires, a YYYY-MM-DD date, is optional, and after that
+# day the exemption is ignored with a warning. Warnings are never exempted.
+# A check with --all warns about an exemption that matched no violation. A
+# languages override carries no exemptions; they apply to every language.
+# For example:
+#
+#   exemptions:
+#     - package: internal/registry
+#       metric: globals
+#       reason: the registry is process-wide by design; see ADR 12
+#       expires: 2026-12-31

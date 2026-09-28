@@ -74,14 +74,19 @@ func (c *Check) rows() []*CheckedPackage {
 }
 
 // ApplyGate records a gate outcome on r: the baseline block when base is
-// non-nil (a package new at head has none), the violations and warnings of
-// res, and the verdict.
+// non-nil (a package new at head has none), the violations, warnings and
+// exempted violations of res, and the verdict.
 func ApplyGate(r *Report, ref string, base *metrics.RawMetrics, res *gate.Result) {
 	if base != nil {
 		r.Baseline = &Baseline{Ref: ref, Metrics: *base}
 	}
 	r.Violations = findings(res.Violations)
 	r.Warnings = findings(res.Warnings)
+	r.Exemptions = make([]Exempted, 0, len(res.Exempted))
+	for i := range res.Exempted {
+		e := &res.Exempted[i]
+		r.Exemptions = append(r.Exemptions, Exempted{Finding: finding(&e.Violation), Reason: e.Reason})
+	}
 	passed := res.Passed
 	r.Passed = &passed
 }
@@ -116,23 +121,28 @@ func tokenizerNote(c *Check) string {
 func findings(vs []gate.Violation) []Finding {
 	out := make([]Finding, 0, len(vs))
 	for i := range vs {
-		v := &vs[i]
-		f := Finding{Metric: v.Metric, Head: v.Head, Limit: v.Limit, Suggestion: v.Suggestion}
-		if v.HasBase {
-			b := v.Base
-			f.Base = &b
-		}
-		out = append(out, f)
+		out = append(out, finding(&vs[i]))
 	}
 	return out
 }
 
+// finding converts one gate violation or warning to a report finding.
+func finding(v *gate.Violation) Finding {
+	f := Finding{Metric: v.Metric, Head: v.Head, Limit: v.Limit, Suggestion: v.Suggestion}
+	if v.HasBase {
+		b := v.Base
+		f.Base = &b
+	}
+	return f
+}
+
 // WriteCheckText writes c for a human reader: the violations, then the
-// warnings, each grouped under its package (the module row's first, under
-// its id, metrics.ModuleRowID), then one summary line for the module row
-// and one per package with its finding counts (writeSummary says when the
-// agent passes, tier and change from the baseline join them), and a final
-// line naming deleted packages.
+// warnings, then the exempted violations with their reasons, each grouped
+// under its package (the module row's first, under its id,
+// metrics.ModuleRowID), then one summary line for the module row and one
+// per package with its finding counts (writeSummary says when the agent
+// passes, tier and change from the baseline join them), and a final line
+// naming deleted packages.
 func WriteCheckText(w io.Writer, c *Check) error {
 	bw := bufio.NewWriter(w)
 	writeFindings(bw, c)
@@ -155,22 +165,31 @@ func WriteCheckText(w io.Writer, c *Check) error {
 }
 
 // writeFindings writes the violations section, then the warnings section,
-// the module row's findings under metrics.ModuleRowID and then each
-// package's under its directory; an empty section is left out.
+// then the exempted section, the module row's findings under
+// metrics.ModuleRowID and then each package's under its directory; an
+// empty section is left out. Each exempted line ends with its reason
+// (exemptedText), so no silenced finding is shown without it.
 func writeFindings(w *bufio.Writer, c *Check) {
 	sections := []struct {
 		title string
-		get   func(*Report) []Finding
+		lines func(*Report) []string
 	}{
-		{"violations", func(r *Report) []Finding { return r.Violations }},
-		{"warnings", func(r *Report) []Finding { return r.Warnings }},
+		{"violations", func(r *Report) []string { return findingLines(r.Violations) }},
+		{"warnings", func(r *Report) []string { return findingLines(r.Warnings) }},
+		{"exempted", func(r *Report) []string {
+			lines := make([]string, 0, len(r.Exemptions))
+			for j := range r.Exemptions {
+				lines = append(lines, exemptedText(&r.Exemptions[j]))
+			}
+			return lines
+		}},
 	}
 	for _, s := range sections {
 		header := false
 		for _, p := range c.rows() {
 			r := &p.Report
-			fs := s.get(r)
-			if len(fs) == 0 {
+			lines := s.lines(r)
+			if len(lines) == 0 {
 				continue
 			}
 			if !header {
@@ -178,15 +197,38 @@ func writeFindings(w *bufio.Writer, c *Check) {
 				header = true
 			}
 			_, _ = w.WriteString("  " + r.PackagePath + "\n")
-			for j := range fs {
-				_, _ = w.WriteString("    " + findingText(&fs[j]) + "\n")
+			for _, l := range lines {
+				_, _ = w.WriteString("    " + l + "\n")
 			}
 		}
 	}
 }
 
+// findingLines renders each of fs with findingText.
+func findingLines(fs []Finding) []string {
+	lines := make([]string, 0, len(fs))
+	for j := range fs {
+		lines = append(lines, findingText(&fs[j]))
+	}
+	return lines
+}
+
+// exemptedText renders an exempted violation as its finding line
+// (findingText) followed by "Exempted: <reason>".
+func exemptedText(e *Exempted) string {
+	return findingText(&e.Finding) + " Exempted: " + e.Reason
+}
+
+// findingCounts renders a row's finding counts: "N violations, M warnings,
+// K exempted".
+func findingCounts(r *Report) string {
+	return plural(len(r.Violations), "violation", "violations") + ", " +
+		plural(len(r.Warnings), "warning", "warnings") + ", " +
+		strconv.Itoa(len(r.Exemptions)) + " exempted"
+}
+
 // writeSummary writes one package's summary line: "<pkg>: N violations,
-// M warnings" and whether the package is new since the baseline. The agent
+// M warnings, K exempted" (findingCounts) and whether the package is new since the baseline. The agent
 // passes and tier lead the counts, and the change in agent passes from the
 // baseline follows them, only when the rebuild estimate is calibrated
 // (Rebuild.Calibrated): until then the estimate's invariants (SPEC.md 7.5)
@@ -201,8 +243,7 @@ func writeSummary(w *bufio.Writer, p *CheckedPackage) {
 		_, _ = w.WriteString(strconv.FormatFloat(r.Rebuild.AgentPasses, 'f', 1, 64) + " passes (" +
 			string(r.Rebuild.Tier) + "), ")
 	}
-	_, _ = w.WriteString(plural(len(r.Violations), "violation", "violations") + ", " +
-		plural(len(r.Warnings), "warning", "warnings"))
+	_, _ = w.WriteString(findingCounts(r))
 	switch {
 	case p.BaseAgentPasses == nil:
 		_, _ = w.WriteString(", new since baseline")
@@ -232,8 +273,7 @@ func writeModuleSummary(w *bufio.Writer, p *CheckedPackage) {
 		}
 		_, _ = w.WriteString(" " + name + " " + valueText(name, v) + ",")
 	}
-	_, _ = w.WriteString(" " + plural(len(r.Violations), "violation", "violations") + ", " +
-		plural(len(r.Warnings), "warning", "warnings"))
+	_, _ = w.WriteString(" " + findingCounts(r))
 	if r.Baseline == nil {
 		_, _ = w.WriteString(", new since baseline")
 	}
@@ -323,9 +363,10 @@ type hookBlock struct {
 
 // WriteHook writes the Claude Code Stop hook output (SPEC.md 8.5) to w:
 // {"decision":"block","reason":...} when any package has a violation, the
-// reason being the violations and warnings as text, and {} otherwise. When
-// the check passes, any warnings are written as text to warnings instead,
-// so w carries exactly one JSON object and nothing else. A baseline whose
+// reason being the violations, warnings and exempted violations, each of
+// the last with its reason, as text, and {} otherwise. When the check
+// passes, any warnings and exempted violations are written as text to
+// warnings instead, so w carries exactly one JSON object and nothing else. A baseline whose
 // token counts are not comparable adds a "warning: " line saying so.
 func WriteHook(w, warnings io.Writer, c *Check) error {
 	var text strings.Builder
@@ -363,8 +404,9 @@ func WriteHook(w, warnings io.Writer, c *Check) error {
 const githubModuleLead = "module: "
 
 // WriteGitHub writes GitHub Actions workflow commands (SPEC.md 8.5): one
-// "::error" annotation per violation and one "::warning" per warning,
-// package by package, with the property and message escaped per the
+// "::error" annotation per violation, one "::warning" per warning and one
+// "::notice" per exempted violation, whose message ends with the
+// exemption's reason (exemptedText), package by package, with the property and message escaped per the
 // workflow-command rules. A finding with a location (Finding.Location)
 // is annotated "file=<file>,line=<line>" on it, so it lands on the
 // line that caused it; a package finding without one is annotated
@@ -393,6 +435,10 @@ func WriteGitHub(w io.Writer, c *Check) error {
 		for j := range r.Warnings {
 			f := &r.Warnings[j]
 			_, _ = bw.WriteString("::warning" + c.findingProperty(prop, f) + "::" + escapeData(lead+findingText(f)) + "\n")
+		}
+		for j := range r.Exemptions {
+			e := &r.Exemptions[j]
+			_, _ = bw.WriteString("::notice" + c.findingProperty(prop, &e.Finding) + "::" + escapeData(lead+exemptedText(e)) + "\n")
 		}
 	}
 	if err := bw.Flush(); err != nil {

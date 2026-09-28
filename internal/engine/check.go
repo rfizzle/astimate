@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/rfizzle/astimate/internal/baseline"
 	"github.com/rfizzle/astimate/internal/config"
@@ -78,6 +79,9 @@ type CheckOptions struct {
 	// packages, in one run after extraction. The baseline is never
 	// measured, so coverage_pct is reported, never compared.
 	Coverage CoverageOptions
+	// Now is the time an exemption's expiry is judged at
+	// (gate.Exemption.Expired); the zero time means time.Now().
+	Now time.Time
 }
 
 // BaselineCache holds baselines already read or extracted, so repeated
@@ -178,6 +182,17 @@ func (c *BaselineCache) get(key string, load func() (baseline.Baseline, error)) 
 // use t's module root, and report paths are module-relative as always.
 // Errors, logged or returned, name paths relative to the module root
 // instead of the temporary copy (baseline.TreeRelative).
+//
+// The configured exemptions (config.Effective.Exemptions, SPEC.md 8.6) are
+// applied to every row after it is evaluated (gate.Exemptions.Apply): a
+// violation an unexpired exemption matches moves to the row's exempted
+// findings, located like the others, and the row's verdict is taken from
+// the violations left. Each exemption expired at opts.Now is ignored and
+// reported, in every check, as a warning on its row when the check has
+// that row, else in a warning log. A check with opts.All and no
+// opts.Packages judges every row, so it also reports each exemption that
+// matched no violation as stale (exemptionNotices); no other check can
+// tell, since the rows it did not select were never evaluated.
 func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, failed []error, err error) {
 	if opts.Base != "" && opts.BaselineFile != "" {
 		return nil, nil, ErrBaseAndBaselineFile
@@ -247,6 +262,11 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 	noFunctions := false
 	eff := t.langConfig()
 	pkgRules := gate.ForRow(eff.Thresholds, gate.PackageRow)
+	now := opts.Now
+	if now.IsZero() {
+		now = time.Now()
+	}
+	ex := gate.NewExemptions(eff.Exemptions, now)
 	extracted := make(map[string]*metrics.RawMetrics, len(selected))
 	order := make([]string, 0, len(selected))
 	for _, pkg := range selected {
@@ -263,7 +283,7 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 	}
 	measureCoverage(ctx, ht, opts.Coverage, extracted, order)
 	for _, pkg := range order {
-		p, unrecorded, err := checkPackage(ctx, ht, base, pkg, *extracted[pkg], eff, pkgRules)
+		p, unrecorded, err := checkPackage(ctx, ht, base, pkg, *extracted[pkg], eff, pkgRules, ex)
 		if err != nil {
 			err = baseline.TreeRelative(err, tmp)
 			path := modulePathRel(t.Mod.ModulePath, pkg)
@@ -278,17 +298,143 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 		logger.Info("rule skipped", "metric", "changed_func_cognitive_max",
 			"reason", "the baseline records no functions to diff; rewrite the baseline file with astimate baseline write")
 	}
+	moduleJudged := false
 	if mm, ok := t.Ext.(metrics.ModuleMetrics); ok && len(selected) > 0 {
-		m, err := checkModule(ctx, ht, mm, base, src.file != nil, opts.Packages, eff, gate.ForRow(eff.Thresholds, gate.ModuleRow))
+		m, judged, err := checkModule(ctx, ht, mm, base, src.file != nil, opts.Packages, eff, gate.ForRow(eff.Thresholds, gate.ModuleRow), ex)
 		if err != nil {
 			err = baseline.TreeRelative(err, tmp)
 			logger.Error("checking module row failed", "err", err)
 			failed = append(failed, &PackageError{Path: metrics.ModuleRowID, Err: err})
 		} else {
 			c.Module = &m
+			moduleJudged = judged
 		}
 	}
+	exemptionNotices(c, ex, exemptionScope{
+		all:          opts.All && len(opts.Packages) == 0,
+		rules:        eff.Thresholds,
+		failed:       failed,
+		moduleJudged: moduleJudged,
+	}, logger)
 	return c, failed, nil
+}
+
+// exemptionScope is what exemptionNotices needs to know about a check to
+// tell a stale exemption from one whose row it could not judge.
+type exemptionScope struct {
+	// all reports that the check judged every row of the module: --all,
+	// with no named packages.
+	all bool
+	// rules are the thresholds of the checked language.
+	rules []gate.Threshold
+	// failed are the rows that failed to extract (*PackageError).
+	failed []error
+	// moduleJudged reports that the module row was evaluated with its
+	// module-wide rules; false when the check has no module row or skipped
+	// those rules.
+	moduleJudged bool
+}
+
+// exemptionNotices reports the exemptions of ex that c ignored or did not
+// need, as warnings a reader sees in every format (SPEC.md 8.6):
+//
+//   - each exemption expired when ex was created is ignored, so the
+//     violation it would have silenced fails the gate; it is reported on
+//     its row when c has that row, and otherwise, since a check of other
+//     packages has nowhere to show it, in a warning log;
+//   - with scope.all, each unexpired exemption that matched no violation
+//     is stale and reported on its row, or, when the module has no such
+//     package, on the module row, the row about the module as a whole;
+//     without a module row it goes to a warning log.
+//
+// An exemption is not called stale when its row could not be judged: the
+// row failed to extract, the language gates no rule on its metric (one
+// config may serve modules of several languages), the metric is not
+// computed on the row, or it is on the module row and the check did not
+// evaluate that row's rules (scope.moduleJudged).
+func exemptionNotices(c *report.Check, ex *gate.Exemptions, scope exemptionScope, logger *slog.Logger) {
+	for _, e := range ex.Expired() {
+		text := "The exemption for " + e.Metric + " on " + e.Package + " expired on " + e.Expires +
+			" and no longer applies; fix the finding or renew the exemption with a new date. Its reason: " + e.Reason
+		if r := exemptionRow(c, e.Package); r != nil {
+			r.Warnings = append(r.Warnings, exemptionNotice(r, e.Metric, "exemption expired "+e.Expires, text))
+			continue
+		}
+		logger.Warn("exemption expired; ignored", "package", e.Package, "metric", e.Metric,
+			"expires", e.Expires, "reason", e.Reason)
+	}
+	if !scope.all {
+		return
+	}
+	failed := make(map[string]bool, len(scope.failed))
+	for _, err := range scope.failed {
+		var pe *PackageError
+		if errors.As(err, &pe) {
+			failed[pe.Path] = true
+		}
+	}
+	unknown := func(e gate.Exemption) bool {
+		if failed[e.Package] || !slices.ContainsFunc(scope.rules, func(r gate.Threshold) bool { return r.Metric == e.Metric }) {
+			return true
+		}
+		if e.Package == metrics.ModuleRowID && !scope.moduleJudged {
+			return true
+		}
+		if r := exemptionRow(c, e.Package); r != nil {
+			_, ok := r.Metrics.Value(e.Metric)
+			return !ok
+		}
+		return false
+	}
+	for _, e := range ex.Stale(unknown) {
+		text := "The exemption for " + e.Metric + " on " + e.Package + " matched no violation; remove it from the config. Its reason: " + e.Reason
+		r := exemptionRow(c, e.Package)
+		if r == nil {
+			text = "The exemption for " + e.Metric + " on " + e.Package + " matched no violation: the module has no such package. " +
+				"Remove it from the config. Its reason: " + e.Reason
+			if c.Module != nil {
+				r = &c.Module.Report
+			}
+		}
+		if r == nil {
+			logger.Warn("exemption matched no violation; remove it", "package", e.Package, "metric", e.Metric, "reason", e.Reason)
+			continue
+		}
+		r.Warnings = append(r.Warnings, exemptionNotice(r, e.Metric, "stale exemption", text))
+	}
+}
+
+// exemptionRow returns the report of c's row whose package path is pkg,
+// the module row for metrics.ModuleRowID, or nil when c has no such row.
+func exemptionRow(c *report.Check, pkg string) *report.Report {
+	if pkg == metrics.ModuleRowID {
+		if c.Module == nil {
+			return nil
+		}
+		return &c.Module.Report
+	}
+	for i := range c.Packages {
+		if c.Packages[i].Report.PackagePath == pkg {
+			return &c.Packages[i].Report
+		}
+	}
+	return nil
+}
+
+// exemptionNotice returns the warning an exemption notice is reported as on
+// r: metric with r's own head and baseline values of it, limit, and text as
+// its suggestion.
+func exemptionNotice(r *report.Report, metric, limit, text string) report.Finding {
+	f := report.Finding{Metric: metric, Limit: limit, Suggestion: text}
+	if v, ok := r.Metrics.Value(metric); ok {
+		f.Head = v
+	}
+	if r.Baseline != nil {
+		if v, ok := r.Baseline.Metrics.Value(metric); ok {
+			f.Base = &v
+		}
+	}
+	return f
 }
 
 // stagedTarget copies the git index of the repository holding t's module
@@ -596,12 +742,16 @@ func selectImporters(ctx context.Context, il metrics.ImporterLister, mod *metric
 // are not new: the rules are skipped for this run with one info log, and
 // the row's metrics are still reported. A baseline extracted from a commit
 // always has the row.
+//
+// ex's exemptions are applied to the row's result (gate.Exemptions.Apply).
+// judged reports that the module-wide rules were evaluated: false when
+// rules is empty or was skipped for a baseline file without the row.
 func checkModule(ctx context.Context, t *Target, mm metrics.ModuleMetrics, base baseline.Baseline, fromFile bool,
-	named []string, eff config.Effective, rules []gate.Threshold,
-) (report.CheckedPackage, error) {
+	named []string, eff config.Effective, rules []gate.Threshold, ex *gate.Exemptions,
+) (p report.CheckedPackage, judged bool, err error) {
 	m, err := mm.ModuleRow(ctx, t.Mod)
 	if err != nil {
-		return report.CheckedPackage{}, err
+		return report.CheckedPackage{}, false, err
 	}
 	logger := t.logger()
 	var bm *metrics.RawMetrics
@@ -613,7 +763,7 @@ func checkModule(ctx context.Context, t *Target, mm metrics.ModuleMetrics, base 
 	}
 	det, err := moduleDetails(ctx, t.Ext, t.Mod)
 	if err != nil {
-		return report.CheckedPackage{}, err
+		return report.CheckedPackage{}, false, err
 	}
 	names := score.Names{CrossBlocks: det.CrossBlocks}
 	gm, blame := m, (*crossBlame)(nil)
@@ -629,6 +779,7 @@ func checkModule(ctx context.Context, t *Target, mm metrics.ModuleMetrics, base 
 		return score.MetricSuggestion(metric, h, hm, names)
 	}
 	res := gate.Evaluate(gm, bm, rules, suggest)
+	ex.Apply(metrics.ModuleRowID, &res)
 	for _, n := range res.Notes {
 		logger.Info("rule skipped", "path", metrics.ModuleRowID, "metric", n.Metric, "reason", n.Text)
 	}
@@ -649,7 +800,7 @@ func checkModule(ctx context.Context, t *Target, mm metrics.ModuleMetrics, base 
 	}
 	locateCross(&r, located)
 	r.Details = t.details(&det)
-	return report.CheckedPackage{Report: r}, nil
+	return report.CheckedPackage{Report: r}, len(rules) > 0, nil
 }
 
 // moduleDetails returns the details behind the module row's counts, for
@@ -667,19 +818,17 @@ func moduleDetails(ctx context.Context, ext metrics.Extractor, mod *metrics.Modu
 	return det, nil
 }
 
-// locateCross locates r's dup_blocks_cross_pkg findings on the first
-// occurrence of the first of blocks, the one their suggestion names first,
-// so a renderer can annotate that file and line.
+// locateCross locates r's dup_blocks_cross_pkg findings, exempted ones
+// included, on the first occurrence of the first of blocks, the one their
+// suggestion names first, so a renderer can annotate that file and line.
 func locateCross(r *report.Report, blocks []metrics.CrossBlock) {
 	if len(blocks) == 0 || len(blocks[0].Occurrences) == 0 {
 		return
 	}
 	o := blocks[0].Occurrences[0]
-	for _, fs := range [][]report.Finding{r.Violations, r.Warnings} {
-		for i := range fs {
-			if fs[i].Metric == "dup_blocks_cross_pkg" {
-				fs[i].Location = &report.Location{File: o.File, Line: o.StartLine}
-			}
+	for _, f := range r.AllFindings() {
+		if f.Metric == "dup_blocks_cross_pkg" {
+			f.Location = &report.Location{File: o.File, Line: o.StartLine}
 		}
 	}
 }
@@ -690,9 +839,12 @@ func locateCross(r *report.Report, blocks []metrics.CrossBlock) {
 // has any, and rules, the configured thresholds that apply to a package
 // row, and builds its report with eff, the configuration of t's language,
 // its findings located where the extractor's details say (locateFindings).
-// unrecorded reports that the diff was skipped because base has pkg but no
-// functions for it.
-func checkPackage(ctx context.Context, t *Target, base baseline.Baseline, pkg string, m metrics.RawMetrics, eff config.Effective, rules []gate.Threshold) (p report.CheckedPackage, unrecorded bool, err error) {
+// ex's exemptions are applied to the result (gate.Exemptions.Apply) before
+// the report is built. unrecorded reports that the diff was skipped
+// because base has pkg but no functions for it.
+func checkPackage(ctx context.Context, t *Target, base baseline.Baseline, pkg string, m metrics.RawMetrics, eff config.Effective,
+	rules []gate.Threshold, ex *gate.Exemptions,
+) (p report.CheckedPackage, unrecorded bool, err error) {
 	det, err := packageDetails(ctx, t.Ext, t.Mod, pkg)
 	if err != nil {
 		return report.CheckedPackage{}, false, err
@@ -715,6 +867,7 @@ func checkPackage(ctx context.Context, t *Target, base baseline.Baseline, pkg st
 	}
 	res := gate.Evaluate(m, bm, rules, suggest)
 	path := modulePathRel(t.Mod.ModulePath, pkg)
+	ex.Apply(path, &res)
 	logger := t.logger()
 	for _, n := range res.Notes {
 		logger.Info("rule skipped", "path", path, "metric", n.Metric, "reason", n.Text)
@@ -833,7 +986,8 @@ func namesOf(d *metrics.Details) score.Names {
 	return score.Names{UntestedExports: d.UntestedExports, DupLocations: d.DupLocations, CrossBlocks: d.CrossBlocks, Globals: d.GlobalNames}
 }
 
-// locateFindings locates each of r's findings on the file and line that
+// locateFindings locates each of r's findings, exempted ones included, on
+// the file and line that
 // caused it, as far as d, the package's details, and worst, its most
 // complex changed function (nil when unknown), can say:
 //
@@ -852,11 +1006,9 @@ func namesOf(d *metrics.Details) score.Names {
 // candidate keeps no location, and renderers fall back to the package
 // directory.
 func locateFindings(r *report.Report, d *metrics.Details, worst *changedFunction) {
-	for _, fs := range [][]report.Finding{r.Violations, r.Warnings} {
-		for i := range fs {
-			if pos := findingPosition(fs[i].Metric, d, worst); pos.File != "" {
-				fs[i].Location = &report.Location{File: path.Join(r.PackagePath, pos.File), Line: pos.Line}
-			}
+	for _, f := range r.AllFindings() {
+		if pos := findingPosition(f.Metric, d, worst); pos.File != "" {
+			f.Location = &report.Location{File: path.Join(r.PackagePath, pos.File), Line: pos.Line}
 		}
 	}
 }

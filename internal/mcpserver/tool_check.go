@@ -28,7 +28,9 @@ const checkToolDescription = "Run the astimate quality gate on one Go package yo
 	"fix them and call it again until it passes. Violations of module-wide rules, such as code " +
 	"newly copied between this package and another, are in the module block and fail the check " +
 	"too; their suggestion names the packages sharing each copy. Copies between two other " +
-	"packages do not fail it. Warnings do not fail the gate. Do not call it on " +
+	"packages do not fail it. Warnings do not fail the gate. Findings under exemptions were silenced by " +
+	"an exemption a person recorded in the configuration, with its reason; they do not fail the gate, " +
+	"and you must not add or widen exemptions to make a check pass. Do not call it on " +
 	"packages you did not touch. The baseline is the merge-base of HEAD and the default branch " +
 	"unless base or baseline_file says otherwise. Before a partial commit, pass staged: true to " +
 	"judge what the git index holds rather than the working tree."
@@ -59,11 +61,12 @@ type CheckResult struct {
 	// the whole call.
 	report.Report
 	// Module is the module row's report (SPEC.md 8.1), package path
-	// "<module>", with its own violations, warnings and passed; absent when
-	// the extractor has no module row. A cross-package copy made in the
-	// checked package is a violation here, not in the package's report; a
-	// copy between two other packages is counted in its metrics but is not
-	// a violation (engine.Check with CheckOptions.Packages).
+	// "<module>", with its own violations, warnings, exemptions and passed;
+	// absent when the extractor has no module row. A cross-package copy
+	// made in the checked package is a violation here, not in the
+	// package's report; a copy between two other packages is counted in
+	// its metrics but is not a violation (engine.Check with
+	// CheckOptions.Packages).
 	Module *report.Report `json:"module,omitempty"`
 }
 
@@ -195,19 +198,30 @@ func checkResult(c *report.Check) *CheckResult {
 
 // checkText renders the one-package check c for the agent: a verdict line
 // saying what to do next, then the check's text report, which lists the
-// module row's findings under "<module>" as the CLI's text format does.
+// module row's findings under "<module>" and each exempted violation with
+// its reason, as the CLI's text format does. When exemptions silenced any
+// violation, the verdict line says how many.
 func checkText(c *report.Check) (string, error) {
 	r := &c.Packages[0].Report
+	exempted := len(r.Exemptions)
+	if c.Module != nil {
+		exempted += len(c.Module.Report.Exemptions)
+	}
 	var b strings.Builder
 	if c.Failed() {
 		b.WriteString("FAILED: " + r.PackagePath + " has " + strconv.Itoa(len(r.Violations)) + " violation(s)")
 		if c.Module != nil && len(c.Module.Report.Violations) > 0 {
 			b.WriteString(" and the module row has " + strconv.Itoa(len(c.Module.Report.Violations)))
 		}
-		b.WriteString(". Fix each one below, then call " + checkToolName + " again.\n")
+		b.WriteString(". Fix each one below, then call " + checkToolName + " again.")
 	} else {
-		b.WriteString("PASSED: " + r.PackagePath + " is no worse than its baseline.\n")
+		b.WriteString("PASSED: " + r.PackagePath + " is no worse than its baseline.")
 	}
+	if exempted > 0 {
+		b.WriteString(" " + strconv.Itoa(exempted) + " violation(s) are exempted by the configuration and listed " +
+			"under exempted with their reasons; they do not fail the gate.")
+	}
+	b.WriteString("\n")
 	if err := report.WriteCheckText(&b, c); err != nil {
 		return "", err
 	}

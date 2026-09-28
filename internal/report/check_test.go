@@ -105,10 +105,10 @@ func TestWriteCheckText(t *testing.T) {
 		version string
 		summary string
 	}{
-		{uncalibratedVersion, "internal/billing: 2 violations, 1 warning\n" +
-			"big: 0 violations, 1 warning, new since baseline\n"},
-		{calibratedVersion, "internal/billing: 0.0 passes (ONE_PASS), 2 violations, 1 warning, -0.1 passes from baseline\n" +
-			"big: 1.0 passes (ONE_PASS), 0 violations, 1 warning, new since baseline\n"},
+		{uncalibratedVersion, "internal/billing: 2 violations, 1 warning, 0 exempted\n" +
+			"big: 0 violations, 1 warning, 0 exempted, new since baseline\n"},
+		{calibratedVersion, "internal/billing: 0.0 passes (ONE_PASS), 2 violations, 1 warning, 0 exempted, -0.1 passes from baseline\n" +
+			"big: 1.0 passes (ONE_PASS), 0 violations, 1 warning, 0 exempted, new since baseline\n"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.version, func(t *testing.T) {
@@ -174,7 +174,7 @@ func TestWriteCheckTextUncalibratedSummary(t *testing.T) {
 	if err := WriteCheckText(&buf, passingCheck()); err != nil {
 		t.Fatal(err)
 	}
-	if want := ".: 0 violations, 0 warnings\n"; buf.String() != want {
+	if want := ".: 0 violations, 0 warnings, 0 exempted\n"; buf.String() != want {
 		t.Errorf("text = %q, want %q", buf.String(), want)
 	}
 }

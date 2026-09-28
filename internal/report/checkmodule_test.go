@@ -42,7 +42,7 @@ func TestCheckModuleRow(t *testing.T) {
 		if !strings.HasPrefix(buf.String(), want) {
 			t.Errorf("text =\n%s\nwant it to start with\n%s", buf.String(), want)
 		}
-		summary := "\n<module>: dup_blocks_cross_pkg 2, 1 violation, 0 warnings\ninternal/billing: "
+		summary := "\n<module>: dup_blocks_cross_pkg 2, 1 violation, 0 warnings, 0 exempted\ninternal/billing: "
 		if !strings.Contains(buf.String(), summary) {
 			t.Errorf("text =\n%s\nwant the module summary line before the packages'", buf.String())
 		}
@@ -55,7 +55,7 @@ func TestCheckModuleRow(t *testing.T) {
 		if err := WriteCheckText(&buf, c); err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(buf.String(), "\n<module>: dup_blocks_cross_pkg 2, 1 violation, 0 warnings, new since baseline\n") {
+		if !strings.Contains(buf.String(), "\n<module>: dup_blocks_cross_pkg 2, 1 violation, 0 warnings, 0 exempted, new since baseline\n") {
 			t.Errorf("text =\n%s\nwant the module row marked new since baseline", buf.String())
 		}
 	})

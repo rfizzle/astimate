@@ -12,6 +12,14 @@ history.
 
 ### Added
 
+- Exemptions: an `exemptions:` list in the config accepts one rule's
+  violations on one package (`package`, `metric`, a required `reason` and an
+  optional `expires` date). An exempted violation does not fail the gate but
+  is still reported with its reason in every format: an `exempted:` text
+  section, a JSON `exemptions` array (empty when a gate ran and none matched),
+  the hook reason or stderr, and a GitHub `::notice`; summary lines count them.
+  An expired exemption is ignored with a warning, and `check --all` warns about
+  one that matched nothing.
 - Rebuild runner: `go run ./calibration/rebuild run --live` runs each rebuild
   experiment against Claude Code in a fresh clone and writes one JSONL row per
   run with the measured tokens, turns, wall time and oracle outcome beside the
@@ -26,6 +34,8 @@ history.
 
 ### Changed
 
+- `check` summary lines count exempted violations after the warnings:
+  `<pkg>: N violations, M warnings, K exempted`.
 - SPEC: `fan_in` is documented as unproven and outside the rebuild formula, the
   capacity ceilings no longer claim to ensure one pass, section 4 citations were
   checked against their abstracts, and milestone M8 was added.

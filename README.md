@@ -198,14 +198,14 @@ violations:
     duplication_pct: 0 -> 12.2, max_delta +6. 1 duplicate block covers 12.2% of lines; extract shared helpers, starting with degraded.go:15-20.
     globals: 0 -> 1, max_delta +0. 1 package-level variable holds state no signature reveals (joins); pass it explicitly or move it into a struct.
     untested_exports: 0 -> 1, max_delta +0. 1 exported function has no test (JoinAgain); a rebuild would have to reverse-engineer its behavior.
-<module>: dup_blocks_cross_pkg 1, 0 violations, 0 warnings
-a: 0 violations, 0 warnings
-b: 0 violations, 0 warnings
-dupes: 0 violations, 0 warnings
-hidden: 0 violations, 0 warnings
-hub: 0 violations, 0 warnings
-tested: 5 violations, 0 warnings
-trivial: 0 violations, 0 warnings
+<module>: dup_blocks_cross_pkg 1, 0 violations, 0 warnings, 0 exempted
+a: 0 violations, 0 warnings, 0 exempted
+b: 0 violations, 0 warnings, 0 exempted
+dupes: 0 violations, 0 warnings, 0 exempted
+hidden: 0 violations, 0 warnings, 0 exempted
+hub: 0 violations, 0 warnings, 0 exempted
+tested: 5 violations, 0 warnings, 0 exempted
+trivial: 0 violations, 0 warnings, 0 exempted
 $ echo $?
 3
 ```

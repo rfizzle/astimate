@@ -34,9 +34,14 @@ type Report struct {
 	// Violations are the failed gate rules: nil (omitted) when no gate ran,
 	// non-nil and possibly empty (an empty array) when one did.
 	Violations []Finding `json:"violations,omitzero"`
-	// Warnings are the non-failing capacity findings, nil or non-nil as for
-	// Violations.
+	// Warnings are the non-failing findings, nil or non-nil as for
+	// Violations: capacity warnings, and the notices of an exemption that
+	// expired or matched nothing (SPEC.md 8.6).
 	Warnings []Finding `json:"warnings,omitzero"`
+	// Exemptions are the violations an exemption silenced, each with the
+	// exemption's reason (SPEC.md 8.6), nil or non-nil as for Violations.
+	// They do not fail the gate.
+	Exemptions []Exempted `json:"exemptions,omitzero"`
 	// Passed is the gate verdict; nil when no gate ran.
 	Passed *bool `json:"passed,omitempty"`
 	// Details names and locates what some of the metrics count, from the
@@ -95,7 +100,8 @@ type Baseline struct {
 	TokensComparable bool `json:"tokens_comparable"`
 }
 
-// Finding is one gate violation or warning.
+// Finding is one gate violation or warning, or the violation an Exempted
+// carries.
 type Finding struct {
 	// Metric is the RawMetrics JSON field name.
 	Metric string `json:"metric"`
@@ -114,6 +120,31 @@ type Finding struct {
 	// the finding has no location; a package finding is then located by
 	// its package path.
 	Location *Location `json:"location,omitempty"`
+}
+
+// Exempted is a violation an exemption silenced: the finding it would
+// have been, and the exemption's reason.
+type Exempted struct {
+	Finding
+	// Reason is the exemption's recorded reason.
+	Reason string `json:"reason"`
+}
+
+// AllFindings returns pointers to r's violations, warnings and exempted
+// findings, in that order, for callers that annotate them in place, such
+// as by setting their Location.
+func (r *Report) AllFindings() []*Finding {
+	out := make([]*Finding, 0, len(r.Violations)+len(r.Warnings)+len(r.Exemptions))
+	for i := range r.Violations {
+		out = append(out, &r.Violations[i])
+	}
+	for i := range r.Warnings {
+		out = append(out, &r.Warnings[i])
+	}
+	for i := range r.Exemptions {
+		out = append(out, &r.Exemptions[i].Finding)
+	}
+	return out
 }
 
 // Location is a place in a module's source.
