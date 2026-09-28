@@ -10,6 +10,12 @@ history.
 
 ## [Unreleased]
 
+### Added
+
+- `duplication.split_literal_runs` (default off) cuts duplicate blocks at
+  literal-only runs of at least `min_tokens`, so literal tables joined by
+  their declaration headers stop counting as duplication.
+
 ### Changed
 
 - The text report's estimate line now reads `(estimate from uncalibrated

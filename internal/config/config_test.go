@@ -210,6 +210,10 @@ const defaultDupSection = `duplication:
   # numeric literal as part of the literal, so tables of negative numbers
   # are data too. Matching is unchanged.
   fold_signs: true
+  # Under ignore_literal_only, also cut each block at every run of at least
+  # min_tokens literal-only tokens and keep the parts of at least min_tokens,
+  # so tables that declaration headers join into one block are data too.
+  split_literal_runs: false
 `
 
 func TestParseDuplication(t *testing.T) {
