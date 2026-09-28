@@ -154,3 +154,37 @@ func TestReplayed(t *testing.T) {
 		t.Fatal("Replayed of a directory without commits.jsonl succeeded")
 	}
 }
+
+// TestAstimateLabels checks the hand labels of this repository's history,
+// astimate.yaml, against the replay data directory it names: one entry per
+// replayed commit with a verdict and a reason, every one a hand label
+// (proposed or confirmed, never rule, and without rule evidence) that says
+// whether the commit is agent-written, and a rule text saying how the
+// labels were drafted.
+func TestAstimateLabels(t *testing.T) {
+	const repoRoot = "../../.."
+	f, err := Load("astimate.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f.Source.Repository != "." || f.Source.Range == "" || f.Source.Data == "" || f.Rule == "" {
+		t.Fatalf("source %+v and rule %q: want repository \".\", a range, a data directory and a rule text", f.Source, f.Rule)
+	}
+	replayed, err := Replayed(filepath.Join(repoRoot, f.Source.Data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Validate(replayed); err != nil {
+		t.Fatal(err)
+	}
+	if last := replayed[len(replayed)-1]; f.Source.Range != last {
+		t.Errorf("range %q, want the last replayed commit %s", f.Source.Range, last)
+	}
+	for i := range f.Commits {
+		l := &f.Commits[i]
+		if (l.Provenance != Proposed && l.Provenance != Confirmed) || l.Agent == nil || len(l.Fired) > 0 {
+			t.Errorf("label %s: provenance %s, agent %v, %d rule evidence entries; want a hand label with agent set",
+				l.Hash, l.Provenance, l.Agent, len(l.Fired))
+		}
+	}
+}

@@ -1,0 +1,1186 @@
+source:
+  repository: .
+  range: 5e8c77757b1bc1374331c468e311a7bf1e95ac24
+  data: calibration/data/replay-astimate-2026-09-28
+rule: 'none: hand-drafted judgments awaiting the user''s confirmation (provenance proposed). block when the change was later fixed up or reverted because of a defect it introduced (the revert-and-fix-up rule''s evidence, kept only where reading both commits confirmed it), when it took a package over a capacity ceiling or added 100 or more SLOC to one already over, and a later commit had to split that package, or when it copied code that a later commit had to extract; allow otherwise, including legitimate growth. The gate''s own verdict was not used.'
+commits:
+  - hash: e40cfabb469058f2127356c877516879f4ff785c
+    verdict: allow
+    reason: 'predates the module: a document change made before go.mod existed, nothing to gate'
+    provenance: proposed
+    agent: true
+  - hash: a58c6209e0fb21b5b1571c029773e9075161dd0f
+    verdict: allow
+    reason: 'predates the module: a repository file change made before go.mod existed, nothing to gate'
+    provenance: proposed
+    agent: true
+  - hash: b641a5987bdb1d1b0ee3c543b640e1c1843c296a
+    verdict: allow
+    reason: 'predates the module: a document change made before go.mod existed, nothing to gate'
+    provenance: proposed
+    agent: true
+  - hash: cf70ea3f03d1d6818ea163b741a6482fc8519bd9
+    verdict: allow
+    reason: 'predates the module: a document change made before go.mod existed, nothing to gate'
+    provenance: proposed
+    agent: true
+  - hash: ee45fa65f8c1720e9626f2d11e2ae5d33d734a09
+    verdict: allow
+    reason: 'predates the module: a document change made before go.mod existed, nothing to gate'
+    provenance: proposed
+    agent: true
+  - hash: f5a7e161cfda6504bfa46da70748090a8dcfa41f
+    verdict: allow
+    reason: 'predates the module: a document change made before go.mod existed, nothing to gate'
+    provenance: proposed
+    agent: true
+  - hash: 43622336f18754344b753affce2c6a9e0f59b4de
+    verdict: allow
+    reason: 'predates the module: a document change made before go.mod existed, nothing to gate'
+    provenance: proposed
+    agent: true
+  - hash: 97debce4a841c09b144e55376427d799f6f76e82
+    verdict: allow
+    reason: 'predates the module: a document change made before go.mod existed, nothing to gate'
+    provenance: proposed
+    agent: true
+  - hash: e5a22bc4ea31e542e55417989731616dfb5a450f
+    verdict: allow
+    reason: build tooling (+236/-0); no package made harder to maintain
+    provenance: proposed
+    agent: true
+  - hash: 339a8724dfe5353d966104c781d4cc712103c8b0
+    verdict: allow
+    reason: repository housekeeping only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: bde93d4d7b91fb944b117919d6e20647e874aafa
+    verdict: allow
+    reason: legitimate growth (+610/-8) with tests; no copy-paste needing extraction; no new mutable package state; no ceiling crossed; the new package-level vars are ldflags build info and an embedded default config
+    provenance: proposed
+    agent: true
+  - hash: f295dd4fc923e3fd5c8d24108c9e8a2f9b822c80
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 935049916babdf2e8be1558d2afa1d8e00c8acaa
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 78ea92a11eeabc190c3a67f68d186804825d8a7e
+    verdict: allow
+    reason: adds tests and test support (+808/-0); legitimate growth with no production copy-paste or new state
+    provenance: proposed
+    agent: true
+  - hash: c5564d82cbbbdd4e21e9f748de662e3a11ba2864
+    verdict: block
+    reason: lands internal/metrics with 6 duplicate blocks of per-field code (delta, value and validation switches over every metric), replaced by one field table in 9843e5c after the replayed range
+    metrics:
+      - dup_blocks
+      - duplication_pct
+    provenance: proposed
+    agent: true
+  - hash: 382fe38347d79f58af279d7f3a4ea27cc84e20af
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: e456a2458a27522c13f4a1ba32781940ae915af5
+    verdict: allow
+    reason: adds tests and test support (+724/-0); legitimate growth with no production copy-paste or new state
+    provenance: proposed
+    agent: true
+  - hash: 4bf8009202abe2c12a3735fa4e3b865be4e7e01f
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: f3bd7df1627be302b77cf06104fa21894a20e27e
+    verdict: allow
+    reason: legitimate growth (+939/-74) with tests; 3 new duplicate blocks by the gate's count, not judged copy-paste worth blocking; no new mutable package state; no ceiling crossed
+    provenance: proposed
+    agent: true
+  - hash: 6f5feb31892f3ceb3264d06474feff729e6f2245
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 2de8c5b0a371899b10efde6f150758782b74d8ec
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 3349b446bcd24dd6696fa4b4f4b3598de46e2abf
+    verdict: allow
+    reason: legitimate growth (+432/-2) with tests; 2 new duplicate blocks by the gate's count, not judged copy-paste worth blocking; no new mutable package state; no ceiling crossed
+    provenance: proposed
+    agent: true
+  - hash: 827795fd431e273a817ef194e16c2d281ce2f452
+    verdict: allow
+    reason: legitimate growth (+721/-42) with tests; no copy-paste needing extraction; no new mutable package state; no ceiling crossed
+    provenance: proposed
+    agent: true
+  - hash: e9d44d279448f00e50861bc2fbcde0e9fa10e44d
+    verdict: allow
+    reason: legitimate growth (+646/-6) with tests; no copy-paste needing extraction; no new mutable package state; no ceiling crossed
+    provenance: proposed
+    agent: true
+  - hash: 23b641f4b8638506d31fd9666aea7334d100a393
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: a9befb553627c23d480f41155b0f6d550532ca04
+    verdict: allow
+    reason: legitimate growth (+272/-0) with tests; no copy-paste needing extraction; no new mutable package state; no ceiling crossed
+    provenance: proposed
+    agent: true
+  - hash: 2b4c71514c80b9c3fa50467328b95fe16af38ccf
+    verdict: allow
+    reason: legitimate growth (+239/-0) with tests; no copy-paste needing extraction; no new mutable package state; no ceiling crossed
+    provenance: proposed
+    agent: true
+  - hash: c4fe11a645010b4dcb6cc162b218c42757086bca
+    verdict: allow
+    reason: legitimate growth (+330/-0) with tests; no copy-paste needing extraction; no new mutable package state; no ceiling crossed
+    provenance: proposed
+    agent: true
+  - hash: 8a725f95d0ed0a9f20cb93147eca9ba395c9f44f
+    verdict: allow
+    reason: legitimate growth (+402/-0) with tests; 1 new duplicate block by the gate's count, not judged copy-paste worth blocking; no new mutable package state; no ceiling crossed
+    provenance: proposed
+    agent: true
+  - hash: 15d7d83bc61fa528210e6172766a641942bcdaca
+    verdict: allow
+    reason: legitimate growth (+281/-0) with tests; no copy-paste needing extraction; no new mutable package state; no ceiling crossed
+    provenance: proposed
+    agent: true
+  - hash: 52ac174de586e547f0dc30b888138bb38d3080c4
+    verdict: allow
+    reason: legitimate growth (+277/-0) with tests; 1 new duplicate block by the gate's count, not judged copy-paste worth blocking; no new mutable package state; no ceiling crossed
+    provenance: proposed
+    agent: true
+  - hash: 7bfd9b5dc0aafdf0c9dfe00a41d4aa3be7a9ee84
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: a932f2c510778cb64412eb328acdde7192b2c6cf
+    verdict: allow
+    reason: legitimate growth (+445/-1) with tests; 1 new duplicate block by the gate's count, not judged copy-paste worth blocking; no new mutable package state; no ceiling crossed
+    provenance: proposed
+    agent: true
+  - hash: faccda158ffb470af7e01239336a9e25b24394a7
+    verdict: block
+    reason: 'fixed up by 8cd4c35 19 commits later in the function it added (untested.go markTestRefs): the untested-export detection reported methods of generic types reached through an interface as untested'
+    provenance: proposed
+    agent: true
+  - hash: 44f2806fa91108398c1c49960082ad0c20cacfed
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: aaac1fa4a4ece3998cc51e0a851405176b5c5d06
+    verdict: allow
+    reason: build tooling (+80/-1); no package made harder to maintain; build info injection; the vars were already there
+    provenance: proposed
+    agent: true
+  - hash: 635a95abdf727dc9436414af348196bcb4d28cda
+    verdict: block
+    reason: 'fixed up by 716fe75 3 commits later in evaluator.density: ratcheting every density rule from zero failed any realistic new package on max_nesting and cognitive_p90'
+    provenance: proposed
+    agent: true
+  - hash: b6a1d0d14a2556bc1d6ca9b1847b6f4b61c33911
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: a13cfa26f341618d2c25f8942f5f056175ec9690
+    verdict: block
+    reason: takes internal/lang/golang over the sloc (965 to 1,328) and tokens_est (12,748 to 17,635) ceilings with a 363-line duplication.go; the package was split into internal packages by 9a10fd6
+    metrics:
+      - sloc
+      - tokens_est
+    provenance: proposed
+    agent: true
+  - hash: 716fe754a927fd45b044811e33d2952fc3604bf3
+    verdict: allow
+    reason: a targeted fix (+129/-33) with tests; no copy-paste needing extraction; no new mutable package state; no ceiling crossed
+    provenance: proposed
+    agent: true
+  - hash: 91aac48a91327c0757c7087cd7728613c73d51a2
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 0fcfd6b5f4d2d45847c55998a0dbadd4bf2d92c4
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 2fca91e37101f98fcf1c1fbe837588fb6923cec1
+    verdict: block
+    reason: adds 125 SLOC to internal/lang/golang, already over both ceilings (1,453 SLOC, 19,539 tokens after), the package split into internal packages by 9a10fd6
+    metrics:
+      - sloc
+      - tokens_est
+    provenance: proposed
+    agent: true
+  - hash: 162ce754bafbf0783ae19359300ad687a3f711c3
+    verdict: allow
+    reason: legitimate growth (+82/-0) with tests; no copy-paste needing extraction; no new mutable package state; grows internal/lang/golang (split by 9a10fd6), already over a ceiling, by under the 100 SLOC this draft blocks at
+    provenance: proposed
+    agent: true
+  - hash: 688b5ea2e5649d638823570cf0c8f7b0af667ded
+    verdict: block
+    reason: assess command copies the flag-set, usage, positional-argument and logger setup of the existing commands (3 duplicate blocks in cmd/astimate), extracted as newFlagSet, moduleRoot and newLogger by 9843e5c
+    metrics:
+      - dup_blocks
+      - duplication_pct
+    provenance: proposed
+    agent: true
+  - hash: b5be5a6bcda6a83c5ee9403f587b5857a5c87bbf
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 626682bf62183f03675a408c23e1437d98a73108
+    verdict: allow
+    reason: a performance change (+261/-53) with tests; no copy-paste needing extraction; no new mutable package state; grows internal/lang/golang (split by 9a10fd6), already over a ceiling, by under the 100 SLOC this draft blocks at
+    provenance: proposed
+    agent: true
+  - hash: 1102d041147c8625b701c3c5ceec8ab9e005b3da
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 29661137732d609665fd79b6e263ffe340f2d507
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: e10a0f5465bfa77768563ee28dfc294b542c53b6
+    verdict: block
+    reason: rank command repeats assess's flag-set, usage, root-argument, tokenizer check and logger setup (cmd/astimate duplicate blocks 3 to 6), extracted by 9843e5c after the replayed range
+    metrics:
+      - dup_blocks
+    provenance: proposed
+    agent: true
+  - hash: 399af8c2c9524eef4c9b33c799371168ea9fb51e
+    verdict: block
+    reason: baseline command repeats the same per-command flag and root handling (cmd/astimate duplicate blocks 6 to 9, duplication 12.6% to 22.7%), extracted by 9843e5c after the replayed range
+    metrics:
+      - dup_blocks
+      - duplication_pct
+    provenance: proposed
+    agent: true
+  - hash: 3c19af6106b7fbcde038430ced1eedc584f52764
+    verdict: allow
+    reason: legitimate growth (+387/-10) with tests; 2 new duplicate blocks by the gate's count, not judged copy-paste worth blocking; no new mutable package state; grows internal/lang/golang (split by 9a10fd6), already over a ceiling, by under the 100 SLOC this draft blocks at
+    provenance: proposed
+    agent: true
+  - hash: 8cd4c35cd41f99d5ea92beaffe653bfe61a57385
+    verdict: allow
+    reason: a targeted fix (+101/-6) with tests; 1 new duplicate block by the gate's count, not judged copy-paste worth blocking; no new mutable package state; grows internal/lang/golang (split by 9a10fd6), already over a ceiling, by under the 100 SLOC this draft blocks at; the rule's fix-up match (be9ac98 in markTestRefs) handles a different, older gap, generic test helpers, not a defect this fix introduced
+    provenance: proposed
+    agent: true
+  - hash: 5042e37caa7eb7dca4b167a46f5145057f52136f
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: b37de2c6760c27bfed0612e0805ba38018cc7204
+    verdict: allow
+    reason: legitimate growth (+340/-0) with tests; no copy-paste needing extraction; no new mutable package state; no ceiling crossed
+    provenance: proposed
+    agent: true
+  - hash: 41dd6468df1b749968063781627ad7db119cb7c9
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 2aa3b3cfbb5c8cdf713fc3cd826cc6a4d54565e6
+    verdict: allow
+    reason: legitimate growth (+49/-0) with tests; no copy-paste needing extraction; no new mutable package state; no ceiling crossed
+    provenance: proposed
+    agent: true
+  - hash: b241edcec1530c7c02b8fa910f5d4b84e0f7688c
+    verdict: block
+    reason: 'fixed up by d7cf439 10 commits later in load.go index: loading dependencies from export data made a missing C compiler or a read-only GOCACHE fail with errors that hid the cause'
+    provenance: proposed
+    agent: true
+  - hash: d7b08559bd0c386438ad263bb2d6174d445def65
+    verdict: allow
+    reason: legitimate growth (+360/-13) with tests; no copy-paste needing extraction; no new mutable package state; grows internal/lang/golang (split by 9a10fd6), already over a ceiling, by under the 100 SLOC this draft blocks at
+    provenance: proposed
+    agent: true
+  - hash: 8d255664b7836d5e6fa60468bfaa564e71ad141b
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: be9ac98ec99232e6d5de357c29dc2f34711bb853
+    verdict: block
+    reason: fixed up by 02d4dec 20 commits later in the genericHelpers and helperReceivers it added (nested helpers and generic test types still missed); also adds 217 SLOC and 2 duplicate blocks to internal/lang/golang, already at 1,651 SLOC (1.65x the ceiling), the package split into internal packages by 9a10fd6
+    metrics:
+      - sloc
+      - tokens_est
+    provenance: proposed
+    agent: true
+  - hash: ef8480f3fd4ac362987b1b18cc43946133fe1110
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 662f7f93a3d0d347e6a2f7780adf50624e4b6be4
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 49adff2ebf276c1c1702b8e1b09ca785458ee900
+    verdict: block
+    reason: check command repeats the per-command flag, tokenizer and logger handling (cmd/astimate duplicate blocks 9 to 13), extracted by 9843e5c after the replayed range
+    metrics:
+      - dup_blocks
+    provenance: proposed
+    agent: true
+  - hash: 14c13b6f16091d0d6e7c70e24801a0c295d14362
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 7db060b4b27a1bc1eb8646fd4f217b84f8a2d526
+    verdict: allow
+    reason: legitimate growth (+554/-19) with tests; no copy-paste needing extraction; no new mutable package state; grows internal/lang/golang (split by 9a10fd6), already over a ceiling, by under the 100 SLOC this draft blocks at; the rule's fix-up match (1532219 in dupStreamOf) fixes cgo-generated syntax, unrelated to sign folding
+    provenance: proposed
+    agent: true
+  - hash: 55d45c2491a3b441f54d54d9aa41cee9181c6332
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: d7cf439a731c53015ef857937e4cda9288bbda3b
+    verdict: allow
+    reason: a targeted fix (+476/-3) with tests; no copy-paste needing extraction; no new mutable package state; grows internal/lang/golang (split by 9a10fd6), already over a ceiling, by under the 100 SLOC this draft blocks at; the rule's fix-up match (1532219 in loadModule) fixes cgo-generated syntax counted since 827795f, not this error-naming change
+    provenance: proposed
+    agent: true
+  - hash: 8915b8927077605de15d8f28066692d9e2c13169
+    verdict: block
+    reason: serve command repeats the per-command flag-set, usage and argument handling (cmd/astimate duplicate blocks 13 to 16), extracted by 9843e5c after the replayed range
+    metrics:
+      - dup_blocks
+    provenance: proposed
+    agent: true
+  - hash: 8d89444726969c2bc2ecc4d6c1af784d9dbb70a0
+    verdict: allow
+    reason: adds tests and test support (+816/-0); legitimate growth with no production copy-paste or new state
+    provenance: proposed
+    agent: true
+  - hash: 4d348015046d9b6f00ddaf33caa8d791b3687839
+    verdict: allow
+    reason: documentation change; its Go edits are tests, doc comments, config defaults or explain text
+    provenance: proposed
+    agent: true
+  - hash: 1683e94a1dba8dd213353f5dc2f055982092406d
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 3c818cb4498704680ac431109ad51b3149b44aca
+    verdict: allow
+    reason: a targeted fix (+87/-26) with tests; no copy-paste needing extraction; no new mutable package state; no ceiling crossed
+    provenance: proposed
+    agent: true
+  - hash: 2251316cdafef8464455067baf9830235fc27445
+    verdict: allow
+    reason: refactor (+1099/-606) that leaves no package materially harder to maintain; a refactor that moves orchestration out of cmd/astimate into internal/engine and removes duplicate blocks there; engine's new globals are sentinel errors
+    provenance: proposed
+    agent: true
+  - hash: f44bea4fb2dffe8bf13b4ef65d5d78ef9b5430b0
+    verdict: allow
+    reason: legitimate growth (+503/-0) with tests; no copy-paste needing extraction; no new mutable package state; no ceiling crossed
+    provenance: proposed
+    agent: true
+  - hash: 1532219735cee62f37a83446b441dd72bef20400
+    verdict: allow
+    reason: a targeted fix (+279/-9) with tests; no copy-paste needing extraction; no new mutable package state; grows internal/lang/golang (split by 9a10fd6), already over a ceiling, by under the 100 SLOC this draft blocks at
+    provenance: proposed
+    agent: true
+  - hash: f1edae7f851de5eb4942ba78f0b76664a74497c8
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 348af5868c164300f35ddeaba04f62a9e2b061fc
+    verdict: allow
+    reason: legitimate growth (+218/-58) with tests; no copy-paste needing extraction; no new mutable package state; no ceiling crossed
+    provenance: proposed
+    agent: true
+  - hash: 5dd71adeb708eaeebf15fe1a651991b45ef44ea9
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 9ba46b77b02fc44dd5097a175c29ac1e48e183fb
+    verdict: allow
+    reason: release tooling only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 02d4dec9246bba7cbba5e78be8caea2a31e10349
+    verdict: allow
+    reason: a targeted fix (+240/-46) with tests; no copy-paste needing extraction; no new mutable package state; grows internal/lang/golang (split by 9a10fd6), already over a ceiling, by under the 100 SLOC this draft blocks at; extends generic dispatch rather than copying it
+    provenance: proposed
+    agent: true
+  - hash: 6a3ccc5feb96bc82fe3934f97afe4ca37552d166
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 1a42ce081c52e162d131d013683162d889c7fa69
+    verdict: allow
+    reason: legitimate growth (+1097/-30) with tests; 1 new duplicate block by the gate's count, not judged copy-paste worth blocking; no new mutable package state; no ceiling crossed; new globals are sentinel errors; internal/engine is still under its ceilings (478 SLOC)
+    provenance: proposed
+    agent: true
+  - hash: 8a6c0fefd446020567258280ec9d134558b1f5ec
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 0ca9db5c8eae4280feeb13e49a7056f0c29cd788
+    verdict: allow
+    reason: legitimate growth (+1868/-0) with tests; no copy-paste needing extraction; no new mutable package state; no ceiling crossed; a new calibration command under its ceilings; its one global is a sentinel error
+    provenance: proposed
+    agent: true
+  - hash: 499b8b2eb754b68ab33a6c43ef07c381b3b20b9c
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 29f89f7c991f63c0b9869b9c05837ce68aa220ed
+    verdict: allow
+    reason: legitimate growth (+306/-4) with tests; 2 new duplicate blocks by the gate's count, not judged copy-paste worth blocking; no new mutable package state; no ceiling crossed
+    provenance: proposed
+    agent: true
+  - hash: 68327d38b84aa2368859f240f7b53136e3091f37
+    verdict: allow
+    reason: legitimate growth (+271/-13) with tests; 1 new duplicate block by the gate's count, not judged copy-paste worth blocking; no new mutable package state; no ceiling crossed
+    provenance: proposed
+    agent: true
+  - hash: 97c79be93790b12a3b5c54dbecdd73fbb3a28d29
+    verdict: allow
+    reason: legitimate growth (+152/-11) with tests; no copy-paste needing extraction; no new mutable package state; no ceiling crossed
+    provenance: proposed
+    agent: true
+  - hash: e28074920074db2026476b09d73e50914280f044
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 143de6ac3869d9d71c3b3c9e5a6e076b7d44d8de
+    verdict: allow
+    reason: a targeted fix (+67/-10) with tests; no copy-paste needing extraction; no new mutable package state; no ceiling crossed
+    provenance: proposed
+    agent: true
+  - hash: e36f071c6c2c3594ac7e59a27cb7f723b4a6c69f
+    verdict: allow
+    reason: documentation change; its Go edits are tests, doc comments, config defaults or explain text
+    provenance: proposed
+    agent: true
+  - hash: f9418c1f024dc6c3579bf3167118b568086386aa
+    verdict: allow
+    reason: legitimate growth (+215/-40) with tests; no copy-paste needing extraction; no new mutable package state; no ceiling crossed
+    provenance: proposed
+    agent: true
+  - hash: 529f952e1b75dafc69351a7980c908d3226b3dc9
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 8e892bcfc4f0cd46758c416328e3282753385bfd
+    verdict: allow
+    reason: build tooling only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 5e351a870f1168c13202f8a467d9f059ba972c49
+    verdict: block
+    reason: 'fixed up by b26f5b6 19 commits later in the skip reasons it added (load.go skipReason, index): test-only packages were reported as excluded by build constraints; also adds 105 SLOC to internal/lang/golang at 2.2x the sloc ceiling, the package split into internal packages by 9a10fd6'
+    metrics:
+      - sloc
+      - tokens_est
+    provenance: proposed
+    agent: true
+  - hash: dd6fc811bbd30b0a78710158fe6cab2d14dab4d8
+    verdict: allow
+    reason: legitimate growth (+243/-1) with tests; no copy-paste needing extraction; no new mutable package state; grows internal/lang/golang (split by 9a10fd6), already over a ceiling, by under the 100 SLOC this draft blocks at
+    provenance: proposed
+    agent: true
+  - hash: b69ea5f55e752a210f74d8f2d19fab4f026a0efd
+    verdict: block
+    reason: grows internal/metrics duplicate blocks from 6 to 17 by adding three metrics to every per-field switch and a per-field explain table, the repetition 9843e5c replaced with one field table after the replayed range
+    metrics:
+      - dup_blocks
+    provenance: proposed
+    agent: true
+  - hash: 25094909c3ea0da365cd1cf9f1d70ae8d18450be
+    verdict: block
+    reason: adds 117 SLOC to internal/lang/golang at 2.4x the sloc ceiling (2,440 SLOC, 35,828 tokens after), the package split into internal packages by 9a10fd6
+    metrics:
+      - sloc
+      - tokens_est
+    provenance: proposed
+    agent: true
+  - hash: cb7fd8ac156a06d2a289e9b43ac69e6fca811776
+    verdict: allow
+    reason: legitimate growth (+328/-1) with tests; 2 new duplicate blocks by the gate's count, not judged copy-paste worth blocking; no new mutable package state; no ceiling crossed
+    provenance: proposed
+    agent: true
+  - hash: c7e543edc5cba9d2adcf7b8ea9138357f962d24b
+    verdict: allow
+    reason: documentation change; its Go edits are tests, doc comments, config defaults or explain text
+    provenance: proposed
+    agent: true
+  - hash: 61b34f88078a2f04ece7f5f88d5775721c4cc7f2
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 8432ed15d41729adb6f3f36bf964dbcf9ed3c22e
+    verdict: allow
+    reason: adds tests and test support (+557/-15); legitimate growth with no production copy-paste or new state
+    provenance: proposed
+    agent: true
+  - hash: d7b88310960a89fde3f686acfa4e5f33f64e5126
+    verdict: allow
+    reason: legitimate growth (+1719/-0) with tests; 5 new duplicate blocks by the gate's count, not judged copy-paste worth blocking; no new mutable package state; no ceiling crossed; a new calibration command under its ceilings, with tests
+    provenance: proposed
+    agent: true
+  - hash: d3d9249636d28b2e44277c275c9de743aafc1184
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: aa71b7c307ad3dbb4c0e7a72dc1631efdc4a669a
+    verdict: allow
+    reason: CI configuration only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: ea33c1d6d423331e0a0532f284d8155024d200fd
+    verdict: allow
+    reason: CI configuration only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 2f4de4c584f8315a9c58865d31219a65ec95cdd3
+    verdict: block
+    reason: adds 165 SLOC to internal/lang/golang at 2.6x the sloc ceiling, the package split into internal packages by 9a10fd6; its module row id "module" collided with a root package named module until 4f5b236 reserved <module>
+    metrics:
+      - sloc
+      - tokens_est
+    provenance: proposed
+    agent: true
+  - hash: f8734e19cb2715b07c6e2e3e9daf6833c3c44dd5
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 3c514d8d003fee7333aa6e30e80bc0166dcfc09d
+    verdict: allow
+    reason: CI configuration only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 66b5a08911a4a23197e1ce5db843f2b1e7c17df3
+    verdict: block
+    reason: fixed up by 3f01734 11 commits later in resolver.classify, kindOf and readTSConfig (directories without an index and non-TypeScript files counted as internal imports); lands internal/lang/typescript new at 1,650 SLOC and 20,922 tokens (1.65x and 1.3x the ceilings), split into resolve, inspect and walk by 46ffb57; and writes duptok as a second copy of the Go duplicate finder, unified 38 commits later by 4132fa0
+    metrics:
+      - sloc
+      - tokens_est
+      - dup_blocks_cross_pkg
+    provenance: proposed
+    agent: true
+  - hash: c76181d602d988de646b3ce4d1303b0ce614d972
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: aba8507095a7b270986c4553b5a8b728bfb4d2d8
+    verdict: allow
+    reason: build tooling only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: a4231124817169ec531fcff1e051c7258eeea12c
+    verdict: allow
+    reason: build tooling only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: b26f5b6f908c694f4c243e0980f9ac75a3cb86a7
+    verdict: allow
+    reason: a targeted fix (+193/-9) with tests; no copy-paste needing extraction; no new mutable package state; grows internal/lang/golang (split by 9a10fd6), already over a ceiling, by under the 100 SLOC this draft blocks at
+    provenance: proposed
+    agent: true
+  - hash: 3780c6d4182b90e05dcb6b35fdc649c6bd9291b7
+    verdict: allow
+    reason: adds tests and test support (+99/-3); legitimate growth with no production copy-paste or new state
+    provenance: proposed
+    agent: true
+  - hash: 0328a56c2a3e0672f85a951f14847a55c50d2442
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: bec9d62f502f629a6617c6e6208062c18c09f855
+    verdict: allow
+    reason: CI configuration only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 2b0a3208154190be020720ecb9c6d2bda2fb6b25
+    verdict: block
+    reason: fixed up by 3f01734 3 commits later in the readTSConfig and resolveExtends it changed (extends ignored package exports and ${configDir}); also adds 180 SLOC to internal/lang/typescript, already at 1.65x the sloc ceiling, the package split into resolve, inspect and walk by 46ffb57
+    metrics:
+      - sloc
+      - tokens_est
+    provenance: proposed
+    agent: true
+  - hash: bab46e74c339a93190df42d35220e8fd299231fd
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 3f1f41b23ebfaa57c19c02519ca10781690f2559
+    verdict: allow
+    reason: build tooling only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 3f01734275fc180ee49d540efdd765054b3545cd
+    verdict: block
+    reason: adds 165 SLOC to internal/lang/typescript at 2.0x the sloc ceiling (1,995 SLOC, 25,974 tokens after), the package split into resolve, inspect and walk by 46ffb57
+    metrics:
+      - sloc
+      - tokens_est
+    provenance: proposed
+    agent: true
+  - hash: 95a6d9000152e607b334425e5c6fa3318a4b83cb
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 6e8312f3a315f0ef308f3808152d270213bf5785
+    verdict: block
+    reason: adds 241 SLOC to internal/lang/golang at 2.9x the sloc ceiling (2,870 SLOC, 42,449 tokens after), the package split into internal packages by 9a10fd6; the rule's fix-up match (cc7a0d1 in assemble) is an unrelated fan-in fix
+    metrics:
+      - sloc
+      - tokens_est
+    provenance: proposed
+    agent: true
+  - hash: 63a4b98bf48fe771f6bf2d9bbec303f00c5dc059
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: beadbfd43e08d1508d18cfbc6890ee2284ead542
+    verdict: allow
+    reason: legitimate growth (+40/-6) with tests; no copy-paste needing extraction; no new mutable package state; grows internal/lang/typescript (split by 46ffb57), already over a ceiling, by under the 100 SLOC this draft blocks at
+    provenance: proposed
+    agent: true
+  - hash: 15c281e27ba39b3ba52b80a12b352c79570c0582
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 783a96152ed1656f139645d5ff4179996c5aeab7
+    verdict: allow
+    reason: a targeted fix (+54/-5) with tests; no copy-paste needing extraction; no new mutable package state; no ceiling crossed
+    provenance: proposed
+    agent: true
+  - hash: 91ccc8226866bb3bdf37d3f365f0bb2c1c3f6913
+    verdict: allow
+    reason: refactor (+37/-41) that leaves no package materially harder to maintain; a refactor sharing sentinels; the rule's fix-up match (cc7a0d1 in ExtractStdlib) changes how the standard library is parsed, unrelated
+    provenance: proposed
+    agent: true
+  - hash: cc7a0d1ee57b98c40520faced6de7dda60c8577e
+    verdict: allow
+    reason: a targeted fix (+530/-176) with tests; 1 new duplicate block by the gate's count, not judged copy-paste worth blocking; no new mutable package state; grows internal/lang/golang (split by 9a10fd6), already over a ceiling, by under the 100 SLOC this draft blocks at; the rule's fix-up match (c937d9b in assemble and roundRatio) moves the rounding helper to internal/metrics to share it with TypeScript, not a defect here
+    provenance: proposed
+    agent: true
+  - hash: 97a282983031495e03d0ed0a21cebd8f7bbaf7b8
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 4ac37dcc9c466b1b7a96b6ed874607c323bfaaf6
+    verdict: block
+    reason: 'fixed up by d8b029c 18 commits later in the hasMarker and inNestedModule it wrote: any directory read error, a permission error included, read as "no module marker"'
+    provenance: proposed
+    agent: true
+  - hash: a8d3002001e2280743013d879d7f66382e7c8b38
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 566d78a9c09e478698da6e314000173bfd338cb0
+    verdict: allow
+    reason: adds tests and test support (+472/-29); legitimate growth with no production copy-paste or new state
+    provenance: proposed
+    agent: true
+  - hash: 01101b0657b04bcc7a29a90693ab1edb85820f32
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: c9eeb905922d4c912fe93cbb81a31e65d272f8ee
+    verdict: allow
+    reason: legitimate growth (+228/-25) with tests; no copy-paste needing extraction; no new mutable package state; no ceiling crossed; the rule's fix-up match (ac4470c in Check) handles baseline files written before the module row existed, which predates this change
+    provenance: proposed
+    agent: true
+  - hash: 7f67606c21e32624ad936e0c97d41a74116249a4
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 482a623c37a510cfff4b273bbb1f4c459c235832
+    verdict: allow
+    reason: legitimate growth (+597/-58) with tests; no copy-paste needing extraction; no new mutable package state; no ceiling crossed; the rule's fix-up match (ac4470c in Check) is the old-baseline-file case, unrelated to --staged
+    provenance: proposed
+    agent: true
+  - hash: c4d3fe13f47342795936f036b4d7ddb2df70cea6
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: c937d9b2566ef9e81cde5c0e7b52e3600b34e573
+    verdict: allow
+    reason: a targeted fix (+132/-41) with tests; no copy-paste needing extraction; no new mutable package state; grows internal/lang/typescript (split by 46ffb57), already over a ceiling, by under the 100 SLOC this draft blocks at
+    provenance: proposed
+    agent: true
+  - hash: bb4561a49620261c8381b7b2144950343ae095a7
+    verdict: allow
+    reason: legitimate growth (+108/-11) with tests; no copy-paste needing extraction; no new mutable package state; grows internal/lang/typescript (split by 46ffb57), already over a ceiling, by under the 100 SLOC this draft blocks at
+    provenance: proposed
+    agent: true
+  - hash: 69e72501e35ff6218a06a62f4115a905ac57488c
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 80cf58ac62bfdcfcbb94cdfa38a8b62d4667ada2
+    verdict: allow
+    reason: legitimate growth (+832/-84) with tests; 1 new duplicate block by the gate's count, not judged copy-paste worth blocking; no new mutable package state; no ceiling crossed; the rule's fix-up match (ac4470c in Check) is the old-baseline-file case, unrelated to per-language overrides
+    provenance: proposed
+    agent: true
+  - hash: d15d19a0739f195373ca9d24814d79f6d2be1e23
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: ccda62e8c78edfaab94239adfe0f5f1244b4df34
+    verdict: allow
+    reason: legitimate growth (+403/-91) with tests; 1 new duplicate block by the gate's count, not judged copy-paste worth blocking; no new mutable package state; grows internal/lang/typescript (split by 46ffb57), already over a ceiling, by under the 100 SLOC this draft blocks at
+    provenance: proposed
+    agent: true
+  - hash: c98874a1cd4b0a04e92f1450aad3c87f9a7af727
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: ac4470ce6a86fd3c0d0dc7e3dc63a29202bb5371
+    verdict: allow
+    reason: a targeted fix (+108/-17) with tests; no copy-paste needing extraction; no new mutable package state; no ceiling crossed; the rule's fix-up match (3dd5d66 in Check) rewrites temporary paths in errors, unrelated
+    provenance: proposed
+    agent: true
+  - hash: 9e6ccd9bbaa1180ec8f2ec53d2c03b302ea93a0d
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 4132fa0b3cb957629edcd279c4918f1e5592707f
+    verdict: allow
+    reason: refactor (+463/-1243) that leaves no package materially harder to maintain; a refactor that removes the Go extractor's copy of the duplicate finder (1,243 lines deleted)
+    provenance: proposed
+    agent: true
+  - hash: d8b029c4bba3a793612456920fb863b905eb6b0d
+    verdict: allow
+    reason: a targeted fix (+75/-14) with tests; 1 new duplicate block by the gate's count, not judged copy-paste worth blocking; no new mutable package state; no ceiling crossed
+    provenance: proposed
+    agent: true
+  - hash: 598146b4ec851fd718a1229191d6be713b8add60
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 183df46b7c68c72e58acccff0a79ed01c23cf011
+    verdict: allow
+    reason: legitimate growth (+270/-40) with tests; no copy-paste needing extraction; no new mutable package state; no ceiling crossed; the rule's fix-up match (3dd5d66 in Check) rewrites temporary paths in errors, unrelated
+    provenance: proposed
+    agent: true
+  - hash: 01718bb9a2e2cd9785c87a6f0c96830ca4a2999c
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: d9f721ff187878c77f161d99d3c271142b68b1da
+    verdict: allow
+    reason: legitimate growth (+88/-4) with tests; no copy-paste needing extraction; no new mutable package state; no ceiling crossed
+    provenance: proposed
+    agent: true
+  - hash: 27998bfb8bf633752a8446696ffdc69a838560d1
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 09146a4acaaf3ec8cf88920506505459933610d7
+    verdict: allow
+    reason: legitimate growth (+529/-71) with tests; 2 new duplicate blocks by the gate's count, not judged copy-paste worth blocking; no new mutable package state; grows internal/lang/golang (split by 9a10fd6), already over a ceiling, by under the 100 SLOC this draft blocks at; the rule's fix-up match (4f5b236 in WriteGitHub) renames the module row id introduced by 2f4de4c, not by this commit
+    provenance: proposed
+    agent: true
+  - hash: 7c90b602a4401017f96e5b284b8ac00c342ac915
+    verdict: block
+    reason: takes internal/lang/typescript/walk.go over the largest_file_sloc ceiling (581 to 609) while adding 88 SLOC to a package at 2.2x the sloc ceiling, split into resolve, inspect and walk by 46ffb57
+    metrics:
+      - largest_file_sloc
+      - sloc
+      - tokens_est
+    provenance: proposed
+    agent: true
+  - hash: 51d6ec478ff2fb9a097ff794381487bb0a44456e
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 3dd5d664aa9f102132f25c2706da0b330c2086b4
+    verdict: allow
+    reason: a targeted fix (+257/-4) with tests; no copy-paste needing extraction; no new mutable package state; no ceiling crossed
+    provenance: proposed
+    agent: true
+  - hash: d54d36434398cd2eb9dd43d3b5fa39d67673733d
+    verdict: allow
+    reason: legitimate growth (+514/-10) with tests; no copy-paste needing extraction; no new mutable package state; no ceiling crossed
+    provenance: proposed
+    agent: true
+  - hash: 5e8a7a360ab01fc56cb4d36d997976f41fa5441c
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: a45e781af0dda55fa526a2c5c8c394cf0d14c61e
+    verdict: allow
+    reason: legitimate growth (+838/-48) with tests; 2 new duplicate blocks by the gate's count, not judged copy-paste worth blocking; no new mutable package state; grows internal/lang/golang (split by 9a10fd6), already over a ceiling, by under the 100 SLOC this draft blocks at; the rule's fix-up match (4f5b236 in WriteGitHub and WriteHook) renames the module row id introduced by 2f4de4c, not by this commit
+    provenance: proposed
+    agent: true
+  - hash: 02199d105b46ce5cfdeccd07a9ed758bb9b4881e
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: e1623a40c91089e819051fb8257189d7ac17c1b8
+    verdict: block
+    reason: takes internal/engine over the sloc (980 to 1,001) and tokens_est (15,956 to 16,335) ceilings; engine was split by 9843e5c after the replayed range (internal/engine/internal/judge)
+    metrics:
+      - sloc
+      - tokens_est
+    provenance: proposed
+    agent: true
+  - hash: 0ca8aa281c6f5a9d4475ece362ed66c0d6edeb77
+    verdict: allow
+    reason: legitimate growth (+450/-18) with tests; 4 new duplicate blocks by the gate's count, not judged copy-paste worth blocking; no new mutable package state; grows internal/engine (split after the range) and internal/lang/golang (split by 9a10fd6) and internal/lang/typescript (split by 46ffb57), already over a ceiling, by under the 100 SLOC this draft blocks at
+    provenance: proposed
+    agent: true
+  - hash: f70aa8664bfb04f8e4296e4f334b4528266a877b
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: e7de35a2cd8df7773dce81fb1822e4486f40b7c9
+    verdict: allow
+    reason: a targeted fix (+102/-38) with tests; 3 new duplicate blocks by the gate's count, not judged copy-paste worth blocking; no new mutable package state; grows internal/lang/typescript (split by 46ffb57), already over a ceiling, by under the 100 SLOC this draft blocks at; the new duplicate blocks are rows of an extension table, data rather than copied logic
+    provenance: proposed
+    agent: true
+  - hash: 99c74e59f5750c9813aca14514d74f32884accc8
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 4749e47e20edc4083cd3505449eb4119eb5ea5f6
+    verdict: allow
+    reason: adds tests and test support (+387/-15); legitimate growth with no production copy-paste or new state
+    provenance: proposed
+    agent: true
+  - hash: 9dae722b2d0677262efb4f374d3ba34feea45e78
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: e420e4c777169839d9e893187285f6cabf77f2e6
+    verdict: allow
+    reason: legitimate growth (+492/-60) with tests; 2 new duplicate blocks by the gate's count, not judged copy-paste worth blocking; no new mutable package state; grows internal/engine (split after the range), already over a ceiling, by under the 100 SLOC this draft blocks at
+    provenance: proposed
+    agent: true
+  - hash: 3067932e3b04670bdd463b9359a4ca56c9f2ad2d
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 4e108f92daa4a74a23a878973ab3bf8a7c66470b
+    verdict: allow
+    reason: legitimate growth (+126/-15) with tests; no copy-paste needing extraction; no new mutable package state; grows internal/lang/typescript (split by 46ffb57), already over a ceiling, by under the 100 SLOC this draft blocks at
+    provenance: proposed
+    agent: true
+  - hash: 91ee7a6dd17cd21c6fb5c779edc8ae361d48233f
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: e3bc939a866709509af758f10aca6ba6132fcbea
+    verdict: allow
+    reason: legitimate growth (+224/-71) with tests; 1 new duplicate block by the gate's count, not judged copy-paste worth blocking; no new mutable package state; grows internal/lang/typescript (split by 46ffb57), already over a ceiling, by under the 100 SLOC this draft blocks at
+    provenance: proposed
+    agent: true
+  - hash: 4f5b2367b0964fcf18da01ed677f367eb366c8f0
+    verdict: block
+    reason: 'fixed up by e25b497 4 commits later in WriteCheckJSON and WriteHook: it disabled HTML escaping by repeating the encoder setup in two writers and left assess and rank JSON escaped; e25b497 extracted one shared encoder'
+    provenance: proposed
+    agent: true
+  - hash: b5020d627d36d32191f3f352c11ba2fb830b8a8d
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 3f6294f07299e5bc8763c82e28bf791eb231e3cb
+    verdict: block
+    reason: takes internal/engine/check.go over the largest_file_sloc ceiling (588 to 627) in a package already over sloc and tokens_est; engine was split by 9843e5c after the replayed range
+    metrics:
+      - largest_file_sloc
+    provenance: proposed
+    agent: true
+  - hash: 44497c02d7ac9ba63bfd49c0cceb04bc5f483af9
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: e25b497c9ee35aafe351e6e79f76c4f405507244
+    verdict: allow
+    reason: a targeted fix (+93/-15) with tests; no copy-paste needing extraction; no new mutable package state; no ceiling crossed
+    provenance: proposed
+    agent: true
+  - hash: 8eaa6f08395a07558a2ba1a6b88dd0ba56c242b7
+    verdict: allow
+    reason: legitimate growth (+199/-24) with tests; 3 new duplicate blocks by the gate's count, not judged copy-paste worth blocking; no new mutable package state; grows internal/lang/golang (split by 9a10fd6) and internal/lang/typescript (split by 46ffb57), already over a ceiling, by under the 100 SLOC this draft blocks at
+    provenance: proposed
+    agent: true
+  - hash: cfa7bdf04ed5816ae91eeae2d8cce5b3ab5e1df4
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: ab2d63092c09fcefd800738fb56b95e039a4133f
+    verdict: block
+    reason: adds 166 SLOC to internal/lang/golang at 3.0x the sloc ceiling, split into internal packages by 9a10fd6, and 83 SLOC and 4 duplicate blocks to internal/engine, already over both ceilings, split by 9843e5c after the replayed range
+    metrics:
+      - sloc
+      - tokens_est
+    provenance: proposed
+    agent: true
+  - hash: e3e6f96e9dc37f73b69134cce7817749c9968faa
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 60522272417aeb9092bcc4bda675c0d3a97ecc20
+    verdict: block
+    reason: takes internal/metrics over the tokens_est ceiling (15,942 to 16,716) on top of per-field code 42% duplicated, which 9843e5c after the replayed range replaced with one field table
+    metrics:
+      - tokens_est
+    provenance: proposed
+    agent: true
+  - hash: fdde4364b8b3d24c236a8fb97fe0bdae2dda13a1
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: f64280f09c977400318d028f8011795244154828
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: ab67ac398b760962096228e3e695d7fcc3f75d3d
+    verdict: allow
+    reason: calibration data only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: a44e6de981853712292f1603527c3f78abc6105f
+    verdict: allow
+    reason: legitimate growth (+1183/-118) with tests; no copy-paste needing extraction; no new mutable package state; no ceiling crossed
+    provenance: proposed
+    agent: true
+  - hash: c703b18b13fd0c5b8cd974bcb73237eb99b3a6f2
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 3d497445b90f419af884cd27728767fa9c6e98da
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 7bc9c4d20dba27085303f88af0bc98c967734fdf
+    verdict: allow
+    reason: CI configuration only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 95441659e94d9d6c5e1cff666037bd2fe172eee0
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: db80420c4928f68e948214c619926d33b37342a9
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 1945d9f0dc48e5180e12b2431474c672c7a392ea
+    verdict: allow
+    reason: CI configuration only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 1da2995af00a722425b595c0e227fd7c4e6c90cc
+    verdict: allow
+    reason: a targeted fix (+24/-14) with tests; no copy-paste needing extraction; no new mutable package state; no ceiling crossed
+    provenance: proposed
+    agent: true
+  - hash: 8eea3d2467677e9f2746f7e8a86d31b732dcff5c
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 176ca48f37fc1c054a56e1a945a6f30def86de76
+    verdict: allow
+    reason: adds tests and test support (+917/-12); legitimate growth with no production copy-paste or new state; test measurements restored over duptok; the one untested export is a test helper in a test-support package
+    provenance: proposed
+    agent: true
+  - hash: 94bc679c4249a2a7d0cf57ae55a0ea08fcef473f
+    verdict: allow
+    reason: legitimate growth (+3722/-125) with tests; 7 new duplicate blocks by the gate's count, not judged copy-paste worth blocking; no new mutable package state; grows internal/lang/golang (split by 9a10fd6), already over a ceiling, by under the 100 SLOC this draft blocks at; grows calibration/fit to 877 SLOC, under its ceilings; its new duplicate blocks are per-rule report rows
+    provenance: proposed
+    agent: true
+  - hash: 7fd4a455c97bab5a40e754afee2a439a35a64d52
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: b1612df77056eeb8aa6b97af23a4614598bd1204
+    verdict: allow
+    reason: legitimate growth (+583/-30) with tests; 2 new duplicate blocks by the gate's count, not judged copy-paste worth blocking; no new mutable package state; grows internal/engine (split after the range) and internal/lang/golang (split by 9a10fd6) and internal/lang/typescript (split by 46ffb57), already over a ceiling, by under the 100 SLOC this draft blocks at
+    provenance: proposed
+    agent: true
+  - hash: 7d08de0a5e38941403372c49b83197c06307893f
+    verdict: allow
+    reason: documentation change; its Go edits are tests, doc comments, config defaults or explain text
+    provenance: proposed
+    agent: true
+  - hash: 5ae2fbbd38b5b80cca8ac747a65dacf8b88d77ba
+    verdict: allow
+    reason: legitimate growth (+1120/-112) with tests; no copy-paste needing extraction; no new mutable package state; no ceiling crossed; grows calibration/fit and collect, both still under their ceilings
+    provenance: proposed
+    agent: true
+  - hash: 7cf8cef0992cc2797ba1d73efa3c4a71d40b89f4
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: d3458881437684284c89038a06c5135894800121
+    verdict: block
+    reason: lands calibration/rebuild new at 1,036 SLOC, over the sloc ceiling; the package was split by 9843e5c after the replayed range
+    metrics:
+      - sloc
+    provenance: proposed
+    agent: true
+  - hash: 1d8c6d8b327439f9ff1fc42faa8af0035c30b08d
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: b8fd067ef65d7753bb9620587606de4afd7fbbf3
+    verdict: block
+    reason: takes calibration/fit over the sloc (961 to 1,278) and tokens_est (13,517 to 18,299) ceilings and calibration/collect over sloc (778 to 1,008); both were split by 9843e5c after the replayed range
+    metrics:
+      - sloc
+      - tokens_est
+    provenance: proposed
+    agent: true
+  - hash: cdf66cc345bbb717b267acf3b46173198f7259ed
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 9da995ad51622a252f920ba19e60268d348ae605
+    verdict: block
+    reason: doubles calibration/rebuild to 2,077 SLOC and 29,022 tokens (2.1x and 1.8x the ceilings) with a 553-line file; the package was split by 9843e5c after the replayed range into six internal packages
+    metrics:
+      - sloc
+      - tokens_est
+    provenance: proposed
+    agent: true
+  - hash: 8e63e0deb20e10f737087b9baabb14498a05b930
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 39b2de0ac1fec4a48010fae8ee0468a14c2b094d
+    verdict: allow
+    reason: documentation change; its Go edits are tests, doc comments, config defaults or explain text
+    provenance: proposed
+    agent: true
+  - hash: 9c1235049685f89633222fa9cf49a4693518a925
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: ece07674bafdcaaa221ef91e5372e4b1c139802b
+    verdict: allow
+    reason: legitimate growth (+351/-53) with tests; no copy-paste needing extraction; no new mutable package state; no ceiling crossed
+    provenance: proposed
+    agent: true
+  - hash: 40aa722ade2699d0803f95de8364b1fa655b5cd1
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: fafd1153c26ac73d91c262cd91ae4afcab15318e
+    verdict: allow
+    reason: 'legitimate growth (+1879/-94) with tests; 2 new duplicate blocks by the gate''s count, not judged copy-paste worth blocking; no new mutable package state; grows internal/engine (split after the range), already over a ceiling, by under the 100 SLOC this draft blocks at; borderline: 98 SLOC, and check.go from 643 to 741 lines'
+    provenance: proposed
+    agent: true
+  - hash: c98a01e43dc4cc31918687c3e43f35a38a570ea0
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 46ffb57f96176d5166cb001e1094597710decb13
+    verdict: allow
+    reason: refactor (+2248/-1849) that leaves no package materially harder to maintain; the split that brings internal/lang/typescript under its ceilings
+    provenance: proposed
+    agent: true
+  - hash: e77534dc5ed6ae21dc0e9b89cf93622134a32bc5
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 75bd1a8f1d97a547e87e150ba0d5348139222609
+    verdict: allow
+    reason: CI configuration only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: b21cb7daea9df2bdf557014476252ad7fdb18fe8
+    verdict: allow
+    reason: documentation only; no Go package changed
+    provenance: proposed
+    agent: true
+  - hash: 9a10fd6e472993bed2b58a58f65d3981894f7f37
+    verdict: allow
+    reason: refactor (+5872/-4424) that leaves no package materially harder to maintain; the split that brings internal/lang/golang under its ceilings
+    provenance: proposed
+    agent: true
+  - hash: 5e8c77757b1bc1374331c468e311a7bf1e95ac24
+    verdict: allow
+    reason: CI configuration only; no Go package changed
+    provenance: proposed
+    agent: true
