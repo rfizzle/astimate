@@ -55,11 +55,12 @@ func TestExplainCouplingReportedNotGated(t *testing.T) {
 	}
 }
 
-// TestExplainCrossPackageAndOpacityNotGated checks that the four fields the
-// Go extractor computes without a default threshold say so.
-func TestExplainCrossPackageAndOpacityNotGated(t *testing.T) {
+// TestExplainCrossPackageAndOpacity checks that the four fields the Go
+// extractor computes without a default threshold say so, and that
+// dup_blocks_cross_pkg, which the default gates on the module row, says
+// that.
+func TestExplainCrossPackageAndOpacity(t *testing.T) {
 	tests := map[string]string{
-		"dup_blocks_cross_pkg": "Measured before it is gated",
 		"uses_cgo":             "not gated",
 		"uses_reflect":         "not gated",
 		"generated_files":      "not gated",
@@ -73,6 +74,9 @@ func TestExplainCrossPackageAndOpacityNotGated(t *testing.T) {
 		if e.Gated || !strings.Contains(e.Evidence, want) {
 			t.Errorf("Explain(%q) = gated %v, evidence %q; want not gated, saying %q", name, e.Gated, e.Evidence, want)
 		}
+	}
+	if e, _ := Explain("dup_blocks_cross_pkg"); !e.Gated || !strings.Contains(e.Evidence, "The default gates the module row") {
+		t.Errorf("dup_blocks_cross_pkg = gated %v, evidence %q; want gated on the module row", e.Gated, e.Evidence)
 	}
 	if e, _ := Explain("dup_blocks_cross_pkg"); !strings.Contains(e.Definition, `"`+ModuleRowID+`"`) {
 		t.Errorf("dup_blocks_cross_pkg definition does not name the module row: %s", e.Definition)

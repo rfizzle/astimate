@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/engine"
@@ -80,24 +81,67 @@ type packageFailure struct {
 	Err string `json:"error"`
 }
 
+// moduleResult is what collectModule gathered from one module.
+type moduleResult struct {
+	// Rows are the package rows, sorted by import path; none when only the
+	// module row was asked for.
+	Rows []Row
+	// ModuleRow is the module-level row, nil when the extractor has none
+	// (metrics.ModuleMetrics).
+	ModuleRow *ModuleRow
+	// ModPath is the module path from go.mod.
+	ModPath string
+	// Failed are the packages that failed to extract.
+	Failed []packageFailure
+}
+
 // collectModule ranks the module rooted at dir the way `astimate rank
 // --json` does, with one module load shared by every package, and returns
-// one row per package sorted by import path, tagged with commit. It also
-// returns the module path from go.mod and the packages that failed to
-// extract; an error means the module could not be loaded or listed at all.
-// When the extractor lists functions (metrics.FunctionLister), each row
-// carries its package's per-function cognitive counts.
-func collectModule(ctx context.Context, dir, commit string, cfg *config.Config, logger *slog.Logger,
-) (rows []Row, modPath string, failed []packageFailure, err error) {
+// one row per package sorted by import path, tagged with commit, the
+// module path from go.mod and the packages that failed to extract; an
+// error means the module could not be loaded or listed at all. When the
+// extractor lists functions (metrics.FunctionLister), each row carries its
+// package's per-function cognitive counts. When it measures the module as
+// a whole (metrics.ModuleMetrics), the module row is measured first, right
+// after the load, so its cost is the module pass's alone. With modulesOnly
+// the package rows are skipped.
+func collectModule(ctx context.Context, dir, commit string, cfg *config.Config, logger *slog.Logger, modulesOnly bool,
+) (res moduleResult, err error) {
 	t, err := engine.LoadTarget(dir, engine.TargetOptions{Config: cfg, Logger: logger})
 	if err != nil {
-		return nil, "", nil, err
+		return res, err
 	}
-	modPath = t.Mod.ModulePath
+	res.ModPath = t.Mod.ModulePath
+	start := time.Now()
 	pkgs, err := t.Ext.Packages(t.Mod.Root)
 	if err != nil {
-		return nil, modPath, nil, fmt.Errorf("listing packages of %s: %w", modPath, err)
+		return res, fmt.Errorf("listing packages of %s: %w", res.ModPath, err)
 	}
+	loadMS := time.Since(start).Milliseconds()
+	if mm, ok := t.Ext.(metrics.ModuleMetrics); ok {
+		mr, err := moduleRow(ctx, mm, t.Mod, res.ModPath, commit, len(pkgs), loadMS)
+		if err != nil {
+			return res, err
+		}
+		res.ModuleRow = &mr
+		n, _ := mr.Metrics.Value("dup_blocks_cross_pkg")
+		logger.Info("module row", "packages", mr.Packages, "dup_blocks_cross_pkg", n, "pass_ms", mr.Cost.PassMS)
+	}
+	if modulesOnly {
+		return res, nil
+	}
+	res.Rows, res.Failed = packageRows(ctx, t, pkgs, commit, cfg, logger)
+	return res, nil
+}
+
+// packageRows extracts each of pkgs from the loaded target t and returns
+// their rows sorted by import path, tagged with commit, and the packages
+// that failed. When the extractor lists functions (metrics.FunctionLister),
+// each row carries its package's per-function cognitive counts.
+func packageRows(ctx context.Context, t *engine.Target, pkgs []string, commit string, cfg *config.Config,
+	logger *slog.Logger,
+) (rows []Row, failed []packageFailure) {
+	modPath := t.Mod.ModulePath
 	lister, _ := t.Ext.(metrics.FunctionLister)
 	rows = make([]Row, 0, len(pkgs))
 	for _, pkg := range pkgs {
@@ -119,7 +163,7 @@ func collectModule(ctx context.Context, dir, commit string, cfg *config.Config, 
 		rows = append(rows, newRow(modPath, commit, pkg, &m, fns, cfg))
 	}
 	sortRows(rows)
-	return rows, modPath, failed, nil
+	return rows, failed
 }
 
 // stdPackages lists the standard library with `go list std`, leaving out
@@ -207,8 +251,8 @@ func cloneAt(ctx context.Context, repo, commit, dir string) error {
 
 // writeRows writes rows to path as JSON lines, through a temporary file in
 // the same directory so a failed run never leaves a truncated file.
-func writeRows(path string, rows []Row) (err error) {
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".packages-*.jsonl")
+func writeRows[R any](path string, rows []R) (err error) {
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".rows-*.jsonl")
 	if err != nil {
 		return fmt.Errorf("writing %s: %w", path, err)
 	}
@@ -220,6 +264,8 @@ func writeRows(path string, rows []Row) (err error) {
 	}()
 	w := bufio.NewWriter(tmp)
 	enc := json.NewEncoder(w)
+	// Keep the module row id, <module>, readable.
+	enc.SetEscapeHTML(false)
 	for i := range rows {
 		if err := enc.Encode(&rows[i]); err != nil {
 			return fmt.Errorf("writing %s: %w", path, err)

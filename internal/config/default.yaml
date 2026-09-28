@@ -108,6 +108,13 @@ thresholds:
   - metric: changed_func_cognitive_max
     kind: density
     max: 50
+  # No new code copied between packages: evaluated on the module row
+  # (<module>) only, so one copy is one finding. The max judges a module with
+  # no baseline, which is not counted from zero.
+  - metric: dup_blocks_cross_pkg
+    kind: density
+    max_delta: 0
+    max: 450
   # The rebuild bar: past this a rebuild no longer fits one agent pass; split.
   - metric: tokens_est
     kind: capacity

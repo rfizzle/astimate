@@ -1,0 +1,202 @@
+{
+  "date": "2026-09-28",
+  "go_version": "go1.27.1",
+  "goos": "darwin",
+  "goarch": "arm64",
+  "cpus": 14,
+  "astimate_version": "v0.1.1-0.20260928044833-7fd4a455c97b+dirty",
+  "astimate_commit": "7fd4a455c97bab5a40e754afee2a439a35a64d52",
+  "config_version": "thresholds-2026-09-28",
+  "tokenizer": "est",
+  "corpus": "calibration/corpus.yaml",
+  "packages": 0,
+  "modules": [
+    {
+      "module": "std",
+      "commit": "go1.27.1",
+      "packages": 0,
+      "note": "no module row: dup_blocks_cross_pkg is null for standard-library loads, which are not modules (see calibration/notes/cross-package-duplication-2026-09-28.md)"
+    },
+    {
+      "module": "github.com/gin-gonic/gin",
+      "commit": "1bd0ecf2d3e08da37efa270bb7be20c1eddb0d68",
+      "packages": 0
+    },
+    {
+      "module": "github.com/go-chi/chi/v5",
+      "commit": "3d1777a1ef8881f7d1da0b02c76ca8f0a29cd2bc",
+      "packages": 0
+    },
+    {
+      "module": "github.com/labstack/echo/v5",
+      "commit": "3d084be9022432c5a5257924c7d74bfc3444b456",
+      "packages": 0
+    },
+    {
+      "module": "github.com/gofiber/fiber/v3",
+      "commit": "e10bca7375d87511d8c764642689db7809a4e1c8",
+      "packages": 0
+    },
+    {
+      "module": "github.com/gorilla/mux",
+      "commit": "db9d1d0073d27a0a2d9a8c1bc52aa0af4374d265",
+      "packages": 0
+    },
+    {
+      "module": "github.com/spf13/cobra",
+      "commit": "adbc8813901bba65827259daa8e22ff94ec1f30e",
+      "packages": 0
+    },
+    {
+      "module": "github.com/urfave/cli/v3",
+      "commit": "58ec406eff149315193d8632c08317f70f6deee1",
+      "packages": 0
+    },
+    {
+      "module": "github.com/spf13/viper",
+      "commit": "528f7416c4b56a4948673984b190bf8713f0c3c4",
+      "packages": 0
+    },
+    {
+      "module": "charm.land/bubbletea/v2",
+      "commit": "d5bfd5c2ff7480a6b94536c1cf4e73569b8d523e",
+      "packages": 0
+    },
+    {
+      "module": "github.com/junegunn/fzf",
+      "commit": "b1be3a8be1b833ce5b92fbbac11637643d60a046",
+      "packages": 0
+    },
+    {
+      "module": "github.com/cli/cli/v2",
+      "commit": "9b031151a825bda919203c5202876a725d637368",
+      "packages": 0
+    },
+    {
+      "module": "github.com/jackc/pgx/v5",
+      "commit": "b892c02eb0d8e56743c4f887912b45d469387e0c",
+      "packages": 0
+    },
+    {
+      "module": "github.com/go-sql-driver/mysql",
+      "commit": "789a82a35d04f8ab5a7b28707615ef8bf9d4f09b",
+      "packages": 0
+    },
+    {
+      "module": "github.com/redis/go-redis/v9",
+      "commit": "cb175c6275d8ff6d926bde492114ea56fbb1757f",
+      "packages": 0
+    },
+    {
+      "module": "go.etcd.io/bbolt",
+      "commit": "4dc08f7187c709d355a8bcf334fcbcf7d7cfedf6",
+      "packages": 0
+    },
+    {
+      "module": "github.com/dgraph-io/badger/v4",
+      "commit": "5688f1406cedb8e7cd22401855a90ad6b9ce733c",
+      "packages": 0
+    },
+    {
+      "module": "github.com/cockroachdb/pebble",
+      "commit": "e0818dd07ec580eb229e8291b4eefdb135cd5a55",
+      "packages": 0
+    },
+    {
+      "module": "go.uber.org/zap",
+      "commit": "4892335e05f14bce8a98a69a577fcf3844a42623",
+      "packages": 0
+    },
+    {
+      "module": "github.com/rs/zerolog",
+      "commit": "5eb5f3a76c09eeadc1f2464baf4a4e3f1037c830",
+      "packages": 0
+    },
+    {
+      "module": "github.com/stretchr/testify",
+      "commit": "87a7b9d57689f6579db2da795ab8deeab29cb724",
+      "packages": 0
+    },
+    {
+      "module": "github.com/google/go-cmp",
+      "commit": "b133f1f1932e48f466f597a3346ce6f5a49a0dc1",
+      "packages": 0
+    },
+    {
+      "module": "github.com/google/uuid",
+      "commit": "2d3c2a9cc518326daf99a383f07c4d3c44317e4d",
+      "packages": 0
+    },
+    {
+      "module": "github.com/hashicorp/hcl/v2",
+      "commit": "4932c1452af6bd71e2241ba244f253643d1828da",
+      "packages": 0
+    },
+    {
+      "module": "github.com/BurntSushi/toml",
+      "commit": "d733fc535e4a9f3c454e421a87b90ade5d49bf31",
+      "packages": 0
+    },
+    {
+      "module": "github.com/pelletier/go-toml/v2",
+      "commit": "686c980c47581bf19b6119b60e9a59f2aed04170",
+      "packages": 0
+    },
+    {
+      "module": "github.com/prometheus/client_golang",
+      "commit": "ae383cad8807236fc4ab113c9d98fe343daa039e",
+      "packages": 0
+    },
+    {
+      "module": "google.golang.org/grpc",
+      "commit": "acccf8cd101ae1eb33385f27e12740b3edd730f0",
+      "packages": 0
+    },
+    {
+      "module": "github.com/hashicorp/raft",
+      "commit": "871f108efbeb26c06636c4b388e18fc698de6f62",
+      "packages": 0
+    },
+    {
+      "module": "github.com/nats-io/nats-server/v2",
+      "commit": "3e8ddaa7fcdf2c6a0688f8872ca465eab08f1221",
+      "packages": 0
+    },
+    {
+      "module": "github.com/caddyserver/caddy/v2",
+      "commit": "ea1e94b89972b83b189cbb946352abd9acec0f8c",
+      "packages": 0
+    },
+    {
+      "module": "github.com/open-policy-agent/opa",
+      "commit": "a6c13a96f0cd11dc7ca6db9296b2af842ffdc0fd",
+      "packages": 0
+    },
+    {
+      "module": "helm.sh/helm/v4",
+      "commit": "d31cd6992fc7858922de6ebe5984a06fd6aa0b80",
+      "packages": 0
+    },
+    {
+      "module": "gitea.dev",
+      "commit": "3c5d2d1b63935429490b9f149da38f9deb5055ce",
+      "packages": 0
+    },
+    {
+      "module": "github.com/goreleaser/goreleaser/v2",
+      "commit": "ff8de3d6c38984ba20ea48e13b54d0767f123d64",
+      "packages": 0
+    },
+    {
+      "module": "github.com/aws/smithy-go",
+      "commit": "9b28af0b8afffb9debb149a07df6fc40edc6e529",
+      "packages": 0
+    },
+    {
+      "module": "golang.org/x/crypto",
+      "commit": "7a4a4d6beae2222add4437a0910bd48414e19211",
+      "packages": 0
+    }
+  ],
+  "module_rows": 36
+}

@@ -66,7 +66,7 @@ func TestParseDefault(t *testing.T) {
 		kinds[th.Kind] = append(kinds[th.Kind], th.Metric)
 	}
 	want := map[gate.Kind]string{
-		gate.Density:     "dup_blocks duplication_pct untested_exports globals init_funcs max_nesting cognitive_p90 changed_func_cognitive_max",
+		gate.Density:     "dup_blocks duplication_pct untested_exports globals init_funcs max_nesting cognitive_p90 changed_func_cognitive_max dup_blocks_cross_pkg",
 		gate.Capacity:    "tokens_est largest_file_sloc exported_symbols internal_imports sloc",
 		gate.Requirement: "has_tests",
 	}

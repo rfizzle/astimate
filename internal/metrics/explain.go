@@ -105,10 +105,10 @@ func explanations() map[string]Explanation {
 				"package, because one edit that copies code across packages changes two packages' counts. A rule on " +
 				"it is gated on the module row only: package rows report their count but are not gated on it, so one " +
 				"cross-package copy is one finding.",
-			Evidence: evidenceDuplication + " Measured before it is gated: the default configuration has no rule " +
-				"on it until the reference corpus shows its spread; a config can gate the module row with " +
-				"max_delta 0 and ratchet_from_zero.",
-			Release: "v1",
+			Evidence: evidenceDuplication + " The default gates the module row: " +
+				"max_delta 0, and max 450 (the corpus p90) " +
+				"for a module with no baseline.",
+			Release: "v1", Gated: true,
 		},
 		"instability": {
 			Definition: "Martin instability Ce / (Ca + Ce) with Ca = fan_in and Ce = internal_imports; " +

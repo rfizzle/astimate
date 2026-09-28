@@ -4,7 +4,9 @@
 // measures the standard library in-process, and pools the rows into
 // packages.jsonl with a run.json describing the environment. Each row also
 // counts its package's functions by cognitive complexity, the per-function
-// distribution changed_func_cognitive_max is fitted from.
+// distribution changed_func_cognitive_max is fitted from. Each cloned
+// module's module-level row (SPEC.md 8.1), with dup_blocks_cross_pkg and
+// what the module pass cost, goes to modules.jsonl.
 //
 // Usage, from the repository root:
 //
@@ -12,6 +14,7 @@
 //	go run ./calibration/collect [--out dir]       # collect every module (network)
 //	go run ./calibration/collect --stdlib          # standard library only (no network)
 //	go run ./calibration/collect --only <module>   # one corpus module
+//	go run ./calibration/collect --modules-only    # module rows only (network)
 //
 // See calibration/corpus.md for the selection criteria.
 package main
@@ -55,6 +58,9 @@ type options struct {
 	pin    bool
 	only   string
 	stdlib bool
+	// modulesOnly skips the package rows and writes only modules.jsonl
+	// and run.json.
+	modulesOnly bool
 }
 
 // RunInfo is run.json: the environment and tool version a collection ran
@@ -82,10 +88,13 @@ type RunInfo struct {
 	Tokenizer string `json:"tokenizer"`
 	// Corpus is the corpus file the run read.
 	Corpus string `json:"corpus"`
-	// Packages is the number of rows in packages.jsonl.
+	// Packages is the number of rows in packages.jsonl; 0 for a run of
+	// module rows only.
 	Packages int `json:"packages"`
 	// Modules summarizes each selected module.
 	Modules []ModuleRun `json:"modules"`
+	// ModuleRows is the number of rows in modules.jsonl.
+	ModuleRows int `json:"module_rows"`
 }
 
 // ModuleRun is one module's outcome in run.json.
@@ -112,6 +121,11 @@ type ModuleRun struct {
 // stdlibNote is the run.json note on the standard library's rows.
 const stdlibNote = "measured as one load of the pattern std, so fan_in and fan_in_tests count " +
 	"standard-library importers and every standard-library import is internal_imports, not stdlib_imports"
+
+// stdlibModulesNote is the run.json note on the standard library in a run
+// of module rows only.
+const stdlibModulesNote = "no module row: dup_blocks_cross_pkg is null for standard-library loads, " +
+	"which are not modules (see calibration/notes/cross-package-duplication-2026-09-28.md)"
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -148,6 +162,7 @@ func parseFlags(args []string, stderr io.Writer) (options, error) {
 	fs.StringVar(&o.out, "out", filepath.Join("calibration", "data", time.Now().Format(time.DateOnly)),
 		"output directory for packages.jsonl and run.json")
 	fs.BoolVar(&o.pin, "pin", false, "fill empty commits in the corpus with each repo's HEAD via git ls-remote (network), then exit")
+	fs.BoolVar(&o.modulesOnly, "modules-only", false, "collect only each cloned module's module row into modules.jsonl, no package rows")
 	fs.StringVar(&o.only, "only", "", "collect only this corpus module")
 	fs.BoolVar(&o.stdlib, "stdlib", false, "collect only the standard library, in-process (no network)")
 	if err := fs.Parse(args); err != nil {
@@ -240,67 +255,91 @@ func collect(ctx context.Context, opts options, logger *slog.Logger) int {
 
 	info := newRunInfo(ctx, opts.corpus, cfg)
 	var all []Row
+	var modRows []ModuleRow
 	code := exitOK
 	for _, e := range entries {
-		rows, mr := collectEntry(ctx, e, cfg, logger)
+		rows, modRow, mr := collectEntry(ctx, e, cfg, logger, opts.modulesOnly)
 		all = append(all, rows...)
+		if modRow != nil {
+			modRows = append(modRows, *modRow)
+		}
 		info.Modules = append(info.Modules, mr)
 		if mr.Error != "" || len(mr.Failed) > 0 {
 			code = exitPartial
 		}
 	}
-	info.Packages = len(all)
-	if err := writeRows(filepath.Join(opts.out, "packages.jsonl"), all); err != nil {
-		logger.Error("collect failed", "err", err)
-		return exitPartial
+	info.Packages, info.ModuleRows = len(all), len(modRows)
+	if !opts.modulesOnly {
+		if err := writeRows(filepath.Join(opts.out, "packages.jsonl"), all); err != nil {
+			logger.Error("collect failed", "err", err)
+			return exitPartial
+		}
+	}
+	if opts.modulesOnly || len(modRows) > 0 {
+		if err := writeRows(filepath.Join(opts.out, "modules.jsonl"), modRows); err != nil {
+			logger.Error("collect failed", "err", err)
+			return exitPartial
+		}
 	}
 	if err := writeJSON(filepath.Join(opts.out, "run.json"), info); err != nil {
 		logger.Error("collect failed", "err", err)
 		return exitPartial
 	}
-	logger.Info("collected", "packages", len(all), "modules", len(entries), "out", opts.out)
+	logger.Info("collected", "packages", len(all), "module_rows", len(modRows), "modules", len(entries), "out", opts.out)
 	return code
 }
 
 // collectEntry collects one corpus entry: the standard library in-process,
-// any other module from a temporary shallow clone at its pin.
-func collectEntry(ctx context.Context, e Entry, cfg *config.Config, logger *slog.Logger) ([]Row, ModuleRun) {
+// any other module from a temporary shallow clone at its pin, with its
+// module row. With modulesOnly it collects the module row alone, and
+// nothing from the standard library, which has none.
+func collectEntry(ctx context.Context, e Entry, cfg *config.Config, logger *slog.Logger, modulesOnly bool,
+) ([]Row, *ModuleRow, ModuleRun) {
 	logger = logger.With("module", e.Module)
 	logger.Info("collecting")
 	if e.Local {
-		mr := ModuleRun{Module: e.Module, Commit: runtime.Version(), Note: stdlibNote}
-		pkgs, err := stdPackages(ctx)
-		if err != nil {
-			mr.Error = err.Error()
-			return nil, mr
+		if modulesOnly {
+			return nil, nil, ModuleRun{Module: e.Module, Commit: runtime.Version(), Note: stdlibModulesNote}
 		}
-		rows, failed, err := collectStdlib(ctx, pkgs, mr.Commit, cfg, logger)
-		if err != nil {
-			logger.Error("collect failed", "err", err)
-			mr.Error = err.Error()
-			return nil, mr
-		}
-		mr.Packages, mr.Failed = len(rows), failed
-		return rows, mr
+		rows, mr := collectLocal(ctx, e, cfg, logger)
+		return rows, nil, mr
 	}
 
 	mr := ModuleRun{Module: e.Module, Commit: e.Commit}
 	dir, err := os.MkdirTemp("", "astimate-corpus-*")
 	if err != nil {
 		mr.Error = err.Error()
-		return nil, mr
+		return nil, nil, mr
 	}
 	defer func() { _ = os.RemoveAll(dir) }()
 	if err := cloneAt(ctx, e.Repo, e.Commit, dir); err != nil {
 		logger.Error("clone failed", "err", err)
 		mr.Error = err.Error()
+		return nil, nil, mr
+	}
+	res, err := collectModule(ctx, dir, e.Commit, cfg, logger, modulesOnly)
+	if res.ModPath != "" && res.ModPath != e.Module {
+		logger.Warn("go.mod module path differs from the corpus", "go_mod", res.ModPath)
+		mr.GoModPath = res.ModPath
+	}
+	if err != nil {
+		logger.Error("collect failed", "err", err)
+		mr.Error = err.Error()
+		return nil, nil, mr
+	}
+	mr.Packages, mr.Failed = len(res.Rows), res.Failed
+	return res.Rows, res.ModuleRow, mr
+}
+
+// collectLocal collects the standard library in-process.
+func collectLocal(ctx context.Context, e Entry, cfg *config.Config, logger *slog.Logger) ([]Row, ModuleRun) {
+	mr := ModuleRun{Module: e.Module, Commit: runtime.Version(), Note: stdlibNote}
+	pkgs, err := stdPackages(ctx)
+	if err != nil {
+		mr.Error = err.Error()
 		return nil, mr
 	}
-	rows, modPath, failed, err := collectModule(ctx, dir, e.Commit, cfg, logger)
-	if modPath != "" && modPath != e.Module {
-		logger.Warn("go.mod module path differs from the corpus", "go_mod", modPath)
-		mr.GoModPath = modPath
-	}
+	rows, failed, err := collectStdlib(ctx, pkgs, mr.Commit, cfg, logger)
 	if err != nil {
 		logger.Error("collect failed", "err", err)
 		mr.Error = err.Error()

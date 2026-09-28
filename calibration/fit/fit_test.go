@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -21,6 +22,10 @@ import (
 // from: the standard library and the cloned modules of corpus.yaml, with
 // per-function cognitive counts.
 const dataPath = "../data/2026-09-28-corpus/packages.jsonl"
+
+// modulesPath is the committed module rows of the cloned corpus modules,
+// which dup_blocks_cross_pkg is fitted from.
+const modulesPath = "../data/2026-09-28-modules/modules.jsonl"
 
 // previousDataPath is the earlier corpus data, collected before the rows
 // carried per-function counts.
@@ -286,6 +291,7 @@ func TestFitKeepsZeroDelta(t *testing.T) {
 		rows[i].Metrics.InitFuncs = v
 		rows[i].Metrics.MaxNesting = v
 	}
+	rows = append(rows, moduleRows(1, 50, 100)...)
 	pinned := 0
 	for _, c := range fitThresholds(rows, base) {
 		if c.Rule.MaxDelta == nil {
@@ -301,8 +307,98 @@ func TestFitKeepsZeroDelta(t *testing.T) {
 			t.Errorf("%s: base max_delta %v marked pinned", c.Rule.Metric, *c.Rule.MaxDelta)
 		}
 	}
-	if pinned != 5 {
-		t.Errorf("%d rules pinned, want the 5 zero-tolerance rules of the default", pinned)
+	if pinned != 6 {
+		t.Errorf("%d rules pinned, want the 6 zero-tolerance rules of the default", pinned)
+	}
+}
+
+// moduleRows returns one module row (package metrics.ModuleRowID) per
+// value, carrying it as dup_blocks_cross_pkg.
+func moduleRows(values ...int) []Row {
+	rows := make([]Row, len(values))
+	for i, v := range values {
+		rows[i] = Row{Module: "example.com/m" + strconv.Itoa(i), Package: metrics.ModuleRowID}
+		rows[i].Metrics.DupBlocksCrossPkg = &v
+	}
+	return rows
+}
+
+// TestFitCrossPkgFromModuleRows checks dup_blocks_cross_pkg, a module-wide
+// metric, is fitted from the module rows alone, ignoring the per-package
+// counts package rows carry: max at the p90 of the module rows, max_delta
+// 0 kept by policy, and fail-as-new counted over modules.
+func TestFitCrossPkgFromModuleRows(t *testing.T) {
+	base, err := config.Parse(config.Default())
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows := synthRows(20)
+	for i := range rows {
+		big := 1000
+		rows[i].Metrics.DupBlocksCrossPkg = &big
+	}
+	// Ten modules with 10, 20, ..., 100 blocks: p90 is 90.
+	rows = append(rows, moduleRows(10, 20, 30, 40, 50, 60, 70, 80, 90, 100)...)
+	var c *Choice
+	for _, ch := range fitThresholds(rows, base) {
+		switch ch.Rule.Metric {
+		case "dup_blocks_cross_pkg":
+			c = &ch
+		case "sloc":
+			if ch.Stats.N != 20 {
+				t.Errorf("sloc pooled %d rows, want the 20 package rows only", ch.Stats.N)
+			}
+		}
+	}
+	if c == nil {
+		t.Fatal("dup_blocks_cross_pkg not fitted")
+	}
+	if c.Pool != poolModule || c.Stats.N != 10 || c.Stats.P90 != 90 {
+		t.Errorf("pool %q n %d p90 %v, want 10 module rows and p90 90", c.Pool, c.Stats.N, c.Stats.P90)
+	}
+	if opt(c.Max) != "90" || opt(c.MaxDelta) != "0" || !c.DeltaPinned {
+		t.Errorf("max %s max_delta %s pinned %t, want 90, 0 and pinned", opt(c.Max), opt(c.MaxDelta), c.DeltaPinned)
+	}
+	if c.OverCandidate != 1 {
+		t.Errorf("%d modules fail the candidate as new, want the one above 90", c.OverCandidate)
+	}
+}
+
+// TestFitModulesFile fits the committed data with the committed module
+// rows and checks the report's cross-package section and the fitted
+// dup_blocks_cross_pkg rule, and that a modules file holding a package row
+// is rejected.
+func TestFitModulesFile(t *testing.T) {
+	dir := t.TempDir()
+	res, err := fit(options{data: dataPath, modules: modulesPath, base: uncalibratedBase,
+		out: filepath.Join(dir, "c.yaml"), report: filepath.Join(dir, "r.md"), date: "2026-09-28", suffix: suffixAuto})
+	if err != nil {
+		t.Fatalf("fit: %v", err)
+	}
+	data, err := os.ReadFile(res.report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"- Module rows: `" + modulesPath + "`, 36 `<module>` rows", "## Cross-package duplication",
+		"| Modules | p25 | p50 | p75 | p90 | max |", "| 36 | 1 | 9 | 104 | 443 | 3394 |", "### `dup_blocks_cross_pkg` (density)",
+		"Rows: 36, module rows."} {
+		if !strings.Contains(string(data), want) {
+			t.Errorf("report does not contain %q", want)
+		}
+	}
+	cfg, err := config.Load(res.out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range cfg.Thresholds {
+		if r.Metric == "dup_blocks_cross_pkg" && (opt(r.Max) != "450" || opt(r.MaxDelta) != "0" || r.RatchetFromZero) {
+			t.Errorf("dup_blocks_cross_pkg max %s max_delta %s ratchet %t, want 450, 0, false", opt(r.Max), opt(r.MaxDelta), r.RatchetFromZero)
+		}
+	}
+	_, err = fit(options{data: dataPath, modules: dataPath, base: uncalibratedBase,
+		out: filepath.Join(dir, "c2.yaml"), report: filepath.Join(dir, "r2.md"), date: "2026-09-28", suffix: suffixAuto})
+	if err == nil || !strings.Contains(err.Error(), "not a module row") {
+		t.Errorf("fit with package rows as modules: err = %v, want a module-row error", err)
 	}
 }
 
@@ -342,12 +438,13 @@ func TestFitPoolsInternalImportsFromClonedModules(t *testing.T) {
 func fitInto(t *testing.T, dir string) (candidate, report string) {
 	t.Helper()
 	opts := options{
-		data:   dataPath,
-		out:    filepath.Join(dir, "candidate.yaml"),
-		report: filepath.Join(dir, "report.md"),
-		date:   "2026-09-28",
-		suffix: suffixAuto,
-		base:   uncalibratedBase,
+		data:    dataPath,
+		modules: modulesPath,
+		out:     filepath.Join(dir, "candidate.yaml"),
+		report:  filepath.Join(dir, "report.md"),
+		date:    "2026-09-28",
+		suffix:  suffixAuto,
+		base:    uncalibratedBase,
 	}
 	res, err := fit(opts)
 	if err != nil {
@@ -392,7 +489,7 @@ func TestCandidate(t *testing.T) {
 			t.Errorf("report has no section for %s", r.Metric)
 		}
 	}
-	for _, want := range []string{"cloned-module rows only", "max_delta stays 0 on", "no `<module>` rows",
+	for _, want := range []string{"cloned-module rows only", "max_delta stays 0 on", "## Cross-package duplication",
 		"## Per-function cognitive complexity", "| Functions | p50 | p90 | p99 | max |"} {
 		if !strings.Contains(report, want) {
 			t.Errorf("report does not contain %q", want)
@@ -418,19 +515,23 @@ func TestPreviousDataKeepsFunctionBase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"`changed_func_cognitive_max`: no row counts its functions", "## Against thresholds-2026-09-27", "No limit moved."} {
+	// The earlier data has no module rows either, and dup_blocks_cross_pkg
+	// keeps the base's placeholder, which the earlier candidate lacked.
+	for _, want := range []string{"`changed_func_cognitive_max`: no row counts its functions", "## Against thresholds-2026-09-27",
+		"`dup_blocks_cross_pkg`: the data has no `<module>` rows", "Only `dup_blocks_cross_pkg` moved"} {
 		if !strings.Contains(string(data), want) {
 			t.Errorf("report does not contain %q", want)
 		}
 	}
 }
 
-// TestCompareNamesMovedRules fits the committed data against the earlier
-// candidate and checks the report names changed_func_cognitive_max as the
-// only rule that moved.
+// TestCompareNamesMovedRules fits the committed data and module rows
+// against the earlier candidate and checks the report names
+// changed_func_cognitive_max and the new dup_blocks_cross_pkg rule as the
+// only rules that moved.
 func TestCompareNamesMovedRules(t *testing.T) {
 	dir := t.TempDir()
-	res, err := fit(options{data: dataPath, base: uncalibratedBase, compare: previousCandidate,
+	res, err := fit(options{data: dataPath, modules: modulesPath, base: uncalibratedBase, compare: previousCandidate,
 		out: filepath.Join(dir, "c.yaml"), report: filepath.Join(dir, "r.md"), date: "2026-09-28", suffix: suffixAuto})
 	if err != nil {
 		t.Fatalf("fit: %v", err)
@@ -439,7 +540,7 @@ func TestCompareNamesMovedRules(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := "Only `changed_func_cognitive_max` moved; every other limit is unchanged."; !strings.Contains(string(data), want) {
+	if want := "Only `changed_func_cognitive_max`, `dup_blocks_cross_pkg` moved; every other limit is unchanged."; !strings.Contains(string(data), want) {
 		t.Errorf("report does not contain %q", want)
 	}
 }

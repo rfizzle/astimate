@@ -6,7 +6,7 @@
 //
 // Usage, from the repository root:
 //
-//	go run ./calibration/fit --data calibration/data/<date>/packages.jsonl [--date YYYY-MM-DD] [--compare old.yaml]
+//	go run ./calibration/fit --data calibration/data/<date>/packages.jsonl [--modules modules.jsonl] [--date YYYY-MM-DD] [--compare old.yaml]
 //
 // The candidate copies the base configuration (the embedded default unless
 // --base names a file) with config_version thresholds-<date>, plus a
@@ -14,7 +14,10 @@
 // and each rule's max and max_delta refitted; see methodText for the
 // rules. It is validated with config.Parse before it is written.
 // --compare adds a table of an earlier configuration's limits against the
-// candidate's to the report. Check the candidate against the acceptance
+// candidate's to the report. --modules adds the module rows (SPEC.md 8.1)
+// the collector wrote to modules.jsonl, which a rule on a module-wide
+// metric such as dup_blocks_cross_pkg is fitted from, and the report
+// describes their distribution. Check the candidate against the acceptance
 // invariants with
 //
 //	ASTIMATE_CONFIG=$PWD/<candidate> go test ./internal/invariants
@@ -27,6 +30,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -43,7 +47,7 @@ const suffixAuto = "auto"
 
 // options are the parsed command-line flags.
 type options struct {
-	data, base, out, report, date, suffix, compare string
+	data, modules, base, out, report, date, suffix, compare string
 }
 
 func main() {
@@ -73,6 +77,7 @@ func parseFlags(args []string, stderr io.Writer) (options, error) {
 	fs.SetOutput(stderr)
 	var o options
 	fs.StringVar(&o.data, "data", "", "pooled packages.jsonl (required)")
+	fs.StringVar(&o.modules, "modules", "", "module rows (modules.jsonl) to pool with the data; empty means none")
 	fs.StringVar(&o.base, "base", "", "base configuration file; empty means the embedded default")
 	fs.StringVar(&o.out, "out", "", "candidate file; empty means calibration/thresholds/astimate-thresholds-<version suffix>.yaml")
 	fs.StringVar(&o.report, "report", "", "report file; empty means calibration/reports/thresholds-<version suffix>.md")
@@ -111,6 +116,20 @@ func fit(opts options) (result, error) {
 	if err != nil {
 		return result{}, err
 	}
+	if opts.modules != "" {
+		modRows, err := loadRows(opts.modules)
+		if err != nil {
+			return result{}, err
+		}
+		for i := range modRows {
+			if !isModuleRow(&modRows[i]) {
+				return result{}, fmt.Errorf("reading %s: row %d is package %q, not a module row", opts.modules, i+1, modRows[i].Package)
+			}
+		}
+		rows = append(rows, modRows...)
+	}
+	moduleRows := countModuleRows(rows)
+	packageRows := len(rows) - moduleRows
 	baseData := config.Default()
 	if opts.base != "" {
 		if baseData, err = os.ReadFile(opts.base); err != nil {
@@ -151,7 +170,11 @@ func fit(opts options) (result, error) {
 	}
 
 	choices := fitThresholds(rows, base)
-	header := candidateHeader(version, opts.data, len(rows), provisional)
+	header := candidateHeader(version, opts.data, packageRows, provisional)
+	if opts.modules != "" {
+		header = candidateHeader(version, opts.data+" and "+strconv.Itoa(moduleRows)+" module rows in "+opts.modules,
+			packageRows, provisional)
+	}
 	out, err := emitCandidate(baseData, version, header, choices)
 	if err != nil {
 		return result{}, err
@@ -164,7 +187,9 @@ func fit(opts options) (result, error) {
 		BaseVersion: base.Version,
 		Data:        filepath.ToSlash(opts.data),
 		Candidate:   filepath.ToSlash(res.out),
-		Rows:        len(rows),
+		Rows:        packageRows,
+		ModuleRows:  moduleRows,
+		ModulesData: filepath.ToSlash(opts.modules),
 		Modules:     mods,
 		Provisional: provisional,
 		Choices:     choices,

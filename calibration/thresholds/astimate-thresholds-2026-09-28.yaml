@@ -1,7 +1,8 @@
 # Astimate configuration: rebuild parameters and gate thresholds in one file.
 #
 # Candidate thresholds-2026-09-28, fitted by calibration/fit (SPEC.md 11.1)
-# from 2347 packages in calibration/data/2026-09-28-corpus/packages.jsonl.
+# from 2347 packages in calibration/data/2026-09-28-corpus/packages.jsonl
+# and 36 module rows in calibration/data/2026-09-28-modules/modules.jsonl.
 #
 # Percentiles are nearest-rank: the p-th percentile of n values is the value
 # at rank ceil(p/100 * n), so it is always an observed value. IQR is p75
@@ -20,7 +21,9 @@
 #
 # internal_imports is pooled from cloned-module rows only, since the
 # standard library is loaded as one module and counts every standard-library
-# import as internal; every other metric is pooled from all rows.
+# import as internal; a module-wide metric (dup_blocks_cross_pkg) is pooled
+# from the module rows only, one per module, since the gate evaluates it
+# there alone; every other metric is pooled from all package rows.
 #
 # changed_func_cognitive_max is a diff against a baseline, so it is fitted
 # per function with every function of every row counted as new, as in a
@@ -130,6 +133,13 @@ thresholds:
   - metric: changed_func_cognitive_max
     kind: density
     max: 50
+  # No new code copied between packages: evaluated on the module row
+  # (<module>) only, so one copy is one finding. The max judges a module with
+  # no baseline, which is not counted from zero.
+  - metric: dup_blocks_cross_pkg
+    kind: density
+    max_delta: 0
+    max: 450
   # The rebuild bar: past this a rebuild no longer fits one agent pass; split.
   - metric: tokens_est
     kind: capacity

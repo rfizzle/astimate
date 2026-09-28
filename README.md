@@ -211,7 +211,7 @@ $ echo $?
 ```
 <!-- /sample:check -->
 
-Each finding reads `metric: baseline -> head, limit. suggestion`. [docs/reading-violations.md](docs/reading-violations.md) explains them and the order to fix them in. The `<module>` row carries module-wide metrics, today `dup_blocks_cross_pkg`, the code copied between packages; it is reported first, and no default rule gates it yet, since the calibration corpus has no module rows to fit it from.
+Each finding reads `metric: baseline -> head, limit. suggestion`. [docs/reading-violations.md](docs/reading-violations.md) explains them and the order to fix them in. The `<module>` row carries module-wide metrics, today `dup_blocks_cross_pkg`, the code copied between packages; it is reported first, and the default rule fails any new cross-package copy (`max_delta: 0`; a module with no baseline is held to `max: 450`, the corpus p90).
 
 #### Gate semantics
 

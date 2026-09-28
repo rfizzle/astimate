@@ -87,6 +87,8 @@ const (
 	poolCloned = "cloned-module rows only"
 	// poolFunctions is every function of every pooled row.
 	poolFunctions = "functions of all rows"
+	// poolModule is the module rows (package metrics.ModuleRowID) only.
+	poolModule = "module rows"
 )
 
 // funcMetric is the per-function metric: it is a diff against a baseline,
@@ -101,20 +103,40 @@ const funcMetric = "changed_func_cognitive_max"
 // from cloned-module rows only: the standard library is loaded as one
 // module, so every standard-library import on a std row counts as internal
 // (calibration/corpus.md). funcMetric is pooled over the functions of all
-// rows. Every other metric uses all rows.
+// rows. A module-wide metric (metrics.ModuleWide) is pooled from the module
+// rows only, since the gate evaluates it there and nowhere else. Every
+// other metric uses all package rows.
 func poolFor(metric string) string {
-	switch metric {
-	case "internal_imports":
+	switch {
+	case metric == "internal_imports":
 		return poolCloned
-	case funcMetric:
+	case metric == funcMetric:
 		return poolFunctions
+	case metrics.ModuleWide(metric):
+		return poolModule
 	}
 	return poolAll
 }
 
-// inPool reports whether row belongs to pool.
+// inPool reports whether row belongs to pool. A module row belongs to
+// poolModule only, and every package row to every other pool, except the
+// standard library's to poolCloned.
 func inPool(row *Row, pool string) bool {
-	return pool != poolCloned || row.Module != stdModule
+	if isModuleRow(row) {
+		return pool == poolModule
+	}
+	switch pool {
+	case poolModule:
+		return false
+	case poolCloned:
+		return row.Module != stdModule
+	}
+	return true
+}
+
+// isModuleRow reports whether row is a module-level row.
+func isModuleRow(row *Row) bool {
+	return row.Package == metrics.ModuleRowID
 }
 
 // poolValues returns the values of metric over the rows in pool: one per
@@ -274,16 +296,16 @@ func b2i(b bool) int {
 // module rows (package metrics.ModuleRowID) of rows; empty when there are
 // none.
 func crossPkgStats(rows []Row) Stats {
-	var values []float64
+	return computeStats(poolValues(rows, "dup_blocks_cross_pkg", poolModule))
+}
+
+// countModuleRows returns how many of rows are module rows.
+func countModuleRows(rows []Row) int {
+	n := 0
 	for i := range rows {
-		if rows[i].Package != metrics.ModuleRowID {
-			continue
-		}
-		if v, ok := rows[i].Metrics.Value("dup_blocks_cross_pkg"); ok {
-			values = append(values, v)
-		}
+		n += b2i(isModuleRow(&rows[i]))
 	}
-	return computeStats(values)
+	return n
 }
 
 // failsNew reports whether m, as a package new at head, violates rule.

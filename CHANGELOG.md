@@ -18,6 +18,23 @@ history.
 
 ### Changed
 
+- The default configuration gates cross-package duplication:
+  `dup_blocks_cross_pkg` with `max_delta: 0` and `max: 450`, evaluated on
+  the module row only, so a change that copies code between packages fails
+  `check`. The max is the p90 of the module rows of the 36 cloned corpus
+  modules (`calibration/data/2026-09-28-modules/`) and judges a module with
+  no baseline. `config_version` stays `thresholds-2026-09-28`; its numbers
+  now include this rule, and `calibration/reports/thresholds-2026-09-28.md`
+  carries it. A baseline file written before the module row existed skips
+  the rule with a note until `astimate baseline write` is rerun.
+- `calibration/collect` records each cloned module's module row, with what
+  its module pass cost, in `modules.jsonl` (`--modules-only` collects just
+  those), and `calibration/fit --modules` fits module-wide rules from them
+  and reports their distribution.
+  `calibration/notes/cross-package-duplication-2026-09-28.md` measures the
+  pass: at most 0.5 s and 214 MiB on the corpus, and 0.8 s and 317 MiB on
+  the standard library, for which the metric is still null.
+
 - The text report's estimate line now reads `(estimate from uncalibrated
   parameters)` instead of `(estimate, uncalibrated)`, so it no longer reads
   as a statement about the gate thresholds, which are calibrated. The JSON

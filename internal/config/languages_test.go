@@ -113,7 +113,7 @@ func TestForLanguage(t *testing.T) {
         max: 40
       - metric: has_tests
         disabled: true
-      - metric: dup_blocks_cross_pkg
+      - metric: fan_in
         kind: density
         max_delta: 0
         ratchet_from_zero: true
@@ -153,7 +153,7 @@ func TestForLanguage(t *testing.T) {
 				wantMetrics = append(wantMetrics, m)
 			}
 		}
-		wantMetrics = append(wantMetrics, "dup_blocks_cross_pkg")
+		wantMetrics = append(wantMetrics, "fan_in")
 		if got := ruleMetrics(eff.Thresholds); !slices.Equal(got, wantMetrics) {
 			t.Errorf("rule metrics = %v, want %v", got, wantMetrics)
 		}
@@ -276,7 +276,7 @@ func TestParseLanguageErrors(t *testing.T) {
 		t.Parallel()
 
 		_, err := Parse([]byte(replace(t, "    kind: requirement\n", "    kind: requirement\n    disabled: true\n")))
-		const want = `thresholds[13] "has_tests": disabled applies only under languages`
+		const want = `thresholds[14] "has_tests": disabled applies only under languages`
 		if err == nil || !strings.Contains(err.Error(), want) {
 			t.Fatalf("Parse() error = %v, want error containing %q", err, want)
 		}
