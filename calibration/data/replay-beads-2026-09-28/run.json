@@ -1,0 +1,30 @@
+{
+  "date": "2026-09-28",
+  "totals": {
+    "commits": 270,
+    "loaded": 196,
+    "not_loaded": 74,
+    "passed": 60,
+    "failed": 136,
+    "package_rows": 425,
+    "wall_seconds": 8704.194,
+    "written": 215,
+    "skipped": 55
+  },
+  "parallel": 4,
+  "source": {
+    "first": "e861a667fca220ddc64bc581c9032e8055e0efa8",
+    "last": "de64d817e588ed8048f7f00308edb1d1fbbc1591",
+    "module_dir": ".",
+    "range": "218ee6d2b411d701e63a5b61d7bda9f21abede5e..de64d817e588ed8048f7f00308edb1d1fbbc1591",
+    "remote": "https://github.com/steveyegge/beads.git",
+    "repository": "beads"
+  },
+  "tool": {
+    "astimate_commit": "9d72bd080440f6ff933867f183d38e34a60ab5a6",
+    "config": "embedded",
+    "config_version": "thresholds-2026-09-28",
+    "go": "go1.27.1 darwin/arm64",
+    "tokenizer": "est"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "date": "2026-09-28",
+  "totals": {
+    "commits": 272,
+    "loaded": 272,
+    "not_loaded": 0,
+    "passed": 125,
+    "failed": 147,
+    "package_rows": 592,
+    "wall_seconds": 3293.419,
+    "written": 272,
+    "skipped": 0
+  },
+  "parallel": 4,
+  "source": {
+    "first": "1aacb414133734f7d9c78014b17b74a8e6b72083",
+    "last": "21e05fe6758eed3f984f68821ab0466278562092",
+    "module_dir": ".",
+    "range": "21e05fe6758eed3f984f68821ab0466278562092",
+    "remote": "https://github.com/wesm/roborev.git",
+    "repository": "roborev"
+  },
+  "tool": {
+    "astimate_commit": "9d72bd080440f6ff933867f183d38e34a60ab5a6",
+    "config": "embedded",
+    "config_version": "thresholds-2026-09-28",
+    "go": "go1.27.1 darwin/arm64",
+    "tokenizer": "est"
+  }
+}

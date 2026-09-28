@@ -1,0 +1,77 @@
+# External corpus of agent-authored commits for the gate validation (SPEC.md
+# 11.3). Each repository's history is replayed with calibration/replay over
+# range, into data, and labeled by the revert-and-fix-up rule with
+# calibration/replay/label into labels. Selection, rejected candidates and
+# the rule's known failure modes are in
+# calibration/notes/agent-commits-corpus-2026-09-28.md. The schema, and that
+# agent_commits matches the replayed rows, are checked by
+# go test ./calibration/replay/label.
+note: >-
+  A commit is agent-authored when one of its Co-Authored-By trailer values,
+  or its "author name <author email>", contains one of the entry's agent
+  strings, ignoring case. A dependency bot (dependabot, renovate) is not an
+  agent: it writes no code. commit pins the newest replayed commit, which
+  ends range; each range ends at least 20 first-parent commits after its
+  last agent-dense stretch so the fix-up window of the rule is complete for
+  most commits. The clones were made on 2026-09-28.
+
+repositories:
+  - name: roborev
+    repo: https://github.com/wesm/roborev.git
+    license: MIT
+    commit: "21e05fe6758eed3f984f68821ab0466278562092"
+    range: "21e05fe6758eed3f984f68821ab0466278562092"
+    dir: .
+    history: squash
+    agent:
+      co_authored_by: ["noreply@anthropic.com", "codex", "factory-droid"]
+    agent_commits: 227
+    data: calibration/data/replay-roborev-2026-09-28
+    labels: calibration/replay/labels/roborev.yaml
+    reason: >-
+      Go daemon that reviews agent commits, written largely with Claude Code
+      and Codex, whose Co-Authored-By trailers name the agent. Direct
+      commits and squash-merged pull requests on a first-parent history
+      without merge commits. The range is the first 272 commits, root
+      included: its most agent-dense stretch.
+
+  - name: github-mcp-server
+    repo: https://github.com/github/github-mcp-server.git
+    license: MIT
+    commit: "f0baf1c80276711bd7e26d4b8fdc26dae7802d5f"
+    range: "d4e1231cf7d7d54b742fde715fff23e3b04d729b..f0baf1c80276711bd7e26d4b8fdc26dae7802d5f"
+    dir: .
+    history: squash
+    agent:
+      co_authored_by: ["copilot", "cursoragent@cursor.com"]
+      authors: ["copilot-swe-agent"]
+    agent_commits: 136
+    data: calibration/data/replay-github-mcp-server-2026-09-28
+    labels: calibration/replay/labels/github-mcp-server.yaml
+    reason: >-
+      GitHub's MCP server in Go, a different organization and agent from
+      the other two: squash-merged pull requests of which many carry a
+      Co-authored-by trailer of GitHub Copilot (the coding agent, the
+      Copilot app, or Copilot Autofix) or are authored by the Copilot coding
+      agent. The range is first-parent commits 836 to 1105 of 1140, the
+      most Copilot-dense window of 250 plus 20 after it.
+
+  - name: beads
+    repo: https://github.com/steveyegge/beads.git
+    license: MIT
+    commit: "de64d817e588ed8048f7f00308edb1d1fbbc1591"
+    range: "218ee6d2b411d701e63a5b61d7bda9f21abede5e..de64d817e588ed8048f7f00308edb1d1fbbc1591"
+    dir: .
+    history: merge
+    agent:
+      co_authored_by: ["noreply@anthropic.com", "claude", "amp@ampcode.com"]
+    agent_commits: 175
+    data: calibration/data/replay-beads-2026-09-28
+    labels: calibration/replay/labels/beads.yaml
+    reason: >-
+      Go issue tracker for coding agents, written mostly by Claude Code and
+      Amp, whose Co-Authored-By trailers name the agent. Mostly direct
+      commits, with some merge commits on the first-parent history. The
+      history is 7,446 first-parent commits; the range is commits 3769 to
+      4038 (January 2026), the most agent-dense window of 250 plus 20 after
+      it.

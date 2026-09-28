@@ -136,6 +136,76 @@ in both files. Agent-authored commits of an external corpus are identified
 from `co_authored_by`, `trailers` and `author_name`/`author_email`. A commit
 that is not `loaded` has no verdict to score and is left out of the tables.
 
+Package `calibration/replay/labels` holds the file's type, its loader and
+its `Validate`, so hand labels and rule labels are read by the same code.
+It is a library rather than part of this command because a `main` package
+cannot be imported by the labeler or by the validation that joins the
+labels with the rows.
+
+```yaml
+source:                  # the history the labels describe
+  repository: https://github.com/wesm/roborev.git
+  range: <rev-range>     # as run.json records it
+  data: calibration/data/replay-roborev-2026-09-28
+rule: <how rule labels were produced; absent for hand labels>
+commits:                 # one entry per commit of commits.jsonl, in its order
+  - hash: <full hash>
+    verdict: block       # block | allow
+    reason: <one sentence>
+    metrics: [dup_blocks]   # optional: the gate rules that should have fired
+    provenance: rule     # proposed | confirmed (hand labels) | rule
+    agent: true          # optional: the corpus's agent rule matched
+    fired:               # rule labels of block commits: which part fired
+      - part: fixup      # revert | fixup
+        by: <full hash of the reverting or fixing commit>
+        functions: [internal/x/y.go:Server.Handle]
+```
+
+`Validate` requires exactly one entry per replayed commit (none missing,
+none extra, no duplicate), a `verdict` and `provenance` from their sets, a
+non-empty `reason`, and `fired` only on `block` entries.
+
+### Rule labels
+
+```sh
+go run ./calibration/replay/label --repo <clone> --data <replay dir> --out <labels.yaml> \
+    [--corpus calibration/corpus-commits.yaml --name <entry>] [--window 20]
+```
+
+labels every commit of a replay data directory with `provenance: rule`:
+
+- `block`, part `revert`, when a later commit of the range, merged branches
+  included, says `This reverts commit <hash>` (full or abbreviated) of it,
+  or has the subject `Revert "<its subject>"` (text after the closing
+  quote, such as a pull request number, is allowed);
+- `block`, part `fixup`, when one of the next `--window` (20) first-parent
+  commits has a subject starting with `fix` or `revert` (`fix`, `fixes`,
+  `fixed`, `fixing`, `fixup`, `revert`, `reverts`, ...; case-insensitive,
+  so `Fix(scope)!:` counts and `fixture:` does not) and changed a function
+  the commit changed;
+- `allow` otherwise, with the reason saying whether the commit changed no
+  function, or had fewer than `--window` later commits in the range.
+
+A commit's functions are computed from `git diff-tree -p -U0` against its
+first parent: every function or method declaration of a non-test `.go`
+file whose line span, doc comment excluded, holds a removed line (in the
+parent's version of the file, parsed with `go/parser`) or an added line (in
+the commit's version), keyed by file path and `Receiver.Name` as
+`metrics.FunctionInfo.QualifiedName` names it, and every package-level
+variable whose value holds a function literal overlapping such a line
+(a cobra command's `RunE`), as `var <name>`. The Go extractor's
+`FunctionLister` would need the module loaded at every commit; the
+syntax-only parse gives the same identity at a fraction of the cost. It
+is precise to the declaration: two edits to one function match, an edit
+to a neighbouring function does not, a renamed or moved function does not,
+and a file that does not parse contributes nothing from that side. Other
+languages' files are not mapped, so for them only the revert part fires.
+
+With `--corpus` and `--name`, each label's `agent` says whether the
+entry's agent rule matched the commit. The command prints the counts:
+commits, agent commits, `block` labels, and how many each part produced,
+alone and together.
+
 ## This repository's history
 
 `calibration/data/replay-astimate-2026-09-28/` replays this repository's

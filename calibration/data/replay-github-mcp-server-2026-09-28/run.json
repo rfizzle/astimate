@@ -1,0 +1,30 @@
+{
+  "date": "2026-09-28",
+  "totals": {
+    "commits": 270,
+    "loaded": 267,
+    "not_loaded": 3,
+    "passed": 112,
+    "failed": 155,
+    "package_rows": 500,
+    "wall_seconds": 6058.053,
+    "written": 0,
+    "skipped": 270
+  },
+  "parallel": 4,
+  "source": {
+    "first": "7e394af647018d1c90b5aa4d492a553447b1b697",
+    "last": "f0baf1c80276711bd7e26d4b8fdc26dae7802d5f",
+    "module_dir": ".",
+    "range": "d4e1231cf7d7d54b742fde715fff23e3b04d729b..f0baf1c80276711bd7e26d4b8fdc26dae7802d5f",
+    "remote": "https://github.com/github/github-mcp-server.git",
+    "repository": "github-mcp-server"
+  },
+  "tool": {
+    "astimate_commit": "9d72bd080440f6ff933867f183d38e34a60ab5a6",
+    "config": "embedded",
+    "config_version": "thresholds-2026-09-28",
+    "go": "go1.27.1 darwin/arm64",
+    "tokenizer": "est"
+  }
+}
