@@ -6,11 +6,15 @@
 //
 //	go run ./calibration/rebuild select [flags]   # choose and verify the packages (network)
 //	go run ./calibration/rebuild stub --root <module root> --dir <package dir> [--sha256 <hash>]
+//	go run ./calibration/rebuild run --live [flags]  # run every experiment with Claude Code (live requests)
+//	go run ./calibration/rebuild run --agent <template> [flags]  # run with another agent command
 //
 // select reads the corpus data, clones each candidate's module at its pin
 // into a scratch directory, verifies the candidate and writes rebuild.yaml
 // and selection.md. stub stubs one package of a module in place and prints
-// the tree hash.
+// the tree hash. run clones, stubs and hands each experiment to an agent,
+// runs the oracle and appends one row per run to runs.jsonl; without
+// --live it never starts the default agent, Claude Code.
 package main
 
 import (
@@ -62,7 +66,7 @@ func main() {
 // run dispatches the subcommand in args and returns the exit code.
 func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
-		_, _ = fmt.Fprintln(stderr, "usage: rebuild select|stub [flags]")
+		_, _ = fmt.Fprintln(stderr, "usage: rebuild select|stub|run [flags]")
 		return exitUsage
 	}
 	var err error
@@ -71,12 +75,17 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		err = runSelect(ctx, args[1:], stdout, stderr)
 	case "stub":
 		err = runStub(args[1:], stdout, stderr)
+	case "run":
+		err = runRuns(ctx, args[1:], stdout, stderr)
 	default:
-		_, _ = fmt.Fprintf(stderr, "rebuild: unknown command %q; want select or stub\n", args[0])
+		_, _ = fmt.Fprintf(stderr, "rebuild: unknown command %q; want select, stub or run\n", args[0])
 		return exitUsage
 	}
 	switch {
 	case errors.Is(err, flag.ErrHelp):
+		return exitUsage
+	case errors.Is(err, errUsage):
+		_, _ = fmt.Fprintln(stderr, "rebuild:", err)
 		return exitUsage
 	case err != nil:
 		_, _ = fmt.Fprintln(stderr, "rebuild:", err)
