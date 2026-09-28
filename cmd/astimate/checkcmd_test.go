@@ -35,7 +35,7 @@ const (
 
 // degradedMetrics are the rules the degraded fixture's tested package
 // breaks by adding a duplicate function, an untested export, a global and
-// one function of cognitive complexity 40.
+// one function of cognitive complexity 51.
 func degradedMetrics() []string {
 	return []string{"changed_func_cognitive_max", "dup_blocks", "globals", "untested_exports"}
 }
@@ -59,7 +59,7 @@ const degradedGlobal = "joins"
 
 // degradedGrade is the start of the changed_func_cognitive_max suggestion
 // on the degraded fixture, naming its complex function.
-const degradedGrade = "Changed function grade (grade.go:8) has cognitive complexity 40"
+const degradedGrade = "Changed function grade (grade.go:8) has cognitive complexity 51"
 
 // fixtureBaseline extracts the pristine fixture and writes it as a baseline
 // file with ref "fixture", functions included, in a temporary directory,
@@ -213,15 +213,15 @@ func TestCheckFixtures(t *testing.T) {
 					if r.PackagePath != "tested" {
 						continue
 					}
-					// The degraded copy adds grade (40) while the p90 stays
+					// The degraded copy adds grade (51) while the p90 stays
 					// under 10; the grown copy adds simple functions, and
 					// the unchanged copy changes none.
 					got := r.Metrics.ChangedFuncCognitiveMax
 					switch {
 					case got == nil:
 					case fx.name == "unchanged" && *got != 0,
-						fx.name == "grown" && *got > 30,
-						failing && (*got != 40 || r.Metrics.CognitiveP90 >= 10):
+						fx.name == "grown" && *got > 50,
+						failing && (*got != 51 || r.Metrics.CognitiveP90 >= 10):
 						t.Errorf("tested: changed_func_cognitive_max %d with cognitive_p90 %d", *got, r.Metrics.CognitiveP90)
 					}
 					if failing {

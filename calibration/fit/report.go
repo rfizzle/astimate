@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/gate"
 	"github.com/rfizzle/astimate/internal/metrics"
 )
@@ -30,6 +31,10 @@ type reportInput struct {
 	// CrossPkg is the distribution of dup_blocks_cross_pkg over the
 	// data's module rows; its N is 0 when the data has none.
 	CrossPkg Stats
+	// Previous is an earlier configuration to compare the candidate's
+	// limits with, and PreviousPath its file; nil for no comparison.
+	Previous     *config.Config
+	PreviousPath string
 }
 
 // methodText states the fitting rules; the report header and the
@@ -40,6 +45,7 @@ func methodText() []string {
 		"A capacity rule's max, and a density rule's max where the base rule has one, is the 90th percentile rounded to two significant figures and then to the nearest readable step: 500 above 1000, 50 above 100, 5 above 10, otherwise 1 (0.5 for a percentage). A capacity max is at least one step.",
 		"A density rule's max_delta is a quarter of the IQR rounded up to a whole step, at least 1 for a count and 0.5 for a percentage, except that a rule whose base max_delta is 0 keeps it: zero tolerance on new duplicate blocks, untested exports, globals, init functions and nesting is a policy, not a statistic.",
 		"internal_imports is pooled from cloned-module rows only, since the standard library is loaded as one module and counts every standard-library import as internal; every other metric is pooled from all rows.",
+		"changed_func_cognitive_max is a diff against a baseline, so it is fitted per function with every function of every row counted as new, as in a package new at head: its max is the 99th percentile of per-function cognitive complexity, rounded the same way, since a single function past the corpus's own worst percentile is the signal.",
 		"Kinds, warn_at, ratchet_from_zero, when guards, requirement rules, the rebuild parameters and every other key are copied from the base unchanged; a density rule with no max in the base gets none.",
 	}
 }
@@ -64,7 +70,8 @@ func renderReport(in *reportInput) string {
 		w("- %s\n", line)
 	}
 	w("\n\"Fail as new\" counts pooled packages that would violate the rule as a package new at head, with no baseline: ")
-	w("above max, above max_delta from zero where ratchet_from_zero is set, or not meeting a requirement whose guard holds.\n\n")
+	w("above max, above max_delta from zero where ratchet_from_zero is set, or not meeting a requirement whose guard holds. ")
+	w("For `%s` it counts functions above max, and its section also counts the packages holding one.\n\n", funcMetric)
 
 	w("## Summary\n\n")
 	w("Base is `%s`, candidate `%s`. Rows counts the rows the metric was measured on and names which rows fed it.\n\n",
@@ -83,8 +90,14 @@ func renderReport(in *reportInput) string {
 	}
 	w("\n")
 
+	if in.Previous != nil {
+		writePrevious(&b, in)
+	}
+
 	w("## What changed most\n\n")
 	writeChanges(&b, in)
+
+	writeFunctions(&b, in)
 
 	w("## Not fitted\n\n")
 	writeUnfitted(&b, in)
@@ -114,6 +127,12 @@ func writeChanges(b *strings.Builder, in *reportInput) {
 		dir := "loosens"
 		if *c.Max < *c.Rule.Max {
 			dir = "tightens"
+		}
+		if c.Pool == poolFunctions {
+			w("- `%s` max %s: %s to %s. The per-function median is %s, p90 %s and p99 %s; %s of the pooled functions are above the base max and %s above the candidate.\n",
+				c.Rule.Metric, dir, num(*c.Rule.Max), num(*c.Max), num(c.Stats.P50), num(c.Stats.P90), num(c.Stats.P99),
+				share(c.OverBase, c.Stats.N), share(c.OverCandidate, c.Stats.N))
+			continue
 		}
 		w("- `%s` max %s: %s to %s. The pooled median is %s and p90 is %s; as new packages, %s of the pool failed the base max and %s fail the candidate.\n",
 			c.Rule.Metric, dir, num(*c.Rule.Max), num(*c.Max), num(c.Stats.P50), num(c.Stats.P90),
@@ -152,10 +171,15 @@ func writeUnfitted(b *strings.Builder, in *reportInput) {
 	w := func(format string, args ...any) { fmt.Fprintf(b, format, args...) }
 	for i := range in.Choices {
 		c := &in.Choices[i]
-		if c.Stats.N == 0 {
-			w("- `%s`: no row measures it, so the base values are kept (max %s, max_delta %s). ",
+		switch {
+		case c.Stats.N > 0:
+		case c.Pool == poolFunctions:
+			w("- `%s`: no row counts its functions by cognitive complexity (`func_cognitive`), so the base values are kept (max %s, max_delta %s). ",
 				c.Rule.Metric, opt(c.Max), opt(c.MaxDelta))
-			w("A metric that is itself a diff against a baseline needs baseline and head pairs, which the corpus does not have.\n")
+			w("Recollect the data with the current `calibration/collect` to fit it.\n")
+		default:
+			w("- `%s`: no row measures it, so the base values are kept (max %s, max_delta %s).\n",
+				c.Rule.Metric, opt(c.Max), opt(c.MaxDelta))
 		}
 	}
 	if s := &in.CrossPkg; s.N == 0 {
@@ -186,7 +210,11 @@ func writeMetric(b *strings.Builder, c *Choice) {
 	w("| %d | %s | %s | %s | %s | %s | %s | %s | %s |\n\n", s.N, num(s.Min), num(s.P25), num(s.P50), num(s.P75),
 		num(s.P90), num(s.P95), num(s.Max), num(s.IQR))
 	if len(s.Hist) > 0 {
-		w("| Range | Packages | Share |\n")
+		unit := "Packages"
+		if c.Pool == poolFunctions {
+			unit = "Functions"
+		}
+		w("| Range | %s | Share |\n", unit)
 		w("| --- | ---: | ---: |\n")
 		closed := len(s.Hist) - 1
 		for i, bin := range s.Hist {
@@ -217,6 +245,65 @@ func writeMetric(b *strings.Builder, c *Choice) {
 		w("| Base | %s | %s | %s |\n", opt(c.Rule.Max), opt(c.Rule.MaxDelta), share(c.OverBase, s.N))
 		w("| Candidate | %s | %s | %s |\n\n", opt(c.Max), opt(c.MaxDelta), share(c.OverCandidate, s.N))
 	}
+}
+
+// writePrevious compares every rule's limits in the candidate with those
+// of the earlier configuration in.Previous, rule by rule in the
+// candidate's order, and names the rules that moved.
+func writePrevious(b *strings.Builder, in *reportInput) {
+	w := func(format string, args ...any) { fmt.Fprintf(b, format, args...) }
+	prev := make(map[string]*gate.Threshold, len(in.Previous.Thresholds))
+	for i := range in.Previous.Thresholds {
+		prev[in.Previous.Thresholds[i].Metric] = &in.Previous.Thresholds[i]
+	}
+	w("## Against %s\n\n", in.Previous.Version)
+	w("Limits of `%s` (`%s`) against the candidate.\n\n", in.Previous.Version, in.PreviousPath)
+	w("| Metric | Previous max | Candidate max | Previous max_delta | Candidate max_delta |\n")
+	w("| --- | ---: | ---: | ---: | ---: |\n")
+	var moved []string
+	for i := range in.Choices {
+		c := &in.Choices[i]
+		var pMax, pDelta *float64
+		if p, ok := prev[c.Rule.Metric]; ok {
+			pMax, pDelta = p.Max, p.MaxDelta
+		}
+		if opt(pMax) != opt(c.Max) || opt(pDelta) != opt(c.MaxDelta) {
+			moved = append(moved, "`"+c.Rule.Metric+"`")
+		}
+		w("| `%s` | %s | %s | %s | %s |\n", c.Rule.Metric, opt(pMax), opt(c.Max), opt(pDelta), opt(c.MaxDelta))
+	}
+	w("\n")
+	if len(moved) == 0 {
+		w("No limit moved.\n\n")
+		return
+	}
+	w("Only %s moved; every other limit is unchanged.\n\n", strings.Join(moved, ", "))
+}
+
+// writeFunctions writes the per-function cognitive distribution behind
+// funcMetric: its percentiles over every pooled function, the fitted max
+// and how many functions and packages fall above it.
+func writeFunctions(b *strings.Builder, in *reportInput) {
+	w := func(format string, args ...any) { fmt.Fprintf(b, format, args...) }
+	var c *Choice
+	for i := range in.Choices {
+		if in.Choices[i].Pool == poolFunctions {
+			c = &in.Choices[i]
+		}
+	}
+	if c == nil || c.Stats.N == 0 {
+		return
+	}
+	s := &c.Stats
+	w("## Per-function cognitive complexity\n\n")
+	w("Every function of every pooled row, counted as new (`%s`), %d functions in %d packages:\n\n", c.Rule.Metric, s.N, c.Packages)
+	w("| Functions | p50 | p90 | p99 | max |\n")
+	w("| ---: | ---: | ---: | ---: | ---: |\n")
+	w("| %d | %s | %s | %s | %s |\n\n", s.N, num(s.P50), num(s.P90), num(s.P99), num(s.Max))
+	w("The candidate max is p99 %s rounded to %s. Above the base max %s: %s of functions, in %s of packages. ",
+		num(s.P99), opt(c.Max), opt(c.Rule.Max), share(c.OverBase, s.N), share(c.PkgOverBase, c.Packages))
+	w("Above the candidate: %s of functions, in %s of packages.\n\n",
+		share(c.OverCandidate, s.N), share(c.PkgOverCandidate, c.Packages))
 }
 
 // logRatio is the size of the move from base to v on a log scale, so a

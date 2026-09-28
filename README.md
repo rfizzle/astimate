@@ -6,7 +6,7 @@ The gate targets the ways LLM-written changes tend to degrade a package: copy-pa
 
 ## Status
 
-Every command below, the GitHub Action, the Claude Code hook, the pre-commit hook and the MCP server are implemented and tested, and `v0.1.0` is released. The default thresholds are calibrated against a corpus of the standard library and 36 well-regarded Go modules (`SPEC.md` section 11, [the report](calibration/reports/thresholds-2026-09-27.md)); the rebuild estimate's parameters are not calibrated yet, and every estimate line says so (`estimate from uncalibrated parameters`); that label is about the estimate, not the gate. See `SPEC.md` for the full design and `AGENTS.md` for contribution rules.
+Every command below, the GitHub Action, the Claude Code hook, the pre-commit hook and the MCP server are implemented and tested, and `v0.1.0` is released. The default thresholds are calibrated against a corpus of the standard library and 36 well-regarded Go modules (`SPEC.md` section 11, [the report](calibration/reports/thresholds-2026-09-28.md)); the rebuild estimate's parameters are not calibrated yet, and every estimate line says so (`estimate from uncalibrated parameters`); that label is about the estimate, not the gate. See `SPEC.md` for the full design and `AGENTS.md` for contribution rules.
 
 Go and TypeScript are supported. The extractor interface and its conformance suite are language-agnostic; Go is analyzed with the standard toolchain, TypeScript with a pure-Go tree-sitter runtime, so neither needs cgo.
 
@@ -193,7 +193,7 @@ wrote /tmp/fixture-baseline.json (7 packages)
 $ astimate check testdata/go/fixture-degraded --baseline /tmp/fixture-baseline.json --all
 violations:
   tested
-    changed_func_cognitive_max: 40 (changed since baseline), max 30. Changed function grade (grade.go:8) has cognitive complexity 40; split it into smaller functions or flatten its branching.
+    changed_func_cognitive_max: 51 (changed since baseline), max 50. Changed function grade (grade.go:8) has cognitive complexity 51; split it into smaller functions or flatten its branching.
     dup_blocks: 0 -> 1, max_delta +0. 1 duplicate block covers 12.2% of lines; extract shared helpers, starting with degraded.go:15-20.
     duplication_pct: 0 -> 12.2, max_delta +6. 1 duplicate block covers 12.2% of lines; extract shared helpers, starting with degraded.go:15-20.
     globals: 0 -> 1, max_delta +0. 1 package-level variable holds state no signature reveals (joins); pass it explicitly or move it into a struct.
@@ -239,12 +239,12 @@ $ head -15 astimate.yaml
 #
 # The gate thresholds are calibrated (SPEC.md sections 8.2 and 11.1): fitted
 # by calibration/fit from the reference corpus in calibration/corpus.md, with
-# the evidence in calibration/reports/thresholds-2026-09-27.md. The rebuild
+# the evidence in calibration/reports/thresholds-2026-09-28.md. The rebuild
 # parameters are uncalibrated placeholders (SPEC.md section 7) until the
 # rebuild experiments in SPEC.md section 11.2 have run.
 
 # Identifies the defaults this file was generated from.
-config_version: thresholds-2026-09-27
+config_version: thresholds-2026-09-28
 
 # Bytes of source per estimated token; tokens_est = bytes / chars_per_token.
 chars_per_token: 3.2
@@ -271,7 +271,7 @@ date: <date>
 
 One file, `astimate.yaml`, holds the rebuild-estimate parameters and the gate thresholds. `astimate config init` writes the defaults with a comment on every line. Resolution order is `--config` (`--thresholds` is an alias on `check`), then `./astimate.yaml`, then the embedded default. The top-level keys `config_version`, `chars_per_token`, `rebuild` and `thresholds` are required: a missing one is an error, not filled from the default, so start from the file `config init` writes. Sections that group optional tuning, today `duplication` (`min_tokens`, `ignore_literal_only`, `fold_signs`), may be partial or absent, and absent keys take the embedded defaults. An optional `languages:` section, keyed by language id (`go` or `typescript`), overrides the configuration for one language: its `rebuild:` sets only the parameters it names, the rest coming from the top-level `rebuild`; its `thresholds:` rules replace the top-level rule on the same metric or add one, and `- metric: <name>` with `disabled: true` drops that metric's rules for the language. Everything else is shared. Reports judged with an override show `config_version` suffixed with `+<language>`. `SPEC.md` section 9 has the full rules.
 
-The default thresholds (`config_version: thresholds-2026-09-27`) are the rounded 90th percentiles of a reference corpus of the standard library and 36 well-regarded Go modules, fitted by `calibration/fit` (`SPEC.md` section 11.1); [calibration/reports/thresholds-2026-09-27.md](calibration/reports/thresholds-2026-09-27.md) has the distributions and a before and after table, and `configs/uncalibrated.yaml` keeps the earlier placeholders. The zero-tolerance ratchets stay at 0 by policy. The rebuild parameters are still uncalibrated, and every estimate line says so; `SPEC.md` section 11.2 is the experiment that measures them.
+The default thresholds (`config_version: thresholds-2026-09-28`) are the rounded 90th percentiles of a reference corpus of the standard library and 36 well-regarded Go modules, fitted by `calibration/fit` (`SPEC.md` section 11.1), except `changed_func_cognitive_max`, which is the rounded 99th percentile of the corpus's per-function cognitive complexity (50); [calibration/reports/thresholds-2026-09-28.md](calibration/reports/thresholds-2026-09-28.md) has the distributions and a before and after table, and `configs/uncalibrated.yaml` keeps the earlier placeholders. The zero-tolerance ratchets stay at 0 by policy. The rebuild parameters are still uncalibrated, and every estimate line says so; `SPEC.md` section 11.2 is the experiment that measures them.
 
 ## Integrations
 

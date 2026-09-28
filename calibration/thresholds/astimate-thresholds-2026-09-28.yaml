@@ -1,10 +1,36 @@
 # Astimate configuration: rebuild parameters and gate thresholds in one file.
 #
-# The gate thresholds are calibrated (SPEC.md sections 8.2 and 11.1): fitted
-# by calibration/fit from the reference corpus in calibration/corpus.md, with
-# the evidence in calibration/reports/thresholds-2026-09-28.md. The rebuild
-# parameters are uncalibrated placeholders (SPEC.md section 7) until the
-# rebuild experiments in SPEC.md section 11.2 have run.
+# Candidate thresholds-2026-09-28, fitted by calibration/fit (SPEC.md 11.1)
+# from 2347 packages in calibration/data/2026-09-28-corpus/packages.jsonl.
+#
+# Percentiles are nearest-rank: the p-th percentile of n values is the value
+# at rank ceil(p/100 * n), so it is always an observed value. IQR is p75
+# minus p25.
+#
+# A capacity rule's max, and a density rule's max where the base rule has
+# one, is the 90th percentile rounded to two significant figures and then to
+# the nearest readable step: 500 above 1000, 50 above 100, 5 above 10,
+# otherwise 1 (0.5 for a percentage). A capacity max is at least one step.
+#
+# A density rule's max_delta is a quarter of the IQR rounded up to a whole
+# step, at least 1 for a count and 0.5 for a percentage, except that a rule
+# whose base max_delta is 0 keeps it: zero tolerance on new duplicate
+# blocks, untested exports, globals, init functions and nesting is a policy,
+# not a statistic.
+#
+# internal_imports is pooled from cloned-module rows only, since the
+# standard library is loaded as one module and counts every standard-library
+# import as internal; every other metric is pooled from all rows.
+#
+# changed_func_cognitive_max is a diff against a baseline, so it is fitted
+# per function with every function of every row counted as new, as in a
+# package new at head: its max is the 99th percentile of per-function
+# cognitive complexity, rounded the same way, since a single function past
+# the corpus's own worst percentile is the signal.
+#
+# Kinds, warn_at, ratchet_from_zero, when guards, requirement rules, the
+# rebuild parameters and every other key are copied from the base unchanged;
+# a density rule with no max in the base gets none.
 
 # Identifies the defaults this file was generated from.
 config_version: thresholds-2026-09-28

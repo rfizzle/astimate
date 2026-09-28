@@ -2,7 +2,9 @@
 // thresholds from. It clones each module of calibration/corpus.yaml at its
 // pinned commit, ranks every package the way `astimate rank --json` does,
 // measures the standard library in-process, and pools the rows into
-// packages.jsonl with a run.json describing the environment.
+// packages.jsonl with a run.json describing the environment. Each row also
+// counts its package's functions by cognitive complexity, the per-function
+// distribution changed_func_cognitive_max is fitted from.
 //
 // Usage, from the repository root:
 //

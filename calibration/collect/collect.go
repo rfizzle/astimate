@@ -35,20 +35,41 @@ type Row struct {
 	AgentPasses float64 `json:"agent_passes"`
 	// HumanDays is the human estimate, as rank reports it.
 	HumanDays float64 `json:"human_days"`
+	// FuncCognitive counts the package's functions by cognitive
+	// complexity, value to count, over the functions the extractor lists
+	// (metrics.FunctionLister), so the pooled per-function distribution
+	// behind changed_func_cognitive_max is exact and the data stays small.
+	// It is absent for a package with no functions.
+	FuncCognitive map[int]int `json:"func_cognitive,omitempty"`
 }
 
 // newRow estimates m under cfg and returns its pooled row, rounded the way
-// report.NewRow rounds the rank output.
-func newRow(module, commit, pkg string, m *metrics.RawMetrics, cfg *config.Config) Row {
+// report.NewRow rounds the rank output, with fns counted into
+// FuncCognitive.
+func newRow(module, commit, pkg string, m *metrics.RawMetrics, fns []metrics.FunctionInfo, cfg *config.Config) Row {
 	r := report.NewRow(pkg, m, cfg.Rebuild)
 	return Row{
-		Module:      module,
-		Commit:      commit,
-		Package:     pkg,
-		Metrics:     *m,
-		AgentPasses: r.AgentPasses,
-		HumanDays:   r.HumanDays,
+		Module:        module,
+		Commit:        commit,
+		Package:       pkg,
+		Metrics:       *m,
+		AgentPasses:   r.AgentPasses,
+		HumanDays:     r.HumanDays,
+		FuncCognitive: cognitiveCounts(fns),
 	}
+}
+
+// cognitiveCounts counts fns by cognitive complexity; nil for no
+// functions.
+func cognitiveCounts(fns []metrics.FunctionInfo) map[int]int {
+	if len(fns) == 0 {
+		return nil
+	}
+	counts := make(map[int]int)
+	for i := range fns {
+		counts[fns[i].Cognitive]++
+	}
+	return counts
 }
 
 // packageFailure is a package that failed to extract.
@@ -64,6 +85,8 @@ type packageFailure struct {
 // one row per package sorted by import path, tagged with commit. It also
 // returns the module path from go.mod and the packages that failed to
 // extract; an error means the module could not be loaded or listed at all.
+// When the extractor lists functions (metrics.FunctionLister), each row
+// carries its package's per-function cognitive counts.
 func collectModule(ctx context.Context, dir, commit string, cfg *config.Config, logger *slog.Logger,
 ) (rows []Row, modPath string, failed []packageFailure, err error) {
 	t, err := engine.LoadTarget(dir, engine.TargetOptions{Config: cfg, Logger: logger})
@@ -75,6 +98,7 @@ func collectModule(ctx context.Context, dir, commit string, cfg *config.Config, 
 	if err != nil {
 		return nil, modPath, nil, fmt.Errorf("listing packages of %s: %w", modPath, err)
 	}
+	lister, _ := t.Ext.(metrics.FunctionLister)
 	rows = make([]Row, 0, len(pkgs))
 	for _, pkg := range pkgs {
 		m, err := t.Ext.Extract(ctx, t.Mod, pkg)
@@ -83,7 +107,16 @@ func collectModule(ctx context.Context, dir, commit string, cfg *config.Config, 
 			failed = append(failed, packageFailure{Package: pkg, Err: err.Error()})
 			continue
 		}
-		rows = append(rows, newRow(modPath, commit, pkg, &m, cfg))
+		var fns []metrics.FunctionInfo
+		if lister != nil {
+			// Functions reads what the Extract above recorded.
+			if fns, err = lister.Functions(ctx, t.Mod, pkg); err != nil {
+				logger.Error("listing functions failed", "package", pkg, "err", err)
+				failed = append(failed, packageFailure{Package: pkg, Err: err.Error()})
+				continue
+			}
+		}
+		rows = append(rows, newRow(modPath, commit, pkg, &m, fns, cfg))
 	}
 	sortRows(rows)
 	return rows, modPath, failed, nil
@@ -119,14 +152,14 @@ func stdlibOptions(cfg *config.Config) []golang.Option {
 }
 
 // collectStdlib measures the whole standard library in one load with
-// golang.ExtractStdlibAll, so fan_in and fan_in_tests count the
+// golang.ExtractStdlibAllFunctions, so fan_in and fan_in_tests count the
 // standard-library packages importing each one, and returns the rows of
 // the packages in pkgs sorted by import path, tagged with goVersion as the
 // commit, and the packages of pkgs that failed or were not in the load. An
 // error means the standard library could not be loaded at all.
 func collectStdlib(ctx context.Context, pkgs []string, goVersion string, cfg *config.Config, logger *slog.Logger,
 ) (rows []Row, failed []packageFailure, err error) {
-	all, errs, err := golang.ExtractStdlibAll(ctx, stdlibOptions(cfg)...)
+	all, fns, errs, err := golang.ExtractStdlibAllFunctions(ctx, stdlibOptions(cfg)...)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -142,7 +175,7 @@ func collectStdlib(ctx context.Context, pkgs []string, goVersion string, cfg *co
 			failed = append(failed, packageFailure{Package: pkg, Err: err.Error()})
 			continue
 		}
-		rows = append(rows, newRow(stdlibModule, goVersion, pkg, &m, cfg))
+		rows = append(rows, newRow(stdlibModule, goVersion, pkg, &m, fns[pkg], cfg))
 	}
 	sortRows(rows)
 	return rows, failed, nil

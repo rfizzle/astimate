@@ -85,14 +85,43 @@ func ExtractStdlib(ctx context.Context, importPath string, opts ...Option) (metr
 // or the library could not be loaded at all, which is how a toolchain
 // without usable GOROOT sources shows.
 func ExtractStdlibAll(ctx context.Context, opts ...Option) (map[string]metrics.RawMetrics, map[string]error, error) {
+	got, failed, _, err := extractStdlibAll(ctx, opts...)
+	return got, failed, err
+}
+
+// ExtractStdlibAllFunctions is ExtractStdlibAll that also returns, by
+// import path, the functions of every measured package the way
+// Extractor.Functions lists them (metrics.FunctionLister), with File
+// relative to the package directory. It is intended for calibration, which
+// pools the per-function cognitive complexity behind
+// changed_func_cognitive_max; the metrics and failures are exactly
+// ExtractStdlibAll's.
+func ExtractStdlibAllFunctions(ctx context.Context, opts ...Option,
+) (map[string]metrics.RawMetrics, map[string][]metrics.FunctionInfo, map[string]error, error) {
+	got, failed, l, err := extractStdlibAll(ctx, opts...)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	fns := make(map[string][]metrics.FunctionInfo, len(got))
+	for path := range got {
+		// assemble recorded the details of every package it measured.
+		d, _ := l.detailsOf(path)
+		fns[path] = functionInfos(l.fset, l.pkgs[path].Dir, d.functions)
+	}
+	return got, fns, failed, nil
+}
+
+// extractStdlibAll does the work of ExtractStdlibAll and also returns the
+// load, whose recorded details hold each measured package's functions.
+func extractStdlibAll(ctx context.Context, opts ...Option) (map[string]metrics.RawMetrics, map[string]error, *loaded, error) {
 	e := New(opts...)
 	counter, err := e.counter()
 	if err != nil {
-		return nil, nil, fmt.Errorf("extracting std: %w", err)
+		return nil, nil, nil, fmt.Errorf("extracting std: %w", err)
 	}
 	l, failed, err := loadStdlib(ctx, e.load)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	results := make([]metrics.RawMetrics, len(l.paths))
@@ -113,7 +142,7 @@ func ExtractStdlibAll(ctx context.Context, opts ...Option) (map[string]metrics.R
 	close(next)
 	wg.Wait()
 	if err := ctx.Err(); err != nil {
-		return nil, nil, fmt.Errorf("extracting std: %w", err)
+		return nil, nil, nil, fmt.Errorf("extracting std: %w", err)
 	}
 
 	got := make(map[string]metrics.RawMetrics, len(l.paths))
@@ -124,7 +153,7 @@ func ExtractStdlibAll(ctx context.Context, opts ...Option) (map[string]metrics.R
 		}
 		got[path] = results[i]
 	}
-	return got, failed, nil
+	return got, failed, l, nil
 }
 
 // loadStdlib loads the whole standard library with load, in one call, and

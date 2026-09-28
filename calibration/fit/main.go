@@ -6,14 +6,16 @@
 //
 // Usage, from the repository root:
 //
-//	go run ./calibration/fit --data calibration/data/<date>/packages.jsonl [--date YYYY-MM-DD]
+//	go run ./calibration/fit --data calibration/data/<date>/packages.jsonl [--date YYYY-MM-DD] [--compare old.yaml]
 //
 // The candidate copies the base configuration (the embedded default unless
 // --base names a file) with config_version thresholds-<date>, plus a
 // -stdlib-provisional suffix while every row is from the standard library,
 // and each rule's max and max_delta refitted; see methodText for the
-// rules. It is validated with config.Parse before it is written. Check it
-// against the acceptance invariants with
+// rules. It is validated with config.Parse before it is written.
+// --compare adds a table of an earlier configuration's limits against the
+// candidate's to the report. Check the candidate against the acceptance
+// invariants with
 //
 //	ASTIMATE_CONFIG=$PWD/<candidate> go test ./internal/invariants
 package main
@@ -41,7 +43,7 @@ const suffixAuto = "auto"
 
 // options are the parsed command-line flags.
 type options struct {
-	data, base, out, report, date, suffix string
+	data, base, out, report, date, suffix, compare string
 }
 
 func main() {
@@ -76,6 +78,7 @@ func parseFlags(args []string, stderr io.Writer) (options, error) {
 	fs.StringVar(&o.report, "report", "", "report file; empty means calibration/reports/thresholds-<version suffix>.md")
 	fs.StringVar(&o.date, "date", time.Now().Format(time.DateOnly), "calibration date, YYYY-MM-DD")
 	fs.StringVar(&o.suffix, "suffix", suffixAuto, "config_version suffix; auto means "+provisionalSuffix+" for standard-library-only data")
+	fs.StringVar(&o.compare, "compare", "", "earlier configuration file whose limits the report compares with the candidate's")
 	if err := fs.Parse(args); err != nil {
 		return o, err
 	}
@@ -117,6 +120,12 @@ func fit(opts options) (result, error) {
 	base, err := config.Parse(baseData)
 	if err != nil {
 		return result{}, fmt.Errorf("base config: %w", err)
+	}
+	var previous *config.Config
+	if opts.compare != "" {
+		if previous, err = config.Load(opts.compare); err != nil {
+			return result{}, fmt.Errorf("compare config: %w", err)
+		}
 	}
 
 	mods := modules(rows)
@@ -160,6 +169,9 @@ func fit(opts options) (result, error) {
 		Provisional: provisional,
 		Choices:     choices,
 		CrossPkg:    crossPkgStats(rows),
+
+		Previous:     previous,
+		PreviousPath: filepath.ToSlash(opts.compare),
 	})
 	if err := writeFile(res.out, out); err != nil {
 		return result{}, err

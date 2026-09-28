@@ -16,6 +16,14 @@ history.
   parameters)` instead of `(estimate, uncalibrated)`, so it no longer reads
   as a statement about the gate thresholds, which are calibrated. The JSON
   field `rebuild.calibrated` is unchanged.
+- `changed_func_cognitive_max` is calibrated: its default `max` moves from
+  the placeholder 30 to 50, the 99th percentile (51) of per-function
+  cognitive complexity over the 80,280 functions of the reference corpus,
+  rounded per SPEC.md 11.1. `config_version` is `thresholds-2026-09-28`;
+  every other limit is unchanged. The collector now records each package's
+  per-function cognitive counts (`func_cognitive`), the data is in
+  `calibration/data/2026-09-28-corpus/` and the evidence in
+  `calibration/reports/thresholds-2026-09-28.md`.
 
 ## [0.1.0] - 2026-09-27
 

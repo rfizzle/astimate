@@ -11,8 +11,8 @@ import (
 )
 
 // tsGrade is one complex TypeScript function, the counterpart of the Go
-// degraded fixture's grade: cognitive complexity 40 with nesting 2, so it
-// fails changed_func_cognitive_max (max 30) while the package's p90 stays
+// degraded fixture's grade: cognitive complexity 51 with nesting 2, so it
+// fails changed_func_cognitive_max (max 50) while the package's p90 stays
 // at the level of its small functions.
 const tsGrade = `
 // grade rates a passphrase from 0 to 10.
@@ -34,37 +34,37 @@ function grade(s: string, strict: boolean): number {
     }
   }
   let score = 0;
-  if (s.length >= 12 && upper > 0 || lower > 3 && !strict) {
+  if (s.length >= 12 && upper > 0 || lower > 3 && !strict || digit > 6) {
     score += 2;
   }
-  if (digit > 1 || other > 0 && s.length > 8 || strict && upper > 2) {
+  if (digit > 1 || other > 0 && s.length > 8 || strict && upper > 2 || s.length > 16) {
     score++;
   }
-  if (upper === 0 && lower === 0 || s.length < 4) {
+  if (upper === 0 && lower === 0 || s.length < 4 && !strict) {
     return 0;
   }
-  if (strict && (digit === 0 || other === 0) && s.length < 16) {
+  if (strict && (digit === 0 || other === 0) && s.length < 16 || upper > 12) {
     score -= 3;
-  } else if (!strict && digit + other > 4) {
+  } else if (!strict && digit + other > 4 || upper > 5 && lower > 5) {
     score += 3;
   } else {
     score--;
   }
   for (let i = 1; i < s.length; i++) {
-    if (s[i] === s[i - 1] && /[a-zA-Z]/.test(s[i]) || s[i] === " ") {
+    if (s[i] === s[i - 1] && /[a-zA-Z]/.test(s[i]) || s[i] === " " && strict) {
       score--;
     }
   }
-  if (upper > lower || digit > upper + lower && !strict) {
+  if (upper > lower || digit > upper + lower && !strict || other > 5) {
     score -= 2;
   }
-  if (other > 3 && digit > 3 || upper > 3 && lower > 3) {
+  if (other > 3 && digit > 3 || upper > 3 && lower > 3 || s.length > 24) {
     score += 2;
   }
-  if (strict && s.length > 20 || !strict && other === 0) {
+  if (strict && s.length > 20 || !strict && other === 0 || digit > 9) {
     score--;
   }
-  if (digit > 0 && other > 0 && upper > 0 && lower > 0 || s.length > 30) {
+  if (digit > 0 && other > 0 && upper > 0 && lower > 0 || s.length > 30 && strict) {
     score += 2;
   }
   return Math.max(0, Math.min(score, 10));
@@ -81,7 +81,7 @@ func tsGradeLine(t *testing.T) string {
 		t.Fatal(err)
 	}
 	line := bytes.Count(src, []byte{'\n'}) + 3
-	return "Changed function grade (tested.ts:" + strconv.Itoa(line) + ") has cognitive complexity 40"
+	return "Changed function grade (tested.ts:" + strconv.Itoa(line) + ") has cognitive complexity 51"
 }
 
 // TestTypeScriptChangedFunction runs check without --all on a TypeScript
@@ -129,7 +129,7 @@ func TestTypeScriptChangedFunction(t *testing.T) {
 			name:     "complex function added",
 			change:   func(t *testing.T, repo string) { appendFile(t, file(repo), tsGrade) },
 			wantExit: exitGateFailed,
-			wantMax:  40,
+			wantMax:  51,
 		},
 		{
 			name: "comment and layout edit",
@@ -148,7 +148,7 @@ func TestTypeScriptChangedFunction(t *testing.T) {
 				rewrite(t, repo, "score -= 3;", "score += 3;")
 			},
 			wantExit: exitGateFailed,
-			wantMax:  40,
+			wantMax:  51,
 		},
 	}
 	for _, tt := range tests {

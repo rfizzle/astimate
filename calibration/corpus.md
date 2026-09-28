@@ -104,6 +104,7 @@ succeeded; `run.json` lists the failures.
 | `package` | import path |
 | `metrics` | the package's `RawMetrics` |
 | `agent_passes`, `human_days` | the rebuild estimate, rounded as `rank` rounds it |
+| `func_cognitive` | the package's functions counted by cognitive complexity, value to count (`{"0": 12, "3": 4}`), absent for a package with no functions; data from 2026-09-28 on |
 
 `data/<date>/run.json` records the date, Go version, platform and CPU count,
 the astimate version and commit, the `config_version` the estimates were
@@ -131,6 +132,14 @@ the corpus entry to match.
 - **Popularity figures are unverified.** See criterion 1.
 
 ## Current data
+
+`data/2026-09-28-corpus/` is the current run: the same 2,347 packages from
+the standard library and the 36 cloned modules at the same pins, Go 1.27.1,
+astimate `8eea3d2`, with each row's `func_cognitive` counts added (80,280
+functions in 2,158 packages; 189 packages have none). Every other field of
+every row is identical to `data/2026-09-27-corpus/`; `run.json` differs only
+in the date, the astimate commit, the `config_version` the estimates were
+made under and the three module paths the corpus has since renamed.
 
 `data/2026-09-27-corpus/` is the first full run: 2,347 packages from the
 standard library and all 36 cloned modules at the commits pinned in
@@ -171,17 +180,27 @@ version carries a `-stdlib-provisional` suffix;
 zero-tolerance and `internal_imports` rules, so its `max_delta` values on
 the zero-tolerance ratchets (1 to 3) are not what the fitter now produces.
 
-`thresholds-2026-09-27` is the fit of `data/2026-09-27-corpus/` and the
+`thresholds-2026-09-28` is the fit of `data/2026-09-28-corpus/` and the
 shipped default: `internal/config/default.yaml` carries its rules and
 `config_version` (a test in `fit/` keeps them equal), and
 `configs/uncalibrated.yaml` keeps the placeholders it replaced. It was
 fitted with that file as the base, so the report's before and after table
-compares against the placeholders:
+compares against the placeholders, and `--compare` adds a table against the
+previous default, `thresholds-2026-09-27`:
 
 ```sh
-go run ./calibration/fit --data calibration/data/2026-09-27-corpus/packages.jsonl --date 2026-09-27 --base configs/uncalibrated.yaml
+go run ./calibration/fit --data calibration/data/2026-09-28-corpus/packages.jsonl --date 2026-09-28 \
+  --base configs/uncalibrated.yaml --compare calibration/thresholds/astimate-thresholds-2026-09-27.yaml
 ```
 
+It reproduces every limit of `thresholds-2026-09-27`, the same fit of the
+same rows without per-function counts, except `changed_func_cognitive_max`.
+That metric is a diff against a baseline, so no row carries it; the fitter
+pools the rows' `func_cognitive` counts, every function counted as new, and
+sets the `max` at the 99th percentile (51, rounded to 50) instead of the
+90th, since one function past the corpus's own worst percentile is the
+signal. Fitting data without the counts keeps the base value, as
+`thresholds-2026-09-27` kept the placeholder of 30.
+
 The corpus data has no `<module>` rows, so `dup_blocks_cross_pkg` has no
-distribution and no default rule; `changed_func_cognitive_max` needs
-baseline pairs the corpus lacks and keeps its placeholder of 30.
+distribution and no default rule.

@@ -18,8 +18,19 @@ import (
 )
 
 // dataPath is the committed corpus data the shipped thresholds are fitted
-// from: the standard library and the cloned modules of corpus.yaml.
-const dataPath = "../data/2026-09-27-corpus/packages.jsonl"
+// from: the standard library and the cloned modules of corpus.yaml, with
+// per-function cognitive counts.
+const dataPath = "../data/2026-09-28-corpus/packages.jsonl"
+
+// previousDataPath is the earlier corpus data, collected before the rows
+// carried per-function counts.
+const previousDataPath = "../data/2026-09-27-corpus/packages.jsonl"
+
+// previousCandidate is the candidate fitted from previousDataPath.
+const previousCandidate = "../thresholds/astimate-thresholds-2026-09-27.yaml"
+
+// uncalibratedBase is the base the committed candidates are fitted on.
+const uncalibratedBase = "../../configs/uncalibrated.yaml"
 
 // stdlibDataPath is the earlier standard-library-only data, kept for
 // comparison; a fit of it carries the provisional suffix.
@@ -27,10 +38,10 @@ const stdlibDataPath = "../data/2026-09-27/packages.jsonl"
 
 // committedCandidate is the candidate fitted from dataPath, which the
 // embedded default carries.
-const committedCandidate = "../thresholds/astimate-thresholds-2026-09-27.yaml"
+const committedCandidate = "../thresholds/astimate-thresholds-2026-09-28.yaml"
 
 // shippedVersion is committedCandidate's config_version.
-const shippedVersion = "thresholds-2026-09-27"
+const shippedVersion = "thresholds-2026-09-28"
 
 func TestPercentile(t *testing.T) {
 	series := make([]float64, 100)
@@ -177,7 +188,7 @@ func synthRows(n int) []Row {
 }
 
 func TestFitThresholds(t *testing.T) {
-	base, err := config.Parse(config.Default())
+	base, err := config.Load(uncalibratedBase)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -196,8 +207,8 @@ func TestFitThresholds(t *testing.T) {
 		{"globals", "none", "0"},            // density without a max stays without; base delta 0 is pinned
 		{"has_tests", "none", "none"},       // requirement untouched
 		{"tokens_est", "1", "none"},         // all zero: a capacity max is at least one step
-		// Null in every row (it needs a baseline diff): the base max stays,
-		// and a max-only density rule gets no max_delta.
+		// No row counts its functions: the base max stays, and a max-only
+		// density rule gets no max_delta.
 		{"changed_func_cognitive_max", "30", "none"},
 	}
 	for _, tt := range tests {
@@ -215,6 +226,46 @@ func TestFitThresholds(t *testing.T) {
 	}
 	if c := byMetric["sloc"]; c.OverCandidate != 10 {
 		t.Errorf("sloc fails %d rows as new under the candidate, want the 10 above p90", c.OverCandidate)
+	}
+}
+
+// TestFitFunctionCognitive checks changed_func_cognitive_max is fitted at
+// the 99th percentile of the functions pooled from every row's counts,
+// std rows included, and counts the functions and packages above it.
+func TestFitFunctionCognitive(t *testing.T) {
+	base, err := config.Load(uncalibratedBase)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 200 rows of one function each, cognitive 1..200, half of them std;
+	// p99 is 198, which rounds to 200. A 201st row has no functions.
+	rows := synthRows(201)
+	for i := range 200 {
+		rows[i].FuncCognitive = map[int]int{i + 1: 1}
+		if i%2 == 0 {
+			rows[i].Module = stdModule
+		}
+	}
+	var c *Choice
+	for _, ch := range fitThresholds(rows, base) {
+		if ch.Rule.Metric == funcMetric {
+			c = &ch
+		}
+	}
+	if c == nil {
+		t.Fatal("changed_func_cognitive_max not fitted")
+	}
+	if c.Pool != poolFunctions || c.Stats.N != 200 || c.Stats.P90 != 180 || c.Stats.P99 != 198 {
+		t.Errorf("pool %q n %d p90 %v p99 %v, want 200 functions of all rows, p90 180, p99 198",
+			c.Pool, c.Stats.N, c.Stats.P90, c.Stats.P99)
+	}
+	if opt(c.Max) != "200" || opt(c.MaxDelta) != "none" {
+		t.Errorf("max %s max_delta %s, want p99 rounded to 200 and no max_delta", opt(c.Max), opt(c.MaxDelta))
+	}
+	// Base max 30: 170 functions above it, one per package.
+	if c.OverBase != 170 || c.OverCandidate != 0 || c.Packages != 200 || c.PkgOverBase != 170 || c.PkgOverCandidate != 0 {
+		t.Errorf("over base %d candidate %d, packages %d over base %d candidate %d; want 170, 0, 200, 170, 0",
+			c.OverBase, c.OverCandidate, c.Packages, c.PkgOverBase, c.PkgOverCandidate)
 	}
 }
 
@@ -294,8 +345,9 @@ func fitInto(t *testing.T, dir string) (candidate, report string) {
 		data:   dataPath,
 		out:    filepath.Join(dir, "candidate.yaml"),
 		report: filepath.Join(dir, "report.md"),
-		date:   "2026-09-27",
+		date:   "2026-09-28",
 		suffix: suffixAuto,
+		base:   uncalibratedBase,
 	}
 	res, err := fit(opts)
 	if err != nil {
@@ -320,7 +372,7 @@ func TestCandidate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("candidate does not validate: %v", err)
 	}
-	base, err := config.Parse(config.Default())
+	base, err := config.Load(uncalibratedBase)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -340,13 +392,55 @@ func TestCandidate(t *testing.T) {
 			t.Errorf("report has no section for %s", r.Metric)
 		}
 	}
-	for _, want := range []string{"cloned-module rows only", "max_delta stays 0 on", "no `<module>` rows", "`changed_func_cognitive_max`: no row measures it"} {
+	for _, want := range []string{"cloned-module rows only", "max_delta stays 0 on", "no `<module>` rows",
+		"## Per-function cognitive complexity", "| Functions | p50 | p90 | p99 | max |"} {
 		if !strings.Contains(report, want) {
 			t.Errorf("report does not contain %q", want)
 		}
 	}
 	if strings.Contains(report, "**Provisional.**") {
 		t.Error("report calls the corpus fit provisional")
+	}
+}
+
+// TestPreviousDataKeepsFunctionBase fits the earlier corpus data, whose
+// rows carry no per-function counts, and checks changed_func_cognitive_max
+// keeps the base max and the report says why, while the comparison with
+// the earlier candidate finds nothing moved: the fit reproduces it.
+func TestPreviousDataKeepsFunctionBase(t *testing.T) {
+	dir := t.TempDir()
+	res, err := fit(options{data: previousDataPath, base: uncalibratedBase, compare: previousCandidate,
+		out: filepath.Join(dir, "c.yaml"), report: filepath.Join(dir, "r.md"), date: "2026-09-27", suffix: suffixAuto})
+	if err != nil {
+		t.Fatalf("fit: %v", err)
+	}
+	data, err := os.ReadFile(res.report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"`changed_func_cognitive_max`: no row counts its functions", "## Against thresholds-2026-09-27", "No limit moved."} {
+		if !strings.Contains(string(data), want) {
+			t.Errorf("report does not contain %q", want)
+		}
+	}
+}
+
+// TestCompareNamesMovedRules fits the committed data against the earlier
+// candidate and checks the report names changed_func_cognitive_max as the
+// only rule that moved.
+func TestCompareNamesMovedRules(t *testing.T) {
+	dir := t.TempDir()
+	res, err := fit(options{data: dataPath, base: uncalibratedBase, compare: previousCandidate,
+		out: filepath.Join(dir, "c.yaml"), report: filepath.Join(dir, "r.md"), date: "2026-09-28", suffix: suffixAuto})
+	if err != nil {
+		t.Fatalf("fit: %v", err)
+	}
+	data, err := os.ReadFile(res.report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "Only `changed_func_cognitive_max` moved; every other limit is unchanged."; !strings.Contains(string(data), want) {
+		t.Errorf("report does not contain %q", want)
 	}
 }
 

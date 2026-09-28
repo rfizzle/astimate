@@ -17,8 +17,8 @@ type Stats struct {
 	N int
 	// Min and Max are the extremes.
 	Min, Max float64
-	// P25, P50, P75, P90 and P95 are nearest-rank percentiles.
-	P25, P50, P75, P90, P95 float64
+	// P25, P50, P75, P90, P95 and P99 are nearest-rank percentiles.
+	P25, P50, P75, P90, P95, P99 float64
 	// IQR is P75 minus P25.
 	IQR float64
 	// Hist is the histogram, histBins bins in ascending order.
@@ -62,6 +62,7 @@ func computeStats(values []float64) Stats {
 	s.P75 = percentile(values, 75)
 	s.P90 = percentile(values, 90)
 	s.P95 = percentile(values, 95)
+	s.P99 = percentile(values, 99)
 	s.IQR = s.P75 - s.P25
 	s.Hist = histogram(values, s.Min, s.P95)
 	return s

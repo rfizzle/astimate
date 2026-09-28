@@ -24,7 +24,7 @@ func hookTestdata(name string) string {
 
 // hookDegradedMetrics are the rules the degraded fixture's tested package
 // breaks: a duplicate function, an untested export, a global and one
-// function of cognitive complexity 40.
+// function of cognitive complexity 51.
 func hookDegradedMetrics() []string {
 	return []string{"dup_blocks", "untested_exports", "globals", "changed_func_cognitive_max"}
 }

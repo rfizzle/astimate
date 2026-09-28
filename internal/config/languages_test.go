@@ -74,7 +74,7 @@ func TestDefaultLanguagesExample(t *testing.T) {
 		t.Errorf("Warnings = %q, want none", cfg.Warnings)
 	}
 	ts := cfg.ForLanguage("typescript")
-	if ts.Version != "thresholds-2026-09-27+typescript" {
+	if ts.Version != "thresholds-2026-09-28+typescript" {
 		t.Errorf("typescript Version = %q", ts.Version)
 	}
 	if ts.Rebuild.TokensPerExport != 30 || ts.Rebuild.ContextBudget != cfg.Rebuild.ContextBudget {

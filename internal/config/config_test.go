@@ -27,8 +27,8 @@ func TestParseDefault(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Parse(Default()) error = %v", err)
 	}
-	if cfg.Version != "thresholds-2026-09-27" {
-		t.Errorf("Version = %q, want thresholds-2026-09-27", cfg.Version)
+	if cfg.Version != "thresholds-2026-09-28" {
+		t.Errorf("Version = %q, want thresholds-2026-09-28", cfg.Version)
 	}
 	if cfg.CharsPerToken != 3.2 {
 		t.Errorf("CharsPerToken = %v, want 3.2", cfg.CharsPerToken)
@@ -83,8 +83,8 @@ func TestParseDefault(t *testing.T) {
 		if th.Metric == "cognitive_p90" && (th.Max == nil || *th.Max != 20) {
 			t.Errorf("cognitive_p90 max = %v, want 20", th.Max)
 		}
-		if th.Metric == "changed_func_cognitive_max" && (th.Max == nil || *th.Max != 30 || th.MaxDelta != nil) {
-			t.Errorf("changed_func_cognitive_max max = %v, max_delta = %v, want max 30 and no max_delta", th.Max, th.MaxDelta)
+		if th.Metric == "changed_func_cognitive_max" && (th.Max == nil || *th.Max != 50 || th.MaxDelta != nil) {
+			t.Errorf("changed_func_cognitive_max max = %v, max_delta = %v, want max 50 and no max_delta", th.Max, th.MaxDelta)
 		}
 	}
 	if got, w := strings.Join(ratchet, " "), "dup_blocks untested_exports globals init_funcs"; got != w {
@@ -170,7 +170,7 @@ func TestParseErrors(t *testing.T) {
 		{name: "zero min_tokens", old: "min_tokens: 40", repl: "min_tokens: 0", wantErr: "duplication.min_tokens must be > 0"},
 		{name: "ignore_literal_only not a bool", old: "ignore_literal_only: true", repl: "ignore_literal_only: maybe", wantErr: "`maybe` into bool"},
 		{name: "unknown duplication key", old: "  min_tokens: 40\n", repl: "  min_tokens: 40\n  min_tokenz: 40\n", wantErr: "min_tokenz"},
-		{name: "empty version", old: "config_version: thresholds-2026-09-27", repl: "config_version: \"\"", wantErr: "config_version is required"},
+		{name: "empty version", old: "config_version: thresholds-2026-09-28", repl: "config_version: \"\"", wantErr: "config_version is required"},
 		{name: "unknown key", old: "chars_per_token: 3.2", repl: "chars_per_token: 3.2\nchars_per_tokenz: 3.2", wantErr: "chars_per_tokenz"},
 		{name: "threshold with no limit", old: "    kind: density\n    max_delta: 6\n    max: 40\n", repl: "    kind: density\n", wantErr: `"duplication_pct": density rule needs max_delta or max`},
 		{name: "capacity with max_delta", old: capacityRule, repl: capacityRule + "    max_delta: 0\n", wantErr: `"sloc": capacity rule must not set max_delta`},
@@ -345,8 +345,8 @@ func TestParseAcceptsCouplingMetrics(t *testing.T) {
 func TestResolveOrder(t *testing.T) {
 	t.Parallel()
 
-	custom := replace(t, "config_version: thresholds-2026-09-27", "config_version: custom")
-	flagged := replace(t, "config_version: thresholds-2026-09-27", "config_version: flagged")
+	custom := replace(t, "config_version: thresholds-2026-09-28", "config_version: custom")
+	flagged := replace(t, "config_version: thresholds-2026-09-28", "config_version: flagged")
 
 	tests := []struct {
 		name        string
@@ -355,7 +355,7 @@ func TestResolveOrder(t *testing.T) {
 		wantSource  string
 		wantVersion string
 	}{
-		{name: "embedded", wantSource: SourceEmbedded, wantVersion: "thresholds-2026-09-27"},
+		{name: "embedded", wantSource: SourceEmbedded, wantVersion: "thresholds-2026-09-28"},
 		{name: "working dir", localFile: true, wantSource: SourceWorkDir, wantVersion: "custom"},
 		{name: "flag over nothing", flag: true, wantSource: SourceFlag, wantVersion: "flagged"},
 		{name: "flag over working dir", localFile: true, flag: true, wantSource: SourceFlag, wantVersion: "flagged"},
@@ -421,7 +421,7 @@ func TestResolveErrors(t *testing.T) {
 // TestResolveUsesWorkingDir checks the exported entry point reads ./astimate.yaml.
 func TestResolveUsesWorkingDir(t *testing.T) {
 	dir := t.TempDir()
-	custom := replace(t, "config_version: thresholds-2026-09-27", "config_version: cwd")
+	custom := replace(t, "config_version: thresholds-2026-09-28", "config_version: cwd")
 	if err := os.WriteFile(filepath.Join(dir, FileName), []byte(custom), 0o600); err != nil {
 		t.Fatal(err)
 	}

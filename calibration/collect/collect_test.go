@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"log/slog"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -11,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/config"
+	"github.com/rfizzle/astimate/internal/metrics"
 )
 
 // defaultConfig parses the embedded default configuration.
@@ -87,6 +89,7 @@ func TestCollectModule(t *testing.T) {
 				if r.Package == "example.com/fixture/hub" && (r.Metrics.Instability == nil || *r.Metrics.Instability != 0) {
 					t.Errorf("hub instability = %v, want 0", r.Metrics.Instability)
 				}
+				checkFuncCognitive(t, &r)
 				pkgs = append(pkgs, r.Package)
 			}
 			if !slices.Contains(pkgs, tt.wantPkg) {
@@ -125,6 +128,47 @@ func TestCollectStdlib(t *testing.T) {
 	}
 	if rows[0].Metrics.FanIn == 0 {
 		t.Error("errors has fan_in 0, want its standard-library importers counted")
+	}
+	for i := range rows {
+		checkFuncCognitive(t, &rows[i])
+	}
+}
+
+// checkFuncCognitive checks a row's per-function cognitive counts agree
+// with its package metrics: one count per function, summing to
+// cognitive_total, and absent exactly when the package has no functions.
+func checkFuncCognitive(t *testing.T, r *Row) {
+	t.Helper()
+	n, total := 0, 0
+	for v, c := range r.FuncCognitive {
+		n += c
+		total += v * c
+	}
+	if n != r.Metrics.FuncCount || total != r.Metrics.CognitiveTotal {
+		t.Errorf("%s: func_cognitive counts %d functions totalling %d, metrics say %d and %d",
+			r.Package, n, total, r.Metrics.FuncCount, r.Metrics.CognitiveTotal)
+	}
+	if (r.FuncCognitive == nil) != (r.Metrics.FuncCount == 0) {
+		t.Errorf("%s: func_cognitive %v with func_count %d", r.Package, r.FuncCognitive, r.Metrics.FuncCount)
+	}
+}
+
+func TestCognitiveCounts(t *testing.T) {
+	tests := []struct {
+		name string
+		fns  []metrics.FunctionInfo
+		want map[int]int
+	}{
+		{"none", nil, nil},
+		{"counts by value", []metrics.FunctionInfo{{Cognitive: 0}, {Cognitive: 3}, {Cognitive: 0}, {Cognitive: 12}},
+			map[int]int{0: 2, 3: 1, 12: 1}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := cognitiveCounts(tt.fns); !maps.Equal(got, tt.want) || (got == nil) != (tt.want == nil) {
+				t.Errorf("cognitiveCounts = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 
