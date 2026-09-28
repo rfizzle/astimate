@@ -89,6 +89,16 @@ func WithDupFoldSigns(on bool) Option {
 	return func(e *Extractor) { e.dup.foldSigns = on }
 }
 
+// WithDupSplitLiteralRuns sets duplication.split_literal_runs: when on,
+// under WithDupIgnoreLiteralOnly, each duplicate block is cut at every run
+// of at least duplication.min_tokens literal-only tokens and only the parts
+// of at least that length are kept, so literal tables that declaration
+// headers join into one block are dropped too. It applies to the
+// cross-package count as well (SPEC.md 6.3; default false).
+func WithDupSplitLiteralRuns(on bool) Option {
+	return func(e *Extractor) { e.dup.splitLiteralRuns = on }
+}
+
 // WithLogger sets the logger that receives, at info level, one record per
 // module directory whose Go files build constraints exclude entirely, such
 // as a package made only of cgo files when cgo is disabled. Each is logged

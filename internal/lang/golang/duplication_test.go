@@ -588,6 +588,56 @@ func TestDupLiteralOnly(t *testing.T) {
 	}
 }
 
+func TestDupSplitLiteralRuns(t *testing.T) {
+	off := defaultDupOptions()
+	on := off
+	on.splitLiteralRuns = true
+	noRule := on
+	noRule.ignoreLiteralOnly = false
+	// Consecutive tables that their headers join into one block, as in
+	// crypto/des and debug/elf.
+	var tables strings.Builder
+	tables.WriteString("package p\n\n")
+	for _, name := range []string{"a", "b", "c"} {
+		tables.WriteString("var " + name + " = [30]byte{" + dupTable("1", 30) + "}\n\n")
+	}
+	mixed := "func F() []int {\n\tx := []int{" + dupTable("1", 30) + "}\n\treturn x\n}\n"
+	// Two copies of dupCopy, each after a 30-entry table: the split cuts
+	// the table off and keeps the function.
+	tabled := "var t = []int{" + dupTable("1", 30) + "}\n\n" + dupCopy
+	cases := []struct {
+		name string
+		src  string
+		opts dupOptions
+		want int
+	}{
+		{"joined tables kept by default", tables.String(), off, 1},
+		{"joined tables split away", tables.String(), on, 0},
+		{"split needs the literal-only rule", tables.String(), noRule, 1},
+		{"code copies kept", "package p\n\n" + dupCopy + "\nvar sep = 1\n\n" + dupRenamed, on, 1},
+		{"table cut off code", "package p\n\n" + tabled + "\n" + strings.Replace(tabled, "Sum", "Sum2", 1), on, 1},
+		{"short code beside a table dropped", "package p\n\n" + mixed + "\n" + strings.Replace(mixed, "F", "G", 1), on, 0},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := dupOfSources(t, tc.opts, tc.src)
+			if got.Blocks != tc.want {
+				t.Errorf("blocks = %d, want %d (locations %v)", got.Blocks, tc.want, got.Locations)
+			}
+			if tc.want == 0 && got.Pct != 0 {
+				t.Errorf("pct = %v, want 0", got.Pct)
+			}
+		})
+	}
+	// The kept part of "table cut off code" is the function alone.
+	src := "package p\n\n" + tabled + "\n" + strings.Replace(tabled, "Sum", "Sum2", 1)
+	for _, loc := range dupOfSources(t, on, src).Locations {
+		if loc.EndLine-loc.StartLine != 12 {
+			t.Errorf("part %s:%d-%d, want the 13 lines of the function", loc.File, loc.StartLine, loc.EndLine)
+		}
+	}
+}
+
 func TestDupSigns(t *testing.T) {
 	cases := []struct {
 		name string

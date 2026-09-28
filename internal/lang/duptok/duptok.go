@@ -49,8 +49,14 @@
 // whose every token is of class Literal or Punct is dropped before
 // counting; with Options.FoldSigns a token of class Sign counts as part of
 // the literal after it. The rule runs after merging, so a block that holds
-// a literal table next to code is kept whole. The language decides which
-// tokens belong to which class; the rule itself is language-agnostic.
+// a literal table next to code is kept whole. With Options.SplitLiteralRuns
+// as well, each block is then cut at every run of at least MinTokens
+// literal-only tokens, and the parts between the runs are kept as blocks
+// when they are at least MinTokens long, so tables that declaration headers
+// join into one block are dropped too. A part keeps every occurrence of
+// its block, shifted by its offset; parts with the same first occurrence
+// and length are one block. The language decides which tokens belong to
+// which class; the rule itself is language-agnostic.
 //
 // Coverage. A line is covered when a token of any occurrence of any block
 // starts or ends on it, or lies between, and counts only when the language
@@ -99,10 +105,15 @@ type Options struct {
 	// FoldSigns is duplication.fold_signs: under IgnoreLiteralOnly, a Sign
 	// token counts as a literal.
 	FoldSigns bool
+	// SplitLiteralRuns is duplication.split_literal_runs: under
+	// IgnoreLiteralOnly, cut each block at every run of at least MinTokens
+	// literal-only tokens and keep the parts of at least MinTokens tokens.
+	SplitLiteralRuns bool
 }
 
 // DefaultOptions returns the SPEC.md defaults: 40 tokens, literal-only
-// blocks ignored, signed literals counted as literals.
+// blocks ignored, signed literals counted as literals, blocks not split at
+// literal-only runs.
 func DefaultOptions() Options {
 	return Options{MinTokens: 40, IgnoreLiteralOnly: true, FoldSigns: true}
 }
@@ -221,8 +232,8 @@ func (s *Stream) Blocks(opts Options) ([]Block, error) {
 	for _, r := range reps {
 		start := len(files)
 		for _, p := range sa[r.lb : r.rb+1] {
-			files = append(files, s.file[p])
-			locs = append(locs, s.location(p, r.n))
+			files = append(files, s.file[p+r.off])
+			locs = append(locs, s.location(p+r.off, r.n))
 		}
 		end := len(files)
 		out = append(out, Block{Tokens: int(r.n), Files: files[start:end:end], Locations: locs[start:end:end]})
@@ -232,7 +243,8 @@ func (s *Stream) Blocks(opts Options) ([]Block, error) {
 
 // find returns the suffix array of the stream and its duplicate blocks
 // under opts: the maximal repeats that survive merging, less the
-// literal-only ones when opts.IgnoreLiteralOnly is set.
+// literal-only ones when opts.IgnoreLiteralOnly is set, and cut at
+// literal-only runs when opts.SplitLiteralRuns is set too.
 func (s *Stream) find(opts Options) (sa []int32, reps []repeat, err error) {
 	if opts.MinTokens < 1 {
 		return nil, nil, fmt.Errorf("finding duplicates: minimum of %d tokens is not positive", opts.MinTokens)
@@ -241,6 +253,9 @@ func (s *Stream) find(opts Options) (sa []int32, reps []repeat, err error) {
 	sa, reps = find(s.codes, opts.MinTokens)
 	if opts.IgnoreLiteralOnly {
 		reps = s.dropLiteralOnly(sa, reps, opts.FoldSigns)
+		if opts.SplitLiteralRuns {
+			reps = s.splitLiteralRuns(sa, reps, opts.FoldSigns, opts.MinTokens)
+		}
 	}
 	return sa, reps, nil
 }
@@ -256,10 +271,25 @@ func (s *Stream) trim() {
 	s.line, s.last = s.line[:n], s.last[:n]
 }
 
-// repeat is one maximal repeat: its occurrences are sa[lb..rb] and its
-// length is n tokens.
+// repeat is one duplicate block: its occurrences start at sa[lb..rb]
+// shifted right by off tokens, and its length is n tokens. A maximal repeat
+// has off 0; a part that splitLiteralRuns cuts from one has the part's
+// offset in it.
 type repeat struct {
-	lb, rb, n int32
+	lb, rb, off, n int32
+}
+
+// literalOnly reports whether a token of class c belongs to a literal
+// table: a literal or literal-table punctuation, or with signs a Sign.
+func literalOnly(c Class, signs bool) bool {
+	switch c {
+	case Literal, Punct:
+		return true
+	case Sign:
+		return signs
+	default:
+		return false
+	}
 }
 
 // dropLiteralOnly returns reps without the repeats whose tokens are all
@@ -267,20 +297,58 @@ type repeat struct {
 // signs, a Sign token counts as a literal.
 func (s *Stream) dropLiteralOnly(sa []int32, reps []repeat, signs bool) []repeat {
 	return slices.DeleteFunc(reps, func(r repeat) bool {
-		p := sa[r.lb]
+		p := sa[r.lb] + r.off
 		for _, c := range s.class[p : p+r.n] {
-			switch c {
-			case Literal, Punct:
-			case Sign:
-				if !signs {
-					return false
-				}
-			default:
+			if !literalOnly(c, signs) {
 				return false
 			}
 		}
 		return true
 	})
+}
+
+// splitLiteralRuns cuts every block of reps at each run of at least
+// minTokens literal-only tokens (with signs, Sign tokens count) and returns
+// the parts of at least minTokens tokens, in the order of reps and of the
+// parts within each. The token classes are read at one occurrence; codes,
+// and so classes, are the same in all of them. A part whose first
+// occurrence and length match an earlier part's is left out, so a
+// sequence two blocks share after cutting counts once.
+func (s *Stream) splitLiteralRuns(sa []int32, reps []repeat, signs bool, minTokens int) []repeat {
+	type key struct{ first, n int32 }
+	out := make([]repeat, 0, len(reps))
+	seen := make(map[key]bool, len(reps))
+	for _, r := range reps {
+		p := sa[r.lb] + r.off
+		first := slices.Min(sa[r.lb:r.rb+1]) + r.off
+		from := int32(0)
+		emit := func(to int32) {
+			if int(to-from) < minTokens {
+				return
+			}
+			if k := (key{first + from, to - from}); !seen[k] {
+				seen[k] = true
+				out = append(out, repeat{lb: r.lb, rb: r.rb, off: r.off + from, n: to - from})
+			}
+		}
+		for i := int32(0); i < r.n; {
+			if !literalOnly(s.class[p+i], signs) {
+				i++
+				continue
+			}
+			j := i
+			for j < r.n && literalOnly(s.class[p+j], signs) {
+				j++
+			}
+			if int(j-i) >= minTokens {
+				emit(i)
+				from = j
+			}
+			i = j
+		}
+		emit(r.n)
+	}
+	return out
 }
 
 // count turns the repeats found in the stream, as intervals of its suffix
@@ -298,6 +366,9 @@ func (s *Stream) count(sa []int32, reps []repeat, sloc int) Result {
 	blocks := make([]block, 0, len(reps))
 	for _, r := range reps {
 		pos := slices.Clone(sa[r.lb : r.rb+1])
+		for i := range pos {
+			pos[i] += r.off
+		}
 		slices.Sort(pos)
 		blocks = append(blocks, block{n: r.n, pos: pos})
 	}

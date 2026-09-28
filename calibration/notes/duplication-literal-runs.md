@@ -231,6 +231,11 @@ code block, and it lowers p50 by 2.2 points. That is a calibration lever
 rather than a correctness fix, so it needs its own story with a test
 corpus beyond std before it becomes a default.
 
+Update, 2026-09-28: `duplication-literal-runs-corpus-2026-09-28.md`
+measures S on the 36 cloned modules of the calibration corpus. All twenty
+changed blocks read there are data, too. S now ships as
+`duplication.split_literal_runs`, off by default.
+
 Threshold calibration for `duplication_pct` should keep using the baseline
 distribution in this note, which matches the distribution in
 `duplication-refinements.md`.

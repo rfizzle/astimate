@@ -63,11 +63,19 @@ func WithCharsPerToken(ratio float64) Option {
 // literals and the punctuation of a literal table (, { } : [ ] ( ) ;)
 // (default true); and duplication.fold_signs, under which that rule counts
 // a unary + or - applied to a numeric literal as part of the literal
-// (default true).
+// (default true). It leaves duplication.split_literal_runs as it is.
 func WithDuplication(minTokens int, ignoreLiteralOnly, foldSigns bool) Option {
 	return func(e *Extractor) {
-		e.dup = duptok.Options{MinTokens: minTokens, IgnoreLiteralOnly: ignoreLiteralOnly, FoldSigns: foldSigns}
+		e.dup.MinTokens, e.dup.IgnoreLiteralOnly, e.dup.FoldSigns = minTokens, ignoreLiteralOnly, foldSigns
 	}
+}
+
+// WithDupSplitLiteralRuns sets duplication.split_literal_runs: when on,
+// under duplication.ignore_literal_only, each duplicate block is cut at
+// every run of at least duplication.min_tokens literal-only tokens and only
+// the parts of at least that length are kept (SPEC.md 6.3; default false).
+func WithDupSplitLiteralRuns(on bool) Option {
+	return func(e *Extractor) { e.dup.SplitLiteralRuns = on }
 }
 
 // WithTokenizer selects how tokens_est is counted: "est" (the default)

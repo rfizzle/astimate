@@ -306,6 +306,141 @@ func TestCountLiteralOnly(t *testing.T) {
 	}
 }
 
+// classed returns one token per class, one per line from line 1, with
+// codes from base up, so no two tokens of the result repeat.
+func classed(base int32, classes ...Class) []tok {
+	out := make([]tok, len(classes))
+	for i, c := range classes {
+		out[i] = tok{base + int32(i), c, i + 1}
+	}
+	return out
+}
+
+// run returns n copies of c.
+func run(n int, c Class) []Class {
+	return slices.Repeat([]Class{c}, n)
+}
+
+func TestCountSplitLiteralRuns(t *testing.T) {
+	// A 28-token block: a 3-token header, a 6-token literal run, 6 code
+	// tokens, a 4-token literal run, 2 code tokens, a 5-token literal run
+	// and 2 code tokens. At MinTokens 5 the split cuts the 6- and 5-token
+	// runs and keeps only lines 10-21, the part between them.
+	block := slices.Concat(run(3, Code), run(6, Literal), run(6, Code), run(4, Punct), run(2, Code), run(5, Literal), run(2, Code))
+	// The same block with a sign in the first run: that run is only
+	// literal-only when signs fold.
+	signed := slices.Clone(block)
+	signed[5] = Sign
+	on := Options{MinTokens: 5, IgnoreLiteralOnly: true, FoldSigns: true, SplitLiteralRuns: true}
+	cases := []struct {
+		name    string
+		classes []Class
+		opts    Options
+		want    []string
+	}{
+		{"not split", block, Options{MinTokens: 5, IgnoreLiteralOnly: true, FoldSigns: true}, []string{"f0:1-28", "f1:1-28"}},
+		{"split", block, on, []string{"f0:10-21", "f1:10-21"}},
+		{"split needs the literal-only rule", block, Options{MinTokens: 5, SplitLiteralRuns: true}, []string{"f0:1-28", "f1:1-28"}},
+		{"sign folded into the run", signed, on, []string{"f0:10-21", "f1:10-21"}},
+		{"sign breaks the run", signed, Options{MinTokens: 5, IgnoreLiteralOnly: true, SplitLiteralRuns: true}, []string{"f0:1-21", "f1:1-21"}},
+		{"runs shorter than MinTokens kept", block, Options{MinTokens: 6, IgnoreLiteralOnly: true, SplitLiteralRuns: true}, []string{"f0:10-28", "f1:10-28"}},
+		{"parts below MinTokens dropped", block, Options{MinTokens: 13, IgnoreLiteralOnly: true, SplitLiteralRuns: true}, []string{"f0:1-28", "f1:1-28"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			a := append(classed(100, tc.classes...), tok{90, Code, len(tc.classes) + 1})
+			b := append(classed(100, tc.classes...), tok{91, Code, len(tc.classes) + 1})
+			s := streamOf(t, a, b)
+			got, err := s.Count(tc.opts, 58)
+			if err != nil {
+				t.Fatal(err)
+			}
+			locs := make([]string, 0, len(got.Locations))
+			for _, loc := range got.Locations {
+				locs = append(locs, locationKey(loc))
+			}
+			if !slices.Equal(locs, tc.want) {
+				t.Errorf("Locations = %v, want %v", locs, tc.want)
+			}
+			if got.Blocks != 1 {
+				t.Errorf("Blocks = %d, want 1", got.Blocks)
+			}
+			blocks, err := s.Blocks(tc.opts)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(blocks) != 1 {
+				t.Fatalf("Blocks found %d blocks, want 1", len(blocks))
+			}
+			bl := make([]string, 0, len(blocks[0].Locations))
+			for _, loc := range blocks[0].Locations {
+				bl = append(bl, locationKey(loc))
+			}
+			slices.Sort(bl)
+			if !slices.Equal(bl, tc.want) {
+				t.Errorf("Blocks locations = %v, want %v", bl, tc.want)
+			}
+		})
+	}
+}
+
+func TestCountSplitLiteralRunsDropsEverything(t *testing.T) {
+	// A block that is one long literal run with a short header leaves no
+	// part of MinTokens: the whole block goes.
+	classes := slices.Concat(run(2, Code), run(10, Literal))
+	a := append(classed(100, classes...), tok{90, Code, 13})
+	b := append(classed(100, classes...), tok{91, Code, 13})
+	got, err := streamOf(t, a, b).Count(Options{MinTokens: 5, IgnoreLiteralOnly: true, SplitLiteralRuns: true}, 26)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Blocks != 0 || got.Pct != 0 || len(got.Locations) != 0 {
+		t.Errorf("Count = %+v, want nothing", got)
+	}
+}
+
+func TestCountSplitLiteralRunsSharedPart(t *testing.T) {
+	// Two blocks, H L K in files 0 and 1 and K L' H' in files 0 and 2,
+	// both cut down to the 6 code tokens K at the same place in file 0.
+	// The part counts once, with the occurrences of the first block.
+	h := classed(100, Code)
+	l := classed(200, run(5, Literal)...)
+	k := classed(300, run(6, Code)...)
+	l2 := classed(400, run(5, Literal)...)
+	h2 := classed(500, Code)
+	lines := func(parts ...[]tok) []tok {
+		var out []tok
+		for _, p := range parts {
+			for _, tk := range p {
+				tk.line = len(out) + 1
+				out = append(out, tk)
+			}
+		}
+		return out
+	}
+	f0 := lines(h, l, k, l2, h2)
+	f1 := lines(h, l, k, classed(600, Code))
+	f2 := lines(classed(700, Code), k, l2, h2)
+	s := streamOf(t, f0, f1, f2)
+	off := Options{MinTokens: 5, IgnoreLiteralOnly: true}
+	if got, err := s.Count(off, 42); err != nil || got.Blocks != 2 {
+		t.Fatalf("unsplit Count = %+v, %v; want 2 blocks", got, err)
+	}
+	on := off
+	on.SplitLiteralRuns = true
+	got, err := s.Count(on, 42)
+	if err != nil {
+		t.Fatal(err)
+	}
+	locs := make([]string, 0, len(got.Locations))
+	for _, loc := range got.Locations {
+		locs = append(locs, locationKey(loc))
+	}
+	if want := []string{"f0:7-12", "f1:7-12"}; got.Blocks != 1 || !slices.Equal(locs, want) {
+		t.Errorf("Count = %d blocks at %v, want 1 at %v", got.Blocks, locs, want)
+	}
+}
+
 func TestCountSkipsNonSourceLines(t *testing.T) {
 	var s Stream
 	for f := range 2 {

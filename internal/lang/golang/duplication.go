@@ -46,6 +46,12 @@ package golang
 // coefficient tables with the code around them, and it shortens code blocks
 // below duplication.min_tokens.
 //
+// Literal runs. With duplication.split_literal_runs on, duptok also cuts
+// each block at every literal-only run of at least duplication.min_tokens
+// tokens and keeps the parts of at least that length, so consecutive
+// tables that their declaration headers (var x = [N]T{) join into one
+// block are dropped as well. It is off by default.
+//
 // Coverage. A token covers the lines from its first to its last (a
 // multi-line raw string spans several), and a covered line counts only if
 // it is a source line by the same rule size uses: at least one non-space
@@ -78,9 +84,9 @@ const (
 )
 
 // dupOptions configures duplication. The extractor options WithDupMinTokens,
-// WithDupIgnoreLiteralOnly and WithDupFoldSigns set minTokens,
-// ignoreLiteralOnly and foldSigns; the normalization toggles keep their
-// defaults.
+// WithDupIgnoreLiteralOnly, WithDupFoldSigns and WithDupSplitLiteralRuns
+// set minTokens, ignoreLiteralOnly, foldSigns and splitLiteralRuns; the
+// normalization toggles keep their defaults.
 type dupOptions struct {
 	// minTokens is duplication.min_tokens: the shortest normalized token sequence
 	// that counts as a duplicate block.
@@ -97,18 +103,27 @@ type dupOptions struct {
 	// directly before a numeric literal counts as part of the literal. The
 	// stream itself is unchanged, so no match is gained or lost.
 	foldSigns bool
+	// splitLiteralRuns is duplication.split_literal_runs: under
+	// ignoreLiteralOnly, cut each block at every literal-only run of at
+	// least minTokens tokens and keep the parts of at least minTokens.
+	splitLiteralRuns bool
 }
 
 // defaultDupOptions returns the SPEC.md defaults: 40 tokens, identifiers and
 // literals normalized, literal-only blocks ignored with signed literals
-// counted as literals.
+// counted as literals, blocks not split at literal-only runs.
 func defaultDupOptions() dupOptions {
 	return dupOptions{minTokens: 40, normalizeIdents: true, normalizeLiterals: true, ignoreLiteralOnly: true, foldSigns: true}
 }
 
 // finder returns the options of o that the duptok finder takes.
 func (o dupOptions) finder() duptok.Options {
-	return duptok.Options{MinTokens: o.minTokens, IgnoreLiteralOnly: o.ignoreLiteralOnly, FoldSigns: o.foldSigns}
+	return duptok.Options{
+		MinTokens:         o.minTokens,
+		IgnoreLiteralOnly: o.ignoreLiteralOnly,
+		FoldSigns:         o.foldSigns,
+		SplitLiteralRuns:  o.splitLiteralRuns,
+	}
 }
 
 // tokenSink receives the normalized tokens of each file and then closes

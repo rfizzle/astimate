@@ -73,6 +73,10 @@ type Duplication struct {
 	// FoldSigns counts a unary + or - directly before a numeric literal as
 	// part of the literal when dropping literal-only blocks.
 	FoldSigns bool
+	// SplitLiteralRuns cuts each duplicate block, under IgnoreLiteralOnly,
+	// at every run of at least MinTokens literal-only tokens and keeps the
+	// parts of at least MinTokens tokens.
+	SplitLiteralRuns bool
 }
 
 // fileConfig mirrors the YAML schema. Pointers distinguish a missing scalar
@@ -98,6 +102,7 @@ type fileDuplication struct {
 	MinTokens         *int  `yaml:"min_tokens"`
 	IgnoreLiteralOnly *bool `yaml:"ignore_literal_only"`
 	FoldSigns         *bool `yaml:"fold_signs"`
+	SplitLiteralRuns  *bool `yaml:"split_literal_runs"`
 }
 
 type fileRebuild struct {
@@ -400,7 +405,7 @@ func (fc *fileConfig) buildDuplication(cfg *Config) error {
 	case d == nil:
 		d = &fileDuplication{}
 	}
-	if d.MinTokens == nil || d.IgnoreLiteralOnly == nil || d.FoldSigns == nil {
+	if d.MinTokens == nil || d.IgnoreLiteralOnly == nil || d.FoldSigns == nil || d.SplitLiteralRuns == nil {
 		def, err := defaultDuplication()
 		if err != nil {
 			return err
@@ -414,13 +419,23 @@ func (fc *fileConfig) buildDuplication(cfg *Config) error {
 		if d.FoldSigns == nil {
 			d.FoldSigns = def.FoldSigns
 		}
+		if d.SplitLiteralRuns == nil {
+			d.SplitLiteralRuns = def.SplitLiteralRuns
+		}
 	}
-	cfg.Duplication = Duplication{MinTokens: *d.MinTokens, IgnoreLiteralOnly: *d.IgnoreLiteralOnly, FoldSigns: *d.FoldSigns}
+	cfg.Duplication = Duplication{
+		MinTokens:         *d.MinTokens,
+		IgnoreLiteralOnly: *d.IgnoreLiteralOnly,
+		FoldSigns:         *d.FoldSigns,
+		// An embedded default without split_literal_runs leaves it off.
+		SplitLiteralRuns: d.SplitLiteralRuns != nil && *d.SplitLiteralRuns,
+	}
 	return nil
 }
 
 // defaultDuplication decodes the duplication section of the embedded
-// default, so the defaults are stated once, in default.yaml.
+// default, so the defaults are stated once, in default.yaml. The section
+// must set every key but split_literal_runs, which is off when absent.
 func defaultDuplication() (*fileDuplication, error) {
 	var fc fileConfig
 	if err := yaml.Unmarshal([]byte(defaultYAML), &fc); err != nil {

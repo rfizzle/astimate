@@ -229,6 +229,12 @@ func TestParseDuplication(t *testing.T) {
 			want: Duplication{MinTokens: 25, IgnoreLiteralOnly: true, FoldSigns: true}},
 		{name: "only fold_signs", section: "duplication:\n  fold_signs: false\n",
 			want: Duplication{MinTokens: 40, IgnoreLiteralOnly: true, FoldSigns: false}},
+		{name: "split_literal_runs on", section: "duplication:\n  split_literal_runs: true\n",
+			want: Duplication{MinTokens: 40, IgnoreLiteralOnly: true, FoldSigns: true, SplitLiteralRuns: true}},
+		{name: "split_literal_runs off", section: "duplication:\n  split_literal_runs: false\n", want: defaults},
+		{name: "full section with split_literal_runs", section: "duplication:\n  min_tokens: 30\n  ignore_literal_only: true\n" +
+			"  fold_signs: false\n  split_literal_runs: true\n",
+			want: Duplication{MinTokens: 30, IgnoreLiteralOnly: true, SplitLiteralRuns: true}},
 		{name: "old keys", section: "dup_min_tokens: 30\ndup_ignore_literal_only: false\ndup_fold_signs: false\n",
 			want: Duplication{MinTokens: 30}, wantWarnings: 1},
 		{name: "one old key", section: "dup_min_tokens: 30\n",

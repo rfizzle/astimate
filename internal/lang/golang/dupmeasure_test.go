@@ -35,7 +35,8 @@ type dupMeasurePkg struct {
 // load errors and with at least 200 SLOC. With withGenerated the SLOC
 // counts generated files too, as size did before generated files left the
 // size metrics, which is the denominator the std notes were measured with;
-// otherwise it is size's authored SLOC, the extractor's current one.
+// otherwise it is size's authored SLOC, the extractor's current one. It
+// logs how many packages were loaded and how many load errors skipped.
 func dupMeasureLoad(t *testing.T, dir, pattern string, withGenerated bool) (*loaded, []dupMeasurePkg) {
 	t.Helper()
 	fset := token.NewFileSet()
@@ -49,8 +50,11 @@ func dupMeasureLoad(t *testing.T, dir, pattern string, withGenerated bool) (*loa
 	}
 	l := &loaded{fset: fset}
 	out := make([]dupMeasurePkg, 0, len(pkgs))
+	errored := 0
+	defer func() { t.Logf("loaded %d packages, %d skipped for load errors", len(pkgs), errored) }()
 	for _, p := range pkgs {
 		if len(p.Errors) > 0 {
+			errored++
 			continue
 		}
 		sz, err := size(l, p, osFiles{})
@@ -346,8 +350,11 @@ func TestDupMeasureModuleLiteralRuns(t *testing.T) {
 // literal-only run of at least duplication.min_tokens tokens and keeps the
 // parts of at least that length; S10 is S with runs of at least 10 tokens,
 // short enough to reach the coefficient tables in math. Literal-only is the
-// sign-aware rule: a token of class Literal, Punct or Sign. start is when
-// loading began, for the wall time.
+// sign-aware rule: a token of class Literal, Punct or Sign. S is checked
+// against duplication with split_literal_runs on, package by package. With
+// ASTIMATE_MEASURE_ROWS=1 every package row of every variant is logged, for
+// pooling quantiles across modules. start is when loading began, for the
+// wall time.
 func dupMeasureLiteralRuns(t *testing.T, l *loaded, pkgs []dupMeasurePkg, start time.Time) {
 	t.Helper()
 	opts := defaultDupOptions()
@@ -373,6 +380,9 @@ func dupMeasureLiteralRuns(t *testing.T, l *loaded, pkgs []dupMeasurePkg, start 
 			a, al := s.Count(blocks, m.sloc)
 			if p.PkgPath == "math" {
 				mathLines[v+1] = al
+			}
+			if v == 1 {
+				dupCheckSplit(t, l, m, opts, a)
 			}
 			rows[v] = append(rows[v], dupMeasureRow{p.PkgPath, m.sloc, b.Blocks, a.Blocks, b.Pct, a.Pct})
 			changes[v] = append(changes[v], dupOccDiff(s, p.PkgPath, "-", bb, blocks)...)
@@ -401,10 +411,33 @@ func dupMeasureLiteralRuns(t *testing.T, l *loaded, pkgs []dupMeasurePkg, start 
 				t.Logf("| %s | %d | %d | %d | %v | %v |", r.path, r.sloc, r.offB, r.onB, r.offPct, r.onPct)
 			}
 		}
+		if os.Getenv("ASTIMATE_MEASURE_ROWS") == "1" {
+			// Every row, for pooling quantiles across modules.
+			for _, r := range rows[v] {
+				t.Logf("row\t%d\t%s\t%d\t%d\t%d\t%v\t%v", v, r.path, r.sloc, r.offB, r.onB, r.offPct, r.onPct)
+			}
+		}
 		t.Logf("changed blocks (%d):", len(changes[v]))
 		for _, c := range changes[v] {
 			t.Log(c)
 		}
+	}
+}
+
+// dupCheckSplit fails t when split, variant S counted over the recorder,
+// differs from what duplication reports for m with
+// duplication.split_literal_runs on, so the shipped option is the rule
+// that was measured.
+func dupCheckSplit(t *testing.T, l *loaded, m dupMeasurePkg, opts dupOptions, split duptok.Result) {
+	t.Helper()
+	opts.splitLiteralRuns = true
+	got, err := duplication(l, m.p, osFiles{}, sizeCounts{sloc: m.sloc}, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Blocks != split.Blocks || got.Pct != split.Pct || !slices.Equal(got.Locations, split.Locations) {
+		t.Errorf("%s: variant S %d blocks %v%%, split_literal_runs %d blocks %v%%",
+			m.p.PkgPath, split.Blocks, split.Pct, got.Blocks, got.Pct)
 	}
 }
 
