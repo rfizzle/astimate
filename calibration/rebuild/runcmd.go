@@ -60,7 +60,7 @@ func parseRunFlags(args []string, stderr io.Writer) (runOptions, error) {
 	fs.BoolVar(&o.live, "live", false, "allow an agent command that runs Claude Code (the default one does): this spends live requests")
 	fs.DurationVar(&o.timeout, "timeout", 60*time.Minute, "wall-clock limit of one agent invocation")
 	fs.IntVar(&o.parallel, "parallel", 1, "runs at a time")
-	fs.BoolVar(&o.keep, "keep", false, "keep each run's clone instead of removing it")
+	fs.BoolVar(&o.keep, "keep", false, "keep each run's clone and its Go build cache instead of removing them")
 	fs.BoolVar(&o.transcripts, "transcripts", true, "keep each agent's standard output under <out>/transcripts")
 	fs.BoolVar(&o.plan, "plan", false, "print the pending runs and the most requests they may make, and run nothing")
 	if err := fs.Parse(args); err != nil {

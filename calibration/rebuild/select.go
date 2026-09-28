@@ -14,6 +14,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/rfizzle/astimate/calibration/internal/gocache"
 	"github.com/rfizzle/astimate/calibration/rebuild/internal/definition"
 	"github.com/rfizzle/astimate/calibration/rebuild/internal/pin"
 	"github.com/rfizzle/astimate/calibration/rebuild/internal/selection"
@@ -83,7 +84,7 @@ func parseSelectFlags(stderr io.Writer, args []string) (*selectOptions, error) {
 		return o, nil
 	}
 	var err error
-	if o.work, err = os.MkdirTemp("", "astimate-rebuild-"); err != nil {
+	if o.work, err = os.MkdirTemp("", "astimate-rebuild-select-"); err != nil {
 		return o, fmt.Errorf("creating scratch directory: %w", err)
 	}
 	return o, nil
@@ -150,7 +151,14 @@ func selectAndWrite(ctx context.Context, o *selectOptions, stdout, stderr io.Wri
 		return err
 	}
 	env := pin.DefaultEnv()
-	k := pin.NewChecker(o.work, env, o.turnCap)
+	// The verification builds every candidate module and its tests; its
+	// build cache lives in the scratch directory with the clones, not in
+	// the shared one. The definition records env alone.
+	cache, err := gocache.Env(o.work)
+	if err != nil {
+		return err
+	}
+	k := pin.NewChecker(o.work, append(slices.Clip(env), cache...), o.turnCap)
 	cands, check, skipped, err := candidates(ctx, o, &cf, rows, cfg, k, stderr)
 	if err != nil {
 		return err

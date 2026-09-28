@@ -68,6 +68,21 @@ Rows are written in range order whatever `--parallel` is, and their content
 does not depend on it; only `wall_ms` and `run.json`'s `date` vary between
 runs.
 
+### Disk
+
+A replay's Go build cache lives in its own temporary directory: the replay
+sets `GOCACHE` and `GOTMPDIR` in its process environment, which the
+engine's module loads and the baseline's go commands inherit, to
+`$TMPDIR/astimate-replay-gocache-*/gocache` and `gotmp`. The commits of one
+replay, parallel ones included, share that cache, and it is removed when
+the replay ends, so the shared Go build cache is untouched. Each commit's
+worktree is its own `astimate-replay-*` temporary directory, removed after
+the commit. `make clean-runs` removes whatever an interrupted replay left
+behind (every `astimate-replay-*`, `astimate-rebuild-*` and
+`astimate-collect-*` directory in `${TMPDIR:-/tmp}` and, on macOS,
+`$(getconf DARWIN_USER_TEMP_DIR)`), printing each one; do not run it while
+a replay is in progress.
+
 ## Output
 
 ### `commits.jsonl`

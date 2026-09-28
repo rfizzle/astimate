@@ -109,7 +109,7 @@ func collectTSEntry(ctx context.Context, e Entry, cfg *config.Config, logger *sl
 	logger = logger.With("module", e.Module)
 	logger.Info("collecting")
 	mr := ModuleRun{Module: e.Module, Commit: e.Commit}
-	dir, err := os.MkdirTemp("", "astimate-corpus-*")
+	dir, err := os.MkdirTemp("", "astimate-collect-*")
 	if err != nil {
 		mr.Error = err.Error()
 		return nil, mr

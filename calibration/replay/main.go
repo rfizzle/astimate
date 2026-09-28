@@ -32,6 +32,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/rfizzle/astimate/calibration/internal/gocache"
 	"github.com/rfizzle/astimate/internal/config"
 )
 
@@ -75,11 +76,38 @@ func run(ctx context.Context, args []string, stderr io.Writer) int {
 		logger.Error("replay failed", "err", err)
 		return exitUsage
 	}
+	cleanup, err := isolateGoCache()
+	if err != nil {
+		logger.Error("replay failed", "err", err)
+		return exitUsage
+	}
+	defer cleanup()
 	if err := rp.replay(ctx); err != nil {
 		logger.Error("replay stopped; rerun the same command to resume", "err", err)
 		return exitPartial
 	}
 	return exitOK
+}
+
+// isolateGoCache points GOCACHE and GOTMPDIR in the process environment,
+// which the engine's go/packages loads and the baseline's go commands
+// inherit, at a new temporary directory, so building every replayed
+// commit's packages never grows the shared Go build cache. The commits of
+// one replay share it; cleanup restores the environment and removes it.
+func isolateGoCache() (cleanup func(), err error) {
+	dir, err := os.MkdirTemp("", "astimate-replay-gocache-")
+	if err != nil {
+		return nil, fmt.Errorf("creating the replay's build cache: %w", err)
+	}
+	restore, err := gocache.Setenv(dir)
+	if err != nil {
+		_ = os.RemoveAll(dir)
+		return nil, err
+	}
+	return func() {
+		restore()
+		_ = os.RemoveAll(dir)
+	}, nil
 }
 
 // parseFlags parses the command line; the flag package reports errors on

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"maps"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -262,6 +263,52 @@ func TestStdPackagesExcludeVendor(t *testing.T) {
 	for _, p := range pkgs {
 		if strings.HasPrefix(p, "vendor/") {
 			t.Errorf("vendored package %s listed", p)
+		}
+	}
+}
+
+// TestCollectEntryKeepsSharedCacheClean collects a cloned module and checks
+// that its load built nothing into the shared GOCACHE, that the entry's
+// temporary directory, cache included, is gone afterwards, and that the
+// environment is restored.
+func TestCollectEntryKeepsSharedCacheClean(t *testing.T) {
+	if testing.Short() {
+		t.Skip("clones a repository and loads a module")
+	}
+	repo := t.TempDir()
+	writeTree(t, repo, map[string]string{
+		"go.mod":      "module example.com/tiny\n\ngo 1.22\n",
+		"a/a.go":      "// Package a adds.\npackage a\n\nimport \"strings\"\n\n// Up upper-cases s.\nfunc Up(s string) string { return strings.ToUpper(s) }\n",
+		"b/b.go":      "// Package b uses a.\npackage b\n\nimport \"example.com/tiny/a\"\n\n// Hi greets.\nfunc Hi() string { return a.Up(\"hi\") }\n",
+		"a/a_test.go": "package a\n\nimport \"testing\"\n\nfunc TestUp(t *testing.T) {\n\tif Up(\"x\") != \"X\" {\n\t\tt.Fatal()\n\t}\n}\n",
+	})
+	for _, args := range [][]string{{"init", "-q"}, {"add", "."}, {"commit", "-q", "-m", "tiny"}} {
+		cmd := exec.Command("git", append([]string{"-C", repo, "-c", "user.name=t", "-c", "user.email=t@example.com",
+			"-c", "commit.gpgsign=false"}, args...)...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	head, err := exec.Command("git", "-C", repo, "rev-parse", "HEAD").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	shared, tmp := t.TempDir(), t.TempDir()
+	t.Setenv("GOCACHE", shared)
+	t.Setenv("TMPDIR", tmp)
+	t.Setenv("GOWORK", "off")
+	t.Setenv("GOFLAGS", "-mod=mod")
+	e := Entry{Module: "example.com/tiny", Repo: "file://" + repo, Commit: strings.TrimSpace(string(head))}
+	rows, _, mr := collectEntry(t.Context(), e, defaultConfig(t), slog.New(slog.DiscardHandler), false)
+	if mr.Error != "" || len(rows) != 2 {
+		t.Fatalf("collected %d rows, error %q", len(rows), mr.Error)
+	}
+	if got := os.Getenv("GOCACHE"); got != shared {
+		t.Errorf("GOCACHE after collect = %q, want %q", got, shared)
+	}
+	for dir, what := range map[string]string{shared: "the shared GOCACHE", tmp: "TMPDIR"} {
+		if entries, err := os.ReadDir(dir); err != nil || len(entries) != 0 {
+			t.Errorf("%s holds %d entries after collect (%v), want none", what, len(entries), err)
 		}
 	}
 }

@@ -325,6 +325,77 @@ func TestRunRecordsBrokenRules(t *testing.T) {
 	}
 }
 
+// TestRunEnvIsolatesGoCache checks that a run's environment points
+// GOCACHE and GOTMPDIR under the run directory, after the experiment's own
+// entries so they win, and leaves the definition's slice untouched.
+func TestRunEnvIsolatesGoCache(t *testing.T) {
+	work := t.TempDir()
+	def := make([]string, 0, 8)
+	def = append(def, "CGO_ENABLED=0", "GOCACHE=/shared/cache")
+	env, err := runEnv(def, work)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"CGO_ENABLED=0", "GOCACHE=/shared/cache",
+		"GOCACHE=" + filepath.Join(work, "gocache"), "GOTMPDIR=" + filepath.Join(work, "gotmp")}
+	if !slices.Equal(env, want) {
+		t.Errorf("runEnv = %v, want %v", env, want)
+	}
+	if got := def[:cap(def)][2]; got != "" {
+		t.Errorf("runEnv wrote %q into the definition's backing array", got)
+	}
+}
+
+// TestRunBuildsInTheRunDirectory checks that the agent sees GOCACHE and
+// GOTMPDIR under the run directory, that the run's builds fill that cache,
+// and that it is removed with the clone, or kept beside it under Keep.
+func TestRunBuildsInTheRunDirectory(t *testing.T) {
+	if testing.Short() {
+		t.Skip("clones a local repository and runs go test")
+	}
+	script, err := filepath.Abs(filepath.Join("..", "..", "dryrun-agent.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, keep := range []bool{false, true} {
+		t.Run("keep="+strconv.FormatBool(keep), func(t *testing.T) {
+			exps := []definition.Experiment{fakeModule(t)}
+			envLog := filepath.Join(t.TempDir(), "env.log")
+			tmpl := "sh " + agent.ShellQuote(script) + ` {dir} && printf '%s\n' "$GOCACHE" "$GOTMPDIR" {root} > ` +
+				agent.ShellQuote(envLog)
+			rn := newTestRunner(t, t.TempDir(), tmpl)
+			rn.Keep = keep
+			res, err := rn.Resume(t.Context(), exps, 1, 1)
+			if err != nil || res.Written != 1 || !res.Rows[0].Oracle.Passed {
+				t.Fatalf("%+v %v", res, err)
+			}
+			data, err := os.ReadFile(envLog)
+			if err != nil {
+				t.Fatal(err)
+			}
+			lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+			if len(lines) != 3 {
+				t.Fatalf("agent logged %q", data)
+			}
+			work := filepath.Dir(lines[2])
+			t.Cleanup(func() { _ = os.RemoveAll(work) })
+			if want := filepath.Join(work, "gocache"); lines[0] != want {
+				t.Errorf("agent's GOCACHE = %q, want %q under the run directory", lines[0], want)
+			}
+			if want := filepath.Join(work, "gotmp"); lines[1] != want {
+				t.Errorf("agent's GOTMPDIR = %q, want %q under the run directory", lines[1], want)
+			}
+			entries, err := os.ReadDir(lines[0])
+			switch {
+			case !keep && !os.IsNotExist(err):
+				t.Errorf("run's build cache left behind: %v", err)
+			case keep && (err != nil || len(entries) == 0):
+				t.Errorf("kept run's build cache is empty or missing: %d entries, %v", len(entries), err)
+			}
+		})
+	}
+}
+
 // TestTailBuffer checks that the buffer keeps the last bytes written.
 func TestTailBuffer(t *testing.T) {
 	var buf bytes.Buffer

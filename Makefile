@@ -1,4 +1,4 @@
-.PHONY: check actionlint tidy fmt vet lint test selfcheck race-soak build test-subset readme-samples readme-check
+.PHONY: check actionlint tidy fmt vet lint test selfcheck race-soak build test-subset readme-samples readme-check clean-runs
 .NOTPARALLEL:
 
 # Build metadata linked into the binary by `make build`. Each is overridable
@@ -88,3 +88,29 @@ readme-samples:
 
 readme-check:
 	scripts/readme-samples.sh --check
+
+# clean-runs removes what calibration runs left in the temporary directory
+# after an interruption, a crash or --keep: rebuild runs and select scratch
+# (astimate-rebuild-*), replay worktrees and caches (astimate-replay-*) and
+# collect clones (astimate-collect-*, astimate-corpus-* before the rename),
+# each with the Go build cache it held. It looks in $TMPDIR (else /tmp)
+# and, on macOS, the per-user temporary directory, prints each directory it
+# removes, and leaves the shared Go build cache alone. Do not run it while
+# a calibration run is in progress. Not part of check. CLEAN_RUNS_DIRS
+# overrides the directories searched.
+CLEAN_RUNS_PREFIXES := astimate-rebuild- astimate-replay- astimate-collect- astimate-corpus-
+CLEAN_RUNS_DIRS ?= "$${TMPDIR:-/tmp}" "$$(getconf DARWIN_USER_TEMP_DIR 2>/dev/null)"
+
+clean-runs:
+	@removed=0; \
+	for base in $(CLEAN_RUNS_DIRS); do \
+		[ -n "$$base" ] && [ -d "$$base" ] || continue; \
+		for p in $(CLEAN_RUNS_PREFIXES); do \
+			for d in "$${base%/}/$$p"*; do \
+				[ -d "$$d" ] || continue; \
+				chmod -R u+w "$$d" 2>/dev/null; \
+				if rm -rf "$$d"; then echo "removed $$d"; removed=$$((removed + 1)); fi; \
+			done; \
+		done; \
+	done; \
+	echo "clean-runs: removed $$removed directories"

@@ -46,6 +46,7 @@ import (
 	"time"
 
 	"github.com/rfizzle/astimate/calibration/collect/internal/modpass"
+	"github.com/rfizzle/astimate/calibration/internal/gocache"
 	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/engine"
 )
@@ -331,26 +332,36 @@ func collect(ctx context.Context, opts options, logger *slog.Logger) int {
 // collectEntry collects one corpus entry: the standard library in-process,
 // any other module from a temporary shallow clone at its pin, with its
 // module row. With modulesOnly it collects the module row alone, and
-// nothing from the standard library, which has none.
+// nothing from the standard library, which has none. Loading a module
+// compiles its dependencies' export data, so each entry builds into a
+// cache in its own temporary directory, beside its clone, removed with it
+// rather than left in the shared Go build cache.
 func collectEntry(ctx context.Context, e Entry, cfg *config.Config, logger *slog.Logger, modulesOnly bool,
 ) ([]Row, *modpass.Row, ModuleRun) {
 	logger = logger.With("module", e.Module)
 	logger.Info("collecting")
-	if e.Local {
-		if modulesOnly {
-			return nil, nil, ModuleRun{Module: e.Module, Commit: runtime.Version(), Note: stdlibModulesNote}
-		}
-		rows, mr := collectLocal(ctx, e, cfg, logger)
-		return rows, nil, mr
+	if e.Local && modulesOnly {
+		return nil, nil, ModuleRun{Module: e.Module, Commit: runtime.Version(), Note: stdlibModulesNote}
 	}
 
 	mr := ModuleRun{Module: e.Module, Commit: e.Commit}
-	dir, err := os.MkdirTemp("", "astimate-corpus-*")
+	work, err := os.MkdirTemp("", "astimate-collect-*")
 	if err != nil {
 		mr.Error = err.Error()
 		return nil, nil, mr
 	}
-	defer func() { _ = os.RemoveAll(dir) }()
+	defer func() { _ = os.RemoveAll(work) }()
+	restore, err := gocache.Setenv(work)
+	if err != nil {
+		mr.Error = err.Error()
+		return nil, nil, mr
+	}
+	defer restore()
+	if e.Local {
+		rows, mr := collectLocal(ctx, e, cfg, logger)
+		return rows, nil, mr
+	}
+	dir := filepath.Join(work, "module")
 	if err := cloneAt(ctx, e.Repo, e.Commit, dir); err != nil {
 		logger.Error("clone failed", "err", err)
 		mr.Error = err.Error()

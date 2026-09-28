@@ -173,6 +173,20 @@ history.
   `calibration/data/2026-09-28-corpus/` and the evidence in
   `calibration/reports/thresholds-2026-09-28.md`.
 
+### Fixed
+
+- calibration: rebuild runs, `select`'s verification, replays and corpus
+  collection no longer build into the shared Go build cache, which every
+  rebuild run grew by a whole corpus module and its tests until it filled
+  the disk (242 GB). Each points `GOCACHE` and `GOTMPDIR` into its own
+  temporary directory, removed with the run's clone (kept with it under
+  `--keep`), the collected module's clone or the replay. `make clean-runs`
+  removes the `astimate-rebuild-*`, `astimate-replay-*` and
+  `astimate-collect-*` directories interrupted or kept runs left in the
+  temporary directory, and prints each one. The collector's clones are now
+  `astimate-collect-*` (were `astimate-corpus-*`) and `select`'s default
+  scratch directory `astimate-rebuild-select-*`.
+
 ## [0.1.0] - 2026-09-27
 
 First release: Go and TypeScript extractors, the rebuild estimate, the

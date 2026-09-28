@@ -376,6 +376,30 @@ definition) holds:
 | `run.json` | The environment of the latest invocation (host, toolchain, astimate commit, definition, agent, settings), its failures, and totals over every row |
 | `transcripts/<run>-<package>.jsonl` | Each agent's standard output (on by default; `--transcripts=false` turns it off). Not meant for committing: a live session writes megabytes |
 
+### Disk
+
+A run's Go build cache lives in its run directory: the pre-build, the
+agent's go commands and the oracle all run with `GOCACHE` and `GOTMPDIR`
+under the temporary directory that holds the clone
+(`$TMPDIR/astimate-rebuild-run-*/gocache` and `gotmp`), so the cache is
+removed with the clone and the shared Go build cache is untouched. A run
+compiles its whole module and its tests; when those builds went to the
+shared cache, it grew with every run, to 242 GB, and nothing reused them.
+Each run starts with an empty cache, so it also compiles the standard
+library packages it needs. With `--keep` the clone and its cache stay in
+the run directory until you delete them. The module
+download cache (`GOMODCACHE`) stays shared: it holds each module version
+once and runs reuse it. `select` builds its candidates' clones the same
+way, with the cache in its scratch directory (`--work`, by default a new
+`astimate-rebuild-select-*` temporary directory, printed at the start and
+kept afterwards).
+
+`make clean-runs` removes what interrupted or `--keep` runs left behind:
+every `astimate-rebuild-*`, `astimate-replay-*` and `astimate-collect-*`
+directory in `${TMPDIR:-/tmp}` and, on macOS, in
+`$(getconf DARWIN_USER_TEMP_DIR)`, printing each one. It does not touch the
+shared build cache, and must not run while a run is in progress.
+
 ### Resume
 
 A run is keyed by `(package, run)`, with `run` from 1 to `--repeats`. On

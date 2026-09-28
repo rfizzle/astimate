@@ -21,6 +21,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rfizzle/astimate/calibration/internal/gocache"
 	"github.com/rfizzle/astimate/calibration/rebuild/internal/agent"
 	"github.com/rfizzle/astimate/calibration/rebuild/internal/definition"
 	"github.com/rfizzle/astimate/calibration/rebuild/internal/pin"
@@ -39,7 +40,8 @@ type Config struct {
 	Model     string
 	// Timeout is the wall-clock limit of one agent invocation.
 	Timeout time.Duration
-	// Keep, when true, keeps each run's clone instead of removing it.
+	// Keep, when true, keeps each run's clone instead of removing it,
+	// together with the run's Go build cache, which lives beside the clone.
 	Keep bool
 	// Transcripts, when true, keeps each agent's standard output under
 	// Out/transcripts.
@@ -305,8 +307,8 @@ func (rn *Runner) appendRow(row RunRow) error {
 // prepareGo runs a go command in root that must pass before the agent
 // starts, as a setup error naming failMsg on a plain failure, or naming the
 // interruption when ctx was canceled first.
-func (rn *Runner) prepareGo(ctx context.Context, root, failMsg string, args ...string) error {
-	out, err := pin.RunGo(ctx, root, rn.Def.Env, args...)
+func (rn *Runner) prepareGo(ctx context.Context, root string, env []string, failMsg string, args ...string) error {
+	out, err := pin.RunGo(ctx, root, env, args...)
 	if err == nil {
 		return nil
 	}
@@ -314,6 +316,18 @@ func (rn *Runner) prepareGo(ctx context.Context, root, failMsg string, args ...s
 		return setupError("interrupted before the agent: %w", ctx.Err())
 	}
 	return setupError("%s: %s", failMsg, pin.Tail(out))
+}
+
+// runEnv returns the experiment's environment def for one run in the
+// directory work, with GOCACHE and GOTMPDIR pointed under work: every
+// build of the run (the pre-build, the agent's and the oracle's) then
+// stays out of the shared Go build cache and is removed with the clone.
+func runEnv(def []string, work string) ([]string, error) {
+	cache, err := gocache.Env(work)
+	if err != nil {
+		return nil, err
+	}
+	return append(slices.Clip(def), cache...), nil
 }
 
 // runOne runs experiment e once in a fresh clone and returns its row. An
@@ -336,26 +350,30 @@ func (rn *Runner) runOne(ctx context.Context, e *definition.Experiment, run int)
 		return row, setupError("%w", err)
 	}
 	if rn.Keep {
-		rn.Logger.Info("keeping clone", "package", e.Package, "run", run, "dir", work)
+		rn.Logger.Info("keeping clone and its build cache", "package", e.Package, "run", run, "dir", work)
 	} else {
 		defer func() { _ = os.RemoveAll(work) }()
+	}
+	env, err := runEnv(rn.Def.Env, work)
+	if err != nil {
+		return row, setupError("%w", err)
 	}
 	root := filepath.Join(work, "module")
 	if err := rn.Clone(ctx, e.Repo, e.Commit, root); err != nil {
 		return row, setupError("cloning: %w", err)
 	}
-	summary, err := stub.Apply(ctx, root, e, rn.Def.Env)
+	summary, err := stub.Apply(ctx, root, e, env)
 	if err != nil {
 		return row, setupError("%w", err)
 	}
 	// Download and compile everything the oracle needs before the agent
 	// starts, so its wall time holds no module downloads, and prove the
 	// stub builds with its tests.
-	if err := rn.prepareGo(ctx, root, "stubbed module does not build", "build", "./..."); err != nil {
+	if err := rn.prepareGo(ctx, root, env, "stubbed module does not build", "build", "./..."); err != nil {
 		return row, err
 	}
 	warmArgs := append([]string{"test", "-count=1", "-run", "^$"}, e.Oracle.Test...)
-	if err := rn.prepareGo(ctx, root, "oracle tests do not build on the stub", warmArgs...); err != nil {
+	if err := rn.prepareGo(ctx, root, env, "oracle tests do not build on the stub", warmArgs...); err != nil {
 		return row, err
 	}
 	promptFile := filepath.Join(work, "prompt.txt")
@@ -367,7 +385,7 @@ func (rn *Runner) runOne(ctx context.Context, e *definition.Experiment, run int)
 		"root": root, "dir": e.Dir, "package": e.Package, "prompt_file": promptFile,
 		"turn_cap": strconv.Itoa(e.TurnCap), "model": rn.Model,
 	})
-	stdout, err := rn.invoke(ctx, root, e, run, &row.Agent)
+	stdout, err := rn.invoke(ctx, root, env, e, run, &row.Agent)
 	if err != nil {
 		return row, err
 	}
@@ -379,7 +397,7 @@ func (rn *Runner) runOne(ctx context.Context, e *definition.Experiment, run int)
 		return row, setupError("agent exited with status %d and no result: %s",
 			row.Agent.ExitCode, tailLine(row.Agent.StderrTail))
 	}
-	if err := rn.oracle(ctx, root, e, &row.Oracle); err != nil {
+	if err := rn.oracle(ctx, root, env, e, &row.Oracle); err != nil {
 		return row, err
 	}
 	row.Changes, err = changes(ctx, root, packageDirs(e))
@@ -391,17 +409,17 @@ func (rn *Runner) runOne(ctx context.Context, e *definition.Experiment, run int)
 	return row, nil
 }
 
-// invoke runs the agent command in root through sh -c with the
-// experiment's environment and the wall-clock timeout, records how it
+// invoke runs the agent command in root through sh -c with the run's
+// environment env and the wall-clock timeout, records how it
 // ended in a, and returns its standard output. It fails only when the
 // command could not run for a reason outside the agent: ctx canceled or
 // the transcript not writable.
-func (rn *Runner) invoke(ctx context.Context, root string, e *definition.Experiment, run int, a *AgentRun) ([]byte, error) {
+func (rn *Runner) invoke(ctx context.Context, root string, env []string, e *definition.Experiment, run int, a *AgentRun) ([]byte, error) {
 	actx, cancel := context.WithTimeout(ctx, rn.Timeout)
 	defer cancel()
 	cmd := exec.CommandContext(actx, "sh", "-c", a.Command)
 	cmd.Dir = root
-	cmd.Env = append(os.Environ(), rn.Def.Env...)
+	cmd.Env = append(os.Environ(), env...)
 	cmd.Stdin = nil
 	cmd.WaitDelay = 10 * time.Second
 	killGroup(cmd)
@@ -444,14 +462,15 @@ func (rn *Runner) invoke(ctx context.Context, root string, e *definition.Experim
 	return stdout.Bytes(), nil
 }
 
-// oracle runs the experiment's oracle in root and records the outcome in
-// o. It fails only when ctx was canceled, which leaves no verdict.
-func (rn *Runner) oracle(ctx context.Context, root string, e *definition.Experiment, o *OracleOutcome) error {
+// oracle runs the experiment's oracle in root with the run's environment
+// env and records the outcome in o. It fails only when ctx was canceled,
+// which leaves no verdict.
+func (rn *Runner) oracle(ctx context.Context, root string, env []string, e *definition.Experiment, o *OracleOutcome) error {
 	start := time.Now()
 	o.Test, o.Build = e.Oracle.Test, e.Oracle.Build
-	out, err := pin.RunGo(ctx, root, rn.Def.Env, append([]string{"test", "-count=1"}, e.Oracle.Test...)...)
+	out, err := pin.RunGo(ctx, root, env, append([]string{"test", "-count=1"}, e.Oracle.Test...)...)
 	o.TestsPass, o.TestTail = err == nil, pin.Tail(out)
-	out, err = pin.RunGo(ctx, root, rn.Def.Env, append([]string{"build"}, e.Oracle.Build...)...)
+	out, err = pin.RunGo(ctx, root, env, append([]string{"build"}, e.Oracle.Build...)...)
 	o.BuildPasses, o.BuildTail = err == nil, pin.Tail(out)
 	if ctx.Err() != nil {
 		return setupError("interrupted during the oracle: %w", ctx.Err())

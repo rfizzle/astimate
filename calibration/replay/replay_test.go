@@ -369,6 +369,34 @@ func TestDefaultOut(t *testing.T) {
 	}
 }
 
+// TestIsolateGoCache checks that a replay's go commands build into a
+// temporary directory of the replay's own, not the shared GOCACHE, and that
+// cleanup removes it and restores the environment.
+func TestIsolateGoCache(t *testing.T) {
+	shared := t.TempDir()
+	t.Setenv("GOCACHE", shared)
+	t.Setenv("GOTMPDIR", "")
+	cleanup, err := isolateGoCache()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cache := os.Getenv("GOCACHE")
+	dir := filepath.Dir(cache)
+	if cache == shared || filepath.Base(cache) != "gocache" || !strings.HasPrefix(filepath.Base(dir), "astimate-replay-gocache-") {
+		t.Errorf("GOCACHE = %q, want gocache under a new astimate-replay-gocache-* directory", cache)
+	}
+	if got := os.Getenv("GOTMPDIR"); got != filepath.Join(dir, "gotmp") {
+		t.Errorf("GOTMPDIR = %q, want it beside the cache", got)
+	}
+	cleanup()
+	if got := os.Getenv("GOCACHE"); got != shared {
+		t.Errorf("GOCACHE after cleanup = %q, want %q", got, shared)
+	}
+	if _, err := os.Stat(dir); !os.IsNotExist(err) {
+		t.Errorf("replay's build cache %s left behind: %v", dir, err)
+	}
+}
+
 func commitHashes(rows []commitRow) []string {
 	out := make([]string, 0, len(rows))
 	for _, r := range rows {
