@@ -21,9 +21,21 @@
 // invariants with
 //
 //	ASTIMATE_CONFIG=$PWD/<candidate> go test ./internal/invariants
+//
+// --language <id> fits rows collected for another language (SPEC.md 13)
+// and writes, instead of a whole configuration, the languages.<id>
+// override block to paste into the configuration: one rule per base rule
+// the data fitted a statistic for, each replacing the top-level rule on
+// its metric for that language, and nothing for the rebuild parameters.
+// Every row must carry that language. The block is validated merged into
+// the base, whose config_version it keeps; reports judged with it show
+// <config_version>+<id>. --base-data names the rows the base was fitted
+// from, and the report then sets the two languages' percentiles side by
+// side.
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -48,6 +60,9 @@ const suffixAuto = "auto"
 // options are the parsed command-line flags.
 type options struct {
 	data, modules, base, out, report, date, suffix, compare string
+	// language, when set, fits a languages.<language> override block;
+	// baseData is the rows the base configuration was fitted from.
+	language, baseData string
 }
 
 func main() {
@@ -84,6 +99,8 @@ func parseFlags(args []string, stderr io.Writer) (options, error) {
 	fs.StringVar(&o.date, "date", time.Now().Format(time.DateOnly), "calibration date, YYYY-MM-DD")
 	fs.StringVar(&o.suffix, "suffix", suffixAuto, "config_version suffix; auto means "+provisionalSuffix+" for standard-library-only data")
 	fs.StringVar(&o.compare, "compare", "", "earlier configuration file whose limits the report compares with the candidate's")
+	fs.StringVar(&o.language, "language", "", "fit rows of this language and write its languages override block, not a whole configuration")
+	fs.StringVar(&o.baseData, "base-data", "", "with --language: the rows the base was fitted from, for the report's side-by-side percentiles")
 	if err := fs.Parse(args); err != nil {
 		return o, err
 	}
@@ -93,6 +110,8 @@ func parseFlags(args []string, stderr io.Writer) (options, error) {
 		err = fmt.Errorf("unexpected arguments: %s", strings.Join(fs.Args(), " "))
 	case o.data == "":
 		err = errors.New("--data is required")
+	case o.baseData != "" && o.language == "":
+		err = errors.New("--base-data needs --language")
 	default:
 		if _, perr := time.Parse(time.DateOnly, o.date); perr != nil {
 			err = fmt.Errorf("--date: %w", perr)
@@ -128,6 +147,18 @@ func fit(opts options) (result, error) {
 		}
 		rows = append(rows, modRows...)
 	}
+	if err := checkLanguage(rows, opts.language); err != nil {
+		return result{}, fmt.Errorf("reading %s: %w", opts.data, err)
+	}
+	var baseRows []Row
+	if opts.baseData != "" {
+		if baseRows, err = loadRows(opts.baseData); err != nil {
+			return result{}, err
+		}
+		if err := checkLanguage(baseRows, ""); err != nil {
+			return result{}, fmt.Errorf("reading %s: %w", opts.baseData, err)
+		}
+	}
 	moduleRows := countModuleRows(rows)
 	packageRows := len(rows) - moduleRows
 	baseData := config.Default()
@@ -161,6 +192,12 @@ func fit(opts options) (result, error) {
 		stem += "-" + suffix
 	}
 	version := "thresholds-" + stem
+	if opts.language != "" {
+		// An override keeps the base's config_version; reports judged
+		// with it show the language suffix.
+		stem += "-" + opts.language
+		version = base.Version + "+" + opts.language
+	}
 	res := result{version: version, out: opts.out, report: opts.report}
 	if res.out == "" {
 		res.out = filepath.Join("calibration", "thresholds", "astimate-thresholds-"+stem+".yaml")
@@ -170,19 +207,42 @@ func fit(opts options) (result, error) {
 	}
 
 	choices := fitThresholds(rows, base)
-	header := candidateHeader(version, opts.data, packageRows, provisional)
+	source := opts.data
 	if opts.modules != "" {
-		header = candidateHeader(version, opts.data+" and "+strconv.Itoa(moduleRows)+" module rows in "+opts.modules,
-			packageRows, provisional)
+		source = opts.data + " and " + strconv.Itoa(moduleRows) + " module rows in " + opts.modules
 	}
-	out, err := emitCandidate(baseData, version, header, choices)
+	var out []byte
+	if opts.language != "" {
+		out, err = emitLanguage(baseData, opts.language, version, source, packageRows, choices)
+	} else {
+		out, err = emitCandidate(baseData, version, candidateHeader(version, source, packageRows, provisional), choices)
+		if err == nil {
+			if _, perr := config.Parse(out); perr != nil {
+				err = fmt.Errorf("candidate does not validate: %w", perr)
+			}
+		}
+	}
 	if err != nil {
 		return result{}, err
 	}
-	if _, err := config.Parse(out); err != nil {
-		return result{}, fmt.Errorf("candidate does not validate: %w", err)
+	var run *runInfo
+	if opts.language != "" {
+		if run, err = loadRun(filepath.Join(filepath.Dir(opts.data), "run.json")); err != nil {
+			return result{}, err
+		}
+	}
+	var baseStats []Stats
+	if baseRows != nil {
+		baseStats = make([]Stats, len(choices))
+		for i := range choices {
+			baseStats[i] = computeStats(poolValues(baseRows, choices[i].Rule.Metric, choices[i].Pool))
+		}
 	}
 	report := renderReport(&reportInput{
+		Language:    opts.language,
+		Run:         run,
+		BaseData:    filepath.ToSlash(opts.baseData),
+		BaseStats:   baseStats,
 		Version:     version,
 		BaseVersion: base.Version,
 		Data:        filepath.ToSlash(opts.data),
@@ -242,6 +302,23 @@ func wrap(s string, width int) []string {
 		}
 	}
 	return append(lines, line)
+}
+
+// loadRun reads the collector's run.json at path; nil, with no error, when
+// there is none.
+func loadRun(path string) (*runInfo, error) {
+	data, err := os.ReadFile(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("reading run info: %w", err)
+	}
+	var r runInfo
+	if err := json.Unmarshal(data, &r); err != nil {
+		return nil, fmt.Errorf("decoding %s: %w", path, err)
+	}
+	return &r, nil
 }
 
 // writeFile writes data to path, creating its directory.

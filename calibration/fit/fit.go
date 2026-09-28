@@ -27,6 +27,33 @@ type Row struct {
 	// complexity; absent in data collected before the collector recorded
 	// it, and for a package with no functions.
 	FuncCognitive map[int]int `json:"func_cognitive"`
+	// Language is the row's language id; absent on Go rows.
+	Language string `json:"language"`
+}
+
+// checkLanguage checks that every row carries the language lang, where
+// empty means Go, whose rows carry none: a fit pools one language's rows,
+// and a whole configuration is fitted from Go rows alone.
+func checkLanguage(rows []Row, lang string) error {
+	if lang == "go" {
+		lang = ""
+	}
+	for i := range rows {
+		got := rows[i].Language
+		if got == "go" {
+			got = ""
+		}
+		if got != lang {
+			if lang == "" {
+				return fmt.Errorf("row %d is %s; fit it with --language %s", i+1, got, got)
+			}
+			if got == "" {
+				got = "go"
+			}
+			return fmt.Errorf("row %d is %s, not %s", i+1, got, lang)
+		}
+	}
+	return nil
 }
 
 // readRows decodes packages.jsonl from r.

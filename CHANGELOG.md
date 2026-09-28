@@ -21,6 +21,24 @@ history.
 
 ### Changed
 
+- TypeScript packages are judged by their own thresholds: the default
+  configuration ships a `languages.typescript` override fitted on 1,209
+  packages from 20 TypeScript repositories (`calibration/corpus-typescript.yaml`,
+  data in `calibration/data/2026-09-28-typescript/`, report in
+  `calibration/reports/thresholds-2026-09-28-typescript.md`). It raises
+  `sloc` to 2,500, `tokens_est` to 35,000, `largest_file_sloc` to 900,
+  `max_nesting` to 7, `cognitive_p90` to 25 (+4), `duplication_pct` to 45
+  (+7) and `changed_func_cognitive_max` to 55, and lowers `exported_symbols`
+  to 55 and `internal_imports` to 8; the zero-tolerance ratchets,
+  `has_tests` and the rebuild parameters are the top level's. Reports on
+  TypeScript show `config_version` `thresholds-2026-09-28+typescript`; Go
+  is unchanged. `config init` writes the override.
+- `calibration/collect` collects a TypeScript corpus (`--corpus` with a
+  file whose `language` is `typescript`, each repository naming its module
+  roots, test and fixture directories left out, every row tagged
+  `language`), and `calibration/fit --language <id>` writes a
+  `languages.<id>` override block instead of a whole configuration, with
+  `--base-data` setting the base's percentiles beside it in the report.
 - The default configuration gates cross-package duplication:
   `dup_blocks_cross_pkg` with `max_delta: 0` and `max: 450`, evaluated on
   the module row only, so a change that copies code between packages fails

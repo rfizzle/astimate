@@ -125,9 +125,17 @@ func TestConfigInitBadArgs(t *testing.T) {
 	}
 }
 
+// withoutLanguages returns a configuration file cut before its languages
+// section, the last key of the embedded default, so a test can append a
+// languages section of its own; the whole file when it has none.
+func withoutLanguages(data []byte) []byte {
+	top, _, _ := strings.Cut(string(data), "\nlanguages:\n")
+	return []byte(top + "\n")
+}
+
 // TestConfigInitValidates checks the written file loads without warnings
-// and, carrying no language override, resolves every language to the
-// embedded default's top level.
+// and resolves Go to the embedded default's top level and TypeScript to its
+// shipped override.
 func TestConfigInitValidates(t *testing.T) {
 	t.Parallel()
 
@@ -143,11 +151,13 @@ func TestConfigInitValidates(t *testing.T) {
 	if len(cfg.Warnings) != 0 {
 		t.Errorf("Warnings = %q, want none", cfg.Warnings)
 	}
-	for _, lang := range []string{"go", "typescript"} {
-		eff := cfg.ForLanguage(lang)
-		if eff.Version != cfg.Version || eff.Rebuild != cfg.Rebuild || len(eff.Thresholds) != len(cfg.Thresholds) {
-			t.Errorf("ForLanguage(%q) = %+v, want the top level unchanged", lang, eff)
-		}
+	if eff := cfg.ForLanguage("go"); eff.Version != cfg.Version || eff.Rebuild != cfg.Rebuild ||
+		len(eff.Thresholds) != len(cfg.Thresholds) {
+		t.Errorf("ForLanguage(go) = %+v, want the top level unchanged", eff)
+	}
+	if eff := cfg.ForLanguage("typescript"); eff.Version != cfg.Version+"+typescript" || eff.Rebuild != cfg.Rebuild ||
+		len(eff.Thresholds) != len(cfg.Thresholds) {
+		t.Errorf("ForLanguage(typescript) = %+v, want the override's version, the top-level rebuild and one rule per metric", eff)
 	}
 	if warns, err := engine.LanguageWarnings(cfg); err != nil || len(warns) != 0 {
 		t.Errorf("LanguageWarnings = %q, %v, want none", warns, err)
@@ -159,7 +169,7 @@ func TestConfigInitValidates(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reading written config: %v", err)
 	}
-	withOverrides, err := config.Parse(append(data, "\nlanguages:\n  rust: {}\n  go: {}\n  typescript: {}\n"...))
+	withOverrides, err := config.Parse(append(withoutLanguages(data), "\nlanguages:\n  rust: {}\n  go: {}\n  typescript: {}\n"...))
 	if err != nil {
 		t.Fatalf("parsing config with overrides: %v", err)
 	}

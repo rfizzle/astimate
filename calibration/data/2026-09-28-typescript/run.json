@@ -1,0 +1,308 @@
+{
+  "date": "2026-09-28",
+  "go_version": "go1.27.1",
+  "goos": "darwin",
+  "goarch": "arm64",
+  "cpus": 14,
+  "astimate_version": "(devel)",
+  "astimate_commit": "1d8c6d8b327439f9ff1fc42faa8af0035c30b08d",
+  "config_version": "thresholds-2026-09-28",
+  "tokenizer": "est",
+  "corpus": "calibration/corpus-typescript.yaml",
+  "language": "typescript",
+  "packages": 1209,
+  "modules": [
+    {
+      "module": "github.com/honojs/hono",
+      "commit": "fc2343dbad8af7ab82bc4a6c6907e57416aed878",
+      "packages": 72,
+      "commit_date": "2026-09-28",
+      "roots": [
+        "."
+      ],
+      "excluded_packages": 8
+    },
+    {
+      "module": "github.com/immerjs/immer",
+      "commit": "061c2425e1c9dff89e4e4189d42af1b7839dfe0a",
+      "packages": 6,
+      "commit_date": "2026-08-19",
+      "roots": [
+        "."
+      ]
+    },
+    {
+      "module": "github.com/kysely-org/kysely",
+      "commit": "50ccaf8c7f443a940c445e3eb1587149cba43675",
+      "packages": 31,
+      "commit_date": "2026-09-27",
+      "roots": [
+        "."
+      ],
+      "excluded_packages": 3
+    },
+    {
+      "module": "github.com/graphql/graphql-js",
+      "commit": "ee5ce41d4b68d1852306d3b56dba2cbbb6c43fea",
+      "packages": 14,
+      "commit_date": "2026-09-09",
+      "roots": [
+        "."
+      ],
+      "excluded_packages": 1
+    },
+    {
+      "module": "github.com/colinhacks/zod",
+      "commit": "2bf7b0630d5378033e90bcee82cb32b0fe04628e",
+      "packages": 13,
+      "commit_date": "2026-09-23",
+      "roots": [
+        "packages/zod"
+      ],
+      "excluded_packages": 2
+    },
+    {
+      "module": "github.com/ReactiveX/rxjs",
+      "commit": "54796b38a57e6309f9861e174737479bb3f63f61",
+      "packages": 4,
+      "commit_date": "2026-08-05",
+      "roots": [
+        "packages/rxjs"
+      ],
+      "excluded_packages": 3
+    },
+    {
+      "module": "github.com/typeorm/typeorm",
+      "commit": "f279fd1367f24ad108a1b11cf833f1620274088d",
+      "packages": 68,
+      "commit_date": "2026-09-21",
+      "roots": [
+        "packages/typeorm"
+      ],
+      "excluded_packages": 903
+    },
+    {
+      "module": "github.com/TanStack/query",
+      "commit": "2e1ad64b525f6ff2034f169ab9c2f48f82f17296",
+      "packages": 50,
+      "commit_date": "2026-09-28",
+      "roots": [
+        "packages/angular-query-experimental",
+        "packages/eslint-plugin-query",
+        "packages/lit-query",
+        "packages/preact-query",
+        "packages/query-async-storage-persister",
+        "packages/query-broadcast-client-experimental",
+        "packages/query-core",
+        "packages/query-devtools",
+        "packages/query-persist-client-core",
+        "packages/query-sync-storage-persister",
+        "packages/react-query",
+        "packages/react-query-devtools",
+        "packages/react-query-next-experimental",
+        "packages/react-query-persist-client",
+        "packages/solid-query",
+        "packages/vue-query"
+      ],
+      "excluded_packages": 1
+    },
+    {
+      "module": "github.com/trpc/trpc",
+      "commit": "ec0b0a47ab6c6ffabcb2ba6b80fa08c1410145a9",
+      "packages": 52,
+      "commit_date": "2026-09-27",
+      "roots": [
+        "packages/client",
+        "packages/next",
+        "packages/openapi",
+        "packages/react-query",
+        "packages/server",
+        "packages/tanstack-react-query",
+        "packages/upgrade"
+      ],
+      "excluded_packages": 41
+    },
+    {
+      "module": "github.com/vuejs/core",
+      "commit": "4ab865a848a1da3d10fb674f857e5fff13094644",
+      "packages": 27,
+      "commit_date": "2026-09-18",
+      "roots": [
+        "packages/compiler-core",
+        "packages/compiler-dom",
+        "packages/compiler-sfc",
+        "packages/compiler-ssr",
+        "packages/reactivity",
+        "packages/runtime-core",
+        "packages/runtime-dom",
+        "packages/server-renderer",
+        "packages/shared",
+        "packages/vue",
+        "packages/vue-compat"
+      ]
+    },
+    {
+      "module": "github.com/vitejs/vite",
+      "commit": "e57f4da9c6fde10034106cb6a43b40dc4a38c211",
+      "packages": 18,
+      "commit_date": "2026-09-28",
+      "roots": [
+        "packages/create-vite",
+        "packages/plugin-legacy",
+        "packages/vite"
+      ],
+      "excluded_packages": 2
+    },
+    {
+      "module": "github.com/nestjs/nest",
+      "commit": "b58554ea5857445841674963211e4f3f41b0a3a4",
+      "packages": 121,
+      "commit_date": "2026-09-25",
+      "roots": [
+        "packages/common",
+        "packages/core",
+        "packages/microservices",
+        "packages/platform-express",
+        "packages/platform-fastify",
+        "packages/platform-socket.io",
+        "packages/platform-ws",
+        "packages/testing",
+        "packages/websockets"
+      ],
+      "excluded_packages": 5
+    },
+    {
+      "module": "github.com/statelyai/xstate",
+      "commit": "fbee62e7c1586315ed478c2fedf530d7e0ff5a3e",
+      "packages": 32,
+      "commit_date": "2026-09-15",
+      "roots": [
+        "packages/core",
+        "packages/xstate-immer",
+        "packages/xstate-inspect",
+        "packages/xstate-react",
+        "packages/xstate-solid",
+        "packages/xstate-store",
+        "packages/xstate-store-angular",
+        "packages/xstate-store-preact",
+        "packages/xstate-store-react",
+        "packages/xstate-store-solid",
+        "packages/xstate-store-svelte",
+        "packages/xstate-store-vue",
+        "packages/xstate-svelte",
+        "packages/xstate-vue"
+      ],
+      "excluded_packages": 3
+    },
+    {
+      "module": "github.com/mermaid-js/mermaid",
+      "commit": "69778e6e995cd72c6cb524449d8e08ee3d231628",
+      "packages": 84,
+      "commit_date": "2026-09-21",
+      "roots": [
+        "packages/mermaid",
+        "packages/mermaid-layout-elk",
+        "packages/mermaid-layout-tidy-tree",
+        "packages/mermaid-zenuml",
+        "packages/parser"
+      ],
+      "excluded_packages": 3
+    },
+    {
+      "module": "github.com/reduxjs/redux-toolkit",
+      "commit": "c9dac937d77adc3bf04842a43955e81d0e7a46da",
+      "packages": 27,
+      "commit_date": "2026-09-19",
+      "roots": [
+        "packages/rtk-codemods",
+        "packages/rtk-query-codegen-openapi",
+        "packages/rtk-query-graphql-request-base-query",
+        "packages/toolkit"
+      ],
+      "excluded_packages": 10
+    },
+    {
+      "module": "github.com/excalidraw/excalidraw",
+      "commit": "438d89861f53d8a90ad566113ecac1b83761098f",
+      "packages": 62,
+      "commit_date": "2026-09-27",
+      "roots": [
+        "excalidraw-app",
+        "packages/common",
+        "packages/element",
+        "packages/excalidraw",
+        "packages/fractional-indexing",
+        "packages/laser-pointer",
+        "packages/math",
+        "packages/utils"
+      ],
+      "excluded_packages": 4
+    },
+    {
+      "module": "github.com/desktop/desktop",
+      "commit": "f2686bcec9239a9f8c5d53e2e90bc3a4dd02059f",
+      "packages": 125,
+      "commit_date": "2026-09-25",
+      "roots": [
+        "app"
+      ],
+      "excluded_packages": 19
+    },
+    {
+      "module": "github.com/microsoft/playwright",
+      "commit": "b9a34ac7783a1b6c2e1dfff0c08ac744c048fa59",
+      "packages": 78,
+      "commit_date": "2026-09-25",
+      "roots": [
+        ".",
+        "packages/dashboard",
+        "packages/extension",
+        "packages/html-reporter",
+        "packages/playwright",
+        "packages/playwright-client",
+        "packages/playwright-core",
+        "packages/recorder",
+        "packages/trace-viewer",
+        "packages/web"
+      ],
+      "excluded_packages": 20
+    },
+    {
+      "module": "github.com/Kong/insomnia",
+      "commit": "ae09eea24dc00594dd9acbe0a7e27ae5fa9bcc9c",
+      "packages": 146,
+      "commit_date": "2026-09-24",
+      "roots": [
+        "packages/insomnia",
+        "packages/insomnia-analytics",
+        "packages/insomnia-api",
+        "packages/insomnia-data",
+        "packages/insomnia-inso",
+        "packages/insomnia-scripting-environment",
+        "packages/insomnia-testing",
+        "packages/insomnia-vcs"
+      ],
+      "excluded_packages": 11
+    },
+    {
+      "module": "github.com/actualbudget/actual",
+      "commit": "24deae74e653fca34e0057a30427cfe9939332ab",
+      "packages": 179,
+      "commit_date": "2026-09-27",
+      "roots": [
+        "packages/api",
+        "packages/cli",
+        "packages/component-library",
+        "packages/crdt",
+        "packages/desktop-client",
+        "packages/desktop-electron",
+        "packages/loot-core",
+        "packages/mobile-client",
+        "packages/plugins-service",
+        "packages/sync-server"
+      ],
+      "excluded_packages": 13
+    }
+  ],
+  "module_rows": 0
+}

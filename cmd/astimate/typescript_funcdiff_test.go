@@ -11,9 +11,10 @@ import (
 )
 
 // tsGrade is one complex TypeScript function, the counterpart of the Go
-// degraded fixture's grade: cognitive complexity 51 with nesting 2, so it
-// fails changed_func_cognitive_max (max 50) while the package's p90 stays
-// at the level of its small functions.
+// degraded fixture's grade: cognitive complexity 60 with nesting 2, so it
+// fails changed_func_cognitive_max (max 55 in the default typescript
+// override) while the package's p90 stays at the level of its small
+// functions.
 const tsGrade = `
 // grade rates a passphrase from 0 to 10.
 function grade(s: string, strict: boolean): number {
@@ -67,6 +68,12 @@ function grade(s: string, strict: boolean): number {
   if (digit > 0 && other > 0 && upper > 0 && lower > 0 || s.length > 30 && strict) {
     score += 2;
   }
+  if (upper > 1 && lower > 1 || digit > 1 && other > 1 || s.length > 40) {
+    score++;
+  }
+  if (!strict && upper > 7 || strict && lower > 7) {
+    score--;
+  }
   return Math.max(0, Math.min(score, 10));
 }
 `
@@ -81,7 +88,7 @@ func tsGradeLine(t *testing.T) string {
 		t.Fatal(err)
 	}
 	line := bytes.Count(src, []byte{'\n'}) + 3
-	return "Changed function grade (tested.ts:" + strconv.Itoa(line) + ") has cognitive complexity 51"
+	return "Changed function grade (tested.ts:" + strconv.Itoa(line) + ") has cognitive complexity 60"
 }
 
 // TestTypeScriptChangedFunction runs check without --all on a TypeScript
@@ -129,7 +136,7 @@ func TestTypeScriptChangedFunction(t *testing.T) {
 			name:     "complex function added",
 			change:   func(t *testing.T, repo string) { appendFile(t, file(repo), tsGrade) },
 			wantExit: exitGateFailed,
-			wantMax:  51,
+			wantMax:  60,
 		},
 		{
 			name: "comment and layout edit",
@@ -148,7 +155,7 @@ func TestTypeScriptChangedFunction(t *testing.T) {
 				rewrite(t, repo, "score -= 3;", "score += 3;")
 			},
 			wantExit: exitGateFailed,
-			wantMax:  51,
+			wantMax:  60,
 		},
 	}
 	for _, tt := range tests {

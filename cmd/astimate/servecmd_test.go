@@ -284,8 +284,9 @@ func TestServeLogsConfigWarnings(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "old.yaml")
 	// The embedded default with its duplication section swapped for the
-	// deprecated top-level key.
-	def := string(config.Default())
+	// deprecated top-level key, and its languages section for one naming
+	// an unknown language.
+	def := string(withoutLanguages(config.Default()))
 	start := strings.Index(def, "duplication:\n")
 	end := strings.Index(def, "\n# Rebuild")
 	if start < 0 || end < start {

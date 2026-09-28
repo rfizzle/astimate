@@ -5,7 +5,9 @@ Date: 2026-09-27. Machine: darwin/arm64, 14 cores, Go 1.27.1.
 SPEC.md 11.1 calibrates the gate's default thresholds from the pooled
 metrics of well-regarded Go code: the standard library plus 20 or more
 widely used modules. `corpus.yaml` lists the modules; `collect/` gathers
-their metrics into `data/<date>/`.
+their metrics into `data/<date>/`. TypeScript has a corpus of its own,
+`corpus-typescript.yaml`, fitted into the default's `typescript` override;
+see "TypeScript" at the end.
 
 ## Selection criteria
 
@@ -237,3 +239,30 @@ default on 2026-09-28 after the other limits of `thresholds-2026-09-28`
 shipped; the version's numbers now include it. `configs/uncalibrated.yaml`
 carries it with a placeholder `max` of 0, so a fit without module rows keeps
 0 and the report says the rows are missing.
+
+## TypeScript
+
+SPEC.md 13 calibrates thresholds per language. `corpus-typescript.yaml` is
+a corpus file with `language: typescript`: 20 pinned repositories, no
+standard-library entry, and on each entry a `modules` list of the module
+roots (directories holding a `package.json`) collected from it; the schema
+check wants at least 15 repositories. The selection criteria, the roots and
+the packages left out as tests and fixtures are in
+`notes/typescript-corpus-2026-09-28.md`, with the commands:
+
+```sh
+go run ./calibration/collect --corpus calibration/corpus-typescript.yaml --out calibration/data/2026-09-28-typescript
+go run ./calibration/fit --data calibration/data/2026-09-28-typescript/packages.jsonl \
+  --date 2026-09-28 --language typescript --base internal/config/default.yaml \
+  --base-data calibration/data/2026-09-28-corpus/packages.jsonl
+```
+
+`data/2026-09-28-typescript/` holds 1,209 packages from 112 of the 113
+module roots of the 20 repositories (mermaid's `packages/mermaid-layout-elk`
+holds only a declaration file and a test, so no package), each row tagged `language: typescript`, and no module
+rows: the TypeScript extractor measures none. `fit --language typescript`
+writes the `languages.typescript` block,
+`thresholds/astimate-thresholds-2026-09-28-typescript.yaml`, which
+`internal/config/default.yaml` carries (a test in `fit/` keeps them equal),
+and `reports/thresholds-2026-09-28-typescript.md`, with a Go against
+TypeScript table.

@@ -1,0 +1,90 @@
+# Astimate per-language threshold override, to paste into the configuration.
+#
+# Override for typescript (reports show thresholds-2026-09-28+typescript),
+# fitted by calibration/fit (SPEC.md 11.1 and 13) from 1209 packages in
+# calibration/data/2026-09-28-typescript/packages.jsonl.
+#
+# Percentiles are nearest-rank: the p-th percentile of n values is the value
+# at rank ceil(p/100 * n), so it is always an observed value. IQR is p75
+# minus p25.
+#
+# A capacity rule's max, and a density rule's max where the base rule has
+# one, is the 90th percentile rounded to two significant figures and then to
+# the nearest readable step: 500 above 1000, 50 above 100, 5 above 10,
+# otherwise 1 (0.5 for a percentage). A capacity max is at least one step.
+#
+# A density rule's max_delta is a quarter of the IQR rounded up to a whole
+# step, at least 1 for a count and 0.5 for a percentage, except that a rule
+# whose base max_delta is 0 keeps it: zero tolerance on new duplicate
+# blocks, untested exports, globals, init functions and nesting is a policy,
+# not a statistic.
+#
+# internal_imports is pooled from cloned-module rows only, since the
+# standard library is loaded as one module and counts every standard-library
+# import as internal; a module-wide metric (dup_blocks_cross_pkg) is pooled
+# from the module rows only, one per module, since the gate evaluates it
+# there alone; every other metric is pooled from all package rows.
+#
+# changed_func_cognitive_max is a diff against a baseline, so it is fitted
+# per function with every function of every row counted as new, as in a
+# package new at head: its max is the 99th percentile of per-function
+# cognitive complexity, rounded the same way, since a single function past
+# the corpus's own worst percentile is the signal.
+#
+# Kinds, warn_at, ratchet_from_zero, when guards, requirement rules, the
+# rebuild parameters and every other key are copied from the base unchanged;
+# a density rule with no max in the base gets none.
+#
+# Each rule below replaces the top-level rule on its metric for typescript.
+# A rule the data fitted no statistic for keeps the top-level rule:
+# dup_blocks, untested_exports, globals, init_funcs, dup_blocks_cross_pkg,
+# has_tests. The rebuild parameters are not overridden: they are calibrated
+# by rebuild experiments (SPEC.md 11.2), not by a corpus.
+
+languages:
+  typescript:
+    thresholds:
+      # p90 46 over 1209 packages; the top level has max 40, max_delta 6.
+      - metric: duplication_pct
+        kind: density
+        max_delta: 7
+        max: 45
+      # p90 7 over 1209 packages; the top level has max 5, max_delta 0.
+      - metric: max_nesting
+        kind: density
+        max_delta: 0
+        max: 7
+      # p90 27 over 1209 packages; the top level has max 20, max_delta 3.
+      - metric: cognitive_p90
+        kind: density
+        max_delta: 4
+        max: 25
+      # p99 56 over 39878 functions; the top level has max 50, max_delta none.
+      - metric: changed_func_cognitive_max
+        kind: density
+        max: 55
+      # p90 34818 over 1209 packages; the top level has max 16000, max_delta none.
+      - metric: tokens_est
+        kind: capacity
+        max: 35000
+        warn_at: 0.75
+      # p90 891 over 1209 packages; the top level has max 600, max_delta none.
+      - metric: largest_file_sloc
+        kind: capacity
+        max: 900
+        warn_at: 0.75
+      # p90 57 over 1209 packages; the top level has max 60, max_delta none.
+      - metric: exported_symbols
+        kind: capacity
+        max: 55
+        warn_at: 0.75
+      # p90 8 over 1209 packages; the top level has max 10, max_delta none.
+      - metric: internal_imports
+        kind: capacity
+        max: 8
+        warn_at: 0.75
+      # p90 2508 over 1209 packages; the top level has max 1000, max_delta none.
+      - metric: sloc
+        kind: capacity
+        max: 2500
+        warn_at: 0.75

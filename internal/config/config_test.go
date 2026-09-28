@@ -342,12 +342,13 @@ func TestParseAcceptsCouplingMetrics(t *testing.T) {
 	for _, name := range []string{"instability", "abstractness", "main_sequence_distance"} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			if _, err := Parse(append(Default(), rule(name)...)); err != nil {
+			// defaultTop ends with the thresholds list.
+			if _, err := Parse(append(defaultTop(), rule(name)...)); err != nil {
 				t.Errorf("Parse() with a %s threshold error = %v, want nil", name, err)
 			}
 		})
 	}
-	if _, err := Parse(append(Default(), rule("concrete_param_ratio")...)); err == nil {
+	if _, err := Parse(append(defaultTop(), rule("concrete_param_ratio")...)); err == nil {
 		t.Error("Parse() accepted a threshold on the removed concrete_param_ratio")
 	}
 }

@@ -454,7 +454,7 @@ func TestCheckJSONModuleLocation(t *testing.T) {
 	cfg := filepath.Join(t.TempDir(), "astimate.yaml")
 	rule := "\nlanguages:\n  go:\n    thresholds:\n" +
 		"      - metric: dup_blocks_cross_pkg\n        kind: density\n        max_delta: 0\n        ratchet_from_zero: true\n"
-	if err := os.WriteFile(cfg, append(config.Default(), rule...), 0o644); err != nil {
+	if err := os.WriteFile(cfg, append(withoutLanguages(config.Default()), rule...), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

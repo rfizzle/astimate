@@ -42,6 +42,10 @@ type Row struct {
 	// behind changed_func_cognitive_max is exact and the data stays small.
 	// It is absent for a package with no functions.
 	FuncCognitive map[int]int `json:"func_cognitive,omitempty"`
+	// Language is the extractor's language id for a row of a TypeScript
+	// corpus, typescript; absent on a Go corpus's rows, which keeps the Go
+	// data byte for byte what it was before the field existed.
+	Language string `json:"language,omitempty"`
 }
 
 // newRow estimates m under cfg and returns its pooled row, rounded the way

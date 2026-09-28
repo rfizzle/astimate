@@ -241,15 +241,15 @@ $ head -15 astimate.yaml
 # by calibration/fit from the reference corpus in calibration/corpus.md, with
 # the evidence in calibration/reports/thresholds-2026-09-28.md. The rebuild
 # parameters are uncalibrated placeholders (SPEC.md section 7) until the
-# rebuild experiments in SPEC.md section 11.2 have run.
+# rebuild experiments in SPEC.md section 11.2 have run. TypeScript packages
+# are judged by the typescript override at the end of this file, fitted from
+# a TypeScript corpus (SPEC.md section 13).
 
 # Identifies the defaults this file was generated from.
 config_version: thresholds-2026-09-28
 
 # Bytes of source per estimated token; tokens_est = bytes / chars_per_token.
 chars_per_token: 3.2
-
-# Duplicate-block detection. This section is optional: any key left out, or
 ...
 ```
 <!-- /sample:config-init -->
@@ -269,7 +269,7 @@ date: <date>
 
 ## Configuration
 
-One file, `astimate.yaml`, holds the rebuild-estimate parameters and the gate thresholds. `astimate config init` writes the defaults with a comment on every line. Resolution order is `--config` (`--thresholds` is an alias on `check`), then `./astimate.yaml`, then the embedded default. The top-level keys `config_version`, `chars_per_token`, `rebuild` and `thresholds` are required: a missing one is an error, not filled from the default, so start from the file `config init` writes. Sections that group optional tuning, today `duplication` (`min_tokens`, `ignore_literal_only`, `fold_signs`, `split_literal_runs`), may be partial or absent, and absent keys take the embedded defaults. An optional `languages:` section, keyed by language id (`go` or `typescript`), overrides the configuration for one language: its `rebuild:` sets only the parameters it names, the rest coming from the top-level `rebuild`; its `thresholds:` rules replace the top-level rule on the same metric or add one, and `- metric: <name>` with `disabled: true` drops that metric's rules for the language. Everything else is shared. Reports judged with an override show `config_version` suffixed with `+<language>`. `SPEC.md` section 9 has the full rules.
+One file, `astimate.yaml`, holds the rebuild-estimate parameters and the gate thresholds. `astimate config init` writes the defaults with a comment on every line. Resolution order is `--config` (`--thresholds` is an alias on `check`), then `./astimate.yaml`, then the embedded default. The top-level keys `config_version`, `chars_per_token`, `rebuild` and `thresholds` are required: a missing one is an error, not filled from the default, so start from the file `config init` writes. Sections that group optional tuning, today `duplication` (`min_tokens`, `ignore_literal_only`, `fold_signs`, `split_literal_runs`), may be partial or absent, and absent keys take the embedded defaults. An optional `languages:` section, keyed by language id (`go` or `typescript`), overrides the configuration for one language: its `rebuild:` sets only the parameters it names, the rest coming from the top-level `rebuild`; its `thresholds:` rules replace the top-level rule on the same metric or add one, and `- metric: <name>` with `disabled: true` drops that metric's rules for the language. Everything else is shared. Reports judged with an override show `config_version` suffixed with `+<language>`. The embedded default ships a `typescript` override, fitted on a corpus of 20 TypeScript repositories (`calibration/reports/thresholds-2026-09-28-typescript.md`), so TypeScript packages are judged by `thresholds-2026-09-28+typescript`: larger size limits (`sloc` 2,500, `tokens_est` 35,000, `largest_file_sloc` 900) and slightly looser complexity limits than Go's. `SPEC.md` section 9 has the full rules.
 
 The default thresholds (`config_version: thresholds-2026-09-28`) are the rounded 90th percentiles of a reference corpus of the standard library and 36 well-regarded Go modules, fitted by `calibration/fit` (`SPEC.md` section 11.1), except `changed_func_cognitive_max`, which is the rounded 99th percentile of the corpus's per-function cognitive complexity (50); [calibration/reports/thresholds-2026-09-28.md](calibration/reports/thresholds-2026-09-28.md) has the distributions and a before and after table, and `configs/uncalibrated.yaml` keeps the earlier placeholders. The zero-tolerance ratchets stay at 0 by policy. The rebuild parameters are still uncalibrated, and every estimate line says so; `SPEC.md` section 11.2 is the experiment that measures them.
 

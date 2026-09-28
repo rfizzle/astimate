@@ -3,6 +3,7 @@ package engine
 import (
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/baseline"
@@ -27,10 +28,19 @@ languages:
         disabled: true
 `
 
-// overrideConfig parses the embedded default with tsOverride appended.
+// defaultTop returns the embedded default up to its languages section, the
+// last key, so a test can append a languages section of its own in place
+// of the shipped one; the whole default when it has none.
+func defaultTop() []byte {
+	top, _, _ := strings.Cut(string(config.Default()), "\nlanguages:\n")
+	return []byte(top + "\n")
+}
+
+// overrideConfig parses the embedded default with its languages section
+// replaced by tsOverride.
 func overrideConfig(t *testing.T) *config.Config {
 	t.Helper()
-	cfg, err := config.Parse(append(config.Default(), tsOverride...))
+	cfg, err := config.Parse(append(defaultTop(), tsOverride...))
 	if err != nil {
 		t.Fatalf("parsing config: %v", err)
 	}
@@ -105,6 +115,69 @@ func TestCheckLanguageOverride(t *testing.T) {
 			}
 			if r.Rebuild.AgentPasses != tt.wantPasses {
 				t.Errorf("agent_passes = %v, want %v", r.Rebuild.AgentPasses, tt.wantPasses)
+			}
+		})
+	}
+}
+
+// TestDefaultTypeScriptOverride checks the same new package under a Go and
+// a TypeScript extractor with the embedded default: the TypeScript row is
+// judged by the shipped typescript override's larger size limits, the Go
+// row by the top level.
+func TestDefaultTypeScriptOverride(t *testing.T) {
+	t.Parallel()
+
+	const root, modPath = "/mod", "example.com/m"
+	pkg := modPath + "/big"
+	pkgs := map[string]metrics.RawMetrics{
+		pkg: {TokensEst: 20000, SLOC: 2000, LargestFileSLOC: 500, ExportedSymbols: 10},
+	}
+	path := filepath.Join(t.TempDir(), "baseline.json")
+	other := map[string]metrics.RawMetrics{modPath + "/other": {}}
+	if err := baseline.Write(path, "", modPath, TokenizerEst, other); err != nil {
+		t.Fatalf("writing baseline: %v", err)
+	}
+	cfg, err := config.Parse(config.Default())
+	if err != nil {
+		t.Fatalf("parsing config: %v", err)
+	}
+
+	tests := []struct {
+		lang           string
+		wantViolations []string
+		wantWarnings   []string
+		wantVersion    string
+	}{
+		{lang: "go", wantViolations: []string{"has_tests", "sloc", "tokens_est"}, wantWarnings: []string{"largest_file_sloc"},
+			wantVersion: "thresholds-2026-09-28"},
+		{lang: "typescript", wantViolations: []string{"has_tests"}, wantWarnings: []string{"sloc"},
+			wantVersion: "thresholds-2026-09-28+typescript"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.lang, func(t *testing.T) {
+			t.Parallel()
+
+			tg := &Target{
+				Mod: &metrics.ModuleContext{Root: root, ModulePath: modPath},
+				Ext: metricstest.NewFake(tt.lang, root, pkgs),
+				Cfg: cfg,
+			}
+			c, failed, err := Check(t.Context(), tg, CheckOptions{BaselineFile: path, Packages: []string{pkg}})
+			if err != nil || len(failed) != 0 {
+				t.Fatalf("Check = (%v, %v), want no error", failed, err)
+			}
+			if len(c.Packages) != 1 {
+				t.Fatalf("checked %d packages, want 1", len(c.Packages))
+			}
+			r := c.Packages[0].Report
+			if got := findingMetrics(r.Violations); !slices.Equal(got, tt.wantViolations) {
+				t.Errorf("violations = %v, want %v", got, tt.wantViolations)
+			}
+			if got := findingMetrics(r.Warnings); !slices.Equal(got, tt.wantWarnings) {
+				t.Errorf("warnings = %v, want %v", got, tt.wantWarnings)
+			}
+			if r.ConfigVersion != tt.wantVersion {
+				t.Errorf("config_version = %q, want %q", r.ConfigVersion, tt.wantVersion)
 			}
 		})
 	}

@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path"
 	"slices"
 	"strings"
 
@@ -18,16 +19,30 @@ import (
 // counting the standard library.
 const minExternalModules = 20
 
+// minTypeScriptRepos is the smallest TypeScript corpus: SPEC.md 13
+// calibrates thresholds per language, from a corpus of its own.
+const minTypeScriptRepos = 15
+
+// Corpus languages. A corpus without a language key is a Go corpus.
+const (
+	languageGo         = "go"
+	languageTypeScript = "typescript"
+)
+
 // stdlibModule is the corpus name of the standard library entry.
 const stdlibModule = "std"
 
 // errInvalidCorpus reports a corpus file that breaks the schema.
 var errInvalidCorpus = errors.New("invalid corpus")
 
-// Corpus is the reference corpus file, calibration/corpus.yaml.
+// Corpus is a reference corpus file: calibration/corpus.yaml for Go,
+// calibration/corpus-typescript.yaml for TypeScript.
 type Corpus struct {
 	// Note explains the file; it carries no data.
 	Note string `yaml:"note"`
+	// Language is the language every entry is collected as: empty or go
+	// for a Go corpus, typescript for a TypeScript one.
+	Language string `yaml:"language,omitempty"`
 	// Modules are the corpus entries, in collection order.
 	Modules []Entry `yaml:"modules"`
 }
@@ -51,6 +66,17 @@ type Entry struct {
 	StarsOrDependents string `yaml:"stars_or_dependents"`
 	// Reason says why the module belongs in the corpus.
 	Reason string `yaml:"reason"`
+	// Modules are, in a TypeScript corpus only, the module roots
+	// collected from the repository: slash paths relative to its root, "."
+	// for the root itself, each a path.Match pattern that must match at
+	// least one directory holding a package.json. A Go entry collects the
+	// repository's root module and has none.
+	Modules []string `yaml:"modules,omitempty"`
+}
+
+// IsTypeScript reports whether c is a TypeScript corpus.
+func (c *Corpus) IsTypeScript() bool {
+	return c.Language == languageTypeScript
 }
 
 // permissiveLicenses are the SPDX identifiers the selection criteria admit.
@@ -94,13 +120,26 @@ func ParseCorpus(data []byte) (*Corpus, error) {
 // module paths, a permissive license, a reason and popularity evidence on
 // every entry, and a repo on every cloned entry. A commit may be empty (not
 // yet pinned) but otherwise must be a full 40-character hex hash.
+//
+// A TypeScript corpus (language: typescript) instead has no local entry, at
+// least minTypeScriptRepos cloned entries, and module roots on every entry.
 func (c *Corpus) Validate() error {
+	switch c.Language {
+	case "", languageGo:
+	case languageTypeScript:
+		return c.validateTypeScript()
+	default:
+		return fmt.Errorf("%w: language %q is not %s or %s", errInvalidCorpus, c.Language, languageGo, languageTypeScript)
+	}
 	seen := make(map[string]bool, len(c.Modules))
 	var locals, external int
 	for i := range c.Modules {
 		e := &c.Modules[i]
 		if err := e.validate(); err != nil {
 			return fmt.Errorf("%w: modules[%d]: %w", errInvalidCorpus, i, err)
+		}
+		if len(e.Modules) > 0 {
+			return fmt.Errorf("%w: modules[%d]: %s: module roots are for a TypeScript corpus only", errInvalidCorpus, i, e.Module)
 		}
 		if seen[e.Module] {
 			return fmt.Errorf("%w: modules[%d]: duplicate module %s", errInvalidCorpus, i, e.Module)
@@ -117,6 +156,53 @@ func (c *Corpus) Validate() error {
 	}
 	if external < minExternalModules {
 		return fmt.Errorf("%w: want at least %d cloned modules, got %d", errInvalidCorpus, minExternalModules, external)
+	}
+	return nil
+}
+
+// validateTypeScript checks a TypeScript corpus: every entry cloned, with
+// the required fields and at least one well-formed module root, unique
+// module paths, and at least minTypeScriptRepos entries.
+func (c *Corpus) validateTypeScript() error {
+	seen := make(map[string]bool, len(c.Modules))
+	for i := range c.Modules {
+		e := &c.Modules[i]
+		if e.Local {
+			return fmt.Errorf("%w: modules[%d]: %s: a TypeScript corpus has no local entry", errInvalidCorpus, i, e.Module)
+		}
+		if err := e.validate(); err != nil {
+			return fmt.Errorf("%w: modules[%d]: %w", errInvalidCorpus, i, err)
+		}
+		if seen[e.Module] {
+			return fmt.Errorf("%w: modules[%d]: duplicate module %s", errInvalidCorpus, i, e.Module)
+		}
+		seen[e.Module] = true
+		if len(e.Modules) == 0 {
+			return fmt.Errorf("%w: modules[%d]: %s: a TypeScript entry needs at least one module root", errInvalidCorpus, i, e.Module)
+		}
+		for _, p := range e.Modules {
+			if err := validModuleRoot(p); err != nil {
+				return fmt.Errorf("%w: modules[%d]: %s: module root %q: %w", errInvalidCorpus, i, e.Module, p, err)
+			}
+		}
+	}
+	if len(c.Modules) < minTypeScriptRepos {
+		return fmt.Errorf("%w: want at least %d cloned repositories, got %d", errInvalidCorpus, minTypeScriptRepos, len(c.Modules))
+	}
+	return nil
+}
+
+// validModuleRoot checks a module root pattern: a clean relative slash
+// path that stays inside the repository and is a valid path.Match pattern.
+func validModuleRoot(p string) error {
+	switch {
+	case p == "":
+		return errors.New("empty")
+	case path.IsAbs(p) || p != path.Clean(p) || p == ".." || strings.HasPrefix(p, "../"):
+		return errors.New("not a clean relative path inside the repository")
+	}
+	if _, err := path.Match(p, ""); err != nil {
+		return fmt.Errorf("bad pattern: %w", err)
 	}
 	return nil
 }

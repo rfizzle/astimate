@@ -8,6 +8,13 @@
 // module's module-level row (SPEC.md 8.1), with dup_blocks_cross_pkg and
 // what the module pass cost, goes to modules.jsonl.
 //
+// A corpus with language: typescript (calibration/corpus-typescript.yaml)
+// is collected with the TypeScript extractor instead: each entry names the
+// module roots of its repository, every root is ranked on its own, rows of
+// test, fixture, example and documentation directories are left out, and
+// every row carries language: typescript. The TypeScript extractor
+// measures no module row, so such a run writes no modules.jsonl.
+//
 // Usage, from the repository root:
 //
 //	go run ./calibration/collect --pin             # fill empty commits (network)
@@ -15,8 +22,11 @@
 //	go run ./calibration/collect --stdlib          # standard library only (no network)
 //	go run ./calibration/collect --only <module>   # one corpus module
 //	go run ./calibration/collect --modules-only    # module rows only (network)
+//	go run ./calibration/collect --corpus calibration/corpus-typescript.yaml [--pin] [--out dir]
 //
-// See calibration/corpus.md for the selection criteria.
+// See calibration/corpus.md for the selection criteria, and
+// calibration/notes/typescript-corpus-2026-09-28.md for the TypeScript
+// corpus's.
 package main
 
 import (
@@ -88,6 +98,8 @@ type RunInfo struct {
 	Tokenizer string `json:"tokenizer"`
 	// Corpus is the corpus file the run read.
 	Corpus string `json:"corpus"`
+	// Language is the corpus's language when it is not Go: typescript.
+	Language string `json:"language,omitempty"`
 	// Packages is the number of rows in packages.jsonl; 0 for a run of
 	// module rows only.
 	Packages int `json:"packages"`
@@ -116,6 +128,16 @@ type ModuleRun struct {
 	// Note says how the module's rows were measured, where that differs
 	// from a module rank.
 	Note string `json:"note,omitempty"`
+	// CommitDate is the pinned commit's committer date, YYYY-MM-DD, the
+	// evidence for the activity criterion; recorded for a TypeScript
+	// corpus only.
+	CommitDate string `json:"commit_date,omitempty"`
+	// Roots are the TypeScript module roots collected from the
+	// repository, relative to its root.
+	Roots []string `json:"roots,omitempty"`
+	// Excluded counts the TypeScript packages left out as tests,
+	// fixtures, examples, benchmarks or documentation.
+	Excluded int `json:"excluded_packages,omitempty"`
 }
 
 // stdlibNote is the run.json note on the standard library's rows.
@@ -232,6 +254,10 @@ func collect(ctx context.Context, opts options, logger *slog.Logger) int {
 		logger.Error("collect failed", "err", err)
 		return exitUsage
 	}
+	if c.IsTypeScript() && opts.modulesOnly {
+		logger.Error("collect failed", "err", errors.New("--modules-only: the TypeScript extractor measures no module row"))
+		return exitUsage
+	}
 	entries, err := selectEntries(c, opts.only)
 	if err != nil {
 		logger.Error("collect failed", "err", err)
@@ -254,11 +280,23 @@ func collect(ctx context.Context, opts options, logger *slog.Logger) int {
 	}
 
 	info := newRunInfo(ctx, opts.corpus, cfg)
+	if c.IsTypeScript() {
+		info.Language = c.Language
+	}
 	var all []Row
 	var modRows []ModuleRow
 	code := exitOK
 	for _, e := range entries {
-		rows, modRow, mr := collectEntry(ctx, e, cfg, logger, opts.modulesOnly)
+		var (
+			rows   []Row
+			modRow *ModuleRow
+			mr     ModuleRun
+		)
+		if c.IsTypeScript() {
+			rows, mr = collectTSEntry(ctx, e, cfg, logger)
+		} else {
+			rows, modRow, mr = collectEntry(ctx, e, cfg, logger, opts.modulesOnly)
+		}
 		all = append(all, rows...)
 		if modRow != nil {
 			modRows = append(modRows, *modRow)

@@ -82,6 +82,10 @@ func TestTypeScriptCheckSelfBaseline(t *testing.T) {
 				if r.Language != "typescript" {
 					t.Errorf("%s: language = %q, want typescript", r.PackagePath, r.Language)
 				}
+				// The embedded default's typescript override judged it.
+				if r.ConfigVersion != "thresholds-2026-09-28+typescript" {
+					t.Errorf("%s: config_version = %q, want the typescript override's", r.PackagePath, r.ConfigVersion)
+				}
 			}
 			if slices.Sort(paths); !slices.Equal(paths, tsFixturePackages()) {
 				t.Errorf("checked packages = %q, want %q", paths, tsFixturePackages())

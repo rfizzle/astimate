@@ -4,7 +4,9 @@
 # by calibration/fit from the reference corpus in calibration/corpus.md, with
 # the evidence in calibration/reports/thresholds-2026-09-28.md. The rebuild
 # parameters are uncalibrated placeholders (SPEC.md section 7) until the
-# rebuild experiments in SPEC.md section 11.2 have run.
+# rebuild experiments in SPEC.md section 11.2 have run. TypeScript packages
+# are judged by the typescript override at the end of this file, fitted from
+# a TypeScript corpus (SPEC.md section 13).
 
 # Identifies the defaults this file was generated from.
 config_version: thresholds-2026-09-28
@@ -152,15 +154,69 @@ thresholds:
 # top-level rules on the same metric or add a rule, and a rule with
 # disabled: true drops the top-level rule on that metric for the language.
 # Every other setting is shared. Reports for a language with an override
-# show config_version suffixed with +<language>. For example:
+# show config_version suffixed with +<language>. For example, a language
+# section may set
 #
-# languages:
-#   typescript:
-#     rebuild:
-#       tokens_per_export: 30
-#     thresholds:
-#       - metric: largest_file_sloc
-#         kind: capacity
-#         max: 1000
-#       - metric: init_funcs
-#         disabled: true
+#   rebuild:
+#     tokens_per_export: 30
+#
+# and drop a top-level rule with
+#
+#   thresholds:
+#     - metric: init_funcs
+#       disabled: true
+#
+# The typescript override below is fitted by calibration/fit --language
+# typescript from the corpus in calibration/corpus-typescript.yaml, with the
+# evidence in calibration/reports/thresholds-2026-09-28-typescript.md. Each
+# rule replaces the top-level rule on its metric for TypeScript; the rules
+# it does not name (the zero-tolerance ratchets, has_tests, and
+# dup_blocks_cross_pkg, which TypeScript leaves null) apply as they stand.
+# It sets no rebuild parameter: those wait for the rebuild experiments.
+languages:
+  typescript:
+    thresholds:
+      # p90 46 over 1209 packages; the top level has max 40, max_delta 6.
+      - metric: duplication_pct
+        kind: density
+        max_delta: 7
+        max: 45
+      # p90 7 over 1209 packages; the top level has max 5, max_delta 0.
+      - metric: max_nesting
+        kind: density
+        max_delta: 0
+        max: 7
+      # p90 27 over 1209 packages; the top level has max 20, max_delta 3.
+      - metric: cognitive_p90
+        kind: density
+        max_delta: 4
+        max: 25
+      # p99 56 over 39878 functions; the top level has max 50, max_delta none.
+      - metric: changed_func_cognitive_max
+        kind: density
+        max: 55
+      # p90 34818 over 1209 packages; the top level has max 16000, max_delta none.
+      - metric: tokens_est
+        kind: capacity
+        max: 35000
+        warn_at: 0.75
+      # p90 891 over 1209 packages; the top level has max 600, max_delta none.
+      - metric: largest_file_sloc
+        kind: capacity
+        max: 900
+        warn_at: 0.75
+      # p90 57 over 1209 packages; the top level has max 60, max_delta none.
+      - metric: exported_symbols
+        kind: capacity
+        max: 55
+        warn_at: 0.75
+      # p90 8 over 1209 packages; the top level has max 10, max_delta none.
+      - metric: internal_imports
+        kind: capacity
+        max: 8
+        warn_at: 0.75
+      # p90 2508 over 1209 packages; the top level has max 1000, max_delta none.
+      - metric: sloc
+        kind: capacity
+        max: 2500
+        warn_at: 0.75

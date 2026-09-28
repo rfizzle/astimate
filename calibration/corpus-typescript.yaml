@@ -1,0 +1,236 @@
+# TypeScript reference corpus for threshold calibration (SPEC.md 11.1 and
+# 13). Selection criteria are in
+# calibration/notes/typescript-corpus-2026-09-28.md. The schema is checked
+# by calibration/collect (go test ./calibration/collect).
+note: >-
+  Each entry is one repository, cloned at its pinned commit; modules lists
+  the module roots collected from it (directories holding a package.json,
+  relative to the repository root, path.Match patterns allowed), each ranked
+  on its own with the TypeScript extractor. Only the directories that ship
+  the product are listed: samples, integration-test apps, templates,
+  documentation sites and test-only workspaces are not. The
+  stars_or_dependents figures are the author's approximate recollection;
+  the pin is each default branch's HEAD on 2026-09-28, and run.json records
+  its commit date.
+language: typescript
+
+modules:
+  # Libraries, single package
+  - module: github.com/honojs/hono
+    repo: https://github.com/honojs/hono.git
+    commit: "fc2343dbad8af7ab82bc4a6c6907e57416aed878"
+    license: MIT
+    stars_or_dependents: ~25k stars
+    reason: Web framework on web standards for every JavaScript runtime; one package with many small modules.
+    modules: ["."]
+  - module: github.com/immerjs/immer
+    repo: https://github.com/immerjs/immer.git
+    commit: "061c2425e1c9dff89e4e4189d42af1b7839dfe0a"
+    license: MIT
+    stars_or_dependents: ~28k stars, a dependency of Redux Toolkit
+    reason: Small, heavily reviewed immutable-state library; a compact single package.
+    modules: ["."]
+  - module: github.com/kysely-org/kysely
+    repo: https://github.com/kysely-org/kysely.git
+    commit: "50ccaf8c7f443a940c445e3eb1587149cba43675"
+    license: MIT
+    stars_or_dependents: ~12k stars
+    reason: Type-safe SQL query builder; type-heavy library code with many small modules.
+    modules: ["."]
+  - module: github.com/graphql/graphql-js
+    repo: https://github.com/graphql/graphql-js.git
+    commit: "ee5ce41d4b68d1852306d3b56dba2cbbb6c43fea"
+    license: MIT
+    stars_or_dependents: ~20k stars, the GraphQL reference implementation
+    reason: Reference implementation of a language spec; parser, validator and executor.
+    modules: ["."]
+  - module: github.com/colinhacks/zod
+    repo: https://github.com/colinhacks/zod.git
+    commit: "2bf7b0630d5378033e90bcee82cb32b0fe04628e"
+    license: MIT
+    stars_or_dependents: ~38k stars, tens of millions of weekly downloads
+    reason: The most used schema validation library; the zod package only, not its docs, benchmarks or integration workspaces.
+    modules: ["packages/zod"]
+  - module: github.com/ReactiveX/rxjs
+    repo: https://github.com/ReactiveX/rxjs.git
+    commit: "54796b38a57e6309f9861e174737479bb3f63f61"
+    license: Apache-2.0
+    stars_or_dependents: ~31k stars, a dependency of Angular
+    reason: Reactive streams library with a very large operator surface.
+    modules: ["packages/rxjs"]
+  - module: github.com/typeorm/typeorm
+    repo: https://github.com/typeorm/typeorm.git
+    commit: "f279fd1367f24ad108a1b11cf833f1620274088d"
+    license: MIT
+    stars_or_dependents: ~35k stars
+    reason: Long-lived ORM with drivers for many databases; large, older-style class-based code.
+    modules: ["packages/typeorm"]
+
+  # Libraries and frameworks, monorepos
+  - module: github.com/TanStack/query
+    repo: https://github.com/TanStack/query.git
+    commit: "2e1ad64b525f6ff2034f169ab9c2f48f82f17296"
+    license: MIT
+    stars_or_dependents: ~45k stars
+    reason: Data-fetching core with adapters per UI framework; many small workspace packages.
+    modules:
+      - packages/query-core
+      - packages/query-devtools
+      - packages/query-persist-client-core
+      - packages/query-async-storage-persister
+      - packages/query-sync-storage-persister
+      - packages/query-broadcast-client-experimental
+      - packages/react-query
+      - packages/react-query-devtools
+      - packages/react-query-persist-client
+      - packages/react-query-next-experimental
+      - packages/vue-query
+      - packages/solid-query
+      - packages/angular-query-experimental
+      - packages/preact-query
+      - packages/lit-query
+      - packages/eslint-plugin-query
+  - module: github.com/trpc/trpc
+    repo: https://github.com/trpc/trpc.git
+    commit: "ec0b0a47ab6c6ffabcb2ba6b80fa08c1410145a9"
+    license: MIT
+    stars_or_dependents: ~37k stars
+    reason: End-to-end typed RPC; server, client and framework adapters.
+    modules:
+      - packages/server
+      - packages/client
+      - packages/react-query
+      - packages/tanstack-react-query
+      - packages/next
+      - packages/openapi
+      - packages/upgrade
+  - module: github.com/vuejs/core
+    repo: https://github.com/vuejs/core.git
+    commit: "4ab865a848a1da3d10fb674f857e5fff13094644"
+    license: MIT
+    stars_or_dependents: ~50k stars
+    reason: A UI framework's compiler and runtime; the shipped packages, not runtime-test or the private playgrounds.
+    modules:
+      - packages/compiler-core
+      - packages/compiler-dom
+      - packages/compiler-sfc
+      - packages/compiler-ssr
+      - packages/reactivity
+      - packages/runtime-core
+      - packages/runtime-dom
+      - packages/server-renderer
+      - packages/shared
+      - packages/vue
+      - packages/vue-compat
+  - module: github.com/vitejs/vite
+    repo: https://github.com/vitejs/vite.git
+    commit: "e57f4da9c6fde10034106cb6a43b40dc4a38c211"
+    license: MIT
+    stars_or_dependents: ~75k stars
+    reason: Build tool and dev server; Node-side tooling code, not the create-vite templates.
+    modules:
+      - packages/vite
+      - packages/plugin-legacy
+      - packages/create-vite
+  - module: github.com/nestjs/nest
+    repo: https://github.com/nestjs/nest.git
+    commit: "b58554ea5857445841674963211e4f3f41b0a3a4"
+    license: MIT
+    stars_or_dependents: ~72k stars
+    reason: Server framework built on decorators and dependency injection; the framework packages, not the samples.
+    modules: ["packages/*"]
+  - module: github.com/statelyai/xstate
+    repo: https://github.com/statelyai/xstate.git
+    commit: "fbee62e7c1586315ed478c2fedf530d7e0ff5a3e"
+    license: MIT
+    stars_or_dependents: ~28k stars
+    reason: State machine and actor library with framework bindings; not the starter templates.
+    modules: ["packages/*"]
+  - module: github.com/mermaid-js/mermaid
+    repo: https://github.com/mermaid-js/mermaid.git
+    commit: "69778e6e995cd72c6cb524449d8e08ee3d231628"
+    license: MIT
+    stars_or_dependents: ~80k stars
+    reason: Diagram renderer with a parser per diagram type; rendering and layout code unlike the server libraries.
+    modules:
+      - packages/mermaid
+      - packages/parser
+      - packages/mermaid-layout-elk
+      - packages/mermaid-layout-tidy-tree
+      - packages/mermaid-zenuml
+  - module: github.com/reduxjs/redux-toolkit
+    repo: https://github.com/reduxjs/redux-toolkit.git
+    commit: "c9dac937d77adc3bf04842a43955e81d0e7a46da"
+    license: MIT
+    stars_or_dependents: ~11k stars, the official Redux toolset
+    reason: State-management toolkit and RTK Query, with its code generators.
+    modules:
+      - packages/toolkit
+      - packages/rtk-query-codegen-openapi
+      - packages/rtk-codemods
+      - packages/rtk-query-graphql-request-base-query
+
+  # Applications and tools
+  - module: github.com/excalidraw/excalidraw
+    repo: https://github.com/excalidraw/excalidraw.git
+    commit: "438d89861f53d8a90ad566113ecac1b83761098f"
+    license: MIT
+    stars_or_dependents: ~110k stars
+    reason: Whiteboard application (React and canvas) with its editor packages.
+    modules: ["packages/*", "excalidraw-app"]
+  - module: github.com/desktop/desktop
+    repo: https://github.com/desktop/desktop.git
+    commit: "f2686bcec9239a9f8c5d53e2e90bc3a4dd02059f"
+    license: MIT
+    stars_or_dependents: ~20k stars
+    reason: GitHub Desktop, a large Electron and React application.
+    modules: ["app"]
+  - module: github.com/microsoft/playwright
+    repo: https://github.com/microsoft/playwright.git
+    commit: "b9a34ac7783a1b6c2e1dfff0c08ac744c048fa59"
+    license: Apache-2.0
+    stars_or_dependents: ~80k stars
+    reason: Browser automation and test runner; the root module holds the injected, isomorphic and protocol sources, the workspace packages the rest.
+    modules:
+      - "."
+      - packages/playwright-core
+      - packages/playwright
+      - packages/html-reporter
+      - packages/trace-viewer
+      - packages/recorder
+      - packages/web
+      - packages/dashboard
+      - packages/extension
+      - packages/playwright-client
+  - module: github.com/Kong/insomnia
+    repo: https://github.com/Kong/insomnia.git
+    commit: "ae09eea24dc00594dd9acbe0a7e27ae5fa9bcc9c"
+    license: Apache-2.0
+    stars_or_dependents: ~36k stars
+    reason: API client desktop application (Electron and React) with its CLI; not the smoke tests or component docs.
+    modules:
+      - packages/insomnia
+      - packages/insomnia-inso
+      - packages/insomnia-data
+      - packages/insomnia-api
+      - packages/insomnia-vcs
+      - packages/insomnia-testing
+      - packages/insomnia-scripting-environment
+      - packages/insomnia-analytics
+  - module: github.com/actualbudget/actual
+    repo: https://github.com/actualbudget/actual.git
+    commit: "24deae74e653fca34e0057a30427cfe9939332ab"
+    license: MIT
+    stars_or_dependents: ~20k stars
+    reason: Local-first budgeting application with a sync server; web, desktop and server code in one repository.
+    modules:
+      - packages/loot-core
+      - packages/desktop-client
+      - packages/desktop-electron
+      - packages/sync-server
+      - packages/api
+      - packages/crdt
+      - packages/component-library
+      - packages/plugins-service
+      - packages/cli
+      - packages/mobile-client

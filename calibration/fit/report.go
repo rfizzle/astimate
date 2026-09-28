@@ -39,6 +39,59 @@ type reportInput struct {
 	// limits with, and PreviousPath its file; nil for no comparison.
 	Previous     *config.Config
 	PreviousPath string
+	// Language is the language of a per-language override fit, empty for
+	// a whole configuration; the base's top-level rules are then Go's.
+	Language string
+	// BaseData is the rows the base was fitted from, and BaseStats each
+	// choice's distribution over them, index for index; nil when not
+	// given.
+	BaseData  string
+	BaseStats []Stats
+	// Run is the collector's run.json beside the data, read for a
+	// per-language fit to describe the corpus; nil when absent.
+	Run *runInfo
+}
+
+// runInfo is the part of the collector's run.json the report reads.
+type runInfo struct {
+	// Corpus is the corpus file the collection read.
+	Corpus string `json:"corpus"`
+	// AstimateCommit is the astimate commit the collector ran at.
+	AstimateCommit string `json:"astimate_commit"`
+	// Modules are the collected corpus entries.
+	Modules []struct {
+		Module     string   `json:"module"`
+		Commit     string   `json:"commit"`
+		CommitDate string   `json:"commit_date"`
+		Packages   int      `json:"packages"`
+		Roots      []string `json:"roots"`
+		Excluded   int      `json:"excluded_packages"`
+		Error      string   `json:"error"`
+	} `json:"modules"`
+}
+
+// writeCorpus writes the corpus the data was collected from, one row per
+// repository, from the collector's run.json.
+func writeCorpus(b *strings.Builder, in *reportInput) {
+	w := func(format string, args ...any) { fmt.Fprintf(b, format, args...) }
+	r := in.Run
+	w("## Corpus\n\n")
+	w("`%s`, %d repositories collected at astimate `%s`. Module roots are the workspace packages collected, each ranked on its own; ", r.Corpus, len(r.Modules), shortCommit(r.AstimateCommit))
+	w("excluded packages are test, fixture, example, benchmark and documentation directories left out of the pool.\n\n")
+	w("| Repository | Commit | Commit date | Module roots | Packages | Excluded |\n")
+	w("| --- | --- | --- | ---: | ---: | ---: |\n")
+	for _, m := range r.Modules {
+		w("| `%s` | `%s` | %s | %d | %d | %d |\n", m.Module, shortCommit(m.Commit), m.CommitDate, len(m.Roots), m.Packages, m.Excluded)
+	}
+	w("\n")
+}
+
+// shortCommit abbreviates a commit hash to 12 characters.
+func shortCommit(s string) string {
+	if len(s) > 12 {
+		return s[:12]
+	}
+	return s
 }
 
 // methodText states the fitting rules; the report header and the
@@ -59,7 +112,16 @@ func renderReport(in *reportInput) string {
 	var b strings.Builder
 	w := func(format string, args ...any) { fmt.Fprintf(&b, format, args...) }
 
-	w("# Threshold candidate %s\n\n", in.Version)
+	if in.Language != "" {
+		w("# Threshold override %s\n\n", in.Version)
+		w("The `languages.%s` override block of the configuration (SPEC.md 9 and 13), fitted from %s rows alone. ", in.Language, in.Language)
+		w("The base's top-level rules, fitted to Go, are what every other language is judged by; ")
+		w("\"Base\" below means them, and \"Candidate\" the %s override. ", in.Language)
+		w("Each rule the data fitted a statistic for replaces the top-level rule on its metric for %s; every other rule is inherited. ", in.Language)
+		w("The rebuild parameters are not overridden: they cannot be calibrated from a corpus and wait for the rebuild experiments of SPEC.md 11.2.\n\n")
+	} else {
+		w("# Threshold candidate %s\n\n", in.Version)
+	}
 	if in.Provisional {
 		w("**Provisional.** Every pooled row is from the Go standard library; no external module has been collected yet. ")
 		w("This candidate is not the shipped default and must not replace it; refit once the corpus in `calibration/corpus.yaml` is collected.\n\n")
@@ -96,6 +158,18 @@ func renderReport(in *reportInput) string {
 			share(c.OverBase, c.Stats.N), share(c.OverCandidate, c.Stats.N))
 	}
 	w("\n")
+
+	if in.Language != "" {
+		writeOverride(&b, in)
+	}
+
+	if in.Run != nil {
+		writeCorpus(&b, in)
+	}
+
+	if in.BaseStats != nil {
+		writeBaseData(&b, in)
+	}
 
 	if in.Previous != nil {
 		writePrevious(&b, in)
@@ -187,6 +261,10 @@ func writeUnfitted(b *strings.Builder, in *reportInput) {
 		c := &in.Choices[i]
 		switch {
 		case c.Stats.N > 0:
+		case in.Language != "":
+			w("- `%s`: no %s row measures it, so the override sets no rule and the top-level rule applies (max %s, max_delta %s). ",
+				c.Rule.Metric, in.Language, opt(c.Rule.Max), opt(c.Rule.MaxDelta))
+			w("The gate skips a rule whose metric is null at head, so it never fires on a %s package whose extractor leaves the metric null.\n", in.Language)
 		case c.Pool == poolModule:
 			w("- `%s`: the data has no `%s` rows, so the base values are kept (max %s, max_delta %s). ",
 				c.Rule.Metric, metrics.ModuleRowID, opt(c.Max), opt(c.MaxDelta))
@@ -200,7 +278,7 @@ func writeUnfitted(b *strings.Builder, in *reportInput) {
 				c.Rule.Metric, opt(c.Max), opt(c.MaxDelta))
 		}
 	}
-	if in.CrossPkg.N == 0 && crossRule(in) == nil {
+	if in.CrossPkg.N == 0 && crossRule(in) == nil && in.Language == "" {
 		w("- `dup_blocks_cross_pkg`: the data has no `%s` rows, so the module-wide metric has no distribution here and no default rule gates it.\n",
 			metrics.ModuleRowID)
 	}
@@ -337,6 +415,82 @@ func writePrevious(b *strings.Builder, in *reportInput) {
 		return
 	}
 	w("Only %s moved; every other limit is unchanged.\n\n", strings.Join(moved, ", "))
+}
+
+// writeOverride lists which rules the language override replaces and
+// which it leaves to the top level, and why.
+func writeOverride(b *strings.Builder, in *reportInput) {
+	w := func(format string, args ...any) { fmt.Fprintf(b, format, args...) }
+	var set, pinned, requirement, unmeasured []string
+	for i := range in.Choices {
+		c := &in.Choices[i]
+		name := "`" + c.Rule.Metric + "`"
+		switch {
+		case overridden(c):
+			set = append(set, name)
+		case c.Stats.N == 0:
+			unmeasured = append(unmeasured, name)
+		case c.Rule.Kind == gate.Requirement:
+			requirement = append(requirement, name)
+		default:
+			pinned = append(pinned, name)
+		}
+	}
+	w("## Override\n\n")
+	w("- Replaced for %s: %s.\n", in.Language, joinOrNone(set))
+	w("- Inherited, zero-tolerance ratchets with no max (max_delta 0 is a policy, not a statistic): %s.\n", joinOrNone(pinned))
+	w("- Inherited, requirements (not fitted): %s.\n", joinOrNone(requirement))
+	w("- Inherited, measured by no %s row: %s.\n\n", in.Language, joinOrNone(unmeasured))
+}
+
+// joinOrNone joins names with commas, or says none.
+func joinOrNone(names []string) string {
+	if len(names) == 0 {
+		return "none"
+	}
+	return strings.Join(names, ", ")
+}
+
+// writeBaseData sets each gated metric's distribution over the rows the
+// base was fitted from beside the fitted data's, with both rules' limits.
+func writeBaseData(b *strings.Builder, in *reportInput) {
+	w := func(format string, args ...any) { fmt.Fprintf(b, format, args...) }
+	lang := in.Language
+	w("## Go against %s\n\n", lang)
+	w("Go is `%s`, the rows the top-level rules were fitted from, pooled by the same rules; %s is this data. ", in.BaseData, lang)
+	w("Percentiles are per package, except `%s`, per function (p99 in the p90 column, since its max is fitted there). ", funcMetric)
+	w("Max and max_delta are the top-level rule's and the rule %s is judged by.\n\n", lang)
+	w("| Metric | Go rows | Go p50 | Go p90 | %s rows | %s p50 | %s p90 | Go max | %s max | Go max_delta | %s max_delta |\n",
+		lang, lang, lang, lang, lang)
+	w("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n")
+	for i := range in.Choices {
+		c, g := &in.Choices[i], &in.BaseStats[i]
+		tMax, tDelta := c.Rule.Max, c.Rule.MaxDelta
+		if overridden(c) {
+			tMax, tDelta = c.Max, c.MaxDelta
+		}
+		w("| `%s` | %d | %s | %s | %d | %s | %s | %s | %s | %s | %s |\n", c.Rule.Metric,
+			g.N, statOrNone(g, g.P50), statOrNone(g, upper(c, g)), c.Stats.N, statOrNone(&c.Stats, c.Stats.P50),
+			statOrNone(&c.Stats, upper(c, &c.Stats)), opt(c.Rule.Max), opt(tMax), opt(c.Rule.MaxDelta), opt(tDelta))
+	}
+	w("\n")
+}
+
+// upper is the percentile c's max is fitted at over s: p99 for the
+// per-function metric, p90 otherwise.
+func upper(c *Choice, s *Stats) float64 {
+	if c.Pool == poolFunctions {
+		return s.P99
+	}
+	return s.P90
+}
+
+// statOrNone formats v, or "none" when s has no values.
+func statOrNone(s *Stats, v float64) string {
+	if s.N == 0 {
+		return "none"
+	}
+	return num(v)
 }
 
 // writeFunctions writes the per-function cognitive distribution behind

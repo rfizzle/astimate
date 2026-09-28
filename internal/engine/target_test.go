@@ -197,7 +197,7 @@ func TestLoadTargetWarnsUnknownLanguage(t *testing.T) {
 
 	const section = "\nlanguages:\n  rust:\n    rebuild:\n      cocomo_a: 3\n  go: {}\n  typescript: {}\n"
 	path := filepath.Join(t.TempDir(), "astimate.yaml")
-	if err := os.WriteFile(path, append(config.Default(), section...), 0o600); err != nil {
+	if err := os.WriteFile(path, append(defaultTop(), section...), 0o600); err != nil {
 		t.Fatalf("writing config: %v", err)
 	}
 	cfg, err := config.Load(path)

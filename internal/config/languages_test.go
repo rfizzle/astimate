@@ -1,6 +1,7 @@
 package config
 
 import (
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -8,9 +9,18 @@ import (
 	"github.com/rfizzle/astimate/internal/gate"
 )
 
-// withLanguages returns the embedded default with section appended.
+// defaultTop returns the embedded default up to its languages section, the
+// last key, so a test can append a languages section or a threshold rule
+// of its own; the whole default when it has none.
+func defaultTop() []byte {
+	top, _, _ := strings.Cut(string(Default()), "\nlanguages:\n")
+	return []byte(top + "\n")
+}
+
+// withLanguages returns the embedded default with its languages section
+// replaced by section.
 func withLanguages(section string) []byte {
-	return append(Default(), []byte("\n"+section)...)
+	return append(defaultTop(), []byte("\n"+section)...)
 }
 
 // ruleMetrics lists the metric of each rule, in order.
@@ -34,61 +44,98 @@ func ruleOn(t *testing.T, rules []gate.Threshold, metric string) gate.Threshold 
 	return gate.Threshold{}
 }
 
-func TestDefaultHasNoLanguageOverrides(t *testing.T) {
+// TestDefaultTypeScriptOverride checks the shipped languages section: Go
+// and any other language take the top level unchanged, and TypeScript
+// takes the fitted override, which replaces rules in place, adds and drops
+// none, keeps each rule's kind and sets no rebuild parameter.
+func TestDefaultTypeScriptOverride(t *testing.T) {
 	t.Parallel()
 
 	cfg, err := Parse(Default())
 	if err != nil {
 		t.Fatalf("Parse(Default()) error = %v", err)
 	}
-	for _, lang := range []string{"go", "typescript", "rust"} {
+	if len(cfg.Warnings) != 0 {
+		t.Errorf("Warnings = %q, want none", cfg.Warnings)
+	}
+	if got, want := cfg.Languages(), []string{"typescript"}; !slices.Equal(got, want) {
+		t.Errorf("Languages() = %q, want %q", got, want)
+	}
+	for _, lang := range []string{"go", "rust"} {
 		eff := cfg.ForLanguage(lang)
 		if eff.Version != cfg.Version || eff.Rebuild != cfg.Rebuild ||
 			!slices.Equal(ruleMetrics(eff.Thresholds), ruleMetrics(cfg.Thresholds)) {
 			t.Errorf("ForLanguage(%q) = %+v, want the top level unchanged", lang, eff)
 		}
 	}
+
+	ts := cfg.ForLanguage("typescript")
+	if want := cfg.Version + "+typescript"; ts.Version != want {
+		t.Errorf("typescript Version = %q, want %q", ts.Version, want)
+	}
+	if ts.Rebuild != cfg.Rebuild {
+		t.Errorf("typescript Rebuild = %+v, want the top level's", ts.Rebuild)
+	}
+	if !slices.Equal(ruleMetrics(ts.Thresholds), ruleMetrics(cfg.Thresholds)) {
+		t.Fatalf("typescript rules = %q, want the top level's metrics in order %q",
+			ruleMetrics(ts.Thresholds), ruleMetrics(cfg.Thresholds))
+	}
+	var replaced []string
+	for i, r := range ts.Thresholds {
+		top := cfg.Thresholds[i]
+		if r.Kind != top.Kind || r.RatchetFromZero != top.RatchetFromZero || r.WarnAt != top.WarnAt ||
+			(r.Max == nil) != (top.Max == nil) || (r.MaxDelta == nil) != (top.MaxDelta == nil) {
+			t.Errorf("typescript %s: shape differs from the top-level rule", r.Metric)
+		}
+		if top.MaxDelta != nil && *top.MaxDelta == 0 && *r.MaxDelta != 0 {
+			t.Errorf("typescript %s: max_delta %v, want the zero-tolerance 0 kept", r.Metric, *r.MaxDelta)
+		}
+		if !reflect.DeepEqual(r, top) {
+			replaced = append(replaced, r.Metric)
+		}
+	}
+	for _, m := range []string{"dup_blocks", "untested_exports", "globals", "init_funcs", "dup_blocks_cross_pkg", "has_tests"} {
+		if slices.Contains(replaced, m) {
+			t.Errorf("typescript overrides %s, which the fit leaves to the top level", m)
+		}
+	}
+	if got := *ruleOn(t, ts.Thresholds, "sloc").Max; got <= *ruleOn(t, cfg.Thresholds, "sloc").Max {
+		t.Errorf("typescript sloc max = %v, want the fitted TypeScript limit above Go's", got)
+	}
 }
 
-// TestDefaultLanguagesExample checks that the commented languages example
-// in default.yaml parses once uncommented and does what its comment says.
+// TestDefaultLanguagesExample checks that the commented snippets in
+// default.yaml's languages comment parse as a language section and do what
+// the comment says.
 func TestDefaultLanguagesExample(t *testing.T) {
 	t.Parallel()
 
 	d := string(Default())
-	i := strings.Index(d, "# languages:\n")
-	if i < 0 {
+	start := strings.Index(d, "For example, a language")
+	end := strings.Index(d, "# The typescript override below")
+	if start < 0 || end < start {
 		t.Fatal("default.yaml has no commented languages example")
 	}
 	var b strings.Builder
-	b.WriteString(d[:i])
-	for line := range strings.Lines(d[i:]) {
-		line = strings.TrimPrefix(line, "#")
-		b.WriteString(strings.TrimPrefix(line, " "))
+	b.WriteString("languages:\n  typescript:\n")
+	for line := range strings.Lines(d[start:end]) {
+		if s, ok := strings.CutPrefix(line, "#   "); ok {
+			b.WriteString("    " + s)
+		}
 	}
-	cfg, err := Parse([]byte(b.String()))
+	cfg, err := Parse(withLanguages(b.String()))
 	if err != nil {
-		t.Fatalf("Parse(uncommented example) error = %v", err)
+		t.Fatalf("Parse(uncommented example) error = %v\n%s", err, b.String())
 	}
 	if len(cfg.Warnings) != 0 {
 		t.Errorf("Warnings = %q, want none", cfg.Warnings)
 	}
 	ts := cfg.ForLanguage("typescript")
-	if ts.Version != "thresholds-2026-09-28+typescript" {
-		t.Errorf("typescript Version = %q", ts.Version)
-	}
 	if ts.Rebuild.TokensPerExport != 30 || ts.Rebuild.ContextBudget != cfg.Rebuild.ContextBudget {
 		t.Errorf("typescript Rebuild = %+v, want tokens_per_export 30 and the rest inherited", ts.Rebuild)
 	}
-	if got := *ruleOn(t, ts.Thresholds, "largest_file_sloc").Max; got != 1000 {
-		t.Errorf("typescript largest_file_sloc max = %v, want 1000", got)
-	}
 	if slices.Contains(ruleMetrics(ts.Thresholds), "init_funcs") {
 		t.Error("typescript still gates init_funcs, want it disabled")
-	}
-	goEff := cfg.ForLanguage("go")
-	if goEff.Version != cfg.Version || goEff.Rebuild != cfg.Rebuild || len(goEff.Thresholds) != len(cfg.Thresholds) {
-		t.Errorf("go = %+v, want the top level unchanged", goEff)
 	}
 }
 
