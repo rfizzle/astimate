@@ -6,7 +6,7 @@ import (
 )
 
 // RebuildParams holds the rebuild-estimate parameters from SPEC.md sections
-// 7.2 to 7.4. They are uncalibrated until section 11.2 has run.
+// 7.2 to 7.4. The embedded default's are fitted by section 11.2.
 type RebuildParams struct {
 	// ContextBudget is B, the tokens one agent pass can hold.
 	ContextBudget float64

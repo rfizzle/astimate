@@ -83,9 +83,9 @@ func TestCheckLanguageOverride(t *testing.T) {
 		wantPasses     float64
 	}{
 		{lang: "go", wantViolations: []string{"has_tests", "tokens_est"},
-			wantVersion: "thresholds-2026-09-28", wantPasses: 1.9},
+			wantVersion: "rebuild-2026-09-28-claude-code-opus", wantPasses: 3.7},
 		{lang: "typescript", wantWarnings: []string{"tokens_est"},
-			wantVersion: "thresholds-2026-09-28+typescript", wantPasses: 0.8},
+			wantVersion: "rebuild-2026-09-28-claude-code-opus+typescript", wantPasses: 0.8},
 	}
 	for _, tt := range tests {
 		t.Run(tt.lang, func(t *testing.T) {
@@ -149,9 +149,9 @@ func TestDefaultTypeScriptOverride(t *testing.T) {
 		wantVersion    string
 	}{
 		{lang: "go", wantViolations: []string{"has_tests", "sloc", "tokens_est"}, wantWarnings: []string{"largest_file_sloc"},
-			wantVersion: "thresholds-2026-09-28"},
+			wantVersion: "rebuild-2026-09-28-claude-code-opus"},
 		{lang: "typescript", wantViolations: []string{"has_tests"}, wantWarnings: []string{"sloc"},
-			wantVersion: "thresholds-2026-09-28+typescript"},
+			wantVersion: "rebuild-2026-09-28-claude-code-opus+typescript"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.lang, func(t *testing.T) {
@@ -199,8 +199,8 @@ func TestLanguageOverrideFixtures(t *testing.T) {
 		wantVersion string
 		wantBudget  float64
 	}{
-		{name: "go", dir: filepath.Join(fixtureDir, "hub"), wantVersion: "thresholds-2026-09-28", wantBudget: 25000},
-		{name: "typescript", dir: "../../testdata/ts/fixture/hub", wantVersion: "thresholds-2026-09-28+typescript", wantBudget: 50000},
+		{name: "go", dir: filepath.Join(fixtureDir, "hub"), wantVersion: "rebuild-2026-09-28-claude-code-opus", wantBudget: 25000},
+		{name: "typescript", dir: "../../testdata/ts/fixture/hub", wantVersion: "rebuild-2026-09-28-claude-code-opus+typescript", wantBudget: 50000},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

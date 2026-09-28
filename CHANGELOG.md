@@ -24,7 +24,7 @@ history.
   complexity candidate's correlation and coefficient with robust standard
   errors, names the inputs with no measurable contribution, and lists
   failed runs as censored rather than dropping them. Tested on synthetic
-  runs with planted parameters; the real fit and the default swap follow.
+  runs with planted parameters before the real fit (see Changed).
 - Gate validation: `go run ./calibration/validate` joins replay rows with
   commit labels and reports the gate's recall and false-failure rate against
   the 80% and 10% targets, each rule's precision and recall per corpus beside
@@ -69,6 +69,23 @@ history.
 
 ### Changed
 
+- The embedded default's rebuild parameters are calibrated: `config_version`
+  is `rebuild-2026-09-28-claude-code-opus`, fitted by
+  `calibration/rebuild/fit` from 25 passing Claude Code (Opus) rebuilds, one
+  run per package (`calibration/reports/rebuild-2026-09-28-claude-code-opus.md`).
+  `tokens_per_untested_export` 800 → 120, `tokens_per_export` 40 → 0 and
+  `tokens_per_hidden_state` 400 → 0 (both fitted negative with wide errors,
+  so measured as no cost), `superlinear_exponent` 1.3 → 2.79 (from four
+  packages past the knee, weakly determined), `context_budget` 25,000
+  unchanged; the form explains 93.5% of the variance in measured tokens.
+  The gate thresholds are unchanged (`thresholds-2026-09-28`'s). Estimate
+  lines read `estimate from calibrated parameters`, JSON reports
+  `rebuild.calibrated: true`, and `check`'s text summary lines carry agent
+  passes, tier and the change from the baseline again. Packages past the
+  knee now score many more passes (a package at twice the budget goes from
+  2.5 to 6.9). `calibration/validate` accepts replays recorded under
+  `thresholds-<date>` when the configuration's rules equal that committed
+  candidate's.
 - The Go and TypeScript extractors are split into internal subpackages, each
   under every default ceiling; the repository carries a root `astimate.yaml`
   (the embedded default plus one recorded exemption for the Go fingerprint

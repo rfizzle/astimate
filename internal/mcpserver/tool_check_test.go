@@ -43,23 +43,23 @@ func defaultConfig(t *testing.T) *config.Config {
 	return cfg
 }
 
-// calibratedConfig returns the embedded default with its config_version
-// replaced by one of a config written by the rebuild experiments, so its
-// rebuild estimate counts as calibrated (score.Calibrated).
-func calibratedConfig(t *testing.T) *config.Config {
+// uncalibratedConfig returns the embedded default with its config_version
+// replaced by one of a thresholds-only calibration, so its rebuild estimate
+// counts as uncalibrated (score.Calibrated) and the text leaves it out.
+func uncalibratedConfig(t *testing.T) *config.Config {
 	t.Helper()
 	lines := strings.Split(string(config.Default()), "\n")
 	for i, l := range lines {
 		if strings.HasPrefix(l, "config_version: ") {
-			lines[i] = "config_version: rebuild-2026-10-01"
+			lines[i] = "config_version: thresholds-2026-09-28"
 		}
 	}
 	cfg, err := config.Parse([]byte(strings.Join(lines, "\n")))
 	if err != nil {
-		t.Fatalf("parsing the calibrated config: %v", err)
+		t.Fatalf("parsing the uncalibrated config: %v", err)
 	}
-	if !strings.HasPrefix(cfg.Version, "rebuild-") {
-		t.Fatalf("calibrated config version = %q, want a rebuild- version", cfg.Version)
+	if strings.HasPrefix(cfg.Version, "rebuild-") {
+		t.Fatalf("uncalibrated config version = %q, want no rebuild- version", cfg.Version)
 	}
 	return cfg
 }
@@ -156,10 +156,10 @@ func TestCheckPackageTool(t *testing.T) {
 		wantMetric []string
 		wantText   string
 	}{
-		{name: "degraded", src: degradedDir, wantPassed: false, wantMetric: degradedMetrics(), wantText: "FAILED"},
-		{name: "unchanged", src: fixtureDir, wantPassed: true, wantText: "PASSED"},
-		{name: "degraded calibrated", src: degradedDir, calibrated: true, wantPassed: false, wantMetric: degradedMetrics(), wantText: "FAILED"},
-		{name: "unchanged calibrated", src: fixtureDir, calibrated: true, wantPassed: true, wantText: "PASSED"},
+		{name: "degraded uncalibrated", src: degradedDir, wantPassed: false, wantMetric: degradedMetrics(), wantText: "FAILED"},
+		{name: "unchanged uncalibrated", src: fixtureDir, wantPassed: true, wantText: "PASSED"},
+		{name: "degraded", src: degradedDir, calibrated: true, wantPassed: false, wantMetric: degradedMetrics(), wantText: "FAILED"},
+		{name: "unchanged", src: fixtureDir, calibrated: true, wantPassed: true, wantText: "PASSED"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -167,8 +167,8 @@ func TestCheckPackageTool(t *testing.T) {
 
 			ws := workspace(t, tt.src)
 			cfg := defaultConfig(t)
-			if tt.calibrated {
-				cfg = calibratedConfig(t)
+			if !tt.calibrated {
+				cfg = uncalibratedConfig(t)
 			}
 			cs := newTestClient(t, Options{Config: cfg, WorkDir: ws, Version: "test"})
 			res := callCheck(t, cs, map[string]any{"path": "mod/tested", "baseline_file": "baseline.json"})

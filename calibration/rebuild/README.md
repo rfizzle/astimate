@@ -3,8 +3,8 @@
 SPEC.md 11.2 measures the rebuild estimate's parameters by doing what the
 estimate claims to predict: delete a package's implementation, have an agent
 rebuild it against its tests and exported signatures, and record what that
-cost. This directory defines that experiment and runs it. The fit that
-turns the measurements into parameters builds on the runner's output.
+cost. This directory defines that experiment and runs it. The fit,
+`calibration/rebuild/fit`, turns the runner's measurements into parameters.
 
 | File | What it is |
 | --- | --- |
@@ -488,3 +488,22 @@ the fit (SPEC.md 11.2 steps 4 and 5) regresses measured tokens and pass
 rate on the section 7.1 inputs from `runs.jsonl` alone, without reloading
 the corpus data. Rows with `valid: false` broke the prompt's rules, and
 their oracle verdict does not count.
+
+The fit is `go run ./calibration/rebuild/fit` (see its package comment for
+every flag). The run that calibrated the embedded default was
+
+```sh
+go run ./calibration/rebuild/fit \
+  --runs calibration/data/rebuild-2026-09-28-claude-code-opus/runs.jsonl \
+  --base internal/config/default.yaml --date 2026-09-28 \
+  --out calibration/rebuild/astimate-rebuild-2026-09-28-claude-code-opus.yaml \
+  --report calibration/reports/rebuild-2026-09-28-claude-code-opus.md
+```
+
+It takes each package's median footprint tokens (input, cache writes and
+output) over its passing runs, fits the SPEC.md 7.2 form with its knee by
+least squares, lists failed runs as censored and invalid rows as excluded,
+and writes the base configuration with only `config_version` and the five
+fitted `rebuild:` keys changed. Check a candidate with
+`ASTIMATE_CONFIG=$PWD/<candidate> go test ./internal/invariants` before it
+replaces `internal/config/default.yaml`.

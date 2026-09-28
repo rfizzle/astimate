@@ -25,7 +25,7 @@ func input(t *testing.T, pkgs, failEvery int) *report.Input {
 	if err != nil {
 		t.Fatal(err)
 	}
-	def, err := config.Parse(config.Default())
+	def, err := config.Load("../../../../../configs/uncalibrated.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}

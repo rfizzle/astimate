@@ -16,8 +16,8 @@ func TestDefaultConfigTiersAndCalibration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("config.Parse(config.Default()) error = %v", err)
 	}
-	if score.Calibrated(cfg.Version) {
-		t.Errorf("Calibrated(%q) = true, want false for the default config", cfg.Version)
+	if !score.Calibrated(cfg.Version) {
+		t.Errorf("Calibrated(%q) = false, want true: the default ships fitted rebuild parameters", cfg.Version)
 	}
 	tests := []struct {
 		passes float64

@@ -258,12 +258,14 @@ func TestCheckFixtures(t *testing.T) {
 				if !strings.Contains("\n"+out, "\n<module>: dup_blocks_cross_pkg 1, 0 violations, 0 warnings, 0 exempted\n") {
 					t.Errorf("text has no module summary line:\n%s", out)
 				}
-				// The embedded default's rebuild estimate is uncalibrated,
-				// so the gate output leaves it out (TestCheckCalibratedText).
-				assertNoEstimate(t, out)
+				// The embedded default's rebuild estimate is calibrated, so
+				// each summary line carries it (TestCheckCalibratedText).
 				for _, pkg := range fixturePackages() {
 					if !strings.Contains(out, "\n"+pkg+": ") && !strings.HasPrefix(out, pkg+": ") {
 						t.Errorf("text has no summary line for %s:\n%s", pkg, out)
+					}
+					if !strings.Contains(out, pkg+": 0.") || !strings.Contains(out, " passes (ONE_PASS), ") {
+						t.Errorf("summary line for %s lacks the calibrated estimate:\n%s", pkg, out)
 					}
 				}
 				for _, m := range degradedMetrics() {
@@ -356,21 +358,21 @@ func assertNoEstimate(t *testing.T, out string) {
 	t.Helper()
 	for _, m := range estimateMarks() {
 		if strings.Contains(out, m) {
-			t.Errorf("gate output carries %q from the uncalibrated estimate:\n%s", m, out)
+			t.Errorf("output carries %q from the rebuild estimate:\n%s", m, out)
 		}
 	}
 }
 
-// calibratedConfig writes the embedded default with its config_version
-// replaced by one of a config written by the rebuild experiments, so its
-// estimate counts as calibrated (score.Calibrated), and returns its path.
-func calibratedConfig(t *testing.T) string {
+// uncalibratedConfig writes the embedded default with its config_version
+// replaced by a thresholds-only calibration's, so its rebuild estimate
+// counts as uncalibrated (score.Calibrated), and returns its path.
+func uncalibratedConfig(t *testing.T) string {
 	t.Helper()
 	lines := strings.Split(string(config.Default()), "\n")
 	replaced := false
 	for i, l := range lines {
 		if strings.HasPrefix(l, "config_version: ") {
-			lines[i], replaced = "config_version: rebuild-2026-10-01", true
+			lines[i], replaced = "config_version: thresholds-2026-09-28", true
 		}
 	}
 	if !replaced {
@@ -384,11 +386,11 @@ func calibratedConfig(t *testing.T) string {
 }
 
 // TestCheckCalibratedText runs check on the degraded fixture under the
-// embedded default and under a config whose version marks the rebuild
-// estimate calibrated. Only the calibrated run's text summary lines carry
-// agent passes, tier and the change from the baseline; the hook reason
-// carries neither in both, and the JSON reports differ only in
-// config_version and rebuild.calibrated.
+// embedded default, whose rebuild estimate is calibrated, and under a config
+// whose version marks it uncalibrated. Only the calibrated run's text
+// summary lines carry agent passes, tier and the change from the baseline;
+// the hook reason carries neither in both, and the JSON reports differ only
+// in config_version and rebuild.calibrated.
 func TestCheckCalibratedText(t *testing.T) {
 	if testing.Short() {
 		t.Skip("integration test: loads Go packages")
@@ -396,7 +398,7 @@ func TestCheckCalibratedText(t *testing.T) {
 	t.Parallel()
 
 	base := fixtureBaseline(t)
-	cfg := calibratedConfig(t)
+	uncalCfg := uncalibratedConfig(t)
 	check := func(t *testing.T, format string, extra ...string) string {
 		t.Helper()
 		var out, errOut bytes.Buffer
@@ -414,12 +416,12 @@ func TestCheckCalibratedText(t *testing.T) {
 	t.Run("text", func(t *testing.T) {
 		t.Parallel()
 
-		uncal := check(t, formatText)
+		uncal := check(t, formatText, "--config", uncalCfg)
 		assertNoEstimate(t, uncal)
 		if !strings.Contains("\n"+uncal, "\ntested: 5 violations, 0 warnings, 0 exempted\n") {
 			t.Errorf("uncalibrated text has no plain summary line for tested:\n%s", uncal)
 		}
-		cal := check(t, formatText, "--config", cfg)
+		cal := check(t, formatText)
 		for _, pkg := range fixturePackages() {
 			line := ""
 			for l := range strings.SplitSeq(cal, "\n") {
@@ -435,16 +437,20 @@ func TestCheckCalibratedText(t *testing.T) {
 	t.Run("hook", func(t *testing.T) {
 		t.Parallel()
 
-		for _, extra := range [][]string{nil, {"--config", cfg}} {
+		for _, extra := range [][]string{nil, {"--config", uncalCfg}} {
 			assertNoEstimate(t, check(t, formatHook, extra...))
 		}
 	})
 	t.Run("json", func(t *testing.T) {
 		t.Parallel()
 
-		uncal := check(t, formatJSON)
-		cal := check(t, formatJSON, "--config", cfg)
-		normalized := strings.NewReplacer("rebuild-2026-10-01", "thresholds-2026-09-28",
+		uncal := check(t, formatJSON, "--config", uncalCfg)
+		cal := check(t, formatJSON)
+		def, err := config.Parse(config.Default())
+		if err != nil {
+			t.Fatal(err)
+		}
+		normalized := strings.NewReplacer(`"`+def.Version+`"`, `"thresholds-2026-09-28"`,
 			`"calibrated": true`, `"calibrated": false`).Replace(cal)
 		if normalized != uncal {
 			t.Errorf("json reports differ beyond config_version and calibrated:\n%s\nwant\n%s", cal, uncal)

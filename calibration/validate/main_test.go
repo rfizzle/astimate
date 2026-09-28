@@ -104,7 +104,11 @@ func TestRun(t *testing.T) {
 func TestRunErrors(t *testing.T) {
 	hand, _ := corpora(t)
 	other := filepath.Join(t.TempDir(), "astimate.yaml")
-	cfg := strings.Replace(string(config.Default()), "config_version: thresholds-", "config_version: other-", 1)
+	def, err := config.Parse(config.Default())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := strings.Replace(string(config.Default()), "config_version: "+def.Version, "config_version: other-1", 1)
 	if err := os.WriteFile(other, []byte(cfg), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -128,6 +132,37 @@ func TestRunErrors(t *testing.T) {
 			var u usageError
 			if err == nil || errors.As(err, &u) != tc.usage || !strings.Contains(err.Error()+stderr.String(), tc.want) {
 				t.Errorf("err = %v, stderr %q", err, stderr.String())
+			}
+		})
+	}
+}
+
+func TestGatesAs(t *testing.T) {
+	def, err := config.Parse(config.Default())
+	if err != nil {
+		t.Fatal(err)
+	}
+	changed, err := config.Parse([]byte(strings.Replace(string(config.Default()), "    max: 16000\n", "    max: 17000\n", 1)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const dir = "../thresholds"
+	tests := []struct {
+		name    string
+		cfg     *config.Config
+		version string
+		want    bool
+	}{
+		{"same version", def, def.Version, true},
+		{"the thresholds the rebuild fit was made on", def, "thresholds-2026-09-28", true},
+		{"those thresholds, a rule changed", changed, "thresholds-2026-09-28", false},
+		{"no committed candidate", def, "thresholds-1999-01-01", false},
+		{"another rebuild fit", def, "rebuild-1999-01-01-x", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := gatesAs(tt.cfg, tt.version, dir); got != tt.want {
+				t.Errorf("gatesAs(%q) = %v, want %v", tt.version, got, tt.want)
 			}
 		})
 	}

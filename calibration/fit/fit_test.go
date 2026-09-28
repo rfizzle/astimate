@@ -223,11 +223,20 @@ func TestCommittedCandidate(t *testing.T) {
 	}
 }
 
-// TestDefaultIsCommittedCandidate checks the embedded default carries the
-// committed candidate's config_version and exactly its rules, so the
-// shipped thresholds are the fitted ones.
+// committedRebuild is the rebuild fit (calibration/rebuild/fit) made on top
+// of committedCandidate, which the embedded default is.
+const committedRebuild = "../rebuild/astimate-rebuild-2026-09-28-claude-code-opus.yaml"
+
+// TestDefaultIsCommittedCandidate checks the embedded default carries
+// exactly the committed threshold candidate's rules and extraction
+// settings, so the shipped thresholds are the fitted ones, and the committed
+// rebuild fit's parameters and config_version, which it was built from.
 func TestDefaultIsCommittedCandidate(t *testing.T) {
 	cand, err := config.Load(committedCandidate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rebuild, err := config.Load(committedRebuild)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -235,14 +244,17 @@ func TestDefaultIsCommittedCandidate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if def.Version != cand.Version {
-		t.Errorf("default config_version = %q, candidate %q", def.Version, cand.Version)
+	if def.Version != rebuild.Version {
+		t.Errorf("default config_version = %q, rebuild fit %q", def.Version, rebuild.Version)
 	}
-	if !reflect.DeepEqual(def.Thresholds, cand.Thresholds) {
-		t.Errorf("default thresholds differ from the committed candidate:\n%+v\n%+v", def.Thresholds, cand.Thresholds)
+	if !reflect.DeepEqual(def.Thresholds, cand.Thresholds) || !reflect.DeepEqual(rebuild.Thresholds, cand.Thresholds) {
+		t.Errorf("default or rebuild-fit thresholds differ from the committed candidate:\n%+v\n%+v", def.Thresholds, cand.Thresholds)
 	}
-	if def.Rebuild != cand.Rebuild || def.CharsPerToken != cand.CharsPerToken || def.Duplication != cand.Duplication {
-		t.Error("default rebuild or extraction settings differ from the committed candidate")
+	if def.CharsPerToken != cand.CharsPerToken || def.Duplication != cand.Duplication {
+		t.Error("default extraction settings differ from the committed candidate")
+	}
+	if def.Rebuild != rebuild.Rebuild {
+		t.Errorf("default rebuild parameters %+v differ from the rebuild fit's %+v", def.Rebuild, rebuild.Rebuild)
 	}
 }
 

@@ -69,7 +69,7 @@ func TestCheckExemptionFixture(t *testing.T) {
 		t.Parallel()
 
 		code, out, errOut := runExempt(t, base, globalsOnlyConfig(t, ""), formatText, "--all")
-		if code != exitGateFailed || !strings.Contains(out, "\ntested: 1 violation, 0 warnings, 0 exempted\n") {
+		if code != exitGateFailed || !strings.Contains(out, "\ntested: 0.0 passes (ONE_PASS), 1 violation, 0 warnings, 0 exempted, +0.0 passes from baseline\n") {
 			t.Errorf("exit %d, want %d with one violation on tested\nstdout:\n%s\nstderr:\n%s", code, exitGateFailed, out, errOut)
 		}
 	})
@@ -87,7 +87,7 @@ func TestCheckExemptionFixture(t *testing.T) {
 		if !strings.Contains(out, " Exempted: "+degradedGlobalsReason+"\n") {
 			t.Errorf("text does not print the reason:\n%s", out)
 		}
-		if !strings.Contains(out, "\ntested: 0 violations, 0 warnings, 1 exempted\n") {
+		if !strings.Contains(out, "\ntested: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 1 exempted, +0.0 passes from baseline\n") {
 			t.Errorf("text has no summary line counting the exemption:\n%s", out)
 		}
 	})
@@ -190,8 +190,8 @@ func TestCheckExemptionStale(t *testing.T) {
 	for _, want := range []string{
 		"warnings:\n  " + metrics.ModuleRowID + "\n    globals: 0 -> 0, stale exemption. The exemption for globals on gone matched no violation: the module has no such package.",
 		"\n  a\n    globals: 0 -> 0, stale exemption. The exemption for globals on a matched no violation; remove it from the config. Its reason: a kept a global once\n",
-		"\na: 0 violations, 1 warning, 0 exempted\n",
-		"\ntested: 0 violations, 0 warnings, 1 exempted\n",
+		"\na: 0.0 passes (ONE_PASS), 0 violations, 1 warning, 0 exempted, +0.0 passes from baseline\n",
+		"\ntested: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 1 exempted, +0.0 passes from baseline\n",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("text does not contain %q:\n%s", want, out)

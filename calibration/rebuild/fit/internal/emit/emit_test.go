@@ -1,6 +1,7 @@
 package emit_test
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -9,9 +10,20 @@ import (
 	"github.com/rfizzle/astimate/internal/score"
 )
 
+// base returns the pre-calibration placeholder configuration, a fixed base
+// whatever the shipped default holds.
+func base(t *testing.T) []byte {
+	t.Helper()
+	data, err := os.ReadFile("../../../../../configs/uncalibrated.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return data
+}
+
 func fitted(t *testing.T) score.RebuildParams {
 	t.Helper()
-	def, err := config.Parse(config.Default())
+	def, err := config.Parse(base(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -23,7 +35,7 @@ func fitted(t *testing.T) score.RebuildParams {
 
 func TestConfig(t *testing.T) {
 	p := fitted(t)
-	out, err := emit.Config(config.Default(), "rebuild-2026-09-28-claude-code", p)
+	out, err := emit.Config(base(t), "rebuild-2026-09-28-claude-code", p)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,13 +47,13 @@ func TestConfig(t *testing.T) {
 		t.Errorf("read back %s %+v", cfg.Version, cfg.Rebuild)
 	}
 	// Only the six lines changed, and their comments stayed.
-	base, got := strings.Split(string(config.Default()), "\n"), strings.Split(string(out), "\n")
-	if len(base) != len(got) {
-		t.Fatalf("%d lines, base has %d", len(got), len(base))
+	before, got := strings.Split(string(base(t)), "\n"), strings.Split(string(out), "\n")
+	if len(before) != len(got) {
+		t.Fatalf("%d lines, base has %d", len(got), len(before))
 	}
 	var changed []string
-	for i := range base {
-		if base[i] != got[i] {
+	for i := range before {
+		if before[i] != got[i] {
 			changed = append(changed, got[i])
 		}
 	}
@@ -59,8 +71,8 @@ func TestConfig(t *testing.T) {
 }
 
 func TestConfigKeepsTrailingComments(t *testing.T) {
-	base := strings.Replace(string(config.Default()), "  tokens_per_export: 40\n", "  tokens_per_export: 40 # per symbol\n", 1)
-	out, err := emit.Config([]byte(base), "rebuild-x", fitted(t))
+	commented := strings.Replace(string(base(t)), "  tokens_per_export: 40\n", "  tokens_per_export: 40 # per symbol\n", 1)
+	out, err := emit.Config([]byte(commented), "rebuild-x", fitted(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +82,7 @@ func TestConfigKeepsTrailingComments(t *testing.T) {
 }
 
 func TestConfigRefuses(t *testing.T) {
-	def := string(config.Default())
+	def := string(base(t))
 	bad := fitted(t)
 	bad.SuperlinearExponent = 0.5
 	tests := []struct {

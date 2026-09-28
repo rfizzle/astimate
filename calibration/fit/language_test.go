@@ -213,6 +213,9 @@ func TestCommittedTypeScriptOverride(t *testing.T) {
 	// The committed files name the data relative to the repository root.
 	t.Chdir("../..")
 	opts := tsOptions(dir)
+	// The override was fitted against the thresholds candidate, before the
+	// rebuild fit gave the default a rebuild- version; pin that base.
+	opts.base = filepath.Join("calibration", "thresholds", filepath.Base(committedCandidate))
 	res, err := fit(opts)
 	if err != nil {
 		t.Fatalf("fit: %v", err)

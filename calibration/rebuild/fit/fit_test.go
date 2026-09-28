@@ -17,8 +17,9 @@ import (
 	"github.com/rfizzle/astimate/internal/score"
 )
 
-// baseConfig is the shipped default, as the fit's --base.
-const baseConfig = "../../../internal/config/default.yaml"
+// baseConfig is the fit's --base: the pre-calibration placeholders, so every
+// fitted parameter moves off a known value whatever the shipped default holds.
+const baseConfig = "../../../configs/uncalibrated.yaml"
 
 // plant is the synthetic experiment the end-to-end tests fit: 60 packages,
 // three runs each, 3% noise, every seventh run failing.

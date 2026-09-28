@@ -22,6 +22,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"reflect"
+	"strings"
 	"time"
 
 	"github.com/rfizzle/astimate/calibration/validate/internal/corpus"
@@ -35,11 +38,14 @@ import (
 type options struct {
 	sources     []corpus.Source
 	config, out string
-	date        string
-	agentOnly   bool
-	targets     report.Targets
-	sizeGrid    []int
-	criteria    measure.Criteria
+	// thresholdsDir holds the committed threshold candidates, by which a
+	// replay made under thresholds-<date> is matched to the rules it used.
+	thresholdsDir string
+	date          string
+	agentOnly     bool
+	targets       report.Targets
+	sizeGrid      []int
+	criteria      measure.Criteria
 }
 
 // usageError is a command line the command cannot run.
@@ -83,11 +89,12 @@ func run(args []string, stdout, stderr io.Writer) error {
 func newOptions() options {
 	t := report.Targets{Recall: 0.8, FalseFailure: 0.1}
 	return options{
-		agentOnly: true,
-		date:      time.Now().Format(time.DateOnly),
-		targets:   t,
-		sizeGrid:  []int{0, 25, 50, 100, 150, 200, 300, 400, 500, 750, 1000, 1500, 2000},
-		criteria:  measure.Criteria{MinFired: 10, Budget: t.FalseFailure, MinJ: 0.02},
+		agentOnly:     true,
+		thresholdsDir: filepath.Join("calibration", "thresholds"),
+		date:          time.Now().Format(time.DateOnly),
+		targets:       t,
+		sizeGrid:      []int{0, 25, 50, 100, 150, 200, 300, 400, 500, 750, 1000, 1500, 2000},
+		criteria:      measure.Criteria{MinFired: 10, Budget: t.FalseFailure, MinJ: 0.02},
 	}
 }
 
@@ -139,6 +146,22 @@ func loadConfig(o *options) (*config.Config, string, error) {
 	return cfg, "the embedded default", err
 }
 
+// gatesAs reports whether cfg gates as the configuration a replay recorded
+// as version did: the same config_version, or, for a thresholds-<date>
+// version, the same rules as its candidate committed under dir. A rebuild
+// fit (rebuild-<date>-<agent>) changes the estimate's parameters and never
+// a rule, so replays made under the thresholds it was fitted on still hold.
+func gatesAs(cfg *config.Config, version, dir string) bool {
+	if cfg.Version == version {
+		return true
+	}
+	if !strings.HasPrefix(version, "thresholds-") {
+		return false
+	}
+	prev, err := config.Load(filepath.Join(dir, "astimate-"+version+".yaml"))
+	return err == nil && reflect.DeepEqual(prev.Thresholds, cfg.Thresholds)
+}
+
 // measureAll loads every corpus and computes the report's input.
 func measureAll(o *options) (*report.Input, error) {
 	cfg, from, err := loadConfig(o)
@@ -159,8 +182,8 @@ func measureAll(o *options) (*report.Input, error) {
 	loaded := make([]*corpus.Corpus, 0, len(o.sources))
 	for _, src := range o.sources {
 		c, err := corpus.Load(src, o.agentOnly)
-		if err == nil && c.ConfigVersion != cfg.Version {
-			err = fmt.Errorf("corpus %s was replayed under %s, not %s", src.Name, c.ConfigVersion, cfg.Version)
+		if err == nil && !gatesAs(cfg, c.ConfigVersion, o.thresholdsDir) {
+			err = fmt.Errorf("corpus %s was replayed under %s, not %s, and their rules differ", src.Name, c.ConfigVersion, cfg.Version)
 		}
 		var s *measure.Scored
 		if err == nil {

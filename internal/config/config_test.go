@@ -27,8 +27,8 @@ func TestParseDefault(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Parse(Default()) error = %v", err)
 	}
-	if cfg.Version != "thresholds-2026-09-28" {
-		t.Errorf("Version = %q, want thresholds-2026-09-28", cfg.Version)
+	if cfg.Version != "rebuild-2026-09-28-claude-code-opus" {
+		t.Errorf("Version = %q, want rebuild-2026-09-28-claude-code-opus", cfg.Version)
 	}
 	if cfg.CharsPerToken != 3.2 {
 		t.Errorf("CharsPerToken = %v, want 3.2", cfg.CharsPerToken)
@@ -46,10 +46,10 @@ func TestParseDefault(t *testing.T) {
 		got, want float64
 	}{
 		{"context_budget", r.ContextBudget, 25000},
-		{"tokens_per_export", r.TokensPerExport, 40},
-		{"tokens_per_untested_export", r.TokensPerUntestedExport, 800},
-		{"tokens_per_hidden_state", r.TokensPerHiddenState, 400},
-		{"superlinear_exponent", r.SuperlinearExponent, 1.3},
+		{"tokens_per_export", r.TokensPerExport, 0},
+		{"tokens_per_untested_export", r.TokensPerUntestedExport, 120},
+		{"tokens_per_hidden_state", r.TokensPerHiddenState, 0},
+		{"superlinear_exponent", r.SuperlinearExponent, 2.79},
 		{"cocomo_a", r.CocomoA, 2.4},
 		{"cocomo_b", r.CocomoB, 1.05},
 		{"days_per_month", r.DaysPerMonth, 19},
@@ -97,7 +97,8 @@ func TestParseDefault(t *testing.T) {
 }
 
 // TestDefaultVersionPrefix checks the embedded default ships calibrated
-// thresholds: SPEC.md 11.1 names a corpus fit thresholds-<date>.
+// rebuild parameters: SPEC.md 11.2 names a rebuild fit rebuild-<date>-<agent>,
+// which score.Calibrated reads. The thresholds it carries are thresholds-<date>'s.
 func TestDefaultVersionPrefix(t *testing.T) {
 	t.Parallel()
 
@@ -105,14 +106,14 @@ func TestDefaultVersionPrefix(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Parse(Default()) error = %v", err)
 	}
-	if !strings.HasPrefix(cfg.Version, "thresholds-") {
-		t.Errorf("Version = %q, want a thresholds-<date> version", cfg.Version)
+	if !strings.HasPrefix(cfg.Version, "rebuild-") {
+		t.Errorf("Version = %q, want a rebuild-<date>-<agent> version", cfg.Version)
 	}
 }
 
 // TestUncalibratedStillParses checks the pre-calibration defaults kept for
 // comparison under configs/ still load, with the default's rules in the same
-// order and its rebuild parameters.
+// order and the placeholder rebuild parameters the rebuild fit replaced.
 func TestUncalibratedStillParses(t *testing.T) {
 	t.Parallel()
 
@@ -127,9 +128,16 @@ func TestUncalibratedStillParses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(cfg.Thresholds) != len(def.Thresholds) || cfg.Rebuild != def.Rebuild {
-		t.Fatalf("uncalibrated file has %d rules and rebuild %+v, want %d rules and the default rebuild parameters",
-			len(cfg.Thresholds), cfg.Rebuild, len(def.Thresholds))
+	if len(cfg.Thresholds) != len(def.Thresholds) {
+		t.Fatalf("uncalibrated file has %d rules, want the default's %d", len(cfg.Thresholds), len(def.Thresholds))
+	}
+	// The rebuild parameters are the pre-calibration placeholders; only the
+	// ones the rebuild fit does not touch match the default.
+	placeholders := def.Rebuild
+	placeholders.TokensPerExport, placeholders.TokensPerUntestedExport = 40, 800
+	placeholders.TokensPerHiddenState, placeholders.SuperlinearExponent = 400, 1.3
+	if cfg.Rebuild != placeholders {
+		t.Errorf("uncalibrated rebuild = %+v, want the placeholders %+v", cfg.Rebuild, placeholders)
 	}
 	for i, r := range cfg.Thresholds {
 		if d := def.Thresholds[i]; r.Metric != d.Metric || r.Kind != d.Kind {
@@ -159,9 +167,9 @@ func TestParseErrors(t *testing.T) {
 		repl    string
 		wantErr string
 	}{
-		{name: "exponent below 1", old: "superlinear_exponent: 1.3", repl: "superlinear_exponent: 0.9", wantErr: "superlinear_exponent must be >= 1"},
+		{name: "exponent below 1", old: "superlinear_exponent: 2.79", repl: "superlinear_exponent: 0.9", wantErr: "superlinear_exponent must be >= 1"},
 		{name: "zero budget", old: "context_budget: 25000", repl: "context_budget: 0", wantErr: "context_budget"},
-		{name: "negative token cost", old: "tokens_per_export: 40", repl: "tokens_per_export: -1", wantErr: "tokens_per_export"},
+		{name: "negative token cost", old: "tokens_per_export: 0", repl: "tokens_per_export: -1", wantErr: "tokens_per_export"},
 		{name: "zero cocomo", old: "cocomo_a: 2.4", repl: "cocomo_a: 0", wantErr: "cocomo_a"},
 		{name: "tiers unordered", old: "few_passes_max: 3.0", repl: "few_passes_max: 0.5", wantErr: "tiers.few_passes_max"},
 		{name: "missing rebuild field", old: "  days_per_month: 19\n", repl: "", wantErr: "rebuild.days_per_month is required"},
@@ -170,7 +178,7 @@ func TestParseErrors(t *testing.T) {
 		{name: "zero min_tokens", old: "min_tokens: 40", repl: "min_tokens: 0", wantErr: "duplication.min_tokens must be > 0"},
 		{name: "ignore_literal_only not a bool", old: "ignore_literal_only: true", repl: "ignore_literal_only: maybe", wantErr: "`maybe` into bool"},
 		{name: "unknown duplication key", old: "  min_tokens: 40\n", repl: "  min_tokens: 40\n  min_tokenz: 40\n", wantErr: "min_tokenz"},
-		{name: "empty version", old: "config_version: thresholds-2026-09-28", repl: "config_version: \"\"", wantErr: "config_version is required"},
+		{name: "empty version", old: "config_version: rebuild-2026-09-28-claude-code-opus", repl: "config_version: \"\"", wantErr: "config_version is required"},
 		{name: "unknown key", old: "chars_per_token: 3.2", repl: "chars_per_token: 3.2\nchars_per_tokenz: 3.2", wantErr: "chars_per_tokenz"},
 		{name: "threshold with no limit", old: "    kind: density\n    max_delta: 6\n    max: 40\n", repl: "    kind: density\n", wantErr: `"duplication_pct": density rule needs max_delta or max`},
 		{name: "capacity with max_delta", old: capacityRule, repl: capacityRule + "    max_delta: 0\n", wantErr: `"sloc": capacity rule must not set max_delta`},
@@ -356,8 +364,8 @@ func TestParseAcceptsCouplingMetrics(t *testing.T) {
 func TestResolveOrder(t *testing.T) {
 	t.Parallel()
 
-	custom := replace(t, "config_version: thresholds-2026-09-28", "config_version: custom")
-	flagged := replace(t, "config_version: thresholds-2026-09-28", "config_version: flagged")
+	custom := replace(t, "config_version: rebuild-2026-09-28-claude-code-opus", "config_version: custom")
+	flagged := replace(t, "config_version: rebuild-2026-09-28-claude-code-opus", "config_version: flagged")
 
 	tests := []struct {
 		name        string
@@ -366,7 +374,7 @@ func TestResolveOrder(t *testing.T) {
 		wantSource  string
 		wantVersion string
 	}{
-		{name: "embedded", wantSource: SourceEmbedded, wantVersion: "thresholds-2026-09-28"},
+		{name: "embedded", wantSource: SourceEmbedded, wantVersion: "rebuild-2026-09-28-claude-code-opus"},
 		{name: "working dir", localFile: true, wantSource: SourceWorkDir, wantVersion: "custom"},
 		{name: "flag over nothing", flag: true, wantSource: SourceFlag, wantVersion: "flagged"},
 		{name: "flag over working dir", localFile: true, flag: true, wantSource: SourceFlag, wantVersion: "flagged"},
@@ -432,7 +440,7 @@ func TestResolveErrors(t *testing.T) {
 // TestResolveUsesWorkingDir checks the exported entry point reads ./astimate.yaml.
 func TestResolveUsesWorkingDir(t *testing.T) {
 	dir := t.TempDir()
-	custom := replace(t, "config_version: thresholds-2026-09-28", "config_version: cwd")
+	custom := replace(t, "config_version: rebuild-2026-09-28-claude-code-opus", "config_version: cwd")
 	if err := os.WriteFile(filepath.Join(dir, FileName), []byte(custom), 0o600); err != nil {
 		t.Fatal(err)
 	}

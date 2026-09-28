@@ -1,13 +1,14 @@
 package: trivial (example.com/fixture)
-rebuild: 0.0 agent passes, 0.2 human days (estimate from uncalibrated parameters)
+rebuild: 0.0 agent passes, 0.2 human days (estimate from calibrated parameters)
 tier: ONE_PASS
 
 drivers:
-  unspecified  800 tokens  untested_exports=1
+  unspecified  120 tokens  untested_exports=1
   volume       47 tokens   tokens_est=47 duplication_pct=0
 
 suggestions:
   - 1 exported function has no test (Answer); a rebuild would have to reverse-engineer its behavior.
+  - The package is 47 tokens of non-test source; its volume is 47 tokens of the rebuild; split the package to shrink it.
 
 metrics:
   files                  1      sloc                  4

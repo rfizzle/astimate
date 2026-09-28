@@ -56,7 +56,7 @@ func TestCheckPackageExemptions(t *testing.T) {
 	if want := "PASSED: tested is no worse than its baseline. 5 violation(s) are exempted"; !strings.HasPrefix(text, want) {
 		t.Errorf("text = %q, want it to start with %q", text, want)
 	}
-	if !strings.Contains(text, "\ntested: 0 violations, 0 warnings, 5 exempted\n") {
+	if !strings.Contains(text, "\ntested: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 5 exempted, +0.0 passes from baseline\n") {
 		t.Errorf("text has no summary line counting the exemptions:\n%s", text)
 	}
 	if cr.Module == nil || cr.Module.Exemptions == nil {
