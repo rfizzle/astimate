@@ -457,7 +457,7 @@ This is well-defined and repeatable, unlike a refactoring-task corpus, and it di
 
 ## 12. Integrations
 
-- **CI:** `astimate check --format github` in a workflow step; exit 3 fails the job. A composite GitHub Action under `action/` wraps install and invocation; its `path` input names a module below the repository root.
+- **CI:** `astimate check --format github` in a workflow step; exit 3 fails the job. A composite GitHub Action under `action/` wraps install and invocation; its `path` input names a module below the repository root. This repository gates itself: the `selfcheck` job in `ci.yml` runs `action/` with `version: source` on pull requests (changed packages against `origin/<base>`) and on pushes to master (`--all` against the previous master tip), and `make check` runs `make selfcheck`.
 - **Claude Code Stop hook:** `astimate check --format hook` returns a block decision with the violations as the reason, so the agent continues and fixes them. Documented with a ready-to-paste `settings.json` snippet.
 - **Pre-commit:** documented invocation with `--all` disabled and `--base` set.
 - **MCP:** `check_package` for in-task self-checks.
