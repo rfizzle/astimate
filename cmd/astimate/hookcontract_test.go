@@ -31,7 +31,7 @@ func hookDegradedMetrics() []string {
 
 // assertHookBlock checks that out is exactly one JSON object, followed by a
 // newline, whose only keys are decision and reason, with decision "block"
-// and a reason naming every metric in want.
+// and a reason naming every metric in want and no agent passes or tier.
 func assertHookBlock(t *testing.T, out string, want []string) {
 	t.Helper()
 	if !strings.HasSuffix(out, "}\n") || strings.Count(out, "\n") != 1 {
@@ -68,6 +68,9 @@ func assertHookBlock(t *testing.T, out string, want []string) {
 			t.Errorf("reason does not name %s:\n%s", m, reason)
 		}
 	}
+	// The reason is the findings alone: the agent is told what to fix,
+	// never the rebuild estimate's passes or tier, which can contradict it.
+	assertNoEstimate(t, reason)
 }
 
 // writeHookBaseline writes a baseline of the pristine fixture through the

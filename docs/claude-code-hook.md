@@ -65,18 +65,19 @@ The `timeout` is in seconds. A check loads the module twice (head and the baseli
 
 ## What the agent sees
 
-When a change adds a copied function, an untested export and a package variable to package `tested` (the repository's degraded fixture), the agent receives this as the reason to continue:
+When a change adds a copied function, an untested export and a package variable to package `tested` and grows a function's branching (the repository's degraded fixture), the agent receives this as the reason to continue:
 
 ```
 violations:
   tested
-    dup_blocks: 0 -> 1, max_delta +0. 1 duplicate block covers 29.3% of lines; extract shared helpers, starting with degraded.go:15-20.
-    duplication_pct: 0 -> 29.3, max_delta +6. 1 duplicate block covers 29.3% of lines; extract shared helpers, starting with degraded.go:15-20.
-    globals: 0 -> 1, max_delta +0. 1 package-level variable holds state no signature reveals; pass it explicitly or move it into a struct.
+    changed_func_cognitive_max: 51 (changed since baseline), max 50. Changed function grade (grade.go:8) has cognitive complexity 51; split it into smaller functions or flatten its branching.
+    dup_blocks: 0 -> 1, max_delta +0. 1 duplicate block covers 12.2% of lines; extract shared helpers, starting with degraded.go:15-20.
+    duplication_pct: 0 -> 12.2, max_delta +6. 1 duplicate block covers 12.2% of lines; extract shared helpers, starting with degraded.go:15-20.
+    globals: 0 -> 1, max_delta +0. 1 package-level variable holds state no signature reveals (joins); pass it explicitly or move it into a struct.
     untested_exports: 0 -> 1, max_delta +0. 1 exported function has no test (JoinAgain); a rebuild would have to reverse-engineer its behavior.
 ```
 
-Each line reads `metric: baseline -> head, limit. suggestion`. [reading-violations.md](reading-violations.md) gives the order in which to fix them; point the agent at it from `CLAUDE.md` or `AGENTS.md`.
+Each line reads `metric: baseline -> head, limit. suggestion`. The reason is the findings alone, with no rebuild estimate: no agent passes and no tier, which could contradict what the findings ask for. [reading-violations.md](reading-violations.md) gives the order in which to fix them; point the agent at it from `CLAUDE.md` or `AGENTS.md`.
 
 ## Requirements and failure modes
 

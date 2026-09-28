@@ -130,9 +130,9 @@ func findings(vs []gate.Violation) []Finding {
 // WriteCheckText writes c for a human reader: the violations, then the
 // warnings, each grouped under its package (the module row's first, under
 // its id, metrics.ModuleRowID), then one summary line for the module row
-// and one per package with its agent passes, tier, finding counts and the
-// change in agent passes from the baseline, and a final line naming deleted
-// packages.
+// and one per package with its finding counts (writeSummary says when the
+// agent passes, tier and change from the baseline join them), and a final
+// line naming deleted packages.
 func WriteCheckText(w io.Writer, c *Check) error {
 	bw := bufio.NewWriter(w)
 	writeFindings(bw, c)
@@ -185,14 +185,28 @@ func writeFindings(w *bufio.Writer, c *Check) {
 	}
 }
 
-// writeSummary writes one package's summary line.
+// writeSummary writes one package's summary line: "<pkg>: N violations,
+// M warnings" and whether the package is new since the baseline. The agent
+// passes and tier lead the counts, and the change in agent passes from the
+// baseline follows them, only when the rebuild estimate is calibrated
+// (Rebuild.Calibrated): until then the estimate's invariants (SPEC.md 7.5)
+// can contradict the gate, rating a duplicated package one pass while the
+// gate asks for a split, so gate output leaves the estimate to assess and
+// rank.
 func writeSummary(w *bufio.Writer, p *CheckedPackage) {
 	r := &p.Report
-	_, _ = fmt.Fprintf(w, "%s: %s passes (%s), %s, %s", r.PackagePath,
-		strconv.FormatFloat(r.Rebuild.AgentPasses, 'f', 1, 64), r.Rebuild.Tier,
-		plural(len(r.Violations), "violation", "violations"),
+	calibrated := r.Rebuild.Calibrated
+	_, _ = w.WriteString(r.PackagePath + ": ")
+	if calibrated {
+		_, _ = w.WriteString(strconv.FormatFloat(r.Rebuild.AgentPasses, 'f', 1, 64) + " passes (" +
+			string(r.Rebuild.Tier) + "), ")
+	}
+	_, _ = w.WriteString(plural(len(r.Violations), "violation", "violations") + ", " +
 		plural(len(r.Warnings), "warning", "warnings"))
-	if p.BaseAgentPasses != nil {
+	switch {
+	case p.BaseAgentPasses == nil:
+		_, _ = w.WriteString(", new since baseline")
+	case calibrated:
 		d := round1(r.Rebuild.AgentPasses - *p.BaseAgentPasses)
 		sign := ""
 		if d >= 0 {
@@ -201,8 +215,6 @@ func writeSummary(w *bufio.Writer, p *CheckedPackage) {
 			sign = "+"
 		}
 		_, _ = w.WriteString(", " + sign + strconv.FormatFloat(d, 'f', 1, 64) + " passes from baseline")
-	} else {
-		_, _ = w.WriteString(", new since baseline")
 	}
 	_, _ = w.WriteString("\n")
 }

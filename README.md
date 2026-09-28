@@ -199,13 +199,13 @@ violations:
     globals: 0 -> 1, max_delta +0. 1 package-level variable holds state no signature reveals (joins); pass it explicitly or move it into a struct.
     untested_exports: 0 -> 1, max_delta +0. 1 exported function has no test (JoinAgain); a rebuild would have to reverse-engineer its behavior.
 <module>: dup_blocks_cross_pkg 1, 0 violations, 0 warnings
-a: 0.1 passes (ONE_PASS), 0 violations, 0 warnings, +0.0 passes from baseline
-b: 0.1 passes (ONE_PASS), 0 violations, 0 warnings, +0.0 passes from baseline
-dupes: 0.1 passes (ONE_PASS), 0 violations, 0 warnings, +0.0 passes from baseline
-hidden: 0.1 passes (ONE_PASS), 0 violations, 0 warnings, +0.0 passes from baseline
-hub: 0.1 passes (ONE_PASS), 0 violations, 0 warnings, +0.0 passes from baseline
-tested: 0.1 passes (ONE_PASS), 5 violations, 0 warnings, +0.1 passes from baseline
-trivial: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, +0.0 passes from baseline
+a: 0 violations, 0 warnings
+b: 0 violations, 0 warnings
+dupes: 0 violations, 0 warnings
+hidden: 0 violations, 0 warnings
+hub: 0 violations, 0 warnings
+tested: 5 violations, 0 warnings
+trivial: 0 violations, 0 warnings
 $ echo $?
 3
 ```

@@ -258,6 +258,9 @@ func TestCheckFixtures(t *testing.T) {
 				if !strings.Contains("\n"+out, "\n<module>: dup_blocks_cross_pkg 1, 0 violations, 0 warnings\n") {
 					t.Errorf("text has no module summary line:\n%s", out)
 				}
+				// The embedded default's rebuild estimate is uncalibrated,
+				// so the gate output leaves it out (TestCheckCalibratedText).
+				assertNoEstimate(t, out)
 				for _, pkg := range fixturePackages() {
 					if !strings.Contains(out, "\n"+pkg+": ") && !strings.HasPrefix(out, pkg+": ") {
 						t.Errorf("text has no summary line for %s:\n%s", pkg, out)
@@ -338,6 +341,118 @@ func TestCheckFixtures(t *testing.T) {
 			})
 		})
 	}
+}
+
+// estimateMarks are the text a summary line carries only when the rebuild
+// estimate is calibrated: agent passes, the change in them from the
+// baseline, and the three tiers.
+func estimateMarks() []string {
+	return []string{" passes", "ONE_PASS", "FEW_PASSES", "PARTITION"}
+}
+
+// assertNoEstimate checks that the gate output out names no agent passes
+// and no tier.
+func assertNoEstimate(t *testing.T, out string) {
+	t.Helper()
+	for _, m := range estimateMarks() {
+		if strings.Contains(out, m) {
+			t.Errorf("gate output carries %q from the uncalibrated estimate:\n%s", m, out)
+		}
+	}
+}
+
+// calibratedConfig writes the embedded default with its config_version
+// replaced by one of a config written by the rebuild experiments, so its
+// estimate counts as calibrated (score.Calibrated), and returns its path.
+func calibratedConfig(t *testing.T) string {
+	t.Helper()
+	lines := strings.Split(string(config.Default()), "\n")
+	replaced := false
+	for i, l := range lines {
+		if strings.HasPrefix(l, "config_version: ") {
+			lines[i], replaced = "config_version: rebuild-2026-10-01", true
+		}
+	}
+	if !replaced {
+		t.Fatal("the embedded default has no config_version line")
+	}
+	path := filepath.Join(t.TempDir(), "astimate.yaml")
+	if err := os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+// TestCheckCalibratedText runs check on the degraded fixture under the
+// embedded default and under a config whose version marks the rebuild
+// estimate calibrated. Only the calibrated run's text summary lines carry
+// agent passes, tier and the change from the baseline; the hook reason
+// carries neither in both, and the JSON reports differ only in
+// config_version and rebuild.calibrated.
+func TestCheckCalibratedText(t *testing.T) {
+	if testing.Short() {
+		t.Skip("integration test: loads Go packages")
+	}
+	t.Parallel()
+
+	base := fixtureBaseline(t)
+	cfg := calibratedConfig(t)
+	check := func(t *testing.T, format string, extra ...string) string {
+		t.Helper()
+		var out, errOut bytes.Buffer
+		args := append([]string{"check", degradedDir, "--all", "--baseline", base, "--format", format}, extra...)
+		want := exitGateFailed
+		if format == formatHook {
+			want = exitOK
+		}
+		if got := run(args, &out, &errOut); got != want {
+			t.Fatalf("run(%q) exit code = %d, want %d\nstderr:\n%s", args, got, want, errOut.String())
+		}
+		return out.String()
+	}
+
+	t.Run("text", func(t *testing.T) {
+		t.Parallel()
+
+		uncal := check(t, formatText)
+		assertNoEstimate(t, uncal)
+		if !strings.Contains("\n"+uncal, "\ntested: 5 violations, 0 warnings\n") {
+			t.Errorf("uncalibrated text has no plain summary line for tested:\n%s", uncal)
+		}
+		cal := check(t, formatText, "--config", cfg)
+		for _, pkg := range fixturePackages() {
+			line := ""
+			for l := range strings.SplitSeq(cal, "\n") {
+				if strings.HasPrefix(l, pkg+": ") {
+					line = l
+				}
+			}
+			if !strings.Contains(line, " passes (") || !strings.HasSuffix(line, " passes from baseline") {
+				t.Errorf("calibrated summary line for %s = %q, want agent passes, tier and change from baseline", pkg, line)
+			}
+		}
+	})
+	t.Run("hook", func(t *testing.T) {
+		t.Parallel()
+
+		for _, extra := range [][]string{nil, {"--config", cfg}} {
+			assertNoEstimate(t, check(t, formatHook, extra...))
+		}
+	})
+	t.Run("json", func(t *testing.T) {
+		t.Parallel()
+
+		uncal := check(t, formatJSON)
+		cal := check(t, formatJSON, "--config", cfg)
+		normalized := strings.NewReplacer("rebuild-2026-10-01", "thresholds-2026-09-28",
+			`"calibrated": true`, `"calibrated": false`).Replace(cal)
+		if normalized != uncal {
+			t.Errorf("json reports differ beyond config_version and calibrated:\n%s\nwant\n%s", cal, uncal)
+		}
+		if !strings.Contains(uncal, `"agent_passes": `) || !strings.Contains(uncal, `"tier": `) {
+			t.Errorf("uncalibrated json lost the rebuild estimate:\n%s", uncal)
+		}
+	})
 }
 
 // rootCountingExtractor wraps the Go extractor and records the roots it lists

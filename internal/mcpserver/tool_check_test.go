@@ -43,6 +43,27 @@ func defaultConfig(t *testing.T) *config.Config {
 	return cfg
 }
 
+// calibratedConfig returns the embedded default with its config_version
+// replaced by one of a config written by the rebuild experiments, so its
+// rebuild estimate counts as calibrated (score.Calibrated).
+func calibratedConfig(t *testing.T) *config.Config {
+	t.Helper()
+	lines := strings.Split(string(config.Default()), "\n")
+	for i, l := range lines {
+		if strings.HasPrefix(l, "config_version: ") {
+			lines[i] = "config_version: rebuild-2026-10-01"
+		}
+	}
+	cfg, err := config.Parse([]byte(strings.Join(lines, "\n")))
+	if err != nil {
+		t.Fatalf("parsing the calibrated config: %v", err)
+	}
+	if !strings.HasPrefix(cfg.Version, "rebuild-") {
+		t.Fatalf("calibrated config version = %q, want a rebuild- version", cfg.Version)
+	}
+	return cfg
+}
+
 // workspace copies the fixture module src to <tmp>/mod, writes the pristine
 // fixture's baseline to <tmp>/baseline.json, and returns tmp with symlinks
 // resolved. The copy is outside any git repository, so only the baseline
@@ -130,19 +151,26 @@ func TestCheckPackageTool(t *testing.T) {
 	tests := []struct {
 		name       string
 		src        string
+		calibrated bool
 		wantPassed bool
 		wantMetric []string
 		wantText   string
 	}{
 		{name: "degraded", src: degradedDir, wantPassed: false, wantMetric: degradedMetrics(), wantText: "FAILED"},
 		{name: "unchanged", src: fixtureDir, wantPassed: true, wantText: "PASSED"},
+		{name: "degraded calibrated", src: degradedDir, calibrated: true, wantPassed: false, wantMetric: degradedMetrics(), wantText: "FAILED"},
+		{name: "unchanged calibrated", src: fixtureDir, calibrated: true, wantPassed: true, wantText: "PASSED"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
 			ws := workspace(t, tt.src)
-			cs := newTestClient(t, Options{Config: defaultConfig(t), WorkDir: ws, Version: "test"})
+			cfg := defaultConfig(t)
+			if tt.calibrated {
+				cfg = calibratedConfig(t)
+			}
+			cs := newTestClient(t, Options{Config: cfg, WorkDir: ws, Version: "test"})
 			res := callCheck(t, cs, map[string]any{"path": "mod/tested", "baseline_file": "baseline.json"})
 			text := resultText(res)
 			if res.IsError {
@@ -181,6 +209,28 @@ func TestCheckPackageTool(t *testing.T) {
 				if !strings.Contains(text, m+": ") {
 					t.Errorf("text does not name violation %s:\n%s", m, text)
 				}
+			}
+			// The package's summary line carries agent passes and tier
+			// only when the rebuild estimate is calibrated; the structured
+			// report carries them either way.
+			summary := ""
+			for l := range strings.SplitSeq(text, "\n") {
+				if strings.HasPrefix(l, "tested: ") {
+					summary = l
+				}
+			}
+			if got := strings.Contains(summary, " passes (") && strings.Contains(summary, " passes from baseline"); got != tt.calibrated {
+				t.Errorf("summary line %q carries the estimate = %v, want %v", summary, got, tt.calibrated)
+			}
+			if !tt.calibrated {
+				for _, m := range []string{" passes", "ONE_PASS", "FEW_PASSES", "PARTITION"} {
+					if strings.Contains(text, m) {
+						t.Errorf("text carries %q from the uncalibrated estimate:\n%s", m, text)
+					}
+				}
+			}
+			if r.Rebuild.Tier == "" || r.Rebuild.Calibrated != tt.calibrated {
+				t.Errorf("rebuild = tier %q calibrated %v, want a tier and calibrated %v", r.Rebuild.Tier, r.Rebuild.Calibrated, tt.calibrated)
 			}
 		})
 	}

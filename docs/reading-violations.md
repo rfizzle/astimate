@@ -11,11 +11,11 @@ violations:
 warnings:
   big
     tokens_est: 11000 -> 12800, max 16000. at 80% of the 16000 ceiling; plan a split before the next feature. The package is 12800 tokens of non-test source; split it so a rebuild fits one agent pass.
-tested: 0.1 passes (ONE_PASS), 1 violation, 0 warnings, +0.1 passes from baseline
-big: 0.6 passes (ONE_PASS), 0 violations, 1 warning, +0.1 passes from baseline
+tested: 1 violation, 0 warnings
+big: 0 violations, 1 warning
 ```
 
-Violations come first, then warnings, each grouped under the package directory, then one summary line per package (the `big` lines are illustrative). Each finding line is `metric: baseline -> head, limit. suggestion`; a package new since the baseline shows `head (no baseline)` instead, and `changed_func_cognitive_max`, which is itself measured against the baseline, shows `head (changed since baseline)`. The suggestion names the identifiers or file lines to start with when the extractor knows them. The Claude Code hook sends the same text as its `reason`; the JSON format carries the same fields as `violations` and `warnings` arrays.
+Violations come first, then warnings, each grouped under the package directory, then one summary line per package (the `big` lines are illustrative). The summary line counts the findings and says `new since baseline` for a package the baseline lacks. It leaves out the rebuild estimate: until its parameters are calibrated (a `config_version` starting `rebuild-`), the estimate can contradict the gate, rating a duplicated package one pass while the gate asks for a split. Under a calibrated config the line leads with the agent passes and tier and ends with the change from the baseline, as in `tested: 0.1 passes (ONE_PASS), 1 violation, 0 warnings, +0.1 passes from baseline`. `astimate assess` and `rank` always show the estimate, labeled uncalibrated until then. Each finding line is `metric: baseline -> head, limit. suggestion`; a package new since the baseline shows `head (no baseline)` instead, and `changed_func_cognitive_max`, which is itself measured against the baseline, shows `head (changed since baseline)`. The suggestion names the identifiers or file lines to start with when the extractor knows them. The Claude Code hook sends the same findings, without the summary lines, as its `reason`; the JSON format carries the same fields as `violations` and `warnings` arrays.
 
 **Fix every violation; read the warnings.** Violations fail the gate (exit 3, or a block decision in the hook). Warnings never do: they say a package is approaching a size ceiling. Do not trade a violation for a warning, and do not spend the turn on warnings while a violation remains.
 

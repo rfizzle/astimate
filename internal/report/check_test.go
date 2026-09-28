@@ -11,12 +11,23 @@ import (
 	"github.com/rfizzle/astimate/internal/metrics"
 )
 
-// fixedCheck returns a check with one failing package, one package with a
-// warning only, and one deleted directory.
-func fixedCheck() *Check {
+// Config versions of the check fixtures: the embedded default's, whose
+// rebuild estimate is uncalibrated, and one of a config written by the
+// rebuild experiments, whose estimate is calibrated (score.Calibrated).
+const (
+	uncalibratedVersion = "thresholds-2026-09-28"
+	calibratedVersion   = "rebuild-2026-10-01"
+)
+
+// fixedCheck returns fixedCheckAt under the uncalibrated config version.
+func fixedCheck() *Check { return fixedCheckAt(uncalibratedVersion) }
+
+// fixedCheckAt returns a check under config version v with one failing
+// package, one package with a warning only, and one deleted directory.
+func fixedCheckAt(v string) *Check {
 	base := metrics.RawMetrics{DupBlocks: 1}
 	failing := Build(&Input{Language: "go", PackagePath: "internal/billing", ModulePath: "example.com/app",
-		Metrics: metrics.RawMetrics{DupBlocks: 3, Globals: 1}, Params: params()})
+		Metrics: metrics.RawMetrics{DupBlocks: 3, Globals: 1}, Params: params(), ConfigVersion: v})
 	ApplyGate(&failing, "a1b2c3d", &base, &gate.Result{
 		Violations: []gate.Violation{
 			{Metric: "dup_blocks", Base: 1, Head: 3, HasBase: true, Limit: "max_delta +0", Suggestion: "Extract helpers."},
@@ -28,7 +39,7 @@ func fixedCheck() *Check {
 	})
 	basePasses := 0.1
 	warned := Build(&Input{Language: "go", PackagePath: "big", ModulePath: "example.com/app",
-		Metrics: metrics.RawMetrics{TokensEst: 25000}, Params: params()})
+		Metrics: metrics.RawMetrics{TokensEst: 25000}, Params: params(), ConfigVersion: v})
 	ApplyGate(&warned, "a1b2c3d", nil, &gate.Result{
 		Passed: true,
 		Warnings: []gate.Warning{
@@ -41,9 +52,13 @@ func fixedCheck() *Check {
 	}
 }
 
-// passingCheck returns a check whose only package passed with no findings.
-func passingCheck() *Check {
-	r := Build(&Input{Language: "go", PackagePath: ".", ModulePath: "example.com/app", Params: params()})
+// passingCheck returns passingCheckAt under the uncalibrated config version.
+func passingCheck() *Check { return passingCheckAt(uncalibratedVersion) }
+
+// passingCheckAt returns a check under config version v whose only package
+// passed with no findings.
+func passingCheckAt(v string) *Check {
+	r := Build(&Input{Language: "go", PackagePath: ".", ModulePath: "example.com/app", Params: params(), ConfigVersion: v})
 	ApplyGate(&r, "a1b2c3d", &metrics.RawMetrics{}, &gate.Result{Passed: true})
 	zero := 0.0
 	return &Check{Packages: []CheckedPackage{{Report: r, BaseAgentPasses: &zero}}}
@@ -71,14 +86,13 @@ func TestApplyGate(t *testing.T) {
 	}
 }
 
+// TestWriteCheckText renders the fixed check under both config versions:
+// the summary lines carry the agent passes, tier and change from the
+// baseline only when the rebuild estimate is calibrated.
 func TestWriteCheckText(t *testing.T) {
 	t.Parallel()
 
-	var buf bytes.Buffer
-	if err := WriteCheckText(&buf, fixedCheck()); err != nil {
-		t.Fatal(err)
-	}
-	want := "violations:\n" +
+	findings := "violations:\n" +
 		"  internal/billing\n" +
 		"    dup_blocks: 1 -> 3, max_delta +0. Extract helpers.\n" +
 		"    globals: 0 -> 1, max_delta +0. Pass it explicitly.\n" +
@@ -86,12 +100,29 @@ func TestWriteCheckText(t *testing.T) {
 		"  internal/billing\n" +
 		"    tokens_est: 24100 (no baseline), max 30000. at 80% of the 30000 ceiling; plan a split.\n" +
 		"  big\n" +
-		"    tokens_est: 25000 (no baseline), max 30000. at 83% of the 30000 ceiling.\n" +
-		"internal/billing: 0.0 passes (ONE_PASS), 2 violations, 1 warning, -0.1 passes from baseline\n" +
-		"big: 1.0 passes (ONE_PASS), 0 violations, 1 warning, new since baseline\n" +
-		"deleted since baseline: old\n"
-	if buf.String() != want {
-		t.Errorf("text =\n%s\nwant\n%s", buf.String(), want)
+		"    tokens_est: 25000 (no baseline), max 30000. at 83% of the 30000 ceiling.\n"
+	tests := []struct {
+		version string
+		summary string
+	}{
+		{uncalibratedVersion, "internal/billing: 2 violations, 1 warning\n" +
+			"big: 0 violations, 1 warning, new since baseline\n"},
+		{calibratedVersion, "internal/billing: 0.0 passes (ONE_PASS), 2 violations, 1 warning, -0.1 passes from baseline\n" +
+			"big: 1.0 passes (ONE_PASS), 0 violations, 1 warning, new since baseline\n"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.version, func(t *testing.T) {
+			t.Parallel()
+
+			var buf bytes.Buffer
+			if err := WriteCheckText(&buf, fixedCheckAt(tt.version)); err != nil {
+				t.Fatal(err)
+			}
+			want := findings + tt.summary + "deleted since baseline: old\n"
+			if buf.String() != want {
+				t.Errorf("text =\n%s\nwant\n%s", buf.String(), want)
+			}
+		})
 	}
 }
 
@@ -120,7 +151,7 @@ func TestWriteCheckTextSummaryDelta(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			c := passingCheck()
+			c := passingCheckAt(calibratedVersion)
 			c.Packages[0].BaseAgentPasses = &tt.base
 			var buf bytes.Buffer
 			if err := WriteCheckText(&buf, c); err != nil {
@@ -130,6 +161,48 @@ func TestWriteCheckTextSummaryDelta(t *testing.T) {
 				t.Errorf("text = %q, want the summary to end with %q", buf.String(), tt.want)
 			}
 		})
+	}
+}
+
+// TestWriteCheckTextUncalibratedSummary checks that without a calibrated
+// estimate a package with a baseline ends its summary at the finding
+// counts, with no change in agent passes.
+func TestWriteCheckTextUncalibratedSummary(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := WriteCheckText(&buf, passingCheck()); err != nil {
+		t.Fatal(err)
+	}
+	if want := ".: 0 violations, 0 warnings\n"; buf.String() != want {
+		t.Errorf("text = %q, want %q", buf.String(), want)
+	}
+}
+
+// TestWriteCheckJSONKeepsEstimate checks that the JSON report carries the
+// rebuild estimate whether or not it is calibrated: the two versions'
+// output differs only in config_version and rebuild.calibrated.
+func TestWriteCheckJSONKeepsEstimate(t *testing.T) {
+	t.Parallel()
+
+	render := func(v string) string {
+		t.Helper()
+		var buf bytes.Buffer
+		if err := WriteCheckJSON(&buf, fixedCheckAt(v)); err != nil {
+			t.Fatal(err)
+		}
+		return buf.String()
+	}
+	uncal, cal := render(uncalibratedVersion), render(calibratedVersion)
+	for _, key := range []string{`"agent_passes": 0`, `"tier": "ONE_PASS"`, `"calibrated": false`} {
+		if !strings.Contains(uncal, key) {
+			t.Errorf("uncalibrated json has no %s:\n%s", key, uncal)
+		}
+	}
+	normalized := strings.NewReplacer(calibratedVersion, uncalibratedVersion,
+		`"calibrated": true`, `"calibrated": false`).Replace(cal)
+	if normalized != uncal {
+		t.Errorf("json differs beyond config_version and calibrated:\n%s\nwant\n%s", cal, uncal)
 	}
 }
 
@@ -199,6 +272,34 @@ func TestWriteHook(t *testing.T) {
 			t.Errorf("warnings writer = %q, want empty on failure", warn.String())
 		}
 	})
+	// The reason is the findings alone under either config version: no
+	// agent passes or tier, calibrated or not.
+	for _, v := range []string{uncalibratedVersion, calibratedVersion} {
+		t.Run("reason under "+v, func(t *testing.T) {
+			t.Parallel()
+
+			var out, warn bytes.Buffer
+			if err := WriteHook(&out, &warn, fixedCheckAt(v)); err != nil {
+				t.Fatal(err)
+			}
+			var got hookBlock
+			if err := json.Unmarshal(out.Bytes(), &got); err != nil {
+				t.Fatalf("decoding %q: %v", out.String(), err)
+			}
+			want := "violations:\n" +
+				"  internal/billing\n" +
+				"    dup_blocks: 1 -> 3, max_delta +0. Extract helpers.\n" +
+				"    globals: 0 -> 1, max_delta +0. Pass it explicitly.\n" +
+				"warnings:\n" +
+				"  internal/billing\n" +
+				"    tokens_est: 24100 (no baseline), max 30000. at 80% of the 30000 ceiling; plan a split.\n" +
+				"  big\n" +
+				"    tokens_est: 25000 (no baseline), max 30000. at 83% of the 30000 ceiling.\n"
+			if got.Reason != want {
+				t.Errorf("reason =\n%s\nwant\n%s", got.Reason, want)
+			}
+		})
+	}
 	t.Run("success prints an empty object and warnings aside", func(t *testing.T) {
 		t.Parallel()
 
@@ -228,19 +329,27 @@ func TestWriteHook(t *testing.T) {
 	})
 }
 
+// TestWriteGitHub annotates the fixed check under both config versions: the
+// annotations carry the findings alone, no agent passes or tier.
 func TestWriteGitHub(t *testing.T) {
 	t.Parallel()
 
-	var buf bytes.Buffer
-	if err := WriteGitHub(&buf, fixedCheck()); err != nil {
-		t.Fatal(err)
-	}
 	want := "::error file=internal/billing::dup_blocks: 1 -> 3, max_delta +0. Extract helpers.\n" +
 		"::error file=internal/billing::globals: 0 -> 1, max_delta +0. Pass it explicitly.\n" +
 		"::warning file=internal/billing::tokens_est: 24100 (no baseline), max 30000. at 80%25 of the 30000 ceiling; plan a split.\n" +
 		"::warning file=big::tokens_est: 25000 (no baseline), max 30000. at 83%25 of the 30000 ceiling.\n"
-	if buf.String() != want {
-		t.Errorf("github =\n%s\nwant\n%s", buf.String(), want)
+	for _, v := range []string{uncalibratedVersion, calibratedVersion} {
+		t.Run(v, func(t *testing.T) {
+			t.Parallel()
+
+			var buf bytes.Buffer
+			if err := WriteGitHub(&buf, fixedCheckAt(v)); err != nil {
+				t.Fatal(err)
+			}
+			if buf.String() != want {
+				t.Errorf("github =\n%s\nwant\n%s", buf.String(), want)
+			}
+		})
 	}
 }
 

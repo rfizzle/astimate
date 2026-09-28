@@ -30,6 +30,14 @@ history.
   capacity ceilings no longer claim to ensure one pass, section 4 citations were
   checked against their abstracts, and milestone M8 was added.
 
+- `check` text, and `check_package`'s text, no longer show agent passes, tier
+  or the change in passes from the baseline while the rebuild estimate is
+  uncalibrated (a `config_version` not starting `rebuild-`): the summary line
+  reads `<pkg>: N violations, M warnings`. The estimate rewards duplication
+  and penalizes tests, so beside a gate finding it told the agent the
+  opposite. A calibrated config brings the line back unchanged. The hook
+  reason and GitHub annotations never carried them; `assess`, `rank` and
+  every JSON output are unchanged.
 - TypeScript packages are judged by their own thresholds: the default
   configuration ships a `languages.typescript` override fitted on 1,209
   packages from 20 TypeScript repositories (`calibration/corpus-typescript.yaml`,
