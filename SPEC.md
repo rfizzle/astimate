@@ -88,7 +88,8 @@ astimate/
 │   │   └── metricstest/         # Conformance suite every extractor runs, plus a fake extractor
 │   ├── config/                  # Embedded default config and the unified loader
 │   ├── lang/
-│   │   └── golang/              # Go extractor
+│   │   ├── golang/              # Go extractor
+│   │   └── typescript/          # TypeScript extractor (internal/resolve, internal/inspect, internal/walk)
 │   ├── gate/                    # Thresholds config, baseline, ratchet comparison, violations
 │   ├── score/                   # Rebuild estimate, tiers, drivers, explanations
 │   ├── baseline/                # Git-ref and file baselines

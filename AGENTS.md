@@ -69,6 +69,7 @@ The repository follows the [golang-standards/project-layout](https://github.com/
 
 - `internal/metrics` defines `RawMetrics` and `Extractor`. It imports nothing language-specific.
 - `internal/lang/<lang>` implements one extractor. Language-specific code lives only here.
+- An extractor may split its own code under `internal/lang/<lang>/internal/...`, which only that extractor can import; the TypeScript extractor composes `resolve` (module files, tsconfig and import resolution), `inspect` (the per-file read, parse and declaration pass) and `walk` (tokens, complexity and fingerprints below the top-level statement).
 - `internal/score` and `internal/gate` depend on `internal/metrics` only. Neither may import any `internal/lang` package.
 - `internal/config` is the composition point: it imports `metrics`, `score` and `gate`, parses YAML, and produces `score.RebuildParams` and `[]gate.Threshold`. Those types and their `Validate` methods live in `score` and `gate`, which never import `config`.
 - `internal/baseline` may call `git` and the extractor registry, and nothing in `score` or `gate` may call `git`.
