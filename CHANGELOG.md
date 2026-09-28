@@ -12,6 +12,11 @@ history.
 
 ### Added
 
+- Rebuild runner: `go run ./calibration/rebuild run --live` runs each rebuild
+  experiment against Claude Code in a fresh clone and writes one JSONL row per
+  run with the measured tokens, turns, wall time and oracle outcome beside the
+  package's metrics and pre-run estimate; it resumes interrupted runs and never
+  spends requests without `--live`.
 - Rebuild experiment definition: `calibration/rebuild` selects 34 corpus
   packages across every tier, tested and untested, stubs them to signatures
   deterministically and records each one's oracle, pin and pre-run estimate.
