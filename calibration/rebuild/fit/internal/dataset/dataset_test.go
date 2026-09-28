@@ -128,6 +128,7 @@ func TestBuildRefuses(t *testing.T) {
 		{"two agents", func(rs []runner.RunRow) []runner.RunRow { rs[1].Agent.Name = "b"; return rs }, "one agent at a time"},
 		{"two models", func(rs []runner.RunRow) []runner.RunRow { rs[1].Agent.Model = "n"; return rs }, "one agent at a time"},
 		{"repeated run", func(rs []runner.RunRow) []runner.RunRow { return append(rs, rs[0]) }, "appears twice"},
+		{"two units", func(rs []runner.RunRow) []runner.RunRow { rs[1].Unit = "tree"; return rs }, "fit one unit at a time"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

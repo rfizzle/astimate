@@ -8,6 +8,7 @@ package pin
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -87,10 +88,11 @@ func resetClone(ctx context.Context, dir string) error {
 	return runGit(ctx, "-C", dir, "clean", "--quiet", "-fd")
 }
 
-// importerTests returns, sorted, the patterns of the packages in the module
-// at root, other than pkg itself, that import pkg from any file and have
-// test files: the tests that check an untested package's behavior.
-func importerTests(ctx context.Context, root, module, pkg string, env []string) ([]string, error) {
+// importersOf returns, sorted, the patterns of the packages in the module
+// at root that skip does not exclude, import one of targets from any
+// file, and have test files: the tests that check an untested package's,
+// or tree's, behavior.
+func importersOf(ctx context.Context, root, module string, targets []string, skip func(importPath string) bool, env []string) ([]string, error) {
 	const format = `{{.ImportPath}}|{{join .Imports ","}},{{join .TestImports ","}},{{join .XTestImports ","}}|{{len .TestGoFiles}}{{len .XTestGoFiles}}`
 	out, err := RunGo(ctx, root, env, "list", "-e", "-f", format, "./...")
 	if err != nil {
@@ -99,10 +101,11 @@ func importerTests(ctx context.Context, root, module, pkg string, env []string) 
 	var pats []string
 	for line := range strings.Lines(out) {
 		fields := strings.Split(strings.TrimSpace(line), "|")
-		if len(fields) != 3 || fields[0] == pkg || fields[2] == "00" {
+		if len(fields) != 3 || skip(fields[0]) || fields[2] == "00" {
 			continue
 		}
-		if slices.Contains(strings.Split(fields[1], ","), pkg) {
+		imports := strings.Split(fields[1], ",")
+		if slices.ContainsFunc(targets, func(t string) bool { return slices.Contains(imports, t) }) {
 			pats = append(pats, definition.OwnPattern(definition.ModRelDir(module, fields[0])))
 		}
 	}
@@ -237,9 +240,45 @@ func (k *Checker) prepareClone(ctx context.Context, repo, commit, dir string) er
 // Check verifies candidate c at its pin: the package has no non-Go
 // sources; its oracle has tests to run; the oracle passes on the original
 // tree; stubbing twice gives identical files; the stubbed module builds;
-// the stubbed oracle's tests build and fail with the stub's panic. The clone is restored to the
-// pin afterwards.
-func (k *Checker) Check(ctx context.Context, c selection.Candidate) (exp definition.Experiment, err error) {
+// the stubbed oracle's tests build, start, and fail with the stub's
+// panic. The clone is restored to the pin afterwards.
+func (k *Checker) Check(ctx context.Context, c selection.Candidate) (definition.Experiment, error) {
+	dir := definition.ModRelDir(c.Row.Module, c.Row.Package)
+	return k.check(ctx, c, func(root string) (plan, error) {
+		pkgDir := filepath.Join(root, filepath.FromSlash(dir))
+		return plan{
+			dir: dir, dirs: []string{dir}, own: definition.OwnPattern(dir),
+			skip:        func(p string) bool { return p == c.Row.Package },
+			targets:     []string{c.Row.Package},
+			noImporters: "no importer in the module has tests",
+			stub:        func() ([]stub.File, error) { return stub.Package(ctx, pkgDir, k.env) },
+		}, nil
+	})
+}
+
+// plan is what check needs to verify one candidate, a package or a tree.
+type plan struct {
+	// dir is the candidate's directory and dirs every package directory
+	// the stub replaces, module-relative.
+	dir  string
+	dirs []string
+	// own is the oracle's test pattern when the candidate has tests.
+	own string
+	// Without tests, the oracle is the tests of the packages that import
+	// one of targets and that skip does not exclude; noImporters is the
+	// rejection when there is none.
+	targets     []string
+	skip        func(importPath string) bool
+	noImporters string
+	// stub returns the stubbed files, named relative to dir.
+	stub func() ([]stub.File, error)
+}
+
+// check verifies candidate c in its module's clone, restored to the pin
+// afterwards: prepare returns the plan for the clone at root; no
+// directory of the plan has non-Go sources; the oracle has tests to run;
+// and verify passes.
+func (k *Checker) check(ctx context.Context, c selection.Candidate, prepare func(root string) (plan, error)) (exp definition.Experiment, err error) {
 	root, err := k.clone(ctx, c)
 	if err != nil {
 		return definition.Experiment{}, err
@@ -249,57 +288,119 @@ func (k *Checker) Check(ctx context.Context, c selection.Candidate) (exp definit
 			err = fmt.Errorf("restoring clone: %w", rerr)
 		}
 	}()
-	dir := definition.ModRelDir(c.Row.Module, c.Row.Package)
-	pkgDir := filepath.Join(root, filepath.FromSlash(dir))
-	other, err := nonGoSources(pkgDir)
+	p, err := prepare(root)
 	if err != nil {
-		return definition.Experiment{}, rejected("%s", err)
+		return definition.Experiment{}, err
 	}
-	if len(other) > 0 {
-		return definition.Experiment{}, rejected("non-Go sources a stub cannot replace: %s", strings.Join(other, ", "))
+	if err := checkSources(root, p.dirs); err != nil {
+		return definition.Experiment{}, err
 	}
-	oracle := definition.Oracle{Test: []string{definition.OwnPattern(dir)}, Build: []string{"./..."}}
+	oracle := definition.Oracle{Test: []string{p.own}, Build: []string{"./..."}}
 	if !c.Row.Metrics.HasTests {
-		oracle.Test, err = importerTests(ctx, root, c.Row.Module, c.Row.Package, k.env)
-		if err != nil {
+		if oracle.Test, err = importersOf(ctx, root, c.Row.Module, p.targets, p.skip, k.env); err != nil {
 			return definition.Experiment{}, err
 		}
 		if len(oracle.Test) == 0 {
-			return definition.Experiment{}, rejected("no importer in the module has tests")
+			return definition.Experiment{}, rejected("%s", p.noImporters)
 		}
 	}
+	hash, err := k.verify(ctx, root, filepath.Join(root, filepath.FromSlash(p.dir)), oracle, p.stub)
+	if err != nil {
+		// Paths in the reason are the clone's; keep them module-relative
+		// so the report does not depend on --work.
+		return definition.Experiment{}, errors.New(strings.ReplaceAll(err.Error(), root+string(filepath.Separator), ""))
+	}
+	return selection.NewExperiment(c, oracle, hash, k.turnCap), nil
+}
+
+// checkSources rejects a plan with non-Go sources in any of its package
+// directories, naming the directory when there are several.
+func checkSources(root string, dirs []string) error {
+	for _, d := range dirs {
+		other, err := nonGoSources(filepath.Join(root, filepath.FromSlash(d)))
+		if err != nil {
+			return rejected("%s", err)
+		}
+		where := ""
+		if len(dirs) > 1 {
+			where = " in " + d
+		}
+		if len(other) > 0 {
+			return rejected("non-Go sources a stub cannot replace%s: %s", where, strings.Join(other, ", "))
+		}
+	}
+	return nil
+}
+
+// verify runs the checks at the pin that follow the oracle's choice, in
+// the clone at root: the oracle passes on the original tree; stubbing
+// twice gives identical files, which are written under dir; the stubbed
+// module builds; the oracle's tests build and start on the stub (no
+// package initialization panics, which is what the runner checks before
+// the agent starts); and they fail with the stub's panic. It returns the
+// stub's tree hash.
+func (k *Checker) verify(ctx context.Context, root, dir string, oracle definition.Oracle, stubFn func() ([]stub.File, error)) (string, error) {
 	testArgs := append([]string{"test"}, oracle.Test...)
-	if out, err := RunGo(ctx, root, k.env, testArgs...); err != nil {
-		return definition.Experiment{}, rejected("oracle tests fail before stubbing: %s", Tail(out))
+	if err := k.mustPass(ctx, root, "oracle tests fail before stubbing", testArgs...); err != nil {
+		return "", err
 	}
-	first, err := stub.Package(pkgDir)
+	hash, err := writeStub(dir, stubFn)
 	if err != nil {
-		return definition.Experiment{}, rejected("%s", err)
+		return "", err
 	}
-	second, err := stub.Package(pkgDir)
-	if err != nil {
-		return definition.Experiment{}, rejected("%s", err)
-	}
-	hash := stub.TreeHash(first)
-	if stub.TreeHash(second) != hash {
-		return definition.Experiment{}, rejected("stubbing is not deterministic")
-	}
-	if err := stub.Write(pkgDir, first); err != nil {
-		return definition.Experiment{}, rejected("%s", err)
-	}
-	if out, err := RunGo(ctx, root, k.env, "build", "./..."); err != nil {
-		return definition.Experiment{}, rejected("stubbed module does not build: %s", Tail(out))
+	for _, step := range []struct {
+		why  string
+		args []string
+	}{
+		{"stubbed module does not build", []string{"build", "./..."}},
+		{"oracle tests do not start on the stub", append([]string{"test", "-count=1", "-run", "^$"}, oracle.Test...)},
+	} {
+		if err := k.mustPass(ctx, root, step.why, step.args...); err != nil {
+			return "", err
+		}
 	}
 	out, err := RunGo(ctx, root, k.env, testArgs...)
 	switch {
 	case err == nil:
-		return definition.Experiment{}, rejected("oracle tests still pass on the stub")
+		return "", rejected("oracle tests still pass on the stub")
 	case testBuildBroken(out):
-		return definition.Experiment{}, rejected("stub breaks the test build: %s", Tail(out))
+		return "", rejected("stub breaks the test build: %s", Tail(out))
 	case !strings.Contains(out, stub.Panic):
-		return definition.Experiment{}, rejected("oracle tests fail on the stub without reaching it: %s", Tail(out))
+		return "", rejected("oracle tests fail on the stub without reaching it: %s", Tail(out))
 	}
-	return selection.NewExperiment(c, oracle, hash, k.turnCap), nil
+	return hash, nil
+}
+
+// writeStub stubs twice with stubFn, rejects a stub that differs between
+// the two, writes the first under dir and returns its tree hash.
+func writeStub(dir string, stubFn func() ([]stub.File, error)) (string, error) {
+	var hashes [2]string
+	var files []stub.File
+	for i := range hashes {
+		f, err := stubFn()
+		if err != nil {
+			return "", rejected("%s", err)
+		}
+		files, hashes[i] = f, stub.TreeHash(f)
+	}
+	if hashes[0] != hashes[1] {
+		return "", rejected("stubbing is not deterministic")
+	}
+	if err := stub.Write(dir, files); err != nil {
+		return "", rejected("%s", err)
+	}
+	return hashes[0], nil
+}
+
+// mustPass runs the go command with args in root and rejects the
+// candidate with why and the end of the output when it fails.
+func (k *Checker) mustPass(ctx context.Context, root, why string, args ...string) error {
+	if out, err := RunGo(ctx, root, k.env, args...); err != nil {
+		// Paths in a panic's stack are the clone's; keep them
+		// module-relative so the reason does not depend on --work.
+		return rejected("%s: %s", why, Tail(strings.ReplaceAll(out, root+string(filepath.Separator), "")))
+	}
+	return nil
 }
 
 // GoVersion returns the version of the go command on PATH.

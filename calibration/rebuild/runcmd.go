@@ -48,7 +48,8 @@ func parseRunFlags(args []string, stderr io.Writer) (runOptions, error) {
 	fs.SetOutput(stderr)
 	var o runOptions
 	fs.StringVar(&o.definition, "definition", "calibration/rebuild/rebuild.yaml", "experiment definition")
-	fs.StringVar(&o.out, "out", "", "output directory for runs.jsonl and run.json (default calibration/data/rebuild-<date>-<agent name>)")
+	fs.StringVar(&o.out, "out", "", "output directory for runs.jsonl and run.json (default calibration/data/rebuild-<date>-<agent name>, "+
+		"or rebuild-trees-<date>-<agent name> for a tree definition)")
 	fs.IntVar(&o.repeats, "repeats", 3, "runs per experiment")
 	fs.StringVar(&o.only, "only", "", "run only the experiment of this package import path, or of this module")
 	fs.StringVar(&o.agent, "agent", "", "agent command template run by sh -c in the module root, with placeholders {"+
@@ -94,10 +95,19 @@ func parseRunFlags(args []string, stderr io.Writer) (runOptions, error) {
 			o.agentName = agent.CustomName
 		}
 	}
-	if o.out == "" {
-		o.out = filepath.Join("calibration", "data", "rebuild-"+time.Now().Format(time.DateOnly)+"-"+o.agentName)
-	}
 	return o, nil
+}
+
+// defaultOut is the output directory of a run of a definition with unit
+// when --out is not given: calibration/data/rebuild-<date>-<agent name>,
+// with rebuild-trees- for trees, so tree and package rows never share a
+// file.
+func defaultOut(unit, agentName string, now time.Time) string {
+	prefix := "rebuild-"
+	if unit == definition.UnitTree {
+		prefix = "rebuild-trees-"
+	}
+	return filepath.Join("calibration", "data", prefix+now.Format(time.DateOnly)+"-"+agentName)
 }
 
 // liveRefusal is the message the run command exits with when it would
@@ -151,8 +161,11 @@ func runRuns(ctx context.Context, args []string, stdout, stderr io.Writer) error
 	if err != nil {
 		return fmt.Errorf("%w: %w", errUsage, err)
 	}
+	if o.out == "" {
+		o.out = defaultOut(def.UnitOrDefault(), o.agentName, time.Now())
+	}
 	if o.plan {
-		return printPlan(stdout, filepath.Join(o.out, runner.RunsFile), exps, o)
+		return printPlan(stdout, filepath.Join(o.out, runner.RunsFile), def.UnitOrDefault(), exps, o)
 	}
 	// The one gate on spending: nothing below starts Claude Code, as the
 	// default agent or from a template that calls it, unless the user
@@ -181,7 +194,7 @@ func runRuns(ctx context.Context, args []string, stdout, stderr io.Writer) error
 	info := runner.RunInfo{
 		StartedAt: time.Now().UTC(), GoVersion: gover, GOOS: runtime.GOOS, GOARCH: runtime.GOARCH, CPUs: runtime.NumCPU(),
 		AstimateCommit: astimateCommit(ctx), Definition: filepath.ToSlash(o.definition),
-		DefinitionConfigVersion: def.ConfigVersion, DefinitionGoVersion: def.GoVersion, Env: def.Env,
+		DefinitionConfigVersion: def.ConfigVersion, DefinitionGoVersion: def.GoVersion, Unit: def.UnitOrDefault(), Env: def.Env,
 		Agent: o.agentName, Template: o.agent, Model: o.model, Repeats: o.repeats, Parallel: o.parallel,
 		TimeoutSeconds: o.timeout.Seconds(), Only: o.only, Experiments: len(exps),
 	}
@@ -212,11 +225,11 @@ func runRuns(ctx context.Context, args []string, stdout, stderr io.Writer) error
 
 // printPlan prints the runs an invocation would start, skipping those
 // already in the rows file, and the most agent turns they may take.
-func printPlan(w io.Writer, rowsPath string, exps []definition.Experiment, o runOptions) error {
+func printPlan(w io.Writer, rowsPath, unit string, exps []definition.Experiment, o runOptions) error {
 	var done map[runner.RunKey]bool
 	if rows, err := readRunsReadOnly(rowsPath); err != nil {
 		return fmt.Errorf("%w: %w", errUsage, err)
-	} else if done, err = runner.Completed(rows, o.agentName, o.agent, o.model, exps); err != nil {
+	} else if done, err = runner.Completed(rows, unit, o.agentName, o.agent, o.model, exps); err != nil {
 		return fmt.Errorf("%w: %s: %w", errUsage, rowsPath, err)
 	}
 	jobs := runner.Pending(exps, o.repeats, done)

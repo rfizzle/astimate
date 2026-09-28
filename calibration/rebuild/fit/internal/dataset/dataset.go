@@ -148,6 +148,9 @@ type Set struct {
 	// every row; Models are the models the sessions reported.
 	Agent, Model string
 	Models       []string
+	// Unit is what every row rebuilt: a package, or a tree of packages
+	// whose metrics are the members' aggregate.
+	Unit string
 	// Measure is the token measure used.
 	Measure Measure
 	// Rows is the number of rows read.
@@ -165,8 +168,9 @@ type Set struct {
 }
 
 // Build classifies rows under measure. Every row must come from one agent
-// name and model and no (package, run) may repeat, since the fit is for one
-// agent. A row counts as a pass when it is valid, its oracle completed and
+// name and model and one unit, and no (package, run) may repeat, since the
+// fit is for one agent and one unit: a tree's cost is not a package's. A
+// row counts as a pass when it is valid, its oracle completed and
 // passed, and its tokens were reported; a valid completed row that did not
 // pass is censored; every other row is excluded with the reason.
 func Build(rows []runner.RunRow, measure Measure) (Set, error) {
@@ -174,7 +178,7 @@ func Build(rows []runner.RunRow, measure Measure) (Set, error) {
 	if len(rows) == 0 {
 		return s, errors.New("no rows")
 	}
-	s.Agent, s.Model = rows[0].Agent.Name, rows[0].Agent.Model
+	s.Agent, s.Model, s.Unit = rows[0].Agent.Name, rows[0].Agent.Model, runner.RowUnit(&rows[0])
 	seen := make(map[string]bool, len(rows))
 	index := map[string]int{}
 	for i := range rows {
@@ -182,6 +186,10 @@ func Build(rows []runner.RunRow, measure Measure) (Set, error) {
 		if r.Agent.Name != s.Agent || r.Agent.Model != s.Model {
 			return s, fmt.Errorf("rows from agent %s (model %s) and %s (model %s): fit one agent at a time",
 				s.Agent, s.Model, r.Agent.Name, r.Agent.Model)
+		}
+		if u := runner.RowUnit(r); u != s.Unit {
+			return s, fmt.Errorf("rows of unit %s and %s (%s run %d): fit one unit at a time, from runs of "+
+				"one definition", s.Unit, u, r.Package, r.Run)
 		}
 		key := r.Package + "#" + strconv.Itoa(r.Run)
 		if seen[key] {

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/rfizzle/astimate/calibration/rebuild/internal/agent"
+	"github.com/rfizzle/astimate/calibration/rebuild/internal/definition"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/score"
 )
@@ -39,6 +40,9 @@ type RunRow struct {
 	Run int `json:"run"`
 	// TurnCap is the experiment's turn cap.
 	TurnCap int `json:"turn_cap"`
+	// Unit is the definition's unit, package or tree; a row written before
+	// the field existed reads as "" and is a package row.
+	Unit string `json:"unit"`
 	// Agent is the invocation and how it ended.
 	Agent AgentRun `json:"agent"`
 	// Estimate is the estimate before the run, from the definition.
@@ -46,6 +50,10 @@ type RunRow struct {
 	// Metrics are the package's raw metrics at the pin, the section 7.1
 	// inputs among them.
 	Metrics metrics.RawMetrics `json:"metrics"`
+	// Members are a tree's packages with their own estimates and metrics,
+	// so the fit can try other ways of combining them; empty for a
+	// package.
+	Members []Member `json:"members"`
 	// ConfigVersion is the configuration the estimate was made under.
 	ConfigVersion string `json:"config_version"`
 	// GoVersion is the toolchain the oracle ran with.
@@ -95,6 +103,37 @@ type Estimate struct {
 	HumanDays     float64 `json:"human_days"`
 	// HasTests says whether the oracle is the package's own tests.
 	HasTests bool `json:"has_tests"`
+}
+
+// Member is one package of a tree experiment in a row.
+type Member struct {
+	// Package and Dir identify the package.
+	Package string `json:"package"`
+	Dir     string `json:"dir"`
+	// Estimate is the package's own estimate before the run.
+	Estimate Estimate `json:"estimate"`
+	// Metrics are the package's raw metrics at the pin.
+	Metrics metrics.RawMetrics `json:"metrics"`
+}
+
+// RowUnit returns the unit of row r, the package unit for a row written
+// before rows recorded one.
+func RowUnit(r *RunRow) string {
+	if r.Unit == "" {
+		return definition.UnitPackage
+	}
+	return r.Unit
+}
+
+// members returns the row members of experiment e, empty for a package.
+func members(e *definition.Experiment) []Member {
+	out := make([]Member, len(e.Members))
+	for i, m := range e.Members {
+		out[i] = Member{Package: m.Package, Dir: m.Dir, Metrics: m.Metrics.RawMetrics,
+			Estimate: Estimate{Tier: m.Tier, AgentPasses: m.AgentPasses, RebuildTokens: m.RebuildTokens,
+				HumanDays: m.HumanDays, HasTests: m.HasTests}}
+	}
+	return out
 }
 
 // OracleOutcome is the oracle's verdict on a run.
@@ -153,6 +192,8 @@ type RunInfo struct {
 	Definition              string `json:"definition"`
 	DefinitionConfigVersion string `json:"definition_config_version"`
 	DefinitionGoVersion     string `json:"definition_go_version"`
+	// Unit is the definition's unit, package or tree.
+	Unit string `json:"unit"`
 	// Env is the environment of every go command and of the agent.
 	Env []string `json:"env"`
 	// Agent, Template and Model describe the agent invocation.

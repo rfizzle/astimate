@@ -10,6 +10,7 @@ cost. This directory defines that experiment and runs it. The fit,
 | --- | --- |
 | `rebuild.yaml` | The definition: one entry per package to rebuild. Generated; do not edit by hand. |
 | `selection.md` | The acceptance record of the selection run: every package taken, with its oracle, and every candidate rejected, with the reason. Generated. |
+| `rebuild-trees.yaml`, `selection-trees.md` | The same for [tree experiments](#tree-experiments), which rebuild a directory's packages together. Generated. |
 | `*.go` | `go run ./calibration/rebuild`, with the `select`, `stub` and `run` subcommands. The `select` and `run` command bodies live here; the definition's Go types and `Validate` (`internal/definition`), the selection rule (`internal/selection`), the stub strategy (`internal/stub`), go/git commands and the pin checker (`internal/pin`), the agent template and prompt (`internal/agent`) and the runner and its row type `RunRow` (`internal/runner`) are each their own package under `internal/`. |
 | `dryrun-agent.sh` | The stand-in agent for a dry run of the runner; it spends no requests. |
 
@@ -24,6 +25,8 @@ where the data came from and how it was checked:
 | `config_version` | The configuration the estimates were made under (from the collector's `run.json`) |
 | `go_version` | The toolchain the selection was verified with; the stub hashes depend on it |
 | `env` | Environment for every go command of the experiment: `CGO_ENABLED=0 GOTOOLCHAIN=local GOWORK=off` |
+| `unit` | What one experiment rebuilds: `package` (the default, and what a file without the field means) or `tree` |
+| `estimate_method` | For trees only: `sum` (see [tree experiments](#tree-experiments)) |
 | `selection` | The parameters of the selection rule below |
 
 Each experiment carries:
@@ -38,9 +41,12 @@ Each experiment carries:
 | `turn_cap` | The most agent turns a run may take (100 for every experiment) |
 | `has_tests`, `tier`, `agent_passes`, `rebuild_tokens`, `human_days` | The estimate before the run, at the pin |
 | `metrics` | The package's `RawMetrics` at the pin, under the report schema's field names |
+| `members` | For trees only: each package of the tree with its own estimate and metrics |
 
-`LoadDefinition` validates the file (`Definition.Validate`): at least 30
-experiments, tested and untested packages in every tier, no package twice, a
+`LoadDefinition` validates the file (`Definition.Validate`): for packages,
+at least 30 experiments, tested and untested packages in every tier, no
+members; for trees, the rules in [tree experiments](#tree-experiments); for
+both, no package twice, a
 full commit hash, a known stub strategy and a well-formed hash, an oracle of
 the right shape, a positive turn cap, and valid metrics without cgo.
 `go test ./calibration/rebuild` also checks that every experiment's module,
@@ -49,35 +55,63 @@ commit, metrics and estimate equal its row in `source`.
 ## The stub strategy
 
 `signatures`: for every non-test `.go` file in the package directory, each
-function and method body, `init` included, is replaced by
-`panic("not implemented")`. Everything outside a body is kept byte for byte:
-the package clause, build constraints (`//go:build`), types, constants,
-variables with their initializers, signatures and doc comments. Comments
-inside a body go with it. Declarations without a body (assembly or
-`//go:linkname`) are kept. The file is then formatted with
-`golang.org/x/tools/imports`, which also removes the imports no remaining
-code uses. Files of every build configuration are stubbed, not only the
-host's. Test files are untouched: they are the specification.
+function and method body other than `init`'s is replaced by
+`panic("not implemented")`. Everything outside those bodies is kept byte
+for byte: the package clause, build constraints (`//go:build`), types,
+constants, variables, `init` bodies, signatures and doc comments, with the
+exceptions below. Comments inside a body go with it. Declarations without
+a body (assembly or `//go:linkname`) are kept. The file is then formatted
+with `golang.org/x/tools/imports`, which also removes the imports no
+remaining code uses. Files of every build configuration are stubbed, not
+only the host's. Test files are untouched: they are the specification.
 
-Two consequences are deliberate:
+The stub must let the test binary start, or no test runs and the oracle
+cannot tell a partial rebuild from none. Package initialization runs
+before any test, so the initialization code that calls the package's own
+functions or methods, which now panic, is removed, and the rest is kept:
 
-- **Variable initializers stay.** A package-level `var x = f()` keeps its
-  initializer, so a stubbed `f` panics at program start and every test of
-  the package fails. The oracle is compile-then-test, so this is only an
-  earlier failure. Function literals inside a package-level initializer
-  (a table of handlers, say) keep their bodies; that code is part of what
-  the agent is given.
-- **`init` is stubbed**, so a package with an `init` panics at start too.
+- **A variable initializer that calls the package is removed.** A
+  package-level var spec whose initializer, evaluated at initialization,
+  calls a function or method the package defines (`var x = f()`,
+  `var re = regexp.MustCompile(pattern())`, `var cfg = Config{}.Load()`)
+  loses its values and keeps its names and declared type, or gains the type
+  `go/types` infers when it had none, so the variable starts at its zero
+  value (`var x T`). Names of different types become one spec each; an
+  import the type needs is added.
+- **An `init` statement that calls the package is removed.** Each
+  top-level statement of an `init` body that calls the package's code
+  (`resolver.Register(NewBuilder())`) is deleted; the others
+  (`API = jsonApi{}`, `internal.TimeNowFunc = time.Now`) stay.
+
+A call inside a function literal counts only where the literal is called
+there: a table of handlers keeps its bodies, which are part of what the
+agent is given. Initialization code that is a literal or calls only other
+packages (`errors.New`, `strings.Fields`) is kept. Restoring what was
+removed is part of the rebuild, and the prompt says so when anything was.
+
+Whether initialization code calls the package is decided on syntax first
+(a call of a name the package declares as a function, or of a selector
+naming one of its methods), and only a package where that may be so is
+type-checked, with `go/packages` under `GOOS=linux GOARCH=amd64` whatever
+the host, so the result does not depend on it. A package with neither
+such code nor an `init` stubs exactly as before these rules; the hashes of
+the 26 runs of 2026-09-28 are unchanged. A spec whose type cannot be
+written in the file (a foreign unexported type) is left as it is. An
+initialization panic the rules do not catch, such as a package function
+passed as a value to another package that calls it during initialization,
+or an importer's initializer calling the stubbed package, is caught by
+the selection's check that the stubbed tests start, which rejects the
+candidate.
 
 The stub is deterministic: it depends only on the files' contents, the
-toolchain's `go/printer` and the `golang.org/x/tools` version in this
-repository's `go.mod`, so a runner stubs with `go run ./calibration/rebuild`
-from the same astimate commit. `StubPackage` returns the files sorted by name, `TreeHash`
-hashes them, and the selection stubs every package twice and compares.
-`ApplyStub` refuses to write a stub whose hash differs from the
-definition's `stub_sha256`.
+toolchain's `go/printer` and `go/types`, and the `golang.org/x/tools`
+version in this repository's `go.mod`, so a runner stubs with
+`go run ./calibration/rebuild` from the same astimate commit. `stub.Package`
+returns the files sorted by name, `stub.TreeHash` hashes them, and the
+selection stubs every package twice and compares. `stub.Apply` refuses to
+write a stub whose hash differs from the definition's `stub_sha256`.
 
-By hand, on a clone at the pin:
+By hand, on a clone at the pin (`--tree` for a tree):
 
 ```sh
 go run ./calibration/rebuild stub --root <clone> --dir <dir> --sha256 <stub_sha256>
@@ -116,8 +150,11 @@ candidate's oracle runs twice.
    rerun the generator), with at least one function, with `agent_passes` at
    most `max_agent_passes` (10), and, when it has no tests, with a non-zero
    `fan_in + fan_in_tests`. Each estimate is recomputed from the metrics
-   under the embedded default parameters and must round to the row's
-   `agent_passes`, so the data and the parameters agree.
+   under the parameters of the configuration the data was collected under
+   (`--config`, by default `calibration/thresholds/astimate-<config_version>.yaml`
+   for the `config_version` in the collector's `run.json`), and must round
+   to the row's `agent_passes`, so the data and the parameters agree. The
+   embedded default has since been refitted, so it is not used here.
 2. **Strata.** Candidates are split by tier (SPEC.md 7.4) and by
    `has_tests` into six strata, each sorted by `rebuild_tokens`, then import
    path.
@@ -135,12 +172,22 @@ candidate's oracle runs twice.
    - the oracle's tests pass on the original tree;
    - stubbing twice gives identical files;
    - the stubbed module builds;
-   - the oracle's tests build and fail on the stub, with the stub's
+   - the oracle's tests build and start on the stub
+     (`go test -count=1 -run '^$'`, the runner's own check before the
+     agent starts), so no package initialization panics;
+   - the oracle's tests fail on the stub, with the stub's
      `not implemented` panic in the output (a failure that never reaches
      the stub proves nothing).
 
    A candidate failing any check is recorded in `selection.md` with the
    reason, and the slot moves on to the next candidate.
+
+   The first selection (2026-09-28) checked only that the stubbed tests
+   failed with the panic, which an initialization panic also satisfies, so
+   it took eight packages whose stub panicked in a variable initializer or
+   `init` before any test ran; the runner's check refused them. Keeping
+   `init` bodies, removing the initialization code that calls the package,
+   and the start check fixed that.
 
 The result depends only on the data, the pins, the toolchain and the tests'
 outcomes; a flaky test can change a verdict, which `selection.md` would
@@ -156,6 +203,67 @@ enough packages in every tier, so the first selection leaves std out.
 corpus. Packages above 10 passes cost the most to run and add little to
 fitting the exponent past the knee; they can be added once the first runs
 show the cost.
+
+## Tree experiments
+
+A package experiment measures one package. An agent that rebuilds a
+subsystem rebuilds several packages that depend on each other, and whether
+that costs the sum of the packages' estimates, or more, is what a tree
+experiment measures. `rebuild-trees.yaml` (`unit: tree`) holds them.
+
+**The tree.** A tree experiment names a directory `dir` of a cloned
+corpus module (not the module root) that holds a package. Its members are
+that package and every package below it, excluding test files, `testdata`
+and directories go ignores, and packages named `main`, which are left as
+they are. All members are stubbed together, each as a package is (a
+member of tests only, such as an `e2e` directory, has nothing to stub); the
+stub's files are named by their path below `dir`, and `stub_sha256`
+hashes them all. `package` is the import path of `dir`'s package and keys
+the runs.
+
+**The oracle.** When any member has tests (`has_tests`), `oracle.test` is
+`./<dir>/...`: the tests of every package in the tree. When none has, it
+is the tests of every package outside the tree that imports a member.
+`oracle.build` is `./...`.
+
+**The estimate** (`estimate_method: sum`). Each member carries its own
+`metrics` and pre-run estimate under `members`. The tree's `rebuild_tokens`
+and `human_days` are the members' sums, and its `agent_passes` and `tier`
+are the summed tokens passed through the SPEC.md 7.2 curve once. The
+tree's `metrics` aggregate the members': counts summed, `largest_file_sloc`,
+`max_nesting` and `cognitive_p90` the members' largest, `duplication_pct`
+weighted by `tokens_est` so the volume term sums, `has_tests`,
+`uses_cgo` and `uses_reflect` true when any member's is, and the ratio and
+module-level fields null. The estimate of the aggregate under the same
+parameters is therefore the sum method's, and the fit can regress on it
+directly; the members are kept so it can also try other combinations.
+
+**The selection** (`select --unit tree`), under the same data and
+configuration as packages:
+
+1. **Candidates.** Every package of a cloned module, other than the root
+   and `main` packages, whose tree has `min_packages` (2) to
+   `max_packages` (8) members, none using cgo or with generated files, and
+   whose summed estimate is at most `max_agent_passes` (12). Finding the
+   `main` packages clones every module a tree may come from.
+2. **Strata and slots** as for packages, with `per_stratum` (3) slots for
+   tested strata and `per_stratum_untested` (2) for untested ones, and at
+   most `max_per_module` (2) trees per module: at most 15 trees, at least
+   half of them tested when every stratum fills.
+3. **Checks** as for packages, for the whole tree: the members at the pin
+   are the data's, no member has non-Go sources, the oracle passes on the
+   original tree, the stub is deterministic and builds, and the oracle's
+   tests start and fail with the panic.
+
+`Definition.Validate` checks a tree definition: 12 to 16 trees, at least
+half tested, at most `max_per_module` per module, and for each tree its
+members (the tree's own package first, the rest below it in directory
+order, within the bounds), the sums, the aggregate metrics and the oracle.
+
+```sh
+go run ./calibration/rebuild select --unit tree --work <scratch directory>
+go run ./calibration/rebuild run --definition calibration/rebuild/rebuild-trees.yaml --plan
+```
 
 ## The runner
 
@@ -189,7 +297,11 @@ second run, so a partial result covers every experiment. Each run:
 4. Writes the prompt to a file beside the clone, outside the module. The
    prompt names the package, its directory and the module root. It asks
    the agent to make the oracle's tests pass, not to edit test files and
-   not to touch other packages, and it gives the oracle command.
+   not to touch other packages, and it gives the oracle command. When the
+   stub removed initialization code, it says so, and that restoring it is
+   part of the work. For a tree, it names the tree's
+   directory and every member package, and says not to touch packages
+   outside the tree.
 5. Runs the agent command through `sh -c`, with the module root as its
    working directory, the definition's `env` added to the environment and
    a wall-clock limit (`--timeout`, 60 minutes by default). When the limit
@@ -199,7 +311,8 @@ second run, so a partial result covers every experiment. Each run:
    The row records each result separately.
 7. Lists the changed files with `git status`. The row is `valid` only when
    no `_test.go` file changed and nothing outside the package directory
-   did.
+   did; for a tree, nothing outside the member directories (a new package,
+   or a change to a `main` package below the tree, counts as outside).
 
 The default agent command, with `{model}` from `--model` and `{turn_cap}`
 from the experiment:
@@ -253,7 +366,9 @@ template spends requests without `--live`.
 ### Output
 
 The output directory (`--out`, by default
-`calibration/data/rebuild-<date>-<agent name>/`) holds:
+`calibration/data/rebuild-<date>-<agent name>/`, or
+`calibration/data/rebuild-trees-<date>-<agent name>/` for a tree
+definition) holds:
 
 | File | What it is |
 | --- | --- |
@@ -274,8 +389,9 @@ retries it. After three such failures in a row the runner starts no more
 runs, since the cause is likely to hit every run. An agent that timed out,
 or that ended its session with an error result, still gets the oracle and
 a row. Raising `--repeats` later adds only the new run indexes. The runner will not mix agents: when `runs.jsonl`
-holds rows made with another agent name, template or model, or from
-another stub, it exits 2 and asks for another `--out`. The exit code is 0
+holds rows made with another agent name, template or model, from
+another stub, or of another unit (a row without `unit` is a package row),
+it exits 2 and asks for another `--out`. The exit code is 0
 when every pending run wrote a row and 1 when some did not (they are
 listed in `run.json` and on stderr).
 
@@ -292,10 +408,12 @@ that a fully populated row carries every field of the Go type `RunRow`.
 | `stub_sha256` | The stub the run started from |
 | `run` | Run index, 1 to `--repeats`; with `package` the resume key |
 | `turn_cap` | The experiment's turn cap |
+| `unit` | The definition's unit, `package` or `tree`; rows written before the field existed lack it and are package rows |
 | `agent.name`, `agent.template`, `agent.command`, `agent.model` | The agent, the template, the command as run, the model asked for |
 | `agent.exit_code`, `agent.timed_out`, `agent.wall_ms`, `agent.stderr_tail` | How the command ended; `wall_ms` is measured by the runner; `exit_code` is -1 when it was killed |
 | `estimate.tier`, `estimate.agent_passes`, `estimate.rebuild_tokens`, `estimate.human_days`, `estimate.has_tests` | The estimate before the run, from the definition |
-| `metrics` | The package's `RawMetrics` at the pin, with the section 7.1 inputs |
+| `metrics` | The package's `RawMetrics` at the pin, with the section 7.1 inputs; for a tree, the members' aggregate |
+| `members` | For a tree, each member's `package`, `dir`, `estimate` and `metrics`; empty for a package |
 | `config_version` | The configuration the estimate was made under |
 | `go_version` | The toolchain the oracle ran with |
 | `measured.input_tokens`, `measured.output_tokens`, `measured.cache_read_tokens`, `measured.cache_write_tokens` | Token counts, summed over every model of the session |
@@ -323,7 +441,7 @@ From the repository root, with `claude` on `PATH` and logged in:
 # What a full run would start, and the most turns it may take (spends nothing)
 go run ./calibration/rebuild run --plan
 
-# The full run: 34 experiments x 3 runs (live)
+# The full run: 33 experiments x 3 runs (live)
 go run ./calibration/rebuild run --live
 
 # One experiment (live), for a first look at the cost
@@ -342,14 +460,14 @@ later day needs `--out`. `--parallel N` runs N experiments at a time. It
 is faster, but the runs then compete for CPU during `go test`, and their
 wall times are less comparable.
 
-**What it costs.** The upper bound on requests is 34 experiments x 3 runs
-x 100 turns = 10,200 agent turns. Each turn is one model request, and the
+**What it costs.** The upper bound on requests is 33 experiments x 3 runs
+x 100 turns = 9,900 agent turns. Each turn is one model request, and the
 tool list allows no subagents. Real sessions are expected to stop well
 below the cap. Wall time has not been
 measured yet. Setup and the oracle take about 10 to 60 seconds a run (the
 grpc dry run below took 10 seconds), and the agent's session dominates.
-At 5 to 20 minutes a session, 102 sequential runs take roughly 8 to 34
-hours; the 60-minute timeout bounds the worst case at about 105 hours.
+At 5 to 20 minutes a session, 99 sequential runs take roughly 8 to 33
+hours; the 60-minute timeout bounds the worst case at about 102 hours.
 Try one experiment first and read its row's `agent.wall_ms` and
 `measured.cost_usd`.
 
@@ -507,3 +625,9 @@ and writes the base configuration with only `config_version` and the five
 fitted `rebuild:` keys changed. Check a candidate with
 `ASTIMATE_CONFIG=$PWD/<candidate> go test ./internal/invariants` before it
 replaces `internal/config/default.yaml`.
+
+The fit takes rows of one unit only: package rows and tree rows measure
+different things, so it refuses runs files that mix them, and `--unit
+package` or `--unit tree` makes it refuse rows of the other. A tree fit
+regresses on each tree's aggregate metrics, which fits the `sum` estimate
+method, and names its candidate `rebuild-trees-<date>-<agent>`.

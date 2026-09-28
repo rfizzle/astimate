@@ -67,10 +67,15 @@ type Candidate struct {
 	Row Row
 	// Repo is the module's clone URL from corpus.yaml.
 	Repo string
-	// Estimate is the rebuild estimate under the default parameters.
+	// Estimate is the rebuild estimate under the selection's parameters;
+	// for a tree, the members' summed and passed through the curve once.
 	Estimate score.Rebuild
 	// Tier is the estimate's tier.
 	Tier score.Tier
+	// Members are a tree's packages, the tree's own first; empty for a
+	// package. A tree's Row carries its module, commit and import path,
+	// the members' aggregate metrics, and the tree's rounded estimate.
+	Members []Candidate
 }
 
 // Candidates returns the rows eligible for selection with their estimates
@@ -96,14 +101,24 @@ func Candidates(rows []Row, repos map[string]string, p score.RebuildParams, maxP
 			!m.HasTests && m.FanIn+m.FanInTests == 0:
 			continue
 		}
-		est := score.Estimate(*m, p)
-		if got := est.AgentPassesRounded(); got != r.AgentPasses {
-			return nil, fmt.Errorf("%s: agent_passes %v recomputes to %v; the data predates the current rebuild parameters",
-				r.Package, r.AgentPasses, got)
+		c, err := estimated(r, repo, p)
+		if err != nil {
+			return nil, err
 		}
-		out = append(out, Candidate{Row: *r, Repo: repo, Estimate: est, Tier: score.TierOf(est.AgentPasses, p.Tiers)})
+		out = append(out, c)
 	}
 	return out, nil
+}
+
+// estimated returns the candidate of row r with its estimate recomputed
+// under p, and fails when it does not round to the row's agent_passes.
+func estimated(r *Row, repo string, p score.RebuildParams) (Candidate, error) {
+	est := score.Estimate(r.Metrics, p)
+	if got := est.AgentPassesRounded(); got != r.AgentPasses {
+		return Candidate{}, fmt.Errorf("%s: agent_passes %v recomputes to %v; the data predates the current rebuild parameters",
+			r.Package, r.AgentPasses, got)
+	}
+	return Candidate{Row: *r, Repo: repo, Estimate: est, Tier: score.TierOf(est.AgentPasses, p.Tiers)}, nil
 }
 
 // Verdict is the outcome of checking one candidate.
@@ -126,13 +141,13 @@ type checkFunc func(ctx context.Context, c Candidate) (definition.Experiment, er
 
 // Select applies the selection rule: candidates are split into the six
 // strata (tier by has_tests), each sorted by rebuild_tokens then import
-// path; stratum slot k of perStratum starts at index floor(k*n/perStratum)
-// of its n candidates and takes the first candidate from there on that is
-// not yet taken, whose module has fewer than maxPerModule packages taken,
-// and that check accepts. Strata are filled in order, slot by slot, so the
+// path; slot k of a stratum's rule.Slots(s) slots starts at index
+// floor(k*n/slots) of its n candidates and takes the first candidate from
+// there on that is not yet taken, whose module has fewer than
+// rule.MaxPerModule taken, and that check accepts. Strata are filled in order, slot by slot, so the
 // result depends only on the candidates and check's verdicts. It returns
 // every verdict in the order they were reached.
-func Select(ctx context.Context, cands []Candidate, perStratum, maxPerModule int, check checkFunc) ([]Verdict, error) {
+func Select(ctx context.Context, cands []Candidate, rule definition.SelectionRule, check checkFunc) ([]Verdict, error) {
 	byStratum := groupByStratum(cands)
 	perModule := make(map[string]int)
 	tried := make(map[string]bool)
@@ -140,9 +155,10 @@ func Select(ctx context.Context, cands []Candidate, perStratum, maxPerModule int
 	for _, s := range definition.Strata() {
 		list := byStratum[s]
 		sortByTokens(list)
-		for k := range perStratum {
-			start := k * len(list) / perStratum
-			mod, err := fillSlot(ctx, list, start, s, tried, perModule, maxPerModule, check, &verdicts)
+		slots := rule.Slots(s)
+		for k := range slots {
+			start := k * len(list) / slots
+			mod, err := fillSlot(ctx, list, start, s, tried, perModule, rule.MaxPerModule, check, &verdicts)
 			if err != nil {
 				return verdicts, err
 			}
@@ -201,24 +217,19 @@ func fillSlot(ctx context.Context, list []Candidate, start int, s definition.Str
 	return "", nil
 }
 
-// NewExperiment fills an experiment from a candidate; the oracle and stub
-// hash come from the checks at the pin.
+// NewExperiment fills an experiment from a candidate, a package or a
+// tree; the oracle and stub hash come from the checks at the pin.
 func NewExperiment(c Candidate, oracle definition.Oracle, stubHash string, turnCap int) definition.Experiment {
+	var members []definition.Member
+	if len(c.Members) > 0 {
+		members = MemberDefs(c.Members)
+	}
+	// The experiment's estimate reads as a member's would.
+	self := MemberDefs([]Candidate{c})[0]
 	return definition.Experiment{
-		Module:        c.Row.Module,
-		Repo:          c.Repo,
-		Commit:        c.Row.Commit,
-		Package:       c.Row.Package,
-		Dir:           definition.ModRelDir(c.Row.Module, c.Row.Package),
-		Stub:          definition.StubSignatures,
-		StubSHA256:    stubHash,
-		Oracle:        oracle,
-		TurnCap:       turnCap,
-		HasTests:      c.Row.Metrics.HasTests,
-		Tier:          c.Tier,
-		AgentPasses:   c.Row.AgentPasses,
-		RebuildTokens: int(math.Round(c.Estimate.RebuildTokens)),
-		HumanDays:     c.Row.HumanDays,
-		Metrics:       definition.Metrics{RawMetrics: c.Row.Metrics},
+		Module: c.Row.Module, Repo: c.Repo, Commit: c.Row.Commit, Package: self.Package, Dir: self.Dir,
+		Stub: definition.StubSignatures, StubSHA256: stubHash, Oracle: oracle, TurnCap: turnCap,
+		HasTests: self.HasTests, Tier: self.Tier, AgentPasses: self.AgentPasses, RebuildTokens: self.RebuildTokens,
+		HumanDays: self.HumanDays, Metrics: self.Metrics, Members: members,
 	}
 }

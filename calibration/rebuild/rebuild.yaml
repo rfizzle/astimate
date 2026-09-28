@@ -598,7 +598,7 @@ experiments:
     package: github.com/gin-gonic/gin/codec/json
     dir: codec/json
     stub: signatures
-    stub_sha256: f4270b93cd0026e71afbc1317fdbdc04dae779ca6a5991c9c82e7621d032370d
+    stub_sha256: cd62390e41c53dca2e56bdf468ebbb5509aa941a9ab3a5cb45286f0238990955
     oracle:
       test:
         - .
@@ -646,54 +646,56 @@ experiments:
       tokens_est_generated: 0
       coverage_pct: null
       changed_func_cognitive_max: null
-  - module: gitea.dev
-    repo: https://github.com/go-gitea/gitea.git
-    commit: 3c5d2d1b63935429490b9f149da38f9deb5055ce
-    package: gitea.dev/services/auth/source/db
-    dir: services/auth/source/db
+  - module: golang.org/x/crypto
+    repo: https://go.googlesource.com/crypto
+    commit: 7a4a4d6beae2222add4437a0910bd48414e19211
+    package: golang.org/x/crypto/openpgp/errors
+    dir: openpgp/errors
     stub: signatures
-    stub_sha256: 249eaa8a0e51093f50d07d6e21f4fba39057e3ace3b51f36fc1d535c69b7d020
+    stub_sha256: 1a258e2a7a61d44ef10cee89dfff952a224419a8eb09f6f1e2c93c966f2cce28
     oracle:
       test:
-        - ./routers/web/user/setting
-        - ./services/auth
-        - ./services/auth/source/oauth2
+        - ./openpgp
+        - ./openpgp/armor
+        - ./openpgp/clearsign
+        - ./openpgp/packet
+        - ./openpgp/s2k
       build:
         - ./...
     turn_cap: 100
     has_tests: false
     tier: ONE_PASS
     agent_passes: 0.3
-    rebuild_tokens: 8240
-    human_days: 3.3
+    rebuild_tokens: 8351
+    human_days: 0.3
     metrics:
-      files: 2
-      sloc: 81
-      largest_file_sloc: 59
-      tokens_est: 1114
-      tokens_est_with_tests: 1275
-      internal_imports: 4
+      files: 1
+      sloc: 39
+      largest_file_sloc: 39
+      tokens_est: 723
+      tokens_est_with_tests: 723
+      internal_imports: 0
       external_imports: 0
-      stdlib_imports: 2
-      fan_in: 3
+      stdlib_imports: 1
+      fan_in: 5
       fan_in_tests: 0
-      exported_symbols: 11
-      globals: 0
-      init_funcs: 1
-      max_nesting: 2
-      cognitive_total: 12
-      cognitive_p90: 11
-      func_count: 9
-      dup_blocks: 1
-      duplication_pct: 24.7
-      test_files: 1
+      exported_symbols: 16
+      globals: 3
+      init_funcs: 0
+      max_nesting: 0
+      cognitive_total: 0
+      cognitive_p90: 0
+      func_count: 8
+      dup_blocks: 2
+      duplication_pct: 84.6
+      test_files: 0
       test_funcs: 0
       has_tests: false
       untested_exports: 8
-      dup_blocks_cross_pkg: 5
-      instability: 0.571
+      dup_blocks_cross_pkg: 0
+      instability: 0
       abstractness: 0
-      main_sequence_distance: 0.429
+      main_sequence_distance: 1
       uses_cgo: false
       uses_reflect: false
       generated_files: 0
@@ -752,52 +754,52 @@ experiments:
       tokens_est_generated: 0
       coverage_pct: null
       changed_func_cognitive_max: null
-  - module: google.golang.org/grpc
-    repo: https://github.com/grpc/grpc-go.git
-    commit: acccf8cd101ae1eb33385f27e12740b3edd730f0
-    package: google.golang.org/grpc/internal/resolver/dns
-    dir: internal/resolver/dns
+  - module: gitea.dev
+    repo: https://github.com/go-gitea/gitea.git
+    commit: 3c5d2d1b63935429490b9f149da38f9deb5055ce
+    package: gitea.dev/modelmigration/v1_20
+    dir: modelmigration/v1_20
     stub: signatures
-    stub_sha256: d82c91604834747d523e9583f7217ee4b600675939811f5c72e8f93242098360
+    stub_sha256: adff332e25b7f43180a31b17ef2a69684a1310221a7a6080e4e805f3db9526f1
     oracle:
       test:
-        - ./internal/resolver/dns
+        - ./modelmigration/v1_20
       build:
         - ./...
     turn_cap: 100
     has_tests: true
     tier: FEW_PASSES
     agent_passes: 1
-    rebuild_tokens: 25003
-    human_days: 15.6
+    rebuild_tokens: 25069
+    human_days: 20
     metrics:
-      files: 1
-      sloc: 340
-      largest_file_sloc: 340
-      tokens_est: 4342
-      tokens_est_with_tests: 20355
-      internal_imports: 7
-      external_imports: 0
-      stdlib_imports: 11
-      fan_in: 2
+      files: 16
+      sloc: 721
+      largest_file_sloc: 263
+      tokens_est: 9830
+      tokens_est_with_tests: 10795
+      internal_imports: 5
+      external_imports: 1
+      stdlib_imports: 3
+      fan_in: 1
       fan_in_tests: 0
-      exported_symbols: 10
-      globals: 6
-      init_funcs: 1
-      max_nesting: 3
-      cognitive_total: 73
-      cognitive_p90: 12
-      func_count: 19
-      dup_blocks: 1
-      duplication_pct: 3.5
+      exported_symbols: 74
+      globals: 3
+      init_funcs: 0
+      max_nesting: 4
+      cognitive_total: 80
+      cognitive_p90: 14
+      func_count: 22
+      dup_blocks: 14
+      duplication_pct: 43.6
       test_files: 2
       test_funcs: 1
       has_tests: true
-      untested_exports: 2
-      dup_blocks_cross_pkg: 0
-      instability: 0.778
-      abstractness: null
-      main_sequence_distance: null
+      untested_exports: 18
+      dup_blocks_cross_pkg: 43
+      instability: 0.833
+      abstractness: 0
+      main_sequence_distance: 0.167
       uses_cgo: false
       uses_reflect: false
       generated_files: 0
@@ -810,7 +812,7 @@ experiments:
     package: google.golang.org/grpc/credentials/google
     dir: credentials/google
     stub: signatures
-    stub_sha256: f25690587fcec66401e6140bff2e6f06911f4e5ac4fda01fe04d7c4581398044
+    stub_sha256: abebe8e27f0c2c6548261026fe9a84cd13958198e04a75ed574962900eb6b21b
     oracle:
       test:
         - ./credentials/google
@@ -1018,7 +1020,7 @@ experiments:
     package: github.com/gofiber/fiber/v3/middleware/logger
     dir: middleware/logger
     stub: signatures
-    stub_sha256: 773580be535f7e397b32dbe1c2d628ff61ce01d7d164e319544b065ca6253bb6
+    stub_sha256: 9f32d3db0f9411da4d7de7883d268d2cf667ddae9570f8741bad00886e81d5bb
     oracle:
       test:
         - ./middleware/logger
@@ -1064,54 +1066,54 @@ experiments:
       tokens_est_generated: 0
       coverage_pct: null
       changed_func_cognitive_max: null
-  - module: github.com/gofiber/fiber/v3
-    repo: https://github.com/gofiber/fiber.git
-    commit: e10bca7375d87511d8c764642689db7809a4e1c8
-    package: github.com/gofiber/fiber/v3/binder
-    dir: binder
+  - module: google.golang.org/grpc
+    repo: https://github.com/grpc/grpc-go.git
+    commit: acccf8cd101ae1eb33385f27e12740b3edd730f0
+    package: google.golang.org/grpc/internal/xds/server
+    dir: internal/xds/server
     stub: signatures
-    stub_sha256: 9c187b7a7f088a413aa0069eb575754923f66592f8bbd5b37912639bc6d3dcc4
+    stub_sha256: d2f971e833d3932d5750fef0a080e1b92f1b475ce9353cd8f3d2f3c7307b471b
     oracle:
       test:
-        - ./binder
+        - ./internal/xds/server
       build:
         - ./...
     turn_cap: 100
     has_tests: true
     tier: FEW_PASSES
     agent_passes: 2.5
-    rebuild_tokens: 51254
-    human_days: 35.1
+    rebuild_tokens: 51143
+    human_days: 60.3
     metrics:
-      files: 12
-      sloc: 1033
-      largest_file_sloc: 608
-      tokens_est: 12233
-      tokens_est_with_tests: 39531
-      internal_imports: 1
-      external_imports: 5
+      files: 7
+      sloc: 1074
+      largest_file_sloc: 425
+      tokens_est: 19139
+      tokens_est_with_tests: 33862
+      internal_imports: 18
+      external_imports: 0
       stdlib_imports: 9
       fan_in: 1
       fan_in_tests: 0
-      exported_symbols: 68
-      globals: 29
-      init_funcs: 1
-      max_nesting: 4
-      cognitive_total: 211
-      cognitive_p90: 8
-      func_count: 81
-      dup_blocks: 10
-      duplication_pct: 24.5
-      test_files: 13
-      test_funcs: 95
+      exported_symbols: 28
+      globals: 4
+      init_funcs: 0
+      max_nesting: 6
+      cognitive_total: 273
+      cognitive_p90: 16
+      func_count: 52
+      dup_blocks: 6
+      duplication_pct: 11.7
+      test_files: 4
+      test_funcs: 1
       has_tests: true
-      untested_exports: 0
+      untested_exports: 21
       dup_blocks_cross_pkg: 3
-      instability: 0.5
-      abstractness: 0
-      main_sequence_distance: 0.5
+      instability: 0.947
+      abstractness: 0.25
+      main_sequence_distance: 0.197
       uses_cgo: false
-      uses_reflect: true
+      uses_reflect: false
       generated_files: 0
       tokens_est_generated: 0
       coverage_pct: null
@@ -1599,7 +1601,7 @@ experiments:
     package: github.com/dgraph-io/badger/v4/y
     dir: "y"
     stub: signatures
-    stub_sha256: a29c72a62119a8bcc66db57e8b1eb20a8e6c4054e560f28f50e1933e7b4577a6
+    stub_sha256: 9ad44827ca2437c51bb804358cb7bbb0000e2c38c421c63960df09d167d5e29f
     oracle:
       test:
         - ./y
@@ -1693,60 +1695,6 @@ experiments:
       main_sequence_distance: 0.018
       uses_cgo: false
       uses_reflect: true
-      generated_files: 0
-      tokens_est_generated: 0
-      coverage_pct: null
-      changed_func_cognitive_max: null
-  - module: github.com/redis/go-redis/v9
-    repo: https://github.com/redis/go-redis.git
-    commit: cb175c6275d8ff6d926bde492114ea56fbb1757f
-    package: github.com/redis/go-redis/v9/internal/maintnotifications/logs
-    dir: internal/maintnotifications/logs
-    stub: signatures
-    stub_sha256: 2fe6db35501e203baadf57d29c69b21e2a7d53b11941e23ba47438311034b05a
-    oracle:
-      test:
-        - ./internal/pool
-        - ./maintnotifications
-        - ./maintnotifications/e2e
-      build:
-        - ./...
-    turn_cap: 100
-    has_tests: false
-    tier: PARTITION
-    agent_passes: 3.3
-    rebuild_tokens: 63072
-    human_days: 1.6
-    metrics:
-      files: 1
-      sloc: 518
-      largest_file_sloc: 518
-      tokens_est: 8622
-      tokens_est_with_tests: 8622
-      internal_imports: 1
-      external_imports: 0
-      stdlib_imports: 3
-      fan_in: 2
-      fan_in_tests: 1
-      exported_symbols: 143
-      globals: 0
-      init_funcs: 0
-      max_nesting: 1
-      cognitive_total: 6
-      cognitive_p90: 0
-      func_count: 72
-      dup_blocks: 41
-      duplication_pct: 93.6
-      test_files: 0
-      test_funcs: 0
-      has_tests: false
-      untested_exports: 71
-      dup_blocks_cross_pkg: 2
-      instability: 0.333
-      abstractness: null
-      main_sequence_distance: null
-      uses_cgo: false
-      uses_reflect: false
       generated_files: 0
       tokens_est_generated: 0
       coverage_pct: null

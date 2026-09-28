@@ -3,12 +3,14 @@ package main
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/rfizzle/astimate/calibration/rebuild/internal/agent"
+	"github.com/rfizzle/astimate/calibration/rebuild/internal/definition"
 )
 
 // TestCallsClaude checks that callsClaude recognizes every word of a
@@ -66,9 +68,19 @@ func TestRunNeedsLive(t *testing.T) {
 			if tt.code == exitUsage && !strings.Contains(stderr.String(), "--live") {
 				t.Errorf("refusal does not say how to run live:\n%s", stderr.String())
 			}
-			if tt.code == exitOK && !strings.Contains(stdout.String(), "102 runs pending") {
+			if want := fmt.Sprintf("%d runs pending", 3*shippedExperiments(t)); tt.code == exitOK && !strings.Contains(stdout.String(), want) {
 				t.Errorf("plan output:\n%s", stdout.String())
 			}
 		})
 	}
+}
+
+// shippedExperiments returns the number of experiments in rebuild.yaml.
+func shippedExperiments(t *testing.T) int {
+	t.Helper()
+	d, err := definition.LoadDefinition("rebuild.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return len(d.Experiments)
 }

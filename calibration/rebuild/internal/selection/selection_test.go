@@ -42,7 +42,7 @@ func TestSelectSpreadsAndReplaces(t *testing.T) {
 		return definition.Experiment{Package: c.Row.Package}, nil
 	}
 	run := func() []Verdict {
-		v, err := Select(context.Background(), slices.Clone(cands), 2, 3, check)
+		v, err := Select(context.Background(), slices.Clone(cands), definition.SelectionRule{PerStratum: 2, MaxPerModule: 3}, check)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -88,7 +88,7 @@ func TestSelectModuleCap(t *testing.T) {
 	accept := func(_ context.Context, c Candidate) (definition.Experiment, error) {
 		return definition.Experiment{Package: c.Row.Package}, nil
 	}
-	got, err := Select(context.Background(), cands, 3, 1, accept)
+	got, err := Select(context.Background(), cands, definition.SelectionRule{PerStratum: 3, MaxPerModule: 1}, accept)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/rfizzle/astimate/calibration/rebuild/internal/definition"
+	"github.com/rfizzle/astimate/calibration/rebuild/internal/stub"
 )
 
 // DefaultName names the default agent in the output directory and in the
@@ -116,23 +117,80 @@ func ShellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
-// BuildPrompt is the fixed prompt of every run.
-func BuildPrompt(e *definition.Experiment, root string, env []string) string {
-	var b strings.Builder
-	b.WriteString("The Go package " + e.Package + " in the module at " + root +
-		" (directory " + definition.OwnPattern(e.Dir) + ") has had its implementation removed: every function and method body " +
-		"in its non-test .go files panics with \"not implemented\". Its types, constants, variables, " +
-		"signatures and doc comments are intact, and so are all test files.\n\n")
-	if e.HasTests {
-		b.WriteString("Reimplement the package so that `go test " + definition.OwnPattern(e.Dir) + "` passes. ")
-	} else {
-		b.WriteString("The package has no tests of its own. Reimplement it so that the tests of the packages " +
-			"that import it pass: `go test " + strings.Join(e.Oracle.Test, " ") + "`. ")
+// BuildPrompt is the fixed prompt of every run; s says what the stub did
+// beyond the panics, and the prompt mentions it only when it did anything.
+func BuildPrompt(e *definition.Experiment, root string, env []string, s stub.Summary) string {
+	if len(e.Members) > 0 {
+		return treePrompt(e, root, env, s)
 	}
-	b.WriteString("Do not edit test files. Do not touch other packages: change only the non-test .go files in " +
-		definition.OwnPattern(e.Dir) + ".\n\nYou are done when this command succeeds from the module root:\n\n    " +
+	return prompt(e, env, s, promptText{
+		head: "The Go package " + e.Package + " in the module at " + root +
+			" (directory " + definition.OwnPattern(e.Dir) + ") has had its implementation removed: every function and method body " +
+			"in its non-test .go files panics with \"not implemented\". Its types, constants, variables, " +
+			"signatures and doc comments are intact, and so are all test files.",
+		tested:   "Reimplement the package so that",
+		untested: "The package has no tests of its own. Reimplement it so that the tests of the packages that import it pass:",
+		rule:     "Do not touch other packages: change only the non-test .go files in " + definition.OwnPattern(e.Dir) + ".",
+	})
+}
+
+// promptText is what differs between the prompt of a package and of a
+// tree.
+type promptText struct {
+	// head says what was removed and what is intact.
+	head string
+	// tested and untested lead into the test command the oracle runs.
+	tested, untested string
+	// rule says what the agent may change.
+	rule string
+}
+
+// prompt assembles the fixed prompt from t: the head, what the stub did
+// beyond the panics, the tests to make pass, the rules and the oracle.
+func prompt(e *definition.Experiment, env []string, s stub.Summary, t promptText) string {
+	var b strings.Builder
+	b.WriteString(t.head + extras(s) + "\n\n")
+	tests := "`go test " + strings.Join(e.Oracle.Test, " ") + "`"
+	if e.HasTests {
+		b.WriteString(t.tested + " " + tests + " passes. ")
+	} else {
+		b.WriteString(t.untested + " " + tests + ". ")
+	}
+	b.WriteString("Do not edit test files. " + t.rule + "\n\nYou are done when this command succeeds from the module root:\n\n    " +
 		strings.Join(env, " ") + " " + e.Oracle.Command() + "\n")
 	return b.String()
+}
+
+// extras is the prompt's sentence on what the stub did beyond the panics,
+// empty when it did nothing more.
+func extras(s stub.Summary) string {
+	if s.Inits == 0 && s.Vars == 0 {
+		return ""
+	}
+	return " The exceptions: package initialization no longer calls the package's own functions or methods. " +
+		"Package-level variables whose initializers did have lost their initializers and start at their zero " +
+		"values, and the statements of init functions that did have been removed; restoring them is part of " +
+		"the implementation."
+}
+
+// treePrompt is the fixed prompt of a tree experiment: it names the tree
+// directory and every package the stub removed.
+func treePrompt(e *definition.Experiment, root string, env []string, s stub.Summary) string {
+	tree := definition.OwnPattern(e.Dir)
+	var head strings.Builder
+	head.WriteString("The Go packages of the directory tree " + tree + " in the module at " + root +
+		" have had their implementation removed. They are:\n\n")
+	for _, m := range e.Members {
+		head.WriteString("- " + m.Package + " (directory " + definition.OwnPattern(m.Dir) + ")\n")
+	}
+	head.WriteString("\nEvery function and method body in their non-test .go files panics with \"not implemented\". " +
+		"Their types, constants, variables, signatures and doc comments are intact, and so are all test files.")
+	return prompt(e, env, s, promptText{
+		head:     head.String(),
+		tested:   "Reimplement the packages so that",
+		untested: "None of the packages has tests. Reimplement them so that the tests of the packages that import them pass:",
+		rule:     "Do not touch packages outside " + tree + ": change only the non-test .go files of the packages listed above.",
+	})
 }
 
 // Measured is what a run's agent reported about itself, read from its

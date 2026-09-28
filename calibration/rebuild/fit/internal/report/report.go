@@ -13,6 +13,7 @@ import (
 	"github.com/rfizzle/astimate/calibration/rebuild/fit/internal/emit"
 	"github.com/rfizzle/astimate/calibration/rebuild/fit/internal/model"
 	"github.com/rfizzle/astimate/calibration/rebuild/fit/internal/regress"
+	"github.com/rfizzle/astimate/calibration/rebuild/internal/definition"
 	"github.com/rfizzle/astimate/internal/score"
 )
 
@@ -240,6 +241,9 @@ func writeData(b *strings.Builder, in *Input) {
 	b.WriteString("## Data\n\n")
 	fmt.Fprintf(b, "| | |\n| --- | --- |\n| Agent | %s |\n| Model asked for | %s |\n| Models reported | %s |\n",
 		s.Agent, s.Model, strings.Join(s.Models, ", "))
+	if s.Unit == definition.UnitTree {
+		b.WriteString("| Unit | tree: each row rebuilds a directory tree, and its metrics are the members' aggregate |\n")
+	}
 	fmt.Fprintf(b, "| Rows | %d |\n| Packages with a verdict | %d |\n| Packages with a passing run | %d |\n",
 		s.Rows, len(s.Packages), len(in.Obs))
 	fmt.Fprintf(b, "| Censored runs (failed) | %d |\n| Excluded rows | %d |\n| Passing runs that hit the turn cap | %d |\n\n",

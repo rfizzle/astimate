@@ -132,15 +132,19 @@ func ParseRuns(path string, data []byte) ([]RunRow, error) {
 }
 
 // Completed returns the resume keys of rows whose oracle completed. It
-// fails when a row was made by another agent, model or stub, which would
-// mix incomparable runs in one file.
-func Completed(rows []RunRow, agentName, template, model string, exps []definition.Experiment) (map[RunKey]bool, error) {
+// fails when a row was made by another agent, model or stub, or for
+// another unit than unit, which would mix incomparable runs in one file.
+func Completed(rows []RunRow, unit, agentName, template, model string, exps []definition.Experiment) (map[RunKey]bool, error) {
 	stubs := make(map[string]string, len(exps))
 	for _, e := range exps {
 		stubs[e.Package] = e.StubSHA256
 	}
 	done := make(map[RunKey]bool, len(rows))
-	for _, r := range rows {
+	for i := range rows {
+		r := &rows[i]
+		if u := RowUnit(r); u != unit {
+			return nil, fmt.Errorf("%s run %d is a %s run, the definition's unit is %s; use another --out", r.Package, r.Run, u, unit)
+		}
 		if r.Agent.Name != agentName || r.Agent.Template != template || r.Agent.Model != model {
 			return nil, fmt.Errorf("%s run %d was made by agent %q with model %q and template %q; "+
 				"use another --out for a different agent", r.Package, r.Run, r.Agent.Name, r.Agent.Model, r.Agent.Template)
@@ -200,7 +204,7 @@ func (rn *Runner) Resume(ctx context.Context, exps []definition.Experiment, repe
 	if err != nil {
 		return res, &UsageError{err: err}
 	}
-	done, err := Completed(existing, rn.AgentName, rn.Template, rn.Model, exps)
+	done, err := Completed(existing, rn.Def.UnitOrDefault(), rn.AgentName, rn.Template, rn.Model, exps)
 	if err != nil {
 		return res, &UsageError{err: fmt.Errorf("%s: %w", path, err)}
 	}
@@ -318,10 +322,11 @@ func (rn *Runner) prepareGo(ctx context.Context, root, failMsg string, args ...s
 func (rn *Runner) runOne(ctx context.Context, e *definition.Experiment, run int) (RunRow, error) {
 	row := RunRow{
 		Schema: rowSchema, Module: e.Module, Package: e.Package, Dir: e.Dir, Commit: e.Commit,
-		StubSHA256: e.StubSHA256, Run: run, TurnCap: e.TurnCap,
+		StubSHA256: e.StubSHA256, Run: run, TurnCap: e.TurnCap, Unit: rn.Def.UnitOrDefault(),
 		Estimate: Estimate{Tier: e.Tier, AgentPasses: e.AgentPasses, RebuildTokens: e.RebuildTokens,
 			HumanDays: e.HumanDays, HasTests: e.HasTests},
 		Metrics:       e.Metrics.RawMetrics,
+		Members:       members(e),
 		ConfigVersion: rn.Def.ConfigVersion,
 		GoVersion:     rn.GoVersion,
 		StartedAt:     time.Now().UTC(),
@@ -339,7 +344,8 @@ func (rn *Runner) runOne(ctx context.Context, e *definition.Experiment, run int)
 	if err := rn.Clone(ctx, e.Repo, e.Commit, root); err != nil {
 		return row, setupError("cloning: %w", err)
 	}
-	if err := stub.Apply(root, e); err != nil {
+	summary, err := stub.Apply(ctx, root, e, rn.Def.Env)
+	if err != nil {
 		return row, setupError("%w", err)
 	}
 	// Download and compile everything the oracle needs before the agent
@@ -353,7 +359,7 @@ func (rn *Runner) runOne(ctx context.Context, e *definition.Experiment, run int)
 		return row, err
 	}
 	promptFile := filepath.Join(work, "prompt.txt")
-	if err := os.WriteFile(promptFile, []byte(agent.BuildPrompt(e, root, rn.Def.Env)), 0o644); err != nil {
+	if err := os.WriteFile(promptFile, []byte(agent.BuildPrompt(e, root, rn.Def.Env, summary)), 0o644); err != nil {
 		return row, setupError("%w", err)
 	}
 	row.Agent = AgentRun{Name: rn.AgentName, Template: rn.Template, Model: rn.Model}
@@ -376,7 +382,7 @@ func (rn *Runner) runOne(ctx context.Context, e *definition.Experiment, run int)
 	if err := rn.oracle(ctx, root, e, &row.Oracle); err != nil {
 		return row, err
 	}
-	row.Changes, err = changes(ctx, root, e.Dir)
+	row.Changes, err = changes(ctx, root, packageDirs(e))
 	if err != nil {
 		return row, setupError("%w", err)
 	}
@@ -456,9 +462,24 @@ func (rn *Runner) oracle(ctx context.Context, root string, e *definition.Experim
 	return nil
 }
 
+// packageDirs returns the module-relative directories whose non-test files
+// the agent may change: the package's, or every member's of a tree.
+func packageDirs(e *definition.Experiment) []string {
+	if len(e.Members) == 0 {
+		return []string{e.Dir}
+	}
+	dirs := make([]string, len(e.Members))
+	for i, m := range e.Members {
+		dirs[i] = m.Dir
+	}
+	return dirs
+}
+
 // changes lists the changed paths in the clone at root that the prompt
-// ruled out: test files anywhere, and anything outside dir.
-func changes(ctx context.Context, root, dir string) (Changes, error) {
+// ruled out: test files anywhere, and anything not directly in one of
+// dirs. For a tree that includes a new package below it and any main
+// package below it, which the stub did not touch.
+func changes(ctx context.Context, root string, dirs []string) (Changes, error) {
 	c := Changes{TestFiles: []string{}, OutsidePackage: []string{}}
 	out, err := exec.CommandContext(ctx, "git", "-C", root, "status", "--porcelain=v1", "-z", "--untracked-files=all").Output()
 	if err != nil {
@@ -483,7 +504,7 @@ func changes(ctx context.Context, root, dir string) (Changes, error) {
 			switch {
 			case strings.HasSuffix(p, "_test.go"):
 				c.TestFiles = append(c.TestFiles, p)
-			case !inPackage(dir, p):
+			case !slices.Contains(dirs, filepath.ToSlash(filepath.Dir(p))):
 				c.OutsidePackage = append(c.OutsidePackage, p)
 			}
 		}
@@ -491,14 +512,6 @@ func changes(ctx context.Context, root, dir string) (Changes, error) {
 	slices.Sort(c.TestFiles)
 	slices.Sort(c.OutsidePackage)
 	return c, nil
-}
-
-// inPackage reports whether the module-relative path p is a file directly
-// in the package directory dir; a file in a subdirectory belongs to
-// another package.
-func inPackage(dir, p string) bool {
-	d := filepath.ToSlash(filepath.Dir(p))
-	return d == dir
 }
 
 // tailBuffer keeps the last max bytes written to it.

@@ -10,6 +10,13 @@
 //	go run ./calibration/rebuild/fit --runs calibration/data/rebuild-<date>-<agent>/runs.jsonl \
 //	    [--runs more.jsonl] [--base internal/config/default.yaml] [--date YYYY-MM-DD] [--agent name] \
 //	    [--measure footprint|total|output] [--budget tokens] [--out file.yaml] [--report file.md]
+//	    [--unit package|tree]
+//
+// Every row must be of one unit, the package rows of rebuild.yaml or the
+// tree rows of rebuild-trees.yaml; the fit refuses to mix them, and --unit
+// makes it refuse rows of the other. A tree fit regresses on each tree's
+// aggregate metrics, so it fits the sum estimate method, and its
+// config_version is rebuild-trees-<date>-<agent>.
 //
 // The candidate is the base configuration (the embedded default unless
 // --base names a file) byte for byte, except config_version and the rebuild
@@ -41,6 +48,7 @@ import (
 	"github.com/rfizzle/astimate/calibration/rebuild/fit/internal/model"
 	"github.com/rfizzle/astimate/calibration/rebuild/fit/internal/regress"
 	"github.com/rfizzle/astimate/calibration/rebuild/fit/internal/report"
+	"github.com/rfizzle/astimate/calibration/rebuild/internal/definition"
 	"github.com/rfizzle/astimate/internal/config"
 )
 
@@ -60,11 +68,11 @@ func (r *runsFlag) Set(v string) error {
 
 // options are the parsed command-line flags.
 type options struct {
-	runs                                        runsFlag
-	base, date, agent, out, report, measureName string
-	measure                                     dataset.Measure
-	budget                                      float64
-	args                                        []string
+	runs                                              runsFlag
+	base, date, agent, out, report, measureName, unit string
+	measure                                           dataset.Measure
+	budget                                            float64
+	args                                              []string
 }
 
 // usageError is a bad command line: exit code 2. printed is true when the
@@ -115,6 +123,7 @@ func parseFlags(args []string, stderr io.Writer) (*options, error) {
 		{&o.out, "out", "", "candidate file; empty means calibration/rebuild/astimate-<config_version>.yaml"},
 		{&o.report, "report", "", "report file; empty means calibration/reports/<config_version>.md"},
 		{&o.measureName, "measure", string(dataset.Footprint), "token measure: footprint, total or output"},
+		{&o.unit, "unit", "", "unit the rows must be, package or tree; empty means the rows' own, which must be one"},
 	} {
 		fs.StringVar(s.dst, s.name, s.def, s.purpose)
 	}
@@ -135,6 +144,8 @@ func parseFlags(args []string, stderr io.Writer) (*options, error) {
 		{o.agent != "" && !validName(o.agent), "--agent " + strconv.Quote(o.agent) + ": use lower-case letters, digits, '.', '_' and '-'"},
 		{dateErr != nil, fmt.Sprint("--date: ", dateErr)},
 		{measureErr != nil, fmt.Sprint("--measure: ", measureErr)},
+		{o.unit != "" && o.unit != definition.UnitPackage && o.unit != definition.UnitTree,
+			"--unit " + strconv.Quote(o.unit) + ": want package or tree"},
 	} {
 		if c.bad {
 			return nil, &usageError{err: errors.New(c.msg)}
@@ -195,6 +206,9 @@ func execute(args []string, stderr io.Writer) (result, error) {
 		return result{}, fmt.Errorf("base config: %w", err)
 	}
 	version := "rebuild-" + opts.date + "-" + agentName
+	if set.Unit == definition.UnitTree {
+		version = "rebuild-trees-" + opts.date + "-" + agentName
+	}
 	res := result{
 		version: version,
 		out:     orDefault(opts.out, filepath.Join("calibration", "rebuild", "astimate-"+version+".yaml")),
@@ -226,6 +240,9 @@ func loadSet(opts *options) (*dataset.Set, error) {
 		return nil, err
 	}
 	set, err := dataset.Build(rows, opts.measure)
+	if err == nil && opts.unit != "" && set.Unit != opts.unit {
+		err = fmt.Errorf("--unit %s, but the rows are %s runs; a %s fit takes only %s rows", opts.unit, set.Unit, opts.unit, opts.unit)
+	}
 	return &set, err
 }
 

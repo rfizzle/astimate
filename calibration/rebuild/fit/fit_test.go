@@ -7,11 +7,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/rfizzle/astimate/calibration/rebuild/fit/internal/model"
 	"github.com/rfizzle/astimate/calibration/rebuild/fit/internal/synth"
+	"github.com/rfizzle/astimate/calibration/rebuild/internal/definition"
 	"github.com/rfizzle/astimate/calibration/rebuild/internal/runner"
 	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/score"
@@ -268,6 +270,56 @@ func TestRunErrors(t *testing.T) {
 				t.Errorf("stderr %q lacks %q", stderr.String(), tt.want)
 			}
 		})
+	}
+}
+
+// TestUnits checks that the fit refuses rows of two units in one fit and
+// rows of the other unit than --unit asks for, and that a tree fit gets
+// its own config_version, rebuild-trees-<date>-<agent>.
+func TestUnits(t *testing.T) {
+	pkgRows := synth.Rows(synth.RandomMetrics(20, 3), plant())
+	mixed := slices.Clone(pkgRows)
+	mixed[3].Unit = definition.UnitTree
+	treeRows := slices.Clone(pkgRows)
+	for i := range treeRows {
+		treeRows[i].Unit = definition.UnitTree
+	}
+	pkgPath, mixedPath, treePath := writeRuns(t, pkgRows), writeRuns(t, mixed), writeRuns(t, treeRows)
+	dir := t.TempDir()
+	out := []string{"--base", baseConfig, "--date", "2026-09-28", "--out", filepath.Join(dir, "c.yaml"),
+		"--report", filepath.Join(dir, "r.md")}
+	tests := []struct {
+		name string
+		args []string
+		code int
+		want string
+	}{
+		{"mixed units", []string{"--runs", mixedPath}, 1, "fit one unit at a time"},
+		{"package and tree files", []string{"--runs", pkgPath, "--runs", treePath}, 1, "fit one unit at a time"},
+		{"tree rows, package fit", []string{"--runs", treePath, "--unit", "package"}, 1, "--unit package, but the rows are tree runs"},
+		{"package rows, tree fit", []string{"--runs", pkgPath, "--unit", "tree"}, 1, "--unit tree, but the rows are package runs"},
+		{"bad unit", []string{"--runs", pkgPath, "--unit", "module"}, 2, "want package or tree"},
+		{"tree fit", append([]string{"--runs", treePath, "--unit", "tree"}, out...), 0, ""},
+		{"package fit", append([]string{"--runs", pkgPath}, out...), 0, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			if code := run(tt.args, &stdout, &stderr); code != tt.code {
+				t.Fatalf("exit %d, want %d: %s", code, tt.code, stderr.String())
+			}
+			if !strings.Contains(stderr.String(), tt.want) {
+				t.Errorf("stderr %q lacks %q", stderr.String(), tt.want)
+			}
+		})
+	}
+	var stdout, stderr bytes.Buffer
+	if code := run(append([]string{"--runs", treePath}, out...), &stdout, &stderr); code != 0 ||
+		!strings.Contains(stdout.String(), "rebuild-trees-2026-09-28-synthetic") {
+		t.Fatalf("tree fit: exit %d, stdout %q, stderr %q", code, stdout.String(), stderr.String())
+	}
+	if rep, err := os.ReadFile(filepath.Join(dir, "r.md")); err != nil || !strings.Contains(string(rep), "| Unit | tree") {
+		t.Errorf("tree report does not name the unit: %v", err)
 	}
 }
 

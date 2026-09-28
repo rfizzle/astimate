@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/rfizzle/astimate/calibration/rebuild/internal/definition"
+	"github.com/rfizzle/astimate/calibration/rebuild/internal/stub"
 )
 
 func TestParseAgentOutput(t *testing.T) {
@@ -116,7 +117,7 @@ func TestPlaceholders(t *testing.T) {
 func TestBuildPrompt(t *testing.T) {
 	tested := &definition.Experiment{Package: "example.com/m/lib", Dir: "lib", HasTests: true,
 		Oracle: definition.Oracle{Test: []string{"./lib"}, Build: []string{"./..."}}}
-	p := BuildPrompt(tested, "/root", []string{"CGO_ENABLED=0"})
+	p := BuildPrompt(tested, "/root", []string{"CGO_ENABLED=0"}, stub.Summary{})
 	if !strings.Contains(p, "example.com/m/lib") || !strings.Contains(p, "/root") ||
 		!strings.Contains(p, "go test ./lib") || !strings.Contains(p, "Do not edit test files") ||
 		!strings.Contains(p, "CGO_ENABLED=0 go test ./lib && go build ./...") {
@@ -125,8 +126,35 @@ func TestBuildPrompt(t *testing.T) {
 
 	untested := &definition.Experiment{Package: "example.com/m/lib", Dir: "lib", HasTests: false,
 		Oracle: definition.Oracle{Test: []string{"./use1", "./use2"}, Build: []string{"./..."}}}
-	p = BuildPrompt(untested, "/root", []string{"CGO_ENABLED=0"})
+	p = BuildPrompt(untested, "/root", []string{"CGO_ENABLED=0"}, stub.Summary{})
 	if !strings.Contains(p, "no tests of its own") || !strings.Contains(p, "go test ./use1 ./use2") {
 		t.Fatalf("BuildPrompt (untested) =\n%s", p)
+	}
+	if strings.Contains(p, "package initialization") {
+		t.Fatalf("BuildPrompt mentions removed initialization for a stub that removed none:\n%s", p)
+	}
+	if p := BuildPrompt(tested, "/root", nil, stub.Summary{Inits: 1}); !strings.Contains(p, "package initialization no longer "+
+		"calls the package's own functions or methods. Package-level variables whose initializers did") {
+		t.Fatalf("BuildPrompt (removed initialization) =\n%s", p)
+	}
+}
+
+// TestBuildPromptTree checks the prompt of a tree: it names the tree and
+// every package, runs the tree's tests, and rules out other packages.
+func TestBuildPromptTree(t *testing.T) {
+	e := &definition.Experiment{Package: "example.com/m/a", Dir: "a", HasTests: true,
+		Oracle:  definition.Oracle{Test: []string{"./a/..."}, Build: []string{"./..."}},
+		Members: []definition.Member{{Package: "example.com/m/a", Dir: "a"}, {Package: "example.com/m/a/b", Dir: "a/b"}}}
+	p := BuildPrompt(e, "/root", []string{"CGO_ENABLED=0"}, stub.Summary{})
+	for _, want := range []string{"directory tree ./a", "- example.com/m/a (directory ./a)", "- example.com/m/a/b (directory ./a/b)",
+		"`go test ./a/...` passes", "Do not touch packages outside ./a", "CGO_ENABLED=0 go test ./a/... && go build ./..."} {
+		if !strings.Contains(p, want) {
+			t.Fatalf("BuildPrompt (tree) lacks %q:\n%s", want, p)
+		}
+	}
+	e.HasTests, e.Oracle.Test = false, []string{"./use"}
+	if p := BuildPrompt(e, "/root", nil, stub.Summary{}); !strings.Contains(p, "None of the packages has tests") ||
+		!strings.Contains(p, "go test ./use") {
+		t.Fatalf("BuildPrompt (untested tree) =\n%s", p)
 	}
 }

@@ -29,12 +29,15 @@ import (
 func fullRow() RunRow {
 	return RunRow{
 		Schema: rowSchema, Module: "example.com/mod", Package: "example.com/mod/lib", Dir: "lib",
-		Commit: strings.Repeat("a", 40), StubSHA256: strings.Repeat("b", 64), Run: 2, TurnCap: 100,
+		Commit: strings.Repeat("a", 40), StubSHA256: strings.Repeat("b", 64), Run: 2, TurnCap: 100, Unit: definition.UnitTree,
 		Agent: AgentRun{Name: agent.DefaultName, Template: agent.DefaultTemplate, Command: "claude -p ...",
 			Model: agent.DefaultModel, ExitCode: 1, TimedOut: true, WallMS: 1234, StderrTail: "err"},
 		Estimate: Estimate{Tier: score.TierOnePass, AgentPasses: 0.4, RebuildTokens: 9000, HumanDays: 1.5, HasTests: true},
 		Metrics: metrics.RawMetrics{Files: 1, SLOC: 10, TokensEst: 100, TokensEstWithTests: 150, TestFuncs: 1,
 			HasTests: true, UsesCgo: new(false), GeneratedFiles: new(0)},
+		Members: []Member{{Package: "example.com/mod/lib", Dir: "lib",
+			Estimate: Estimate{Tier: score.TierOnePass, AgentPasses: 0.4, RebuildTokens: 9000, HumanDays: 1.5, HasTests: true},
+			Metrics:  metrics.RawMetrics{Files: 1, SLOC: 10, TokensEst: 100, TokensEstWithTests: 150, TestFuncs: 1, HasTests: true}}},
 		ConfigVersion: "thresholds-2026-09-27", GoVersion: "go1.27.1",
 		Measured: agent.Measured{Usage: agent.Usage{InputTokens: new(int64(1)), OutputTokens: new(int64(2)),
 			CacheReadTokens: new(int64(3)), CacheWriteTokens: new(int64(4)), TokenSource: new("modelUsage"),
@@ -113,6 +116,20 @@ func TestRunRowSchema(t *testing.T) {
 			t.Errorf("metrics.%s missing", k)
 		}
 	}
+	// A tree row names its unit and carries each member's estimate and
+	// metrics.
+	if doc["unit"] != definition.UnitTree {
+		t.Errorf("unit = %v", doc["unit"])
+	}
+	mem := doc["members"].([]any)[0].(map[string]any)
+	for _, k := range []string{"package", "dir", "estimate", "metrics"} {
+		if mem[k] == nil {
+			t.Errorf("members[0].%s missing", k)
+		}
+	}
+	if _, ok := mem["estimate"].(map[string]any)["rebuild_tokens"]; !ok {
+		t.Error("members[0].estimate.rebuild_tokens missing")
+	}
 	var back RunRow
 	if err := json.Unmarshal(data, &back); err != nil {
 		t.Fatal(err)
@@ -154,7 +171,7 @@ func fakeModule(t *testing.T) definition.Experiment {
 			t.Fatal(err)
 		}
 	}
-	stubbed, err := stub.Package(filepath.Join(repo, "lib"))
+	stubbed, err := stub.Package(t.Context(), filepath.Join(repo, "lib"), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -385,15 +402,30 @@ func TestCompleted(t *testing.T) {
 		{Package: "a", Run: 1, StubSHA256: "h1", Agent: AgentRun{Name: "n", Template: "t", Model: "m"}, Oracle: OracleOutcome{Completed: true}},
 		{Package: "a", Run: 2, StubSHA256: "h1", Agent: AgentRun{Name: "n", Template: "t", Model: "m"}},
 	}
-	done, err := Completed(rows, "n", "t", "m", exps)
+	done, err := Completed(rows, definition.UnitPackage, "n", "t", "m", exps)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !done[RunKey{"a", 1}] || done[RunKey{"a", 2}] {
 		t.Fatalf("Completed() = %v", done)
 	}
-	if _, err := Completed(rows, "other", "t", "m", exps); err == nil {
+	if _, err := Completed(rows, definition.UnitPackage, "other", "t", "m", exps); err == nil {
 		t.Fatal("Completed accepted rows from another agent")
+	}
+	// Rows written before rows had a unit are package rows: a tree
+	// definition refuses them, and tree rows refuse a package definition.
+	if _, err := Completed(rows, definition.UnitTree, "n", "t", "m", exps); err == nil || !strings.Contains(err.Error(), "unit") {
+		t.Fatalf("Completed mixed package rows into a tree run: %v", err)
+	}
+	if RowUnit(&rows[0]) != definition.UnitPackage {
+		t.Fatalf("a row without a unit reads as %q", RowUnit(&rows[0]))
+	}
+	rows[0].Unit = definition.UnitTree
+	if RowUnit(&rows[0]) != definition.UnitTree {
+		t.Fatal("RowUnit ignores the row's unit")
+	}
+	if _, err := Completed(rows, definition.UnitPackage, "n", "t", "m", exps); err == nil {
+		t.Fatal("Completed mixed tree rows into a package run")
 	}
 }
 

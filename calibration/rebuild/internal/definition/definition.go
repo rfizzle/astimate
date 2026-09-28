@@ -51,6 +51,12 @@ type Definition struct {
 	// Env is the environment, as KEY=VALUE, every go command of the
 	// experiment runs with (stub checks and the oracle alike).
 	Env []string `yaml:"env"`
+	// Unit is what one experiment rebuilds: UnitPackage (the default when
+	// empty) or UnitTree.
+	Unit string `yaml:"unit,omitempty"`
+	// EstimateMethod says how a tree's pre-run estimate combines its
+	// members' estimates: EstimateSum, and only for UnitTree.
+	EstimateMethod string `yaml:"estimate_method,omitempty"`
 	// Selection records the rule the experiments were chosen by.
 	Selection SelectionRule `yaml:"selection"`
 	// Experiments are the packages to rebuild, in selection order.
@@ -68,6 +74,21 @@ type SelectionRule struct {
 	// MaxAgentPasses leaves out packages whose estimate is above it, which
 	// bounds what one experiment spends.
 	MaxAgentPasses float64 `yaml:"max_agent_passes"`
+	// PerStratumUntested, when set, is the number of experiments taken
+	// from each untested stratum instead of PerStratum.
+	PerStratumUntested int `yaml:"per_stratum_untested,omitempty"`
+	// MinPackages and MaxPackages bound how many packages a tree holds;
+	// UnitTree only.
+	MinPackages int `yaml:"min_packages,omitempty"`
+	MaxPackages int `yaml:"max_packages,omitempty"`
+}
+
+// Slots returns the number of experiments the rule takes from stratum s.
+func (r SelectionRule) Slots(s Stratum) int {
+	if !s.Tested && r.PerStratumUntested > 0 {
+		return r.PerStratumUntested
+	}
+	return r.PerStratum
 }
 
 // Experiment is one package to delete and rebuild.
@@ -107,8 +128,13 @@ type Experiment struct {
 	// HumanDays is the human estimate before the run, rounded as rank
 	// reports it.
 	HumanDays float64 `yaml:"human_days"`
-	// Metrics are the package's raw metrics at the pin.
+	// Metrics are the package's raw metrics at the pin; for a tree, the
+	// members' metrics combined by Aggregate.
 	Metrics Metrics `yaml:"metrics"`
+	// Members are a tree's packages, the tree's own directory first and
+	// the rest sorted by directory, each with its metrics and estimate at
+	// the pin; empty for a package.
+	Members []Member `yaml:"members,omitempty"`
 }
 
 // Oracle is the check a rebuild must pass, run from the module root:
@@ -228,10 +254,8 @@ func (d *Definition) Marshal() ([]byte, error) {
 // has tested and untested packages in every tier. The returned error joins
 // one error per problem, each saying "invalid rebuild definition".
 func (d *Definition) Validate() error {
-	var errs []error
-	fail := func(format string, args ...any) {
-		errs = append(errs, fmt.Errorf("invalid rebuild definition: "+format, args...))
-	}
+	p := &problems{prefix: invalid}
+	fail := p.add
 	if d.Source == "" {
 		fail("source is required")
 	}
@@ -249,11 +273,7 @@ func (d *Definition) Validate() error {
 	if d.Selection.PerStratum <= 0 || d.Selection.MaxPerModule <= 0 || d.Selection.MaxAgentPasses <= 0 {
 		fail("selection per_stratum, max_per_module and max_agent_passes must be > 0")
 	}
-	if len(d.Experiments) < minExperiments {
-		fail("want at least %d experiments, got %d", minExperiments, len(d.Experiments))
-	}
 	seen := make(map[string]bool, len(d.Experiments))
-	covered := make(map[Stratum]bool)
 	for i := range d.Experiments {
 		e := &d.Experiments[i]
 		for _, err := range e.validate() {
@@ -263,6 +283,40 @@ func (d *Definition) Validate() error {
 			fail("experiments[%d]: duplicate package %s", i, e.Package)
 		}
 		seen[e.Package] = true
+	}
+	switch d.UnitOrDefault() {
+	case UnitPackage:
+		p.errs = append(p.errs, d.validatePackages()...)
+	case UnitTree:
+		p.errs = append(p.errs, d.validateTrees()...)
+	default:
+		fail("unit %q is not %q or %q", d.Unit, UnitPackage, UnitTree)
+	}
+	return errors.Join(p.errs...)
+}
+
+// validatePackages checks what a package definition needs beyond valid
+// experiments: at least minExperiments of them, tested and untested
+// packages in every tier, each oracle testing the package or its
+// importers, and no tree fields.
+func (d *Definition) validatePackages() []error {
+	p := &problems{prefix: invalid}
+	fail := p.add
+	if d.EstimateMethod != "" {
+		fail("estimate_method is for unit %s only", UnitTree)
+	}
+	if len(d.Experiments) < minExperiments {
+		fail("want at least %d experiments, got %d", minExperiments, len(d.Experiments))
+	}
+	covered := make(map[Stratum]bool)
+	for i := range d.Experiments {
+		e := &d.Experiments[i]
+		if len(e.Members) > 0 {
+			fail("experiments[%d] %s: members are for unit %s only", i, e.Package, UnitTree)
+		}
+		if err := e.Oracle.validatePackage(e.Dir, e.HasTests); err != nil {
+			fail("experiments[%d] %s: %w", i, e.Package, err)
+		}
 		covered[Stratum{Tier: e.Tier, Tested: e.HasTests}] = true
 	}
 	for _, s := range Strata() {
@@ -270,7 +324,7 @@ func (d *Definition) Validate() error {
 			fail("no %s experiment; every tier needs tested and untested packages", s)
 		}
 	}
-	return errors.Join(errs...)
+	return p.errs
 }
 
 // tiers returns the SPEC.md 7.4 tiers in order.
@@ -280,10 +334,8 @@ func tiers() []score.Tier {
 
 // validate returns one error per problem with the experiment.
 func (e *Experiment) validate() []error {
-	var errs []error
-	fail := func(format string, args ...any) {
-		errs = append(errs, fmt.Errorf(format, args...))
-	}
+	p := &problems{}
+	fail := p.add
 	switch {
 	case e.Module == "" || e.Module == StdlibModule:
 		fail("module %q must be a cloned corpus module", e.Module)
@@ -304,7 +356,7 @@ func (e *Experiment) validate() []error {
 	if !isHex(e.StubSHA256, 64) {
 		fail("stub_sha256 %q is not a 64-character hex hash", e.StubSHA256)
 	}
-	errs = append(errs, e.Oracle.validate(e.Dir, e.HasTests)...)
+	p.errs = append(p.errs, e.Oracle.validate()...)
 	if e.TurnCap <= 0 {
 		fail("turn_cap must be > 0, got %d", e.TurnCap)
 	}
@@ -315,7 +367,7 @@ func (e *Experiment) validate() []error {
 		fail("rebuild_tokens must be > 0 and agent_passes and human_days >= 0")
 	}
 	if err := e.Metrics.Validate(); err != nil {
-		errs = append(errs, err)
+		p.errs = append(p.errs, err)
 	}
 	if e.HasTests != e.Metrics.HasTests {
 		fail("has_tests %v disagrees with metrics.has_tests %v", e.HasTests, e.Metrics.HasTests)
@@ -323,36 +375,55 @@ func (e *Experiment) validate() []error {
 	if e.Metrics.UsesCgo == nil || *e.Metrics.UsesCgo {
 		fail("uses_cgo must be false")
 	}
-	return errs
+	return p.errs
 }
 
-// validate checks the oracle of the package in dir: tests given as
-// module-relative patterns, the package's own directory when it has tests
-// and never when it has none, and a build of the whole module.
-func (o Oracle) validate(dir string, hasTests bool) []error {
-	var errs []error
-	own := OwnPattern(dir)
+// validate checks the shape of every oracle: tests given as sorted
+// module-relative patterns, and a build of the whole module.
+func (o Oracle) validate() []error {
+	p := &problems{}
 	if len(o.Test) == 0 {
-		errs = append(errs, errors.New("oracle.test is empty"))
+		p.add("oracle.test is empty")
 	}
-	for _, p := range o.Test {
-		if p != "." && !strings.HasPrefix(p, "./") {
-			errs = append(errs, fmt.Errorf("oracle.test pattern %q is not module-relative", p))
+	for _, pat := range o.Test {
+		if pat != "." && !strings.HasPrefix(pat, "./") {
+			p.add("oracle.test pattern %q is not module-relative", pat)
 		}
 	}
-	switch {
-	case hasTests && !slices.Equal(o.Test, []string{own}):
-		errs = append(errs, fmt.Errorf("oracle.test of a tested package must be [%s], got %v", own, o.Test))
-	case !hasTests && slices.Contains(o.Test, own):
-		errs = append(errs, fmt.Errorf("oracle.test of an untested package must list its importers, not %s", own))
-	}
 	if !slices.IsSorted(o.Test) {
-		errs = append(errs, errors.New("oracle.test is not sorted"))
+		p.add("oracle.test is not sorted")
 	}
 	if !slices.Equal(o.Build, []string{"./..."}) {
-		errs = append(errs, fmt.Errorf("oracle.build must be [./...], got %v", o.Build))
+		p.add("oracle.build must be [./...], got %v", o.Build)
 	}
-	return errs
+	return p.errs
+}
+
+// invalid prefixes every definition-level validation error.
+const invalid = "invalid rebuild definition: "
+
+// problems collects validation errors, each prefixed with prefix.
+type problems struct {
+	prefix string
+	errs   []error
+}
+
+// add records one problem.
+func (p *problems) add(format string, args ...any) {
+	p.errs = append(p.errs, fmt.Errorf(p.prefix+format, args...))
+}
+
+// validatePackage checks the oracle's tests of the package in dir: the
+// package's own directory when it has tests, and never when it has none.
+func (o Oracle) validatePackage(dir string, hasTests bool) error {
+	own := OwnPattern(dir)
+	switch {
+	case hasTests && !slices.Equal(o.Test, []string{own}):
+		return fmt.Errorf("oracle.test of a tested package must be [%s], got %v", own, o.Test)
+	case !hasTests && slices.Contains(o.Test, own):
+		return fmt.Errorf("oracle.test of an untested package must list its importers, not %s", own)
+	}
+	return nil
 }
 
 // isHex reports whether s is n lower-case hex digits.

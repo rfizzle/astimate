@@ -49,6 +49,12 @@ func fixtureCopy(t *testing.T) string {
 	return filepath.Join(tmp, "fixture")
 }
 
+// testEnv is the experiment environment, with -mod=mod so the fixture's
+// replace of extmod resolves without a go.sum entry.
+func testEnv() []string {
+	return []string{"CGO_ENABLED=0", "GOTOOLCHAIN=local", "GOWORK=off", "GOFLAGS=-mod=mod"}
+}
+
 // goIn runs the go command in dir with the experiment environment.
 func goIn(t *testing.T, dir string, args ...string) (string, error) {
 	t.Helper()
@@ -57,7 +63,7 @@ func goIn(t *testing.T, dir string, args ...string) (string, error) {
 	}
 	cmd := exec.CommandContext(context.Background(), "go", args...)
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "CGO_ENABLED=0", "GOTOOLCHAIN=local", "GOWORK=off", "GOFLAGS=-mod=mod")
+	cmd.Env = append(os.Environ(), testEnv()...)
 	out, err := cmd.CombinedOutput()
 	return string(out), err
 }
@@ -85,11 +91,11 @@ func TestStubFixturePackages(t *testing.T) {
 			if out, err := goIn(t, root, "test", "./"+dir); err != nil {
 				t.Fatalf("fixture tests fail before stubbing: %v\n%s", err, out)
 			}
-			first, err := Package(pkgDir)
+			first, err := Package(t.Context(), pkgDir, testEnv())
 			if err != nil {
 				t.Fatal(err)
 			}
-			second, err := Package(pkgDir)
+			second, err := Package(t.Context(), pkgDir, testEnv())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -185,9 +191,7 @@ func (t *T) String() string {
 	panic("not implemented")
 }
 
-func init() {
-	panic("not implemented")
-}
+func init() { names = append(names, "c") }
 
 // Map applies f; it is generic.
 func Map[E any](s []E, f func(E) E) []E {
@@ -227,14 +231,14 @@ func TestPackageSkipsTestsAndSorts(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	files, err := Package(dir)
+	files, err := Package(t.Context(), dir, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(files) != 2 || files[0].Name != "a.go" || files[1].Name != "b.go" {
 		t.Fatalf("Package files = %v, want a.go and b.go", files)
 	}
-	if _, err := Package(t.TempDir()); err == nil {
+	if _, err := Package(t.Context(), t.TempDir(), nil); err == nil || !strings.Contains(err.Error(), "no non-test Go files") {
 		t.Fatal("Package of an empty directory succeeded")
 	}
 }
@@ -250,18 +254,18 @@ func TestApplyChecksHash(t *testing.T) {
 		t.Fatal(err)
 	}
 	e := &definition.Experiment{Package: "example.com/m/p", Dir: "p", StubSHA256: strings.Repeat("0", 64)}
-	if err := Apply(root, e); err == nil {
+	if _, err := Apply(t.Context(), root, e, nil); err == nil {
 		t.Fatal("Apply accepted a wrong hash")
 	}
 	if data, _ := os.ReadFile(filepath.Join(pkg, "a.go")); string(data) != src {
 		t.Fatal("Apply wrote the stub despite the wrong hash")
 	}
-	files, err := Package(pkg)
+	files, err := Package(t.Context(), pkg, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	e.StubSHA256 = TreeHash(files)
-	if err := Apply(root, e); err != nil {
+	if _, err := Apply(t.Context(), root, e, nil); err != nil {
 		t.Fatal(err)
 	}
 	if data, _ := os.ReadFile(filepath.Join(pkg, "a.go")); !strings.Contains(string(data), `panic("not implemented")`) {
