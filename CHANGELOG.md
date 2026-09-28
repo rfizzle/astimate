@@ -12,6 +12,15 @@ history.
 
 ### Added
 
+- Gate validation: `go run ./calibration/validate` joins replay rows with
+  commit labels and reports the gate's recall and false-failure rate against
+  the 80% and 10% targets, each rule's precision and recall per corpus beside
+  a size-only `sloc_delta` rule, threshold sweeps re-evaluated with the gate's
+  own `Evaluate`, a keep, retune or drop recommendation per rule, and the
+  missed `block` commits. On the four labeled corpora
+  (`calibration/reports/gate-validation-2026-09-28.md`) the gate fails 87.8%
+  of `block` and 51.5% of `allow` agent commits: recall met, false failures
+  not.
 - Hand-drafted block/allow labels for this repository's 222 replayed commits
   (`calibration/replay/labels/astimate.yaml`), awaiting review; 30 block,
   summary in `calibration/notes/astimate-labels-2026-09-28.md`.
