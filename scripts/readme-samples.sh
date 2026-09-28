@@ -89,7 +89,7 @@ sample check "astimate check testdata/go/fixture-degraded --baseline /tmp/fixtur
 mkdir "$tmp/init"
 sample config-init "astimate config init" 0 -- \
 	sh -c 'cd "$1" && "$2" config init' sh "$tmp/init" "$bin"
-sample config-init-head "head -15 astimate.yaml" 15 -- \
+sample config-init-head "head -20 astimate.yaml" 20 -- \
 	cat "$tmp/init/astimate.yaml"
 sample version "astimate version" 0 -- \
 	"$bin" version

@@ -77,19 +77,24 @@ history.
 
 - The embedded default's rebuild parameters are calibrated: `config_version`
   is `rebuild-2026-09-28-claude-code-opus`, fitted by
-  `calibration/rebuild/fit` from 25 passing Claude Code (Opus) rebuilds, one
-  run per package (`calibration/reports/rebuild-2026-09-28-claude-code-opus.md`).
-  `tokens_per_untested_export` 800 → 120, `tokens_per_export` 40 → 0 and
-  `tokens_per_hidden_state` 400 → 0 (both fitted negative with wide errors,
-  so measured as no cost), `superlinear_exponent` 1.3 → 2.79 (from four
-  packages past the knee, weakly determined), `context_budget` 25,000
-  unchanged; the form explains 93.5% of the variance in measured tokens.
-  The gate thresholds are unchanged (`thresholds-2026-09-28`'s). Estimate
-  lines read `estimate from calibrated parameters`, JSON reports
-  `rebuild.calibrated: true`, and `check`'s text summary lines carry agent
-  passes, tier and the change from the baseline again. Packages past the
-  knee now score many more passes (a package at twice the budget goes from
-  2.5 to 6.9). `calibration/validate` accepts replays recorded under
+  `calibration/rebuild/fit` from 85 Claude Code (Opus) rebuilds of 31
+  packages, three runs each
+  (`calibration/reports/rebuild-2026-09-28-claude-code-opus.md`).
+  `context_budget` 25,000 → 37,500 (the data preferred it beyond noise),
+  `tokens_per_untested_export` 800 → 300 (fitted 304 ± 100),
+  `tokens_per_export` 40 → 0 and `tokens_per_hidden_state` 400 → 0 (both
+  fitted negative, so clamped), `superlinear_exponent` 1.3 → 1 (past the
+  knee the measured cost grows no faster than the estimate, in the package
+  runs and in 14 whole-tree runs alike); the form explains 92.5% of the
+  variance in measured tokens, and one estimate token corresponds to about
+  7.6 tokens of session footprint. A first fit from one run per package
+  (25,000 / 120 / 2.79) is superseded. The gate thresholds are unchanged
+  (`thresholds-2026-09-28`'s). Estimate lines read `estimate from
+  calibrated parameters`, JSON reports `rebuild.calibrated: true`, and
+  `check`'s text summary lines carry agent passes, tier and the change
+  from the baseline again. Passes grow linearly past the knee: a package
+  at 50,000 rebuild tokens scores 1.3 passes (2.5 under the placeholders).
+  `calibration/validate` accepts replays recorded under
   `thresholds-<date>` when the configuration's rules equal that committed
   candidate's.
 - The Go and TypeScript extractors are split into internal subpackages, each

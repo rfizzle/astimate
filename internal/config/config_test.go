@@ -45,11 +45,11 @@ func TestParseDefault(t *testing.T) {
 		name      string
 		got, want float64
 	}{
-		{"context_budget", r.ContextBudget, 25000},
+		{"context_budget", r.ContextBudget, 37500},
 		{"tokens_per_export", r.TokensPerExport, 0},
-		{"tokens_per_untested_export", r.TokensPerUntestedExport, 120},
+		{"tokens_per_untested_export", r.TokensPerUntestedExport, 300},
 		{"tokens_per_hidden_state", r.TokensPerHiddenState, 0},
-		{"superlinear_exponent", r.SuperlinearExponent, 2.79},
+		{"superlinear_exponent", r.SuperlinearExponent, 1},
 		{"cocomo_a", r.CocomoA, 2.4},
 		{"cocomo_b", r.CocomoB, 1.05},
 		{"days_per_month", r.DaysPerMonth, 19},
@@ -134,6 +134,7 @@ func TestUncalibratedStillParses(t *testing.T) {
 	// The rebuild parameters are the pre-calibration placeholders; only the
 	// ones the rebuild fit does not touch match the default.
 	placeholders := def.Rebuild
+	placeholders.ContextBudget = 25000
 	placeholders.TokensPerExport, placeholders.TokensPerUntestedExport = 40, 800
 	placeholders.TokensPerHiddenState, placeholders.SuperlinearExponent = 400, 1.3
 	if cfg.Rebuild != placeholders {
@@ -167,8 +168,8 @@ func TestParseErrors(t *testing.T) {
 		repl    string
 		wantErr string
 	}{
-		{name: "exponent below 1", old: "superlinear_exponent: 2.79", repl: "superlinear_exponent: 0.9", wantErr: "superlinear_exponent must be >= 1"},
-		{name: "zero budget", old: "context_budget: 25000", repl: "context_budget: 0", wantErr: "context_budget"},
+		{name: "exponent below 1", old: "superlinear_exponent: 1\n", repl: "superlinear_exponent: 0.9\n", wantErr: "superlinear_exponent must be >= 1"},
+		{name: "zero budget", old: "context_budget: 37500", repl: "context_budget: 0", wantErr: "context_budget"},
 		{name: "negative token cost", old: "tokens_per_export: 0", repl: "tokens_per_export: -1", wantErr: "tokens_per_export"},
 		{name: "zero cocomo", old: "cocomo_a: 2.4", repl: "cocomo_a: 0", wantErr: "cocomo_a"},
 		{name: "tiers unordered", old: "few_passes_max: 3.0", repl: "few_passes_max: 0.5", wantErr: "tiers.few_passes_max"},

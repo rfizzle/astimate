@@ -147,7 +147,9 @@ func budgetSentence(pts []model.ProfilePoint, at float64) string {
 }
 
 // specSentence says whether tests count as cost or as help, from the
-// linear fit's free spec coefficient relative to the volume one.
+// linear fit's free spec coefficient relative to the volume one. The
+// verdict reads the 95% interval it prints: cost or help when the interval
+// excludes zero, and a note when it excludes 7.2's rate of 1.
 func specSentence(lin *model.LinearFit) string {
 	if lin == nil {
 		return "The data cannot say whether tests count as cost or as help."
@@ -160,16 +162,20 @@ func specSentence(lin *model.LinearFit) string {
 	lo, hi := ratio-regress.TCrit95(lin.Fit.DF)*se, ratio+regress.TCrit95(lin.Fit.DF)*se
 	head := fmt.Sprintf("Fitted freely, one test token costs %s volume tokens (95%% interval %s to %s; 7.2 fixes it at 1)",
 		num(ratio), num(lo), num(hi))
+	const outside = "; 7.2's rate of 1 is outside the interval"
 	switch {
-	case !lin.Fit.Significant(sp):
-		return head + ": tests carry no measurable cost, and the data cannot tell cost from help."
-	case lin.Fit.Coef[sp] < 0:
-		return head + ": tests help, lowering the cost; the 7.2 form, which charges for them, does not fit, " +
-			"and SPEC.md 7.5's rule that adding tests raises only the spec term is the thing to revisit."
+	case hi < 0:
+		return head + ": tests help, lowering the cost" + outside + ". The 7.2 form, which charges for them, " +
+			"does not fit, and SPEC.md 7.5's rule that adding tests raises only the spec term is the thing to revisit."
 	case lo > 1 || hi < 1:
-		return head + ": tests count as cost, but not at the rate 7.2 charges."
+		if lo > 0 {
+			return head + ": tests count as cost" + outside + "."
+		}
+		return head + ": tests carry no measurable cost, and the data cannot tell cost from help" + outside + "."
+	case lo > 0:
+		return head + ": tests count as cost, consistent with 7.2's rate of 1."
 	default:
-		return head + ": tests count as cost, consistent with 7.2."
+		return head + ": tests carry no measurable cost, and the data cannot tell cost from help."
 	}
 }
 

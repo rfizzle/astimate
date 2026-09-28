@@ -217,8 +217,8 @@ func TestForLanguage(t *testing.T) {
 		if got := *ruleOn(t, cfg.Thresholds, "tokens_est").Max; got != 16000 {
 			t.Errorf("top-level tokens_est max = %v, want 16000", got)
 		}
-		if cfg.Rebuild.ContextBudget != 25000 {
-			t.Errorf("top-level context_budget = %v, want 25000", cfg.Rebuild.ContextBudget)
+		if cfg.Rebuild.ContextBudget != 37500 {
+			t.Errorf("top-level context_budget = %v, want 37500", cfg.Rebuild.ContextBudget)
 		}
 	})
 	for _, lang := range []string{"go", "rust"} {

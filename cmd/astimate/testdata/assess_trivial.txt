@@ -3,7 +3,7 @@ rebuild: 0.0 agent passes, 0.2 human days (estimate from calibrated parameters)
 tier: ONE_PASS
 
 drivers:
-  unspecified  120 tokens  untested_exports=1
+  unspecified  300 tokens  untested_exports=1
   volume       47 tokens   tokens_est=47 duplication_pct=0
 
 suggestions:

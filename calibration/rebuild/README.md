@@ -613,7 +613,7 @@ every flag). The run that calibrated the embedded default was
 ```sh
 go run ./calibration/rebuild/fit \
   --runs calibration/data/rebuild-2026-09-28-claude-code-opus/runs.jsonl \
-  --base internal/config/default.yaml --date 2026-09-28 \
+  --base internal/config/default.yaml --date 2026-09-28 --budget 37500 \
   --out calibration/rebuild/astimate-rebuild-2026-09-28-claude-code-opus.yaml \
   --report calibration/reports/rebuild-2026-09-28-claude-code-opus.md
 ```

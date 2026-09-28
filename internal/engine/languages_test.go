@@ -83,7 +83,7 @@ func TestCheckLanguageOverride(t *testing.T) {
 		wantPasses     float64
 	}{
 		{lang: "go", wantViolations: []string{"has_tests", "tokens_est"},
-			wantVersion: "rebuild-2026-09-28-claude-code-opus", wantPasses: 3.7},
+			wantVersion: "rebuild-2026-09-28-claude-code-opus", wantPasses: 1.1},
 		{lang: "typescript", wantWarnings: []string{"tokens_est"},
 			wantVersion: "rebuild-2026-09-28-claude-code-opus+typescript", wantPasses: 0.8},
 	}
@@ -199,7 +199,7 @@ func TestLanguageOverrideFixtures(t *testing.T) {
 		wantVersion string
 		wantBudget  float64
 	}{
-		{name: "go", dir: filepath.Join(fixtureDir, "hub"), wantVersion: "rebuild-2026-09-28-claude-code-opus", wantBudget: 25000},
+		{name: "go", dir: filepath.Join(fixtureDir, "hub"), wantVersion: "rebuild-2026-09-28-claude-code-opus", wantBudget: 37500},
 		{name: "typescript", dir: "../../testdata/ts/fixture/hub", wantVersion: "rebuild-2026-09-28-claude-code-opus+typescript", wantBudget: 50000},
 	}
 	for _, tt := range tests {

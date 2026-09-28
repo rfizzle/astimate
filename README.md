@@ -6,7 +6,7 @@ The gate targets the ways LLM-written changes tend to degrade a package: copy-pa
 
 ## Status
 
-Every command below, the GitHub Action, the Claude Code hook, the pre-commit hook and the MCP server are implemented and tested, and `v0.1.0` is released. The default thresholds are calibrated against a corpus of the standard library and 36 well-regarded Go modules (`SPEC.md` section 11, [the report](calibration/reports/thresholds-2026-09-28.md)), and the rebuild estimate's parameters are fitted from 25 measured Claude Code (Opus) rebuilds (section 11.2, [the report](calibration/reports/rebuild-2026-09-28-claude-code-opus.md)), so estimate lines read `estimate from calibrated parameters`. See `SPEC.md` for the full design and `AGENTS.md` for contribution rules.
+Every command below, the GitHub Action, the Claude Code hook, the pre-commit hook and the MCP server are implemented and tested, and `v0.1.0` is released. The default thresholds are calibrated against a corpus of the standard library and 36 well-regarded Go modules (`SPEC.md` section 11, [the report](calibration/reports/thresholds-2026-09-28.md)), and the rebuild estimate's parameters are fitted from 85 measured Claude Code (Opus) rebuilds of 31 packages, three runs each (section 11.2, [the report](calibration/reports/rebuild-2026-09-28-claude-code-opus.md)), so estimate lines read `estimate from calibrated parameters`. See `SPEC.md` for the full design and `AGENTS.md` for contribution rules.
 
 Go and TypeScript are supported. The extractor interface and its conformance suite are language-agnostic; Go is analyzed with the standard toolchain, TypeScript with a pure-Go tree-sitter runtime, so neither needs cgo.
 
@@ -80,12 +80,11 @@ rebuild: 0.0 agent passes, 0.7 human days (estimate from calibrated parameters)
 tier: ONE_PASS
 
 drivers:
-  unspecified  360 tokens  untested_exports=3
+  unspecified  900 tokens  untested_exports=3
   volume       98 tokens   tokens_est=506 duplication_pct=80.6
 
 suggestions:
   - 3 exported functions have no test (CountVisits, SumOrders, TallyScores); a rebuild would have to reverse-engineer their behavior.
-  - The package is 506 tokens of non-test source, 80.6% of it duplicated, starting with dupes.go:9-26; its volume is 98 tokens of the rebuild; split the package to shrink it.
 
 metrics:
   files                  1      sloc                  67
@@ -116,14 +115,14 @@ $ astimate assess testdata/go/fixture/dupes --json | head -25
   "module_path": "example.com/fixture",
   "rebuild": {
     "agent_passes": 0,
-    "rebuild_tokens": 513,
+    "rebuild_tokens": 1053,
     "human_days": 0.7,
     "tier": "ONE_PASS",
     "calibrated": true,
     "drivers": [
       {
         "term": "unspecified",
-        "tokens": 360,
+        "tokens": 900,
         "detail": "untested_exports=3"
       },
       {
@@ -134,7 +133,7 @@ $ astimate assess testdata/go/fixture/dupes --json | head -25
     ]
   },
   "suggestions": [
-    "3 exported functions have no test (CountVisits, SumOrders, TallyScores); a rebuild would have to reverse-engineer their behavior.",
+    "3 exported functions have no test (CountVisits, SumOrders, TallyScores); a rebuild would have to reverse-engineer their behavior."
 ...
 ```
 <!-- /sample:assess-json -->
@@ -236,7 +235,7 @@ Density rules measure how the code is written (duplicate blocks, untested export
 ```
 $ astimate config init
 wrote astimate.yaml
-$ head -15 astimate.yaml
+$ head -20 astimate.yaml
 # Astimate configuration: rebuild parameters and gate thresholds in one file.
 #
 # The gate thresholds are calibrated (SPEC.md sections 8.2 and 11.1): fitted
@@ -244,11 +243,16 @@ $ head -15 astimate.yaml
 # corpus in calibration/corpus.md, with the evidence in
 # calibration/reports/thresholds-2026-09-28.md. The rebuild parameters are
 # calibrated (SPEC.md sections 7 and 11.2): fitted on 2026-09-28 by
-# calibration/rebuild/fit from 25 measured Claude Code (Opus) rebuilds, one
-# run per package, with the evidence in
-# calibration/reports/rebuild-2026-09-28-claude-code-opus.md. At this sample
-# the export and hidden-state costs measured as zero, and the exponent, 2.79,
-# rests on four packages past the knee, so it is weakly determined.
+# calibration/rebuild/fit from 85 Claude Code (Opus) rebuilds of 31
+# packages, three runs each, with the evidence in
+# calibration/reports/rebuild-2026-09-28-claude-code-opus.md. The context
+# budget is 37,500 tokens, which the data preferred to 25,000 beyond noise.
+# The export and hidden-state costs measured as negative and are clamped to
+# 0; an untested export costs 300 tokens (fitted 304 +/- 100). The exponent
+# is 1 because past the knee the measured cost grows no faster than the
+# estimate, in the package runs and in the 14 whole-tree runs alike. One
+# estimate token corresponds to about 7.6 tokens of session footprint, so a
+# "pass" is a unit of the estimate, not literally one context window.
 # TypeScript packages are judged by the typescript override at the end of
 # this file, fitted from a TypeScript corpus (SPEC.md section 13).
 
@@ -273,7 +277,7 @@ date: <date>
 
 One file, `astimate.yaml`, holds the rebuild-estimate parameters and the gate thresholds. `astimate config init` writes the defaults with a comment on every line. Resolution order is `--config` (`--thresholds` is an alias on `check`), then `./astimate.yaml`, then the embedded default. The top-level keys `config_version`, `chars_per_token`, `rebuild` and `thresholds` are required: a missing one is an error, not filled from the default, so start from the file `config init` writes. Sections that group optional tuning, today `duplication` (`min_tokens`, `ignore_literal_only`, `fold_signs`, `split_literal_runs`), may be partial or absent, and absent keys take the embedded defaults. An optional `languages:` section, keyed by language id (`go` or `typescript`), overrides the configuration for one language: its `rebuild:` sets only the parameters it names, the rest coming from the top-level `rebuild`; its `thresholds:` rules replace the top-level rule on the same metric or add one, and `- metric: <name>` with `disabled: true` drops that metric's rules for the language. Everything else is shared. Reports judged with an override show `config_version` suffixed with `+<language>`. The embedded default ships a `typescript` override, fitted on a corpus of 20 TypeScript repositories (`calibration/reports/thresholds-2026-09-28-typescript.md`), so TypeScript packages are judged by `rebuild-2026-09-28-claude-code-opus+typescript`: larger size limits (`sloc` 2,500, `tokens_est` 35,000, `largest_file_sloc` 900) and slightly looser complexity limits than Go's. `SPEC.md` section 9 has the full rules.
 
-The default thresholds (fitted as `thresholds-2026-09-28`; the default's `config_version` is `rebuild-2026-09-28-claude-code-opus`, the rebuild fit made on top of them) are the rounded 90th percentiles of a reference corpus of the standard library and 36 well-regarded Go modules, fitted by `calibration/fit` (`SPEC.md` section 11.1), except `changed_func_cognitive_max`, which is the rounded 99th percentile of the corpus's per-function cognitive complexity (50); [calibration/reports/thresholds-2026-09-28.md](calibration/reports/thresholds-2026-09-28.md) has the distributions and a before and after table, and `configs/uncalibrated.yaml` keeps the earlier placeholders. The zero-tolerance ratchets stay at 0 by policy. Measured on 688 labeled agent-authored commits from this repository and three public ones (`SPEC.md` section 11.4, [the report](calibration/reports/gate-validation-2026-09-28.md)), the default gate fails 87.8% of the changes labeled `block` (target at least 80%) and 51.5% of those labeled `allow` (target at most 10%), so it does not yet meet its false-failure target. The rebuild parameters are fitted by `calibration/rebuild/fit` from 25 measured rebuilds, one run per package (`SPEC.md` section 11.2, [the report](calibration/reports/rebuild-2026-09-28-claude-code-opus.md)): `tokens_per_untested_export` 120, `tokens_per_export` and `tokens_per_hidden_state` 0 (measured as no cost at this sample), `superlinear_exponent` 2.79 (from four packages past the knee, so weakly determined) and `context_budget` 25,000.
+The default thresholds (fitted as `thresholds-2026-09-28`; the default's `config_version` is `rebuild-2026-09-28-claude-code-opus`, the rebuild fit made on top of them) are the rounded 90th percentiles of a reference corpus of the standard library and 36 well-regarded Go modules, fitted by `calibration/fit` (`SPEC.md` section 11.1), except `changed_func_cognitive_max`, which is the rounded 99th percentile of the corpus's per-function cognitive complexity (50); [calibration/reports/thresholds-2026-09-28.md](calibration/reports/thresholds-2026-09-28.md) has the distributions and a before and after table, and `configs/uncalibrated.yaml` keeps the earlier placeholders. The zero-tolerance ratchets stay at 0 by policy. Measured on 688 labeled agent-authored commits from this repository and three public ones (`SPEC.md` section 11.4, [the report](calibration/reports/gate-validation-2026-09-28.md)), the default gate fails 87.8% of the changes labeled `block` (target at least 80%) and 51.5% of those labeled `allow` (target at most 10%), so it does not yet meet its false-failure target. The rebuild parameters are fitted by `calibration/rebuild/fit` from 85 measured rebuilds of 31 packages, three runs each (`SPEC.md` section 11.2, [the report](calibration/reports/rebuild-2026-09-28-claude-code-opus.md)): `context_budget` 37,500 (the budget the data preferred), `tokens_per_untested_export` 300, `tokens_per_export` and `tokens_per_hidden_state` 0 (both fitted negative, so clamped), and `superlinear_exponent` 1 (past the knee the measured cost grows no faster than the estimate, in the package runs and in 14 whole-tree runs). One estimate token corresponds to about 7.6 tokens of the agent's session footprint, so an agent pass is a unit of the estimate, not literally one context window.
 
 ## Integrations
 

@@ -2,6 +2,7 @@ package report_test
 
 import (
 	"errors"
+	"math"
 	"strings"
 	"testing"
 
@@ -107,10 +108,21 @@ func TestRenderSpecVerdicts(t *testing.T) {
 		lin  *model.LinearFit
 		want string
 	}{
-		{"help", lin(-1, 0.1), "tests help, lowering the cost"},
-		{"no cost", lin(0.1, 1), "tests carry no measurable cost"},
-		{"other rate", lin(6, 0.1), "tests count as cost, but not at the rate 7.2 charges"},
-		{"as 7.2", lin(2, 0.1), "tests count as cost, consistent with 7.2"},
+		{"help", lin(-1, 0.1), "tests help, lowering the cost; 7.2's rate of 1 is outside the interval"},
+		{"no cost", lin(0.1, 1), "tests carry no measurable cost, and the data cannot tell cost from help."},
+		{"no cost, below 1", lin(0.2, 0.5), "tests carry no measurable cost, and the data cannot tell cost from help; " +
+			"7.2's rate of 1 is outside the interval"},
+		{"other rate", lin(6, 0.1), "tests count as cost; 7.2's rate of 1 is outside the interval"},
+		{"as 7.2", lin(2, 0.1), "tests count as cost, consistent with 7.2's rate of 1"},
+		// The spec coefficient alone is not significant (t = 1.67), but its
+		// covariance with volume narrows the ratio's interval to about 0.2
+		// to 0.8, which excludes both zero and 1.
+		{"interval excludes zero", &model.LinearFit{
+			Columns: []string{"intercept", model.InVolume, model.InSpec},
+			N:       40,
+			Fit: regress.Fit{Coef: []float64{0, 2, 1}, SE: []float64{1, math.Sqrt(0.5), 0.6}, DF: 37,
+				Cov: [][]float64{{1, 0, 0}, {0, 0.5, 0.4}, {0, 0.4, 0.36}}},
+		}, "tests count as cost; 7.2's rate of 1 is outside the interval"},
 		{"no spec column", &model.LinearFit{Columns: []string{"intercept", model.InVolume}}, "spec or volume does not vary"},
 	}
 	for _, tt := range tests {

@@ -10,11 +10,16 @@
 # corpus in calibration/corpus.md, with the evidence in
 # calibration/reports/thresholds-2026-09-28.md. The rebuild parameters are
 # calibrated (SPEC.md sections 7 and 11.2): fitted on 2026-09-28 by
-# calibration/rebuild/fit from 25 measured Claude Code (Opus) rebuilds, one
-# run per package, with the evidence in
-# calibration/reports/rebuild-2026-09-28-claude-code-opus.md. At this sample
-# the export and hidden-state costs measured as zero, and the exponent, 2.79,
-# rests on four packages past the knee, so it is weakly determined.
+# calibration/rebuild/fit from 85 Claude Code (Opus) rebuilds of 31
+# packages, three runs each, with the evidence in
+# calibration/reports/rebuild-2026-09-28-claude-code-opus.md. The context
+# budget is 37,500 tokens, which the data preferred to 25,000 beyond noise.
+# The export and hidden-state costs measured as negative and are clamped to
+# 0; an untested export costs 300 tokens (fitted 304 +/- 100). The exponent
+# is 1 because past the knee the measured cost grows no faster than the
+# estimate, in the package runs and in the 14 whole-tree runs alike. One
+# estimate token corresponds to about 7.6 tokens of session footprint, so a
+# "pass" is a unit of the estimate, not literally one context window.
 # TypeScript packages are judged by the typescript override at the end of
 # this file, fitted from a TypeScript corpus (SPEC.md section 13).
 
@@ -45,15 +50,15 @@ duplication:
 # Rebuild estimate parameters (SPEC.md sections 7.2 to 7.4).
 rebuild:
   # Tokens one agent can hold in context for a rebuild; past it work is split.
-  context_budget: 25000
+  context_budget: 37500
   # Tokens charged per exported symbol whose signature must survive.
   tokens_per_export: 0
   # Tokens charged per untested export whose behavior must be reverse-engineered.
-  tokens_per_untested_export: 120
+  tokens_per_untested_export: 300
   # Tokens charged per global or init function, state no signature reveals.
   tokens_per_hidden_state: 0
   # Exponent on the budget ratio once a rebuild no longer fits one pass.
-  superlinear_exponent: 2.79
+  superlinear_exponent: 1
   # COCOMO basic organic-mode coefficient for the human estimate.
   cocomo_a: 2.4
   # COCOMO basic organic-mode exponent for the human estimate.
