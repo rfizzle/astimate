@@ -69,6 +69,12 @@ history.
 
 ### Changed
 
+- calibration: the rebuild stub now removes initialization code that calls the
+  stubbed package, so every test binary starts, and select checks that it does
+  (rebuild.yaml regenerated, 33 experiments, the 26 recorded stub hashes
+  unchanged); new whole-tree rebuild experiments (`select --unit tree`,
+  rebuild-trees.yaml) with unit-aware runs and fit.
+
 - The embedded default's rebuild parameters are calibrated: `config_version`
   is `rebuild-2026-09-28-claude-code-opus`, fitted by
   `calibration/rebuild/fit` from 25 passing Claude Code (Opus) rebuilds, one
