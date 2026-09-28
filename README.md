@@ -43,9 +43,9 @@ The module path is `github.com/rfizzle/astimate`:
 go install github.com/rfizzle/astimate/cmd/astimate@latest
 ```
 
-No release has been tagged yet, so `@latest` resolves to the newest commit on `master`. A `go install` build embeds every tree-sitter grammar the parser ships and is larger than `make build`'s, which embeds only the TypeScript ones; it behaves the same.
+`@latest` resolves to the newest release tag, `v0.1.0` today; `@master` builds the newest commit. A `go install` build embeds every tree-sitter grammar the parser ships and is larger than `make build`'s, which embeds only the TypeScript ones; it behaves the same.
 
-Once a `v*` tag is pushed, each GitHub release carries `astimate_<version>_<os>_<arch>.tar.gz` for `linux` and `darwin` on `amd64` and `arm64`, with `astimate` at the archive root, and a `checksums.txt` to verify it against (the layout the GitHub Action installs from; see below).
+Each [GitHub release](https://github.com/rfizzle/astimate/releases) carries `astimate_<version>_<os>_<arch>.tar.gz` for `linux` and `darwin` on `amd64` and `arm64`, with `astimate` at the archive root, and a `checksums.txt` to verify it against (the layout the GitHub Action installs from; see below).
 
 From a clone, `make build` writes `./astimate` with the version, commit and date injected.
 
