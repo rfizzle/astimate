@@ -46,14 +46,14 @@ The gate targets the ways LLM-written changes tend to degrade a package. The met
 | Failure mode | Metric(s) | Evidence | Strength |
 | --- | --- | --- | --- |
 | Copy-paste instead of extraction | `duplication_pct`, `dup_blocks` | Industry reports on AI-assisted repositories (GitClear, 2024 and 2025) show rising duplicated blocks and falling moved-or-refactored code. Not peer-reviewed, but consistent across years. | Moderate; the most specific LLM failure mode found |
-| Package bloat past what the next agent can hold | `tokens_est`, `sloc`, `largest_file_sloc` | Successful agent trajectories stay under 20 to 30k tokens; resolve rates collapse past 64k (arXiv 2602.16069, 2505.07897). | Strong |
+| Package bloat past what the next agent can hold | `tokens_est`, `sloc`, `largest_file_sloc` | Successful agent trajectories typically stay under 20 to 30k tokens, and single-shot resolve rates collapse at 64k tokens of context (arXiv 2602.16069); long context remains a weakness for every model tested (arXiv 2505.07897); failed agent trajectories are consistently longer than successful ones (arXiv 2511.00197). | Strong |
 | Exporting everything | `exported_symbols` | No direct study. Wider API surface raises fan-in cost and the facts the next agent must hold (Coherence Debt, arXiv 2608.16630). | Indirect |
 | Untested additions | `untested_exports`, `has_tests` | Agents self-correct through a run-and-check loop; a package without tests denies the next agent that loop. | Moderate, indirect |
 | Hidden state | `globals`, `init_funcs` | No direct study. Plausible; kept at low weight. | Unproven |
 | Coupling shape | `instability`, `abstractness`, `main_sequence_distance` | Martin's package metrics are widely reported but their validation as predictors is mixed and none exists for Go, whose consumer-defined interfaces invert the abstract-provider assumption. Reported only until the corpus measurement in 11.1 shows where good Go modules sit. | Unproven |
-| Deep nesting | `max_nesting`, `cognitive_p90` | Classical complexity shows no consistent correlation with LLM performance once length is controlled (arXiv 2602.07882). Kept as a gate on regressions only. | Weak |
-| Coupling growth | `internal_imports` | Failures come from coupled facts absent from context (arXiv 2608.16630; CrossCodeEval; RepoBench). | Moderate |
-| Blast radius | `fan_in` | Strongest predictor of task difficulty (SWE-bench analyses, arXiv 2511.00197). Rarely changes within one PR, so it drives the rebuild estimate more than gating. | Strong for ranking |
+| Deep nesting | `max_nesting`, `cognitive_p90` | Classical complexity metrics show no consistent correlation with LLM performance (arXiv 2602.07882). Kept as a gate on regressions only. | Weak |
+| Coupling growth | `internal_imports` | Failures come from coupled facts absent from context (arXiv 2608.16630; CrossCodeEval, arXiv 2310.11248). | Moderate |
+| Blast radius | `fan_in` | No direct study; blast-radius reasoning: a change to a package with many importers can break each of them. Reported for ranking (`rank --sort fan_in`) and recorded in the rebuild estimate's contract detail; it enters neither the estimate formula (7.2) nor the default gate. | Unproven; reported for ranking |
 
 ## 5. Architecture
 
@@ -206,7 +206,7 @@ A rebuild must reproduce a contract and pass a spec, and the raw metrics describ
 | --- | --- | --- |
 | Essential volume | `tokens_est * (1 - duplication_pct / 100)` | Code that must be written; duplicates collapse in a rebuild |
 | Spec | `tokens_est_with_tests - tokens_est`, `test_funcs` | Tests are the executable specification the rebuild is checked against |
-| Contract | `exported_symbols`, `fan_in` | Signatures that must survive; consumers that must keep working |
+| Contract | `exported_symbols` | Signatures that must survive. `fan_in` is recorded in the term's detail, not in the formula (7.2) |
 | Unspecified behavior | `untested_exports`, scaled by `coverage_pct` when measured | Behavior that must be reverse-engineered from the old implementation |
 | Hidden contract | `globals`, `init_funcs` | State and ordering that no signature reveals |
 
@@ -289,7 +289,7 @@ Boolean metrics use `require: true` with an optional `when` guard (for example `
 
 Packages that are new at head have no baseline. They face the capacity ceilings and the absolute `max` of every density rule. Delta rules are evaluated against zero only for rules marked `ratchet_from_zero: true`, which are the count-of-things-added metrics (`dup_blocks`, `untested_exports`, `globals`, `init_funcs`): a new package with three untested exports fails, a new package with forty tested exports under the ceiling passes. Intensive metrics such as `max_nesting`, `cognitive_p90` and `duplication_pct` are not ratcheted from zero, since every real package has some nesting; for a new package only their `max` applies.
 
-The rebuild estimate is not gated directly. It mixes size and density terms, so a large well-written feature raises it; it stays a ranking and summary signal. The capacity ceilings below are its gate-side expression: they are set so that a package under every ceiling is rebuildable in one pass.
+The rebuild estimate is not gated directly. It mixes size and density terms, so a large well-written feature raises it; it stays a ranking and summary signal. The capacity ceilings below bound two of its five terms and do not ensure one pass: `tokens_est` caps the volume term and `exported_symbols` the contract term, so at the default ceilings (8.2) those two come to at most 16,000 + 60 × 40 = 18,400 tokens, leaving 6,600 of the 25,000-token context budget for the spec, unspecified and hidden terms, which no ceiling bounds. Nor is a ceiling breach a failed pass: duplication shrinks the volume term, so this repository's `internal/metrics`, at `tokens_est` 16,694 with 42.4% of it duplicated, scored 0.9 agent passes (ONE_PASS) on 2026-09-28 while over the `tokens_est` ceiling.
 
 Any violation fails the gate with exit code 3. Warnings never change the exit code. Violations and warnings are reported one per line with metric, baseline value, head value, limit and a fix suggestion.
 
@@ -542,6 +542,21 @@ Each bullet is intended to become one story.
 ### M7: Rebuild parameter calibration
 
 - Rebuild experiment definition over the reference corpus, agent runner, fitting, ship calibrated parameters.
+
+### M8: Trustworthy gate for LLM changes
+
+The gate is the product: it should block LLM-written changes that make a package harder to maintain and let the rest through, and the milestone makes that demonstrable.
+
+- Make the tool consistent with its own message: the spec's evidence and estimate claims match the code, every bypass of the gate is visible, and this repository passes its own gate in CI.
+- Measure the gate on labeled corpora of LLM-authored changes, each change labeled `block` or `allow`.
+- Close the ways LLM code degrades that no metric sees, in the order the measurement ranks them.
+
+*Accepts when:* all four hold:
+
+- On the labeled corpora, the gate fails at least 80% of the changes labeled `block` and at most 10% of the changes labeled `allow`.
+- Every gated metric has a section 4 row naming the failure mode it catches and evidence that supports the row.
+- `astimate check . --all` on this repository reports no package over a capacity or density `max`, and CI fails on a violation.
+- Every bypass is visible: a finding is silenced only by an exemption that carries a reason and appears in the report.
 
 ## 15. Open questions
 

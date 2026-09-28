@@ -28,13 +28,13 @@ func Explain(name string) (Explanation, bool) {
 const (
 	evidenceDuplication = "Copy-paste instead of extraction: industry reports on AI-assisted " +
 		"repositories show rising duplicated blocks. The most specific LLM failure mode found; moderate evidence."
-	evidenceBloat = "Package bloat: successful agent trajectories stay under 20 to 30k tokens and " +
-		"resolve rates collapse past 64k. Strong evidence."
+	evidenceBloat = "Package bloat: successful agent trajectories typically stay under 20 to 30k tokens, " +
+		"resolve rates collapse at 64k tokens of context, and failed trajectories are longer. Strong evidence."
 	evidenceTests = "Untested additions: agents self-correct through a run-and-check loop, and a " +
 		"package without tests denies the next agent that loop. Moderate, indirect evidence."
 	evidenceHiddenState = "Hidden state: no direct study; plausible and kept at low weight."
-	evidenceNesting     = "Deep nesting: classical complexity shows no consistent correlation with " +
-		"LLM performance once length is controlled. Gated on regressions only; weak evidence."
+	evidenceNesting     = "Deep nesting: classical complexity metrics show no consistent correlation with " +
+		"LLM performance. Gated on regressions only; weak evidence."
 	evidenceContext = "Context only: an input to the rebuild estimate or to other metrics, not a " +
 		"failure mode the gate targets."
 	evidenceCoupling = "Reported, not gated. Martin's package metrics are widely reported but their " +
@@ -71,8 +71,9 @@ func explanations() map[string]Explanation {
 		"stdlib_imports":   {Definition: "Distinct standard-library imports.", Evidence: evidenceContext, Release: "v0"},
 		"fan_in": {
 			Definition: "Distinct module-internal packages importing this package from non-test files.",
-			Evidence: "Blast radius: the strongest predictor of task difficulty. Rarely changes within one " +
-				"change, so it drives the rebuild estimate and ranking rather than the gate.",
+			Evidence: "Blast radius: no direct study; the reasoning is that a change to a package with many " +
+				"importers can break each of them. Unproven; reported for ranking. Recorded in the rebuild " +
+				"estimate's contract detail, not in its formula, and not gated.",
 			Release: "v0",
 		},
 		"fan_in_tests": {Definition: "Module packages importing this package from test files only.", Evidence: evidenceContext, Release: "v0"},

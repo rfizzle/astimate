@@ -104,3 +104,25 @@ func TestExplainGeneratedExcluded(t *testing.T) {
 		t.Errorf("files definition does not say generated files count: %s", e.Definition)
 	}
 }
+
+// TestExplainFanIn checks that fan_in's evidence matches SPEC.md section 4:
+// unproven, reported for ranking, and outside the estimate formula.
+func TestExplainFanIn(t *testing.T) {
+	e, ok := Explain("fan_in")
+	if !ok {
+		t.Fatal("Explain(fan_in) has no entry")
+	}
+	if e.Gated {
+		t.Error("Explain(fan_in).Gated = true, want false")
+	}
+	for _, want := range []string{"no direct study", "Unproven; reported for ranking", "not in its formula"} {
+		if !strings.Contains(e.Evidence, want) {
+			t.Errorf("Explain(fan_in).Evidence lacks %q: %s", want, e.Evidence)
+		}
+	}
+	for _, stale := range []string{"strongest predictor", "drives the rebuild estimate"} {
+		if strings.Contains(e.Evidence, stale) {
+			t.Errorf("Explain(fan_in).Evidence still claims %q: %s", stale, e.Evidence)
+		}
+	}
+}
