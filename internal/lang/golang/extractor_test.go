@@ -3,7 +3,6 @@ package golang
 import (
 	"context"
 	"errors"
-	"go/token"
 	"os"
 	"path/filepath"
 	"slices"
@@ -12,6 +11,9 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/rfizzle/astimate/internal/lang/golang/internal/dup"
+	"github.com/rfizzle/astimate/internal/lang/golang/internal/inspect"
+	"github.com/rfizzle/astimate/internal/lang/golang/internal/load"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"golang.org/x/tools/go/packages"
 )
@@ -108,45 +110,6 @@ func TestDetect(t *testing.T) {
 	}
 }
 
-func TestReadModulePath(t *testing.T) {
-	for _, tc := range []struct {
-		name    string
-		gomod   string // empty means no go.mod file
-		want    string
-		wantErr string
-	}{
-		{name: "plain", gomod: "module example.com/m\n\ngo 1.27\n", want: "example.com/m"},
-		{name: "quoted", gomod: "module \"example.com/q\"\n", want: "example.com/q"},
-		{
-			name:  "comments and requires",
-			gomod: "// header\nmodule example.com/c // trailing\n\ngo 1.27\n\nrequire example.com/x v1.0.0\n",
-			want:  "example.com/c",
-		},
-		{name: "no module directive", gomod: "go 1.27\n", wantErr: "no module directive"},
-		{name: "missing go.mod", wantErr: "reading module path"},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			dir := t.TempDir()
-			if tc.gomod != "" {
-				writeFile(t, filepath.Join(dir, "go.mod"), tc.gomod)
-			}
-			got, err := readModulePath(dir)
-			if tc.wantErr != "" {
-				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
-					t.Fatalf("readModulePath error = %v, want one containing %q", err, tc.wantErr)
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("readModulePath: %v", err)
-			}
-			if got != tc.want {
-				t.Fatalf("readModulePath = %q, want %q", got, tc.want)
-			}
-		})
-	}
-}
-
 func TestPackagesFixture(t *testing.T) {
 	got, err := New().Packages(fixtureRoot(t))
 	if err != nil {
@@ -164,16 +127,16 @@ func TestLoadedIndexesTestPackages(t *testing.T) {
 		t.Fatalf("Packages: %v", err)
 	}
 	l := e.modules[root].l
-	if l.modulePath != "example.com/fixture" {
-		t.Errorf("modulePath = %q, want example.com/fixture", l.modulePath)
+	if l.Path != "example.com/fixture" {
+		t.Errorf("modulePath = %q, want example.com/fixture", l.Path)
 	}
-	if l.fset == nil {
+	if l.Fset == nil {
 		t.Error("fset is nil")
 	}
-	if len(l.pkgs) != len(l.paths) {
-		t.Errorf("len(pkgs) = %d, len(paths) = %d", len(l.pkgs), len(l.paths))
+	if len(l.Pkgs) != len(l.Paths) {
+		t.Errorf("len(pkgs) = %d, len(paths) = %d", len(l.Pkgs), len(l.Paths))
 	}
-	for path, p := range l.pkgs {
+	for path, p := range l.Pkgs {
 		if p.Types == nil || p.TypesInfo == nil || len(p.Syntax) == 0 {
 			t.Errorf("%s: missing types or syntax", path)
 		}
@@ -183,17 +146,14 @@ func TestLoadedIndexesTestPackages(t *testing.T) {
 			}
 		}
 	}
-	if got, want := keys(l.tests), []string{"example.com/fixture/dupes", "example.com/fixture/tested"}; !slices.Equal(got, want) {
+	if got, want := keys(l.Tests), []string{"example.com/fixture/dupes", "example.com/fixture/tested"}; !slices.Equal(got, want) {
 		t.Errorf("tests keys = %v, want %v", got, want)
 	}
-	if got, want := keys(l.xtests), []string{"example.com/fixture/tested"}; !slices.Equal(got, want) {
+	if got, want := keys(l.XTests), []string{"example.com/fixture/tested"}; !slices.Equal(got, want) {
 		t.Errorf("xtests keys = %v, want %v", got, want)
 	}
-	if p := l.xtests["example.com/fixture/tested"]; p.PkgPath != "example.com/fixture/tested_test" {
+	if p := l.XTests["example.com/fixture/tested"]; p.PkgPath != "example.com/fixture/tested_test" {
 		t.Errorf("xtest PkgPath = %q, want example.com/fixture/tested_test", p.PkgPath)
-	}
-	if l.reverse != nil {
-		t.Error("reverse is filled before any metric builds it")
 	}
 }
 
@@ -300,45 +260,6 @@ func TestNoPackages(t *testing.T) {
 	}
 }
 
-func TestInModule(t *testing.T) {
-	for _, tc := range []struct {
-		path string
-		want bool
-	}{
-		{"example.com/m", true},
-		{"example.com/m/sub", true},
-		{"example.com/m_test", false},
-		{"example.com/mod", false},
-		{"example.com", false},
-		{"fmt", false},
-	} {
-		if got := inModule("example.com/m", tc.path); got != tc.want {
-			t.Errorf("inModule(%q) = %v, want %v", tc.path, got, tc.want)
-		}
-	}
-}
-
-func TestFirstError(t *testing.T) {
-	list := packages.Error{Msg: "# example.com/m\ncompiler output", Kind: packages.ListError}
-	typ := packages.Error{Msg: "m.go:1:1: type error", Kind: packages.TypeError}
-	parse := packages.Error{Msg: "m.go:1:1: parse error", Kind: packages.ParseError}
-	for _, tc := range []struct {
-		name string
-		errs []packages.Error
-		want packages.Error
-	}{
-		{"list error before type error", []packages.Error{list, typ}, typ},
-		{"parse error first", []packages.Error{parse, list, typ}, parse},
-		{"only list errors", []packages.Error{list}, list},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := firstError(tc.errs); got != tc.want {
-				t.Errorf("firstError = %v, want %v", got, tc.want)
-			}
-		})
-	}
-}
-
 func benchmarkLoad(b *testing.B, root string) {
 	b.Helper()
 	for b.Loop() {
@@ -385,7 +306,7 @@ func TestExtractOptions(t *testing.T) {
 
 	t.Run("chars per token", func(t *testing.T) {
 		l := loadFixture(t)
-		authored, generated := splitGenerated(l, l.pkgs[hub])
+		authored, generated := splitGenerated(l, l.Pkgs[hub])
 		if len(generated) == 0 {
 			t.Fatalf("%s has no generated file; the check needs one", hub)
 		}
@@ -429,7 +350,7 @@ func TestExtractOptions(t *testing.T) {
 func TestExtractO200kConcurrent(t *testing.T) {
 	exact := newO200kForTest(t) // sets the offline environment
 	root := fixtureRoot(t)
-	e := New(WithTokenizer(methodO200k))
+	e := New(WithTokenizer(inspect.MethodO200k))
 	mod := &metrics.ModuleContext{Root: root}
 	if _, err := e.Packages(root); err != nil {
 		t.Fatalf("Packages: %v", err)
@@ -448,23 +369,23 @@ func TestExtractO200kConcurrent(t *testing.T) {
 			t.Errorf("Extract(%s): %v", pkg, errs[i])
 			continue
 		}
-		authored, generated := splitGenerated(l, l.pkgs[pkg])
-		want, err := exact.Count(osFiles{}, authored)
+		authored, generated := splitGenerated(l, l.Pkgs[pkg])
+		want, err := exact.Count(load.OSFiles{}, authored)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if got[i].TokensEst != want {
 			t.Errorf("%s: tokens_est = %d, want o200k count %d", pkg, got[i].TokensEst, want)
 		}
-		wantGen, err := exact.Count(osFiles{}, generated)
+		wantGen, err := exact.Count(load.OSFiles{}, generated)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if g := got[i].TokensEstGenerated; g == nil || *g != wantGen {
 			t.Errorf("%s: tokens_est_generated = %v, want o200k count %d", pkg, g, wantGen)
 		}
-		if d, ok := l.detailsOf(pkg); !ok || d.tokensMethod != methodO200k {
-			t.Errorf("%s: details = %+v, %v, want tokens method %q", pkg, d, ok, methodO200k)
+		if d, ok := l.detailsOf(pkg); !ok || d.tokensMethod != inspect.MethodO200k {
+			t.Errorf("%s: details = %+v, %v, want tokens method %q", pkg, d, ok, inspect.MethodO200k)
 		}
 	}
 }
@@ -483,15 +404,15 @@ func TestExtractRecordsDetails(t *testing.T) {
 	if !ok {
 		t.Fatal("no details for dupes")
 	}
-	if len(dupes.dupLocations) != 3 || dupes.tokensMethod != methodEst {
-		t.Errorf("dupes details = %+v, want 3 duplicate locations and method %q", dupes, methodEst)
+	if len(dupes.dupLocations) != 3 || dupes.tokensMethod != inspect.MethodEst {
+		t.Errorf("dupes details = %+v, want 3 duplicate locations and method %q", dupes, inspect.MethodEst)
 	}
 	hub, ok := l.detailsOf("example.com/fixture/hub")
 	if !ok {
 		t.Fatal("no details for hub")
 	}
-	if len(hub.untestedNames) != 3 {
-		t.Errorf("hub untested names = %v, want 3", hub.untestedNames)
+	if len(hub.untested.Names) != 3 {
+		t.Errorf("hub untested names = %v, want 3", hub.untested.Names)
 	}
 	if _, ok := l.detailsOf("example.com/fixture/a"); ok {
 		t.Error("details recorded for a package never extracted")
@@ -499,35 +420,22 @@ func TestExtractRecordsDetails(t *testing.T) {
 }
 
 // TestExtractStdlibErrors assembles the standard library errors package,
-// loaded with its test variants outside the module loader, through the same
-// mapping Extract uses. It checks that assemble works on a load the module
-// loader did not build; the module path is set to "std", the standard
-// library's, but internal_imports=0 holds under any module path because
-// classifyImport rules out the standard library before it consults the module
-// path. runtime.GOROOT is deprecated, so a toolchain without usable sources
+// loaded with its test variants by load.StdPackage outside the module
+// loader, through the same mapping Extract uses. It checks that assemble
+// works on a load the module loader did not build; the module path is
+// "std", the standard library's, but internal_imports=0 holds under any
+// module path because imports.Classify rules out the standard library before
+// it consults the module path. runtime.GOROOT is deprecated, so a toolchain without usable sources
 // is detected by the load failing, and the test skips.
 func TestExtractStdlibErrors(t *testing.T) {
-	cfg := &packages.Config{
-		Mode: packages.NeedName | packages.NeedFiles | packages.NeedSyntax |
-			packages.NeedTypes | packages.NeedTypesInfo | packages.NeedImports,
-		Tests: true,
-		Fset:  token.NewFileSet(),
-	}
-	roots, err := packages.Load(cfg, "errors")
-	if err != nil {
+	m, err := load.StdPackage(t.Context(), packages.Load, "errors")
+	if err != nil || m.Pkgs["errors"] == nil || len(m.Pkgs["errors"].Syntax) == 0 {
 		t.Skipf("loading stdlib errors: %v", err)
 	}
-	// index keeps the packages under its module path argument, so "errors"
-	// selects the package and its test variants and drops the test main.
-	l, err := index("errors", roots)
-	if err != nil || l.pkgs["errors"] == nil || len(l.pkgs["errors"].Syntax) == 0 {
-		t.Skipf("indexing stdlib errors: %v", err)
-	}
-	l.modulePath = "std"
-	l.fset = cfg.Fset
+	l := &loaded{Module: m}
 
-	got, err := assemble(t.Context(), l, l.pkgs["errors"],
-		assembleOptions{counter: newRatioCounter(defaultCharsPerToken), dup: defaultDupOptions()})
+	got, err := assemble(t.Context(), l, l.Pkgs["errors"],
+		assembleOptions{counter: inspect.NewRatioCounter(inspect.DefaultCharsPerToken), dup: dup.DefaultOptions()})
 	if err != nil {
 		t.Fatalf("assemble: %v", err)
 	}
@@ -568,7 +476,7 @@ func BenchmarkExtractAll(b *testing.B) {
 // splitGenerated returns the names of p's non-test files split into the
 // authored ones and the generated ones, in p.GoFiles order.
 func splitGenerated(l *loaded, p *packages.Package) (authored, generated []string) {
-	gen := generatedNames(l, p)
+	gen := l.GeneratedNames(p)
 	for _, name := range p.GoFiles {
 		if gen[name] {
 			generated = append(generated, name)
@@ -577,4 +485,41 @@ func splitGenerated(l *loaded, p *packages.Package) (authored, generated []strin
 		}
 	}
 	return authored, generated
+}
+
+// TestImporters checks the module packages whose non-test files import a
+// package, from the one reverse graph, and the unknown-package error.
+func TestImporters(t *testing.T) {
+	e := New()
+	mod := &metrics.ModuleContext{Root: fixtureRoot(t)}
+	got, err := e.Importers(t.Context(), mod, "example.com/fixture/hub")
+	if err != nil {
+		t.Fatalf("Importers: %v", err)
+	}
+	if len(got) != 4 || !slices.IsSorted(got) {
+		t.Errorf("Importers(hub) = %v, want the 4 fan_in packages, sorted", got)
+	}
+	if _, err := e.Importers(t.Context(), mod, "example.com/fixture/nope"); !errors.Is(err, metrics.ErrUnknownPackage) {
+		t.Errorf("Importers of an unknown package: error = %v, want metrics.ErrUnknownPackage", err)
+	}
+}
+
+// TestWithDupSplitLiteralRuns checks that the option reaches the extractor's
+// duplication settings, off by default.
+func TestWithDupSplitLiteralRuns(t *testing.T) {
+	if New().dup.SplitLiteralRuns {
+		t.Error("split_literal_runs is on by default")
+	}
+	if !New(WithDupSplitLiteralRuns(true)).dup.SplitLiteralRuns {
+		t.Error("WithDupSplitLiteralRuns(true) left split_literal_runs off")
+	}
+}
+
+// TestExtractStdlibAllFunctionsOptions checks that invalid options fail
+// before the library is loaded.
+func TestExtractStdlibAllFunctionsOptions(t *testing.T) {
+	_, _, _, err := ExtractStdlibAllFunctions(t.Context(), WithTokenizer("cl100k"))
+	if !errors.Is(err, metrics.ErrUnknownTokenizer) {
+		t.Errorf("ExtractStdlibAllFunctions error = %v, want metrics.ErrUnknownTokenizer", err)
+	}
 }

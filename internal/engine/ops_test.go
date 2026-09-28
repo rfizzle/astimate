@@ -247,3 +247,26 @@ func TestImportBoundary(t *testing.T) {
 		}
 	}
 }
+
+// TestGoExtractorBoundary checks that the Go extractor and every package
+// under it sit below the gate: none depends on engine, report, gate, score
+// or config, which compose extractors and never the reverse.
+func TestGoExtractorBoundary(t *testing.T) {
+	if testing.Short() {
+		t.Skip("runs go list")
+	}
+	t.Parallel()
+
+	out, err := exec.CommandContext(t.Context(), "go", "list", "-deps", "-f", "{{.ImportPath}}", "../lang/golang/...").Output()
+	if err != nil {
+		t.Fatalf("go list: %v", err)
+	}
+	forbidden := []string{"/internal/engine", "/internal/report", "/internal/gate", "/internal/score", "/internal/config"}
+	for dep := range strings.FieldsSeq(string(out)) {
+		for _, f := range forbidden {
+			if strings.HasSuffix(dep, f) {
+				t.Errorf("internal/lang/golang/... depends on %s", dep)
+			}
+		}
+	}
+}

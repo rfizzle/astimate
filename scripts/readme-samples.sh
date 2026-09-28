@@ -68,18 +68,24 @@ sample() {
 	} | normalize >"$samples/$name"
 }
 
+# The samples show what a user without a configuration file sees, the
+# embedded default. They run from the repository root, whose own
+# astimate.yaml (the default plus this repository's exemptions) would
+# otherwise be resolved, so each command that reads a configuration is
+# given the default explicitly.
+def=internal/config/default.yaml
 sample assess "astimate assess testdata/go/fixture/dupes" 0 -- \
-	"$bin" assess testdata/go/fixture/dupes
+	"$bin" assess testdata/go/fixture/dupes --config "$def"
 sample assess-json "astimate assess testdata/go/fixture/dupes --json | head -25" 25 -- \
-	"$bin" assess testdata/go/fixture/dupes --json
+	"$bin" assess testdata/go/fixture/dupes --json --config "$def"
 sample rank "astimate rank testdata/go/fixture" 0 -- \
-	"$bin" rank testdata/go/fixture
+	"$bin" rank testdata/go/fixture --config "$def"
 sample rank-ts "astimate rank testdata/ts/fixture" 0 -- \
-	"$bin" rank testdata/ts/fixture
+	"$bin" rank testdata/ts/fixture --config "$def"
 sample baseline-write "astimate baseline write testdata/go/fixture --out /tmp/fixture-baseline.json" 0 -- \
-	"$bin" baseline write testdata/go/fixture --out "$tmp/fixture-baseline.json"
+	"$bin" baseline write testdata/go/fixture --out "$tmp/fixture-baseline.json" --config "$def"
 sample check "astimate check testdata/go/fixture-degraded --baseline /tmp/fixture-baseline.json --all" 0 -- \
-	"$bin" check testdata/go/fixture-degraded --baseline "$tmp/fixture-baseline.json" --all
+	"$bin" check testdata/go/fixture-degraded --baseline "$tmp/fixture-baseline.json" --all --config "$def"
 mkdir "$tmp/init"
 sample config-init "astimate config init" 0 -- \
 	sh -c 'cd "$1" && "$2" config init' sh "$tmp/init" "$bin"

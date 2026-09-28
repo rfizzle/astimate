@@ -1,0 +1,332 @@
+// Package dup computes the duplication metrics of a Go module's packages:
+// dup_blocks and duplication_pct of one package (SPEC.md section 6.3), and
+// dup_blocks_cross_pkg over the whole module, both over
+// internal/lang/duptok.
+//
+// Stream. Every non-test file of the package is scanned with go/scanner,
+// comments off, except generated files: those ast.IsGenerated reports, which
+// carry a "// Code generated ... DO NOT EDIT." comment before the package
+// clause, as Go's generated-file convention specifies. Each token becomes one
+// int32 code:
+//
+//   - an identifier is token.IDENT, a string, char, int, float or imaginary
+//     literal is token.INT (the single LIT code), so renamed copies match;
+//   - with a normalization toggle off, identifiers (or literals) are instead
+//     interned by text to codes from dupInternBase up, distinct per text;
+//   - a keyword or operator keeps its token.Token value;
+//   - an automatic semicolon (token.SEMICOLON with literal "\n") is dropped,
+//     so a repeat never reaches onto the neighbouring declaration's line; an
+//     explicit ";" is kept.
+//
+// Each token goes into a duptok.Stream with its duptok class: a literal
+// (LIT, or an interned literal text) is duptok.Literal; one of the
+// punctuation tokens , { } : [ ] ( ) or an explicit ; is duptok.Punct; a
+// unary sign (below) is duptok.Sign; everything else, identifiers included,
+// is duptok.Code. Every file is closed with its name and its source lines,
+// and duptok follows it with a separator code unique in the stream, so no
+// repeat crosses a file boundary.
+//
+// Finder. The suffix-array finder, the merging rule, the literal-only rule
+// (duplication.ignore_literal_only) and coverage are those of
+// internal/lang/duptok, shared with the TypeScript extractor; its package
+// comment gives the derivation. A literal-only block is one whose every
+// token is Literal or Punct, so a repeated run of a literal table
+// (precomputed points, lookup tables) is neither a block nor coverage, while
+// any identifier, keyword or other operator keeps the block. The rule runs
+// after merging, so a block that holds a literal table next to code is kept
+// whole.
+//
+// Signed literals. The scanner marks as duptok.Sign each + or - that
+// directly precedes an int, float, imaginary or char literal and follows a
+// token that cannot end an operand (anything but an identifier, a literal,
+// or ) ] }), which is to say a unary sign. With duplication.fold_signs on,
+// the literal-only rule counts such a sign as part of its literal, so a
+// table of negative numbers is dropped too. The stream keeps the sign as
+// its own code: folding it into the literal there was measured and
+// rejected, because it lets f(-1) match f(1), which merges signed
+// coefficient tables with the code around them, and it shortens code blocks
+// below duplication.min_tokens.
+//
+// Literal runs. With duplication.split_literal_runs on, duptok also cuts
+// each block at every literal-only run of at least duplication.min_tokens
+// tokens and keeps the parts of at least that length, so consecutive
+// tables that their declaration headers (var x = [N]T{) join into one
+// block are dropped as well. It is off by default.
+//
+// Coverage. A token covers the lines from its first to its last (a
+// multi-line raw string spans several), and a covered line counts only if
+// it is a source line by the same rule size uses: at least one non-space
+// byte outside comments. duplication_pct is covered lines over the package
+// SLOC from size, which leaves generated files out as the stream does, times
+// 100, rounded to one decimal.
+package dup
+
+import (
+	"bytes"
+	"errors"
+	"fmt"
+	"go/scanner"
+	"go/token"
+	"strings"
+
+	"github.com/rfizzle/astimate/internal/lang/duptok"
+	"github.com/rfizzle/astimate/internal/lang/golang/internal/inspect"
+	"github.com/rfizzle/astimate/internal/lang/golang/internal/load"
+	"golang.org/x/tools/go/packages"
+)
+
+const (
+	// dupIdentCode is the normalized code of every identifier (ID).
+	dupIdentCode = int32(token.IDENT)
+	// dupLitCode is the normalized code of every basic literal (LIT).
+	dupLitCode = int32(token.INT)
+	// dupInternBase is the first code given to an interned identifier or
+	// literal text when its normalization is off. It is above every
+	// token.Token value and far below duptok.SeparatorBase.
+	dupInternBase = int32(1 << 12)
+)
+
+// Options configures duplication. The extractor options WithDupMinTokens,
+// WithDupIgnoreLiteralOnly, WithDupFoldSigns and WithDupSplitLiteralRuns
+// set MinTokens, IgnoreLiteralOnly, FoldSigns and SplitLiteralRuns; the
+// normalization toggles keep their defaults. Options is comparable, so it
+// keys the memoized cross-package pass (Memo).
+type Options struct {
+	// MinTokens is duplication.min_tokens: the shortest normalized token
+	// sequence that counts as a duplicate block.
+	MinTokens int
+	// NormalizeIdents maps every identifier to one code.
+	NormalizeIdents bool
+	// NormalizeLiterals maps every string, char and numeric literal to one
+	// code.
+	NormalizeLiterals bool
+	// IgnoreLiteralOnly is duplication.ignore_literal_only: drop a block made
+	// only of literals and punctuation.
+	IgnoreLiteralOnly bool
+	// FoldSigns is duplication.fold_signs: under IgnoreLiteralOnly, a unary +
+	// or - directly before a numeric literal counts as part of the literal.
+	// The stream itself is unchanged, so no match is gained or lost.
+	FoldSigns bool
+	// SplitLiteralRuns is duplication.split_literal_runs: under
+	// IgnoreLiteralOnly, cut each block at every literal-only run of at
+	// least MinTokens tokens and keep the parts of at least MinTokens.
+	SplitLiteralRuns bool
+}
+
+// DefaultOptions returns the SPEC.md defaults: 40 tokens, identifiers and
+// literals normalized, literal-only blocks ignored with signed literals
+// counted as literals, blocks not split at literal-only runs.
+func DefaultOptions() Options {
+	return Options{MinTokens: 40, NormalizeIdents: true, NormalizeLiterals: true, IgnoreLiteralOnly: true, FoldSigns: true}
+}
+
+// finder returns the options of o that the duptok finder takes.
+func (o Options) finder() duptok.Options {
+	return duptok.Options{
+		MinTokens:         o.MinTokens,
+		IgnoreLiteralOnly: o.IgnoreLiteralOnly,
+		FoldSigns:         o.FoldSigns,
+		SplitLiteralRuns:  o.SplitLiteralRuns,
+	}
+}
+
+// tokenSink receives the normalized tokens of each file and then closes
+// the file. *duptok.Stream implements it; tests record what scan emits.
+type tokenSink interface {
+	Add(code int32, class duptok.Class, line, last int) error
+	EndFile(name string, code []bool)
+}
+
+// dupTokenizer turns Go source into duptok tokens under one set of options.
+// It interns identifier or literal text when a normalization toggle is off,
+// so the files of one stream go through one tokenizer.
+type dupTokenizer struct {
+	opts Options
+	// intern maps identifier or literal text to its code when a
+	// normalization toggle is off.
+	intern map[string]int32
+}
+
+// newDupTokenizer returns a tokenizer for opts.
+func newDupTokenizer(opts Options) *dupTokenizer {
+	return &dupTokenizer{opts: opts, intern: make(map[string]int32)}
+}
+
+// Package computes dup_blocks and duplication_pct for p from its non-test,
+// non-generated files, read through src, with sloc the sloc of p from
+// inspect.Size, the denominator of the percentage. See the package comment
+// for the algorithm.
+func Package(m *load.Module, p *packages.Package, src load.FileSource, sloc int, opts Options) (duptok.Result, error) {
+	if opts.MinTokens < 1 {
+		return duptok.Result{}, fmt.Errorf("detecting duplication in %s: minimum of %d tokens is not positive", p.PkgPath, opts.MinTokens)
+	}
+	var s duptok.Stream
+	if err := newDupTokenizer(opts).appendPackage(token.NewFileSet(), m, p, src, &s); err != nil {
+		return duptok.Result{}, fmt.Errorf("detecting duplication in %s: %w", p.PkgPath, err)
+	}
+	res, err := s.Count(opts.finder(), sloc)
+	if err != nil {
+		return duptok.Result{}, fmt.Errorf("detecting duplication in %s: %w", p.PkgPath, err)
+	}
+	return res, nil
+}
+
+// appendPackage scans the non-test, non-generated files of p, read through
+// src and positioned in fs, into sink, closing each file.
+func (z *dupTokenizer) appendPackage(fs *token.FileSet, m *load.Module, p *packages.Package, src load.FileSource, sink tokenSink) error {
+	for _, f := range m.AuthoredSyntax(p) {
+		tf := m.Fset.File(f.FileStart)
+		if tf == nil {
+			return errors.New("file not in file set")
+		}
+		data, err := src.Read(tf.Name())
+		if err != nil {
+			return err
+		}
+		if err := z.scan(fs, tf.Name(), data, sink); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// heldSign is a + or - that scan holds back until the next token shows
+// whether it signs a numeric literal.
+type heldSign struct {
+	code       int32
+	line, last int
+	held       bool
+}
+
+// scan adds the normalized tokens of one file to sink under name, then
+// closes the file. On a scan error the file is left open.
+func (z *dupTokenizer) scan(fs *token.FileSet, name string, src []byte, sink tokenSink) error {
+	tf := fs.AddFile(name, -1, len(src))
+	var sc scanner.Scanner
+	var scanErr error
+	sc.Init(tf, src, func(pos token.Position, msg string) {
+		if scanErr == nil {
+			scanErr = fmt.Errorf("scanning %s: %s", pos, msg)
+		}
+	}, 0)
+	// code reports, per 1-based line, whether the line holds a non-space
+	// byte of some token, which is the SLOC rule size applies.
+	code := make([]bool, bytes.Count(src, []byte{'\n'})+2)
+	// operand: the previous token can end an operand; sign: the previous
+	// token, not yet added, is a + or - that does not follow one.
+	operand := false
+	var sign heldSign
+	for {
+		pos, tok, lit := sc.Scan()
+		if tok == token.EOF {
+			break
+		}
+		if sign.held {
+			class := duptok.Code
+			if isNumericLit(tok) {
+				class = duptok.Sign
+			}
+			if err := sink.Add(sign.code, class, sign.line, sign.last); err != nil {
+				return err
+			}
+			sign.held = false
+		}
+		unary := !operand && (tok == token.SUB || tok == token.ADD)
+		operand = endsOperand(tok)
+		if tok == token.SEMICOLON && lit == "\n" {
+			continue
+		}
+		line := tf.Line(pos)
+		last := line
+		code[line] = true
+		if tok == token.STRING && strings.IndexByte(lit, '\n') >= 0 {
+			last = markRawLines(code, line, lit)
+		}
+		c, class := z.code(tok, lit)
+		if unary {
+			sign = heldSign{code: c, line: line, last: last, held: true}
+			continue
+		}
+		if err := sink.Add(c, class, line, last); err != nil {
+			return err
+		}
+	}
+	if sign.held {
+		if err := sink.Add(sign.code, duptok.Code, sign.line, sign.last); err != nil {
+			return err
+		}
+	}
+	if scanErr != nil {
+		return scanErr
+	}
+	sink.EndFile(name, code)
+	return nil
+}
+
+// endsOperand reports whether tok can be the last token of an operand, so
+// that a + or - after it is binary.
+func endsOperand(tok token.Token) bool {
+	switch tok {
+	case token.IDENT, token.RPAREN, token.RBRACK, token.RBRACE:
+		return true
+	}
+	return tok.IsLiteral()
+}
+
+// isNumericLit reports whether tok is an int, float, imaginary or char
+// literal, the literals a unary sign applies to.
+func isNumericLit(tok token.Token) bool {
+	switch tok {
+	case token.INT, token.FLOAT, token.IMAG, token.CHAR:
+		return true
+	}
+	return false
+}
+
+// markRawLines marks the lines after line that the multi-line raw string lit
+// holds a non-space byte on, and returns the literal's last line.
+func markRawLines(code []bool, line int, lit string) int {
+	for i := 0; i < len(lit); i++ {
+		switch b := lit[i]; {
+		case b == '\n':
+			line++
+		case !inspect.IsSpace(b):
+			code[line] = true
+		}
+	}
+	return line
+}
+
+// code returns the stream code and duptok class of one token under the
+// tokenizer's options.
+func (z *dupTokenizer) code(tok token.Token, lit string) (int32, duptok.Class) {
+	switch {
+	case tok == token.IDENT:
+		if z.opts.NormalizeIdents {
+			return dupIdentCode, duptok.Code
+		}
+		return z.interned("i" + lit), duptok.Code
+	case tok.IsLiteral():
+		if z.opts.NormalizeLiterals {
+			return dupLitCode, duptok.Literal
+		}
+		return z.interned("l" + lit), duptok.Literal
+	}
+	switch tok {
+	case token.COMMA, token.LBRACE, token.RBRACE, token.COLON,
+		token.LBRACK, token.RBRACK, token.LPAREN, token.RPAREN, token.SEMICOLON:
+		return int32(tok), duptok.Punct
+	}
+	return int32(tok), duptok.Code
+}
+
+// interned returns the code of key, assigning the next free one on first
+// use.
+func (z *dupTokenizer) interned(key string) int32 {
+	c, ok := z.intern[key]
+	if !ok {
+		c = dupInternBase + int32(len(z.intern))
+		z.intern[key] = c
+	}
+	return c
+}

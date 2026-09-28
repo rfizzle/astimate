@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"go/token"
-	"path/filepath"
 	"slices"
 	"strconv"
 
 	"github.com/rfizzle/astimate/internal/lang/duptok"
+	"github.com/rfizzle/astimate/internal/lang/golang/internal/dup"
+	"github.com/rfizzle/astimate/internal/lang/golang/internal/inspect"
+	"github.com/rfizzle/astimate/internal/lang/golang/internal/load"
 	"github.com/rfizzle/astimate/internal/metrics"
 )
 
@@ -24,34 +26,27 @@ func (e *Extractor) Details(ctx context.Context, mod *metrics.ModuleContext, pkg
 	if err != nil {
 		return metrics.Details{}, err
 	}
-	locs := make([]string, 0, len(d.dupLocations))
-	for _, loc := range d.dupLocations {
-		locs = append(locs, relLocation(dir, loc))
-	}
 	var cross []metrics.CrossBlock
-	if crossApplies(l) {
+	if dup.Applies(l.Module) {
 		// Extract has run the cross-package pass for e.dup, so this is the
 		// memoized result and reads no file.
-		c, err := crossDuplication(l, osFiles{}, e.dup)
+		c, err := l.cross.Cross(l.Module, load.OSFiles{}, e.dup)
 		if err != nil {
 			return metrics.Details{}, fmt.Errorf("details of %s: %w", pkg, err)
 		}
-		cross = crossBlocksOf(c, pkg)
+		cross = c.BlocksOf(pkg)
 	}
-	files := make([]string, 0, len(d.files))
-	for _, f := range d.files {
-		files = append(files, relFile(dir, f))
-	}
+	files := relFiles(dir, d.files)
 	slices.Sort(files)
 	return metrics.Details{
-		UntestedExports:   slices.Clone(d.untestedNames),
-		UntestedExcluded:  slices.Clone(d.untestedExcluded),
-		DupLocations:      locs,
+		UntestedExports:   slices.Clone(d.untested.Names),
+		UntestedExcluded:  slices.Clone(d.untested.Excluded),
+		DupLocations:      relLocations(dir, d.dupLocations),
 		CrossBlocks:       cross,
-		UntestedPositions: positions(l.fset, dir, d.untestedPos),
-		GlobalPositions:   positions(l.fset, dir, d.globalPos),
-		GlobalNames:       slices.Clone(d.globalNames),
-		LargestFile:       relFile(dir, d.largestFile),
+		UntestedPositions: positions(l.Fset, dir, d.untested.Pos),
+		GlobalPositions:   positions(l.Fset, dir, d.globals.Pos),
+		GlobalNames:       slices.Clone(d.globals.Names),
+		LargestFile:       load.RelFile(dir, d.largestFile),
 		SourceFiles:       files,
 	}, nil
 }
@@ -70,7 +65,7 @@ func positions(fset *token.FileSet, dir string, ps []token.Pos) []metrics.Positi
 			continue
 		}
 		pos := fset.Position(p)
-		out[i] = metrics.Position{File: relFile(dir, pos.Filename), Line: pos.Line}
+		out[i] = metrics.Position{File: load.RelFile(dir, pos.Filename), Line: pos.Line}
 	}
 	return out
 }
@@ -86,24 +81,24 @@ func (e *Extractor) Functions(ctx context.Context, mod *metrics.ModuleContext, p
 	if err != nil {
 		return nil, err
 	}
-	return functionInfos(l.fset, dir, d.functions), nil
+	return functionInfos(l.Fset, dir, d.functions), nil
 }
 
 // functionInfos converts the per-function records of a package in dir to
 // metrics.FunctionInfo, resolving each position in fset to a file relative
 // to dir and a line. A nil fset leaves File and Line empty.
-func functionInfos(fset *token.FileSet, dir string, fcs []funcComplexity) []metrics.FunctionInfo {
+func functionInfos(fset *token.FileSet, dir string, fcs []inspect.Func) []metrics.FunctionInfo {
 	fns := make([]metrics.FunctionInfo, len(fcs))
 	for i, fc := range fcs {
 		fns[i] = metrics.FunctionInfo{
-			Receiver:    fc.receiver,
-			Name:        fc.ident,
-			Fingerprint: fc.fingerprint,
-			Cognitive:   fc.cognitive,
+			Receiver:    fc.Receiver,
+			Name:        fc.Ident,
+			Fingerprint: fc.Fingerprint,
+			Cognitive:   fc.Cognitive,
 		}
-		if fset != nil && fc.pos.IsValid() {
-			pos := fset.Position(fc.pos)
-			fns[i].File, fns[i].Line = relFile(dir, pos.Filename), pos.Line
+		if fset != nil && fc.Pos.IsValid() {
+			pos := fset.Position(fc.Pos)
+			fns[i].File, fns[i].Line = load.RelFile(dir, pos.Filename), pos.Line
 		}
 	}
 	return fns
@@ -125,31 +120,29 @@ func (e *Extractor) recorded(ctx context.Context, mod *metrics.ModuleContext, pk
 		d, _ = l.detailsOf(pkg)
 	}
 	dir := ""
-	if p, ok := l.pkgs[pkg]; ok {
+	if p, ok := l.Pkgs[pkg]; ok {
 		dir = p.Dir
 	}
 	return d, l, dir, nil
 }
 
-// relFile returns file relative to dir in slash form, falling back to the
-// base name when dir is empty or the file cannot be related to it. An empty
-// file stays empty.
-func relFile(dir, file string) string {
-	if file == "" {
-		return ""
+// relFiles returns each of files relative to dir in slash form (see
+// load.RelFile).
+func relFiles(dir string, files []string) []string {
+	out := make([]string, len(files))
+	for i, f := range files {
+		out[i] = load.RelFile(dir, f)
 	}
-	rel := filepath.Base(file)
-	if dir != "" {
-		if r, err := filepath.Rel(dir, file); err == nil {
-			rel = r
-		}
-	}
-	return filepath.ToSlash(rel)
+	return out
 }
 
-// relLocation renders loc as "file:start-end" with file relative to dir, in
-// slash form. It falls back to the base name when dir is empty or the file
-// cannot be related to it.
-func relLocation(dir string, loc duptok.Location) string {
-	return relFile(dir, loc.File) + ":" + strconv.Itoa(loc.StartLine) + "-" + strconv.Itoa(loc.EndLine)
+// relLocations renders each of locs as "file:start-end" with file relative
+// to dir, in slash form. It falls back to the base name when dir is empty
+// or the file cannot be related to it.
+func relLocations(dir string, locs []duptok.Location) []string {
+	out := make([]string, len(locs))
+	for i, loc := range locs {
+		out[i] = load.RelFile(dir, loc.File) + ":" + strconv.Itoa(loc.StartLine) + "-" + strconv.Itoa(loc.EndLine)
+	}
+	return out
 }

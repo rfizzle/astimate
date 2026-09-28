@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "astimate check \"$CLAUDE_PROJECT_DIR\" --format hook --base master",
+            "command": "astimate check \"$CLAUDE_PROJECT_DIR\" --config \"$CLAUDE_PROJECT_DIR/astimate.yaml\" --format hook --base master",
             "timeout": 300
           }
         ]

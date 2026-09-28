@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/config"
+	"github.com/rfizzle/astimate/internal/lang/golang/internal/inspect"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/score"
 )
@@ -49,10 +50,10 @@ func TestExtractStdlibUnsafe(t *testing.T) {
 
 func TestExtractStdlibAppliesOptions(t *testing.T) {
 	base := extractStdlibOrSkip(t, "errors").TokensEst
-	halved := extractStdlibOrSkip(t, "errors", WithCharsPerToken(2*defaultCharsPerToken)).TokensEst
+	halved := extractStdlibOrSkip(t, "errors", WithCharsPerToken(2*inspect.DefaultCharsPerToken)).TokensEst
 	// Doubling the ratio halves tokens_est, give or take the truncation.
 	if d := base - 2*halved; d < 0 || d > 1 {
-		t.Errorf("tokens_est = %d at ratio %v and %d at twice it, want half", base, defaultCharsPerToken, halved)
+		t.Errorf("tokens_est = %d at ratio %v and %d at twice it, want half", base, inspect.DefaultCharsPerToken, halved)
 	}
 }
 

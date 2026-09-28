@@ -1,34 +1,37 @@
 package golang
 
 import (
-	"errors"
 	"go/ast"
 	"maps"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/rfizzle/astimate/internal/lang/golang/internal/dup"
+	"github.com/rfizzle/astimate/internal/lang/golang/internal/inspect"
+	"github.com/rfizzle/astimate/internal/lang/golang/internal/load"
 )
 
-// countingFiles is a fileSource that counts the reads (opens) and length
+// countingFiles is a load.FileSource that counts the reads (opens) and length
 // lookups of each file before passing them to next.
 type countingFiles struct {
-	next           fileSource
+	next           load.FileSource
 	reads, lengths map[string]int
 }
 
 func newCountingFiles() *countingFiles {
-	return &countingFiles{next: osFiles{}, reads: make(map[string]int), lengths: make(map[string]int)}
+	return &countingFiles{next: load.OSFiles{}, reads: make(map[string]int), lengths: make(map[string]int)}
 }
 
-func (c *countingFiles) read(name string) ([]byte, error) {
+func (c *countingFiles) Read(name string) ([]byte, error) {
 	c.reads[name]++
-	return c.next.read(name)
+	return c.next.Read(name)
 }
 
-func (c *countingFiles) length(name string) (int64, error) {
+func (c *countingFiles) Length(name string) (int64, error) {
 	c.lengths[name]++
-	return c.next.length(name)
+	return c.next.Length(name)
 }
 
 // TestAssembleReadsEachFileOnce extracts fixture tested, which has non-test,
@@ -41,20 +44,20 @@ func (c *countingFiles) length(name string) (int64, error) {
 // count.
 func TestAssembleReadsEachFileOnce(t *testing.T) {
 	l := loadFixture(t)
-	p := l.pkgs["example.com/fixture/tested"]
-	if _, err := crossDuplication(l, osFiles{}, defaultDupOptions()); err != nil {
-		t.Fatalf("crossDuplication: %v", err)
+	p := l.Pkgs["example.com/fixture/tested"]
+	if _, err := l.cross.Cross(l.Module, load.OSFiles{}, dup.DefaultOptions()); err != nil {
+		t.Fatalf("Cross: %v", err)
 	}
 	for _, tc := range []struct {
-		counter   tokenCounter
+		counter   inspect.Counter
 		readTests bool
 	}{
-		{newRatioCounter(defaultCharsPerToken), false},
+		{inspect.NewRatioCounter(inspect.DefaultCharsPerToken), false},
 		{newO200kForTest(t), true},
 	} {
 		t.Run(tc.counter.Method(), func(t *testing.T) {
 			files := newCountingFiles()
-			opts := assembleOptions{counter: tc.counter, dup: defaultDupOptions(), files: files}
+			opts := assembleOptions{counter: tc.counter, dup: dup.DefaultOptions(), files: files}
 			if _, err := assemble(t.Context(), l, p, opts); err != nil {
 				t.Fatalf("assemble: %v", err)
 			}
@@ -98,16 +101,16 @@ func TestAssembleReadsEachFileOnce(t *testing.T) {
 // package's files.
 func TestCrossDuplicationReadsEachFileOnce(t *testing.T) {
 	l := loadFixture(t)
-	opts := func(files fileSource) assembleOptions {
-		return assembleOptions{counter: newRatioCounter(defaultCharsPerToken), dup: defaultDupOptions(), files: files}
+	opts := func(files load.FileSource) assembleOptions {
+		return assembleOptions{counter: inspect.NewRatioCounter(inspect.DefaultCharsPerToken), dup: dup.DefaultOptions(), files: files}
 	}
 	first := newCountingFiles()
-	if _, err := assemble(t.Context(), l, l.pkgs["example.com/fixture/tested"], opts(first)); err != nil {
+	if _, err := assemble(t.Context(), l, l.Pkgs["example.com/fixture/tested"], opts(first)); err != nil {
 		t.Fatalf("assemble: %v", err)
 	}
-	for _, path := range l.paths {
-		for _, f := range sourceSyntax(l, l.pkgs[path]) {
-			name := l.fset.File(f.FileStart).Name()
+	for _, path := range l.Paths {
+		for _, f := range l.SourceSyntax(l.Pkgs[path]) {
+			name := l.Fset.File(f.FileStart).Name()
 			want := 1
 			if ast.IsGenerated(f) && path != "example.com/fixture/tested" {
 				want = 0 // not duplication input, and not a file of tested
@@ -124,7 +127,7 @@ func TestCrossDuplicationReadsEachFileOnce(t *testing.T) {
 	}
 
 	second := newCountingFiles()
-	p := l.pkgs["example.com/fixture/dupes"]
+	p := l.Pkgs["example.com/fixture/dupes"]
 	if _, err := assemble(t.Context(), l, p, opts(second)); err != nil {
 		t.Fatalf("assemble: %v", err)
 	}
@@ -132,50 +135,5 @@ func TestCrossDuplicationReadsEachFileOnce(t *testing.T) {
 		if !slices.Contains(p.GoFiles, name) && !strings.HasSuffix(name, "_test.go") {
 			t.Errorf("second extraction opened %s, which is not a file of the package", filepath.Base(name))
 		}
-	}
-}
-
-// failingFiles is a fileSource whose reads fail until ok is set.
-type failingFiles struct {
-	ok             bool
-	reads, lengths int
-}
-
-var errNotYet = errors.New("not yet")
-
-func (f *failingFiles) read(string) ([]byte, error) {
-	f.reads++
-	if !f.ok {
-		return nil, errNotYet
-	}
-	return []byte("package x\n"), nil
-}
-
-func (f *failingFiles) length(string) (int64, error) {
-	f.lengths++
-	return 99, nil
-}
-
-func TestFileCache(t *testing.T) {
-	next := &failingFiles{}
-	c := newFileCache(next)
-	if n, err := c.length("x.go"); err != nil || n != 99 || next.lengths != 1 {
-		t.Errorf("length before read = %d, %v after %d lookups, want next's 99 after 1", n, err, next.lengths)
-	}
-	if _, err := c.read("x.go"); !errors.Is(err, errNotYet) {
-		t.Fatalf("first read error = %v, want %v", err, errNotYet)
-	}
-	next.ok = true
-	for range 2 {
-		data, err := c.read("x.go")
-		if err != nil || string(data) != "package x\n" {
-			t.Fatalf("read = %q, %v, want the file", data, err)
-		}
-	}
-	if next.reads != 2 {
-		t.Errorf("underlying reads = %d, want 2: one failed, one cached", next.reads)
-	}
-	if n, err := c.length("x.go"); err != nil || n != int64(len("package x\n")) || next.lengths != 1 {
-		t.Errorf("length after read = %d, %v after %d lookups, want the cached length without a lookup", n, err, next.lengths)
 	}
 }

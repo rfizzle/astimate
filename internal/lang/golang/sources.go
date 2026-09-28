@@ -47,9 +47,8 @@ func (e *Extractor) Importers(ctx context.Context, mod *metrics.ModuleContext, p
 	if err := ctx.Err(); err != nil {
 		return nil, fmt.Errorf("importers of %s: %w", pkg, err)
 	}
-	if _, ok := l.pkgs[pkg]; !ok {
+	if _, ok := l.Pkgs[pkg]; !ok {
 		return nil, fmt.Errorf("importers of %s: %w", pkg, metrics.ErrUnknownPackage)
 	}
-	buildReverse(l)
-	return slices.Clone(l.reverse[pkg]), nil
+	return slices.Clone(l.graph.Importers(l.Module, pkg)), nil
 }

@@ -7,6 +7,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/rfizzle/astimate/internal/lang/golang/internal/inspect"
 	"github.com/rfizzle/astimate/internal/metrics"
 )
 
@@ -175,10 +176,10 @@ func TestGeneratedFileExcluded(t *testing.T) {
 func TestHubMatchesHandWrittenFiles(t *testing.T) {
 	root := fixtureRoot(t)
 	l := loadFixture(t)
-	p := l.pkgs["example.com/fixture/hub"]
+	p := l.Pkgs["example.com/fixture/hub"]
 	var hand *ast.File
-	for _, f := range sourceSyntax(l, p) {
-		if filepath.Base(l.fset.File(f.FileStart).Name()) == "hub.go" {
+	for _, f := range l.SourceSyntax(p) {
+		if filepath.Base(l.Fset.File(f.FileStart).Name()) == "hub.go" {
 			hand = f
 		}
 	}
@@ -194,10 +195,10 @@ func TestHubMatchesHandWrittenFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Extract: %v", err)
 	}
-	if want := fileSLOC(l.fset.File(hand.FileStart), hand, data); m.SLOC != want {
+	if want := inspect.FileSLOC(l.Fset.File(hand.FileStart), hand, data); m.SLOC != want {
 		t.Errorf("hub sloc = %d, want hub.go's %d", m.SLOC, want)
 	}
-	if want := exportedSymbols(hand, p.Types.Scope()).symbols; m.ExportedSymbols != want {
+	if want := inspect.ExportedSymbols(hand, p.Types.Scope()).Symbols; m.ExportedSymbols != want {
 		t.Errorf("hub exported_symbols = %d, want hub.go's %d", m.ExportedSymbols, want)
 	}
 }

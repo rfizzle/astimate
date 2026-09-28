@@ -4,6 +4,8 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+
+	"github.com/rfizzle/astimate/internal/lang/golang/internal/load"
 )
 
 // ErrNoModule reports that no go.mod was found at or above a directory.
@@ -13,7 +15,7 @@ var ErrNoModule = errors.New("no go.mod found")
 // Callers use it to fill metrics.ModuleContext.ModulePath before calling
 // Extract.
 func ModulePath(root string) (string, error) {
-	return readModulePath(root)
+	return load.ReadModulePath(root)
 }
 
 // FindModuleRoot walks up from dir to the nearest directory containing a

@@ -1,0 +1,210 @@
+// Package inspect measures the syntax of one Go package: size, exported
+// symbols, globals and init functions, control-flow complexity with each
+// function's fingerprint, the opacity flags, and token counts (SPEC.md
+// section 6). Each function body is walked by one ast.Inspect call that
+// measures its nesting and hashes it together (see fingerprint.go); the
+// other metrics read only the top-level declarations, import specs and file
+// bytes.
+package inspect
+
+import (
+	"go/ast"
+	"go/token"
+	"iter"
+	"slices"
+
+	"github.com/rfizzle/astimate/internal/lang/golang/internal/load"
+	"github.com/uudashr/gocognit"
+	"golang.org/x/tools/go/packages"
+)
+
+// ComplexityCounts is the control-flow shape of one package: how deep its
+// functions nest and how hard they are to follow.
+type ComplexityCounts struct {
+	// MaxNesting is the deepest nesting over all functions; 0 with none.
+	MaxNesting int
+	// CognitiveTotal is the sum of per-function cognitive complexity.
+	CognitiveTotal int
+	// CognitiveP90 is the nearest-rank 90th percentile of per-function
+	// cognitive complexity; 0 with no functions.
+	CognitiveP90 int
+	// FuncCount is the number of top-level funcs and methods, init included.
+	FuncCount int
+	// PerFunc holds each function's scores in declaration order.
+	PerFunc []Func
+}
+
+// Func is the complexity of one top-level function or method.
+type Func struct {
+	// Name is the function name, prefixed with the receiver type and a dot
+	// for methods.
+	Name string
+	// Receiver is the method's receiver base type name, empty for a plain
+	// function; Ident is the bare function name.
+	Receiver, Ident string
+	// Cognitive is the gocognit score.
+	Cognitive int
+	// Nesting is the deepest nesting inside the function body.
+	Nesting int
+	// Fingerprint hashes the body's normalized syntax (see fingerprint.go).
+	Fingerprint uint64
+	// Pos is the declaration's position in the load's file set, resolved
+	// to a file and line only when a caller asks for it.
+	Pos token.Pos
+}
+
+// Complexity measures the nesting depth and cognitive complexity of every
+// top-level function and method in p's authored non-test files, init
+// functions included and generated files left out (SPEC.md 6.5; see
+// load.Module.AuthoredSyntax), so the function list
+// changed_func_cognitive_max diffs holds no generated function either, and
+// fingerprints each body in the same walk that measures its nesting.
+// Function literals are scored as part of the function that contains them.
+func Complexity(m *load.Module, p *packages.Package) ComplexityCounts {
+	var c ComplexityCounts
+	for d := range decls(m, p) {
+		fn, ok := d.(*ast.FuncDecl)
+		if !ok {
+			continue
+		}
+		recv := funcReceiver(fn)
+		fc := Func{
+			Name:      qualify(recv, fn.Name.Name),
+			Receiver:  recv,
+			Ident:     fn.Name.Name,
+			Cognitive: gocognit.Complexity(fn),
+			Pos:       fn.Pos(),
+		}
+		fc.Nesting, fc.Fingerprint = inspectBody(fn.Name.Name, fn.Body)
+		c.PerFunc = append(c.PerFunc, fc)
+		c.CognitiveTotal += fc.Cognitive
+		c.MaxNesting = max(c.MaxNesting, fc.Nesting)
+	}
+	c.FuncCount = len(c.PerFunc)
+	scores := make([]int, len(c.PerFunc))
+	for i, fc := range c.PerFunc {
+		scores[i] = fc.Cognitive
+	}
+	c.CognitiveP90 = p90(scores)
+	return c
+}
+
+// decls yields the top-level declarations of p's authored non-test files
+// (load.Module.AuthoredSyntax), in file and declaration order.
+func decls(m *load.Module, p *packages.Package) iter.Seq[ast.Decl] {
+	return func(yield func(ast.Decl) bool) {
+		for _, f := range m.AuthoredSyntax(p) {
+			for _, d := range f.Decls {
+				if !yield(d) {
+					return
+				}
+			}
+		}
+	}
+}
+
+// inspectBody walks body once and returns its nesting and its fingerprint.
+//
+// Nesting is the deepest stack of if, for, range, switch, type switch,
+// select and func literal nodes inside body, which is itself depth 0. Case
+// clauses and else blocks add nothing; an else if is an IfStmt inside the
+// outer one, so it adds a level. A func literal adds a level and its body
+// continues from the enclosing depth, so nesting inside it counts relative to
+// the enclosing function.
+//
+// The fingerprint mixes every node's code on entry and a close code on
+// exit, skipping comment groups, and marks direct calls to name, the
+// enclosing function, as recursion (see fingerprint.go). A nil body, a
+// function declared without one, has nesting 0 and the fingerprint of an
+// empty walk.
+func inspectBody(name string, body *ast.BlockStmt) (deepest int, hash uint64) {
+	hash = fpOffset
+	if body == nil {
+		return 0, hash
+	}
+	var (
+		depth int
+		// pushed records, for each node on the inspection stack, whether
+		// entering it added a level.
+		pushed []bool
+	)
+	ast.Inspect(body, func(n ast.Node) bool {
+		if n == nil {
+			if pushed[len(pushed)-1] {
+				depth--
+			}
+			pushed = pushed[:len(pushed)-1]
+			hash = fpMix(hash, fpClose)
+			return true
+		}
+		if _, ok := n.(*ast.CommentGroup); ok {
+			return false
+		}
+		hash = fpMix(hash, fpCode(n))
+		if call, ok := n.(*ast.CallExpr); ok {
+			if id, ok := call.Fun.(*ast.Ident); ok && id.Name == name {
+				hash = fpMix(hash, fpSelfCall)
+			}
+		}
+		nests := false
+		switch n.(type) {
+		case *ast.IfStmt, *ast.ForStmt, *ast.RangeStmt, *ast.SwitchStmt,
+			*ast.TypeSwitchStmt, *ast.SelectStmt, *ast.FuncLit:
+			nests = true
+			depth++
+			deepest = max(deepest, depth)
+		}
+		pushed = append(pushed, nests)
+		return true
+	})
+	return deepest, hash
+}
+
+// p90 returns the nearest-rank 90th percentile of scores: the value at 1-based
+// rank ceil(0.9 * n) after sorting ascending, or 0 when scores is empty. It
+// sorts scores in place.
+func p90(scores []int) int {
+	n := len(scores)
+	if n == 0 {
+		return 0
+	}
+	slices.Sort(scores)
+	// ceil(9n / 10) in integer arithmetic.
+	rank := (9*n + 9) / 10
+	return scores[rank-1]
+}
+
+// qualify returns name, prefixed with receiver and a dot when receiver is
+// not empty.
+func qualify(receiver, name string) string {
+	if receiver == "" {
+		return name
+	}
+	return receiver + "." + name
+}
+
+// funcReceiver returns the base type name of fn's receiver, without a
+// pointer, type parameters or parentheses, or "" for a plain function or a
+// receiver whose type has no name.
+func funcReceiver(fn *ast.FuncDecl) string {
+	if fn.Recv == nil || len(fn.Recv.List) == 0 {
+		return ""
+	}
+	t := fn.Recv.List[0].Type
+	for {
+		switch x := t.(type) {
+		case *ast.StarExpr:
+			t = x.X
+		case *ast.IndexExpr:
+			t = x.X
+		case *ast.IndexListExpr:
+			t = x.X
+		case *ast.ParenExpr:
+			t = x.X
+		case *ast.Ident:
+			return x.Name
+		default:
+			return ""
+		}
+	}
+}

@@ -10,6 +10,9 @@ import (
 	"slices"
 	"sync"
 
+	"github.com/rfizzle/astimate/internal/lang/golang/internal/dup"
+	"github.com/rfizzle/astimate/internal/lang/golang/internal/inspect"
+	"github.com/rfizzle/astimate/internal/lang/golang/internal/load"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"golang.org/x/tools/go/packages"
 )
@@ -18,14 +21,15 @@ import (
 // most once and shares the result across Packages and Extract. Construct it
 // with New. It is safe for concurrent use.
 type Extractor struct {
-	load loadFunc
+	load load.Func
 
 	// charsPerToken is the ratio the "est" tokenizer divides bytes by.
 	charsPerToken float64
-	// tokenizer is the token counting method: methodEst or methodO200k.
+	// tokenizer is the token counting method: inspect.MethodEst or
+	// inspect.MethodO200k.
 	tokenizer string
 	// dup configures duplicate detection.
-	dup dupOptions
+	dup dup.Options
 	// logger receives an info record per module directory a load skipped;
 	// nil discards them.
 	logger *slog.Logger
@@ -33,7 +37,7 @@ type Extractor struct {
 	// o200kOnce guards the one-time build of o200k, because
 	// tiktoken.SetBpeLoader writes an unguarded library global.
 	o200kOnce sync.Once
-	o200k     tokenCounter
+	o200k     inspect.Counter
 	o200kErr  error
 
 	mu      sync.Mutex
@@ -70,7 +74,7 @@ func WithTokenizer(name string) Option {
 // token sequence counted as a duplicate block (SPEC.md 6.3; default 40). A
 // value below 1 makes Extract fail.
 func WithDupMinTokens(n int) Option {
-	return func(e *Extractor) { e.dup.minTokens = n }
+	return func(e *Extractor) { e.dup.MinTokens = n }
 }
 
 // WithDupIgnoreLiteralOnly sets duplication.ignore_literal_only: when on,
@@ -78,7 +82,7 @@ func WithDupMinTokens(n int) Option {
 // table (, { } : [ ] ( ) ;) is dropped, so repeated runs of data tables do
 // not count as duplication (SPEC.md 6.3; default true).
 func WithDupIgnoreLiteralOnly(on bool) Option {
-	return func(e *Extractor) { e.dup.ignoreLiteralOnly = on }
+	return func(e *Extractor) { e.dup.IgnoreLiteralOnly = on }
 }
 
 // WithDupFoldSigns sets duplication.fold_signs: when on, the literal-only
@@ -86,7 +90,7 @@ func WithDupIgnoreLiteralOnly(on bool) Option {
 // numeric literal as part of the literal, so a table of negative numbers is
 // dropped like any other. Matching is unchanged (SPEC.md 6.3; default true).
 func WithDupFoldSigns(on bool) Option {
-	return func(e *Extractor) { e.dup.foldSigns = on }
+	return func(e *Extractor) { e.dup.FoldSigns = on }
 }
 
 // WithDupSplitLiteralRuns sets duplication.split_literal_runs: when on,
@@ -96,7 +100,7 @@ func WithDupFoldSigns(on bool) Option {
 // headers join into one block are dropped too. It applies to the
 // cross-package count as well (SPEC.md 6.3; default false).
 func WithDupSplitLiteralRuns(on bool) Option {
-	return func(e *Extractor) { e.dup.splitLiteralRuns = on }
+	return func(e *Extractor) { e.dup.SplitLiteralRuns = on }
 }
 
 // WithLogger sets the logger that receives, at info level, one record per
@@ -111,9 +115,9 @@ func WithLogger(logger *slog.Logger) Option {
 func New(opts ...Option) *Extractor {
 	e := &Extractor{
 		load:          packages.Load,
-		charsPerToken: defaultCharsPerToken,
-		tokenizer:     methodEst,
-		dup:           defaultDupOptions(),
+		charsPerToken: inspect.DefaultCharsPerToken,
+		tokenizer:     inspect.MethodEst,
+		dup:           dup.DefaultOptions(),
 		modules:       make(map[string]*moduleLoad),
 	}
 	for _, opt := range opts {
@@ -140,7 +144,7 @@ func (e *Extractor) Packages(root string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return slices.Clone(l.paths), nil
+	return slices.Clone(l.Paths), nil
 }
 
 // Extract computes the v0 metrics of the package with import path pkg in the
@@ -158,7 +162,7 @@ func (e *Extractor) Extract(ctx context.Context, mod *metrics.ModuleContext, pkg
 	if err := ctx.Err(); err != nil {
 		return metrics.RawMetrics{}, fmt.Errorf("extracting %s: %w", pkg, err)
 	}
-	p, ok := l.pkgs[pkg]
+	p, ok := l.Pkgs[pkg]
 	if !ok {
 		return metrics.RawMetrics{}, fmt.Errorf("extracting %s: %w", pkg, metrics.ErrUnknownPackage)
 	}
@@ -179,7 +183,7 @@ func (e *Extractor) ModuleRow(ctx context.Context, mod *metrics.ModuleContext) (
 	if err != nil {
 		return metrics.RawMetrics{}, err
 	}
-	n := len(cross.blocks)
+	n := len(cross.Blocks)
 	return metrics.RawMetrics{DupBlocksCrossPkg: &n}, nil
 }
 
@@ -193,37 +197,37 @@ func (e *Extractor) ModuleDetails(ctx context.Context, mod *metrics.ModuleContex
 	if err != nil {
 		return metrics.Details{}, err
 	}
-	return metrics.Details{CrossBlocks: crossBlocksOf(cross, "")}, nil
+	return metrics.Details{CrossBlocks: cross.BlocksOf("")}, nil
 }
 
 // moduleCross returns the memoized cross-package duplication of the module
 // at mod.Root, loading the module and running the pass on first use.
-func (e *Extractor) moduleCross(ctx context.Context, mod *metrics.ModuleContext) (crossDup, error) {
+func (e *Extractor) moduleCross(ctx context.Context, mod *metrics.ModuleContext) (dup.Cross, error) {
 	l, err := e.cached(ctx, mod)
 	if err != nil {
-		return crossDup{}, err
+		return dup.Cross{}, err
 	}
-	if err := ctx.Err(); err != nil {
-		return crossDup{}, fmt.Errorf("extracting %s: %w", metrics.ModuleRowID, err)
+	var cross dup.Cross
+	if err = ctx.Err(); err == nil {
+		cross, err = l.cross.Cross(l.Module, load.OSFiles{}, e.dup)
 	}
-	cross, err := crossDuplication(l, osFiles{}, e.dup)
 	if err != nil {
-		return crossDup{}, fmt.Errorf("extracting %s: %w", metrics.ModuleRowID, err)
+		return dup.Cross{}, fmt.Errorf("extracting %s: %w", metrics.ModuleRowID, err)
 	}
 	return cross, nil
 }
 
 // counter returns the token counter the tokenizer option selects. The o200k
 // counter is built on first use and shared by every later call.
-func (e *Extractor) counter() (tokenCounter, error) {
+func (e *Extractor) counter() (inspect.Counter, error) {
 	switch e.tokenizer {
-	case methodEst:
-		return newRatioCounter(e.charsPerToken), nil
-	case methodO200k:
-		e.o200kOnce.Do(func() { e.o200k, e.o200kErr = newO200kCounter() })
+	case inspect.MethodEst:
+		return inspect.NewRatioCounter(e.charsPerToken), nil
+	case inspect.MethodO200k:
+		e.o200kOnce.Do(func() { e.o200k, e.o200kErr = inspect.NewO200kCounter() })
 		return e.o200k, e.o200kErr
 	default:
-		return nil, fmt.Errorf("%w %q: want %q or %q", metrics.ErrUnknownTokenizer, e.tokenizer, methodEst, methodO200k)
+		return nil, fmt.Errorf("%w %q: want %q or %q", metrics.ErrUnknownTokenizer, e.tokenizer, inspect.MethodEst, inspect.MethodO200k)
 	}
 }
 
@@ -283,8 +287,8 @@ func (e *Extractor) logSkipped(l *loaded) {
 	if e.logger == nil {
 		return
 	}
-	for _, s := range l.skipped {
-		e.logger.Info("skipped package", "package", s.importPath, "dir", s.dir, "reason", s.reason)
+	for _, s := range l.Skipped {
+		e.logger.Info("skipped package", "package", s.ImportPath, "dir", s.Dir, "reason", s.Reason)
 	}
 }
 
