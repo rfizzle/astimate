@@ -317,7 +317,7 @@ Capacity rules (absolute ceiling with a warning band):
 
 | Metric | `max` | `warn_at` | Rationale |
 | --- | --- | --- | --- |
-| `tokens_est` | 16,000 | 0.75 | The rebuild bar: past this a rebuild no longer fits one agent pass; breach means split |
+| `tokens_est` | 16,000 | 0.75 | The rebuild bar: bounds the volume term of the estimate; breach means split; breach means split |
 | `largest_file_sloc` | 600 | 0.75 | Files past this rarely fit an edit in one view |
 | `exported_symbols` | 60 | 0.75 | Surface past this is a package boundary problem |
 | `internal_imports` | 10 | 0.75 | Fitted from cloned-module rows only (11.1) |

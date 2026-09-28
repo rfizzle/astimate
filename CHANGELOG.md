@@ -26,6 +26,10 @@ history.
 
 ### Changed
 
+- SPEC: `fan_in` is documented as unproven and outside the rebuild formula, the
+  capacity ceilings no longer claim to ensure one pass, section 4 citations were
+  checked against their abstracts, and milestone M8 was added.
+
 - TypeScript packages are judged by their own thresholds: the default
   configuration ships a `languages.typescript` override fitted on 1,209
   packages from 20 TypeScript repositories (`calibration/corpus-typescript.yaml`,
