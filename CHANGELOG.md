@@ -38,6 +38,13 @@ history.
 
 ### Changed
 
+- The Go and TypeScript extractors are split into internal subpackages, each
+  under every default ceiling; the repository carries a root `astimate.yaml`
+  (the embedded default plus one recorded exemption for the Go fingerprint
+  dispatch table) that the Stop hook, `make selfcheck` and CI all use. The
+  `gate` CI job pinned to `v0.1.0` is removed: that release rejects the new
+  config keys, and the `selfcheck` job covers pull requests.
+
 - `check` summary lines count exempted violations after the warnings:
   `<pkg>: N violations, M warnings, K exempted`.
 - SPEC: `fan_in` is documented as unproven and outside the rebuild formula, the

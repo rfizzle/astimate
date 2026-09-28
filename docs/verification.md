@@ -53,7 +53,7 @@ Install the snippet in a scratch repository, have the agent add an untested expo
 
 | Check | Status |
 | --- | --- |
-| `gate` job passes on a pull request that leaves every package unchanged or better | _pending the first pull request; record the run URL and date_ |
+| `gate` job passes on a pull request that leaves every package unchanged or better | retired 2026-09-28: the `gate` job (release `v0.1.0`) was removed because the root `astimate.yaml` now uses `exemptions` and `split_literal_runs`, which v0.1.0 rejects; the `selfcheck` job below covers the pull-request run |
 | A pull request that degrades a copy of the fixture fails the job with `::error` annotations on the diff lines | _pending the first pull request; record the run URL and date_ |
 
 ### Self-check job
