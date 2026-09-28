@@ -14,7 +14,7 @@ Sections 8 through 11 (gate, CLI, MCP, calibration) and 14 (milestones) are writ
 2. **Ratchet, not absolute:** judge a change against the package's own baseline, so work on legacy packages is not blocked by pre-existing debt while new debt is.
 3. **Self-check loop:** let an agent run the gate itself before declaring work done, via CLI, hook or MCP.
 4. **Rank and plan:** estimate rebuild effort for every package in a module so humans and agents can see which packages have outgrown the rebuildable bar and where debt is concentrated.
-5. **Honest defaults:** thresholds and rebuild parameters are labelled uncalibrated until the calibration in section 11 has run.
+5. **Honest defaults:** the gate thresholds are calibrated against a reference corpus (section 11.1); the rebuild estimate is labelled as coming from uncalibrated parameters until the rebuild experiments of section 11.2 have run.
 
 ## 2. Non-goals
 
@@ -265,7 +265,7 @@ where `untested_ratio = untested_exports / max(exported_symbols, 1)`, clamped to
 
 `drivers` lists the two largest non-zero terms of `rebuild_tokens` (volume, spec, contract, unspecified, hidden). `suggestions` are generated from drivers whose term is at least 10% of `rebuild_tokens`, with the metric values, for example "7 exported functions have no test (Parse, Encode, Decode, Flush, Close and 2 more); a rebuild would have to reverse-engineer their behavior". At most five names are listed. Gate violations and warnings always carry a suggestion from the same per-metric templates.
 
-All parameters live in the `rebuild:` section of the config and are labelled uncalibrated until section 11.2 has run.
+All parameters live in the `rebuild:` section of the config. Until section 11.2 has run, the text report labels the estimate line `(estimate from uncalibrated parameters)` and the JSON report carries `rebuild.calibrated: false`; the label describes the estimate only, never the gate thresholds, which section 11.1 calibrates independently.
 
 ### 7.5 Acceptance invariants
 
@@ -413,7 +413,7 @@ Results return `content` (text) and `structuredContent` (JSON), with `isError: t
 
 Each finding in `violations` and `warnings` may carry `"location": {"file": string, "line": int}`, `file` relative to the module root and `line` 0 when only the file is known; it is omitted when the finding has no location. A report may carry an optional top-level `"details"` object, omitted when the extractor records none or the row has nothing to show, with every inner key also omitted when empty: `duplicates` (`[{file, start_line, end_line}]`, one entry per occurrence of each duplicate block), `untested_exports` (`[{name, file?, line?}]`), `excluded_untested` (`[string]`), `globals` (`[{name?, file?, line?}]`, `name` being the variable's name when the extractor records it), `largest_file` (string) and `cross_blocks` (`[{occurrences: [{package, file, start_line, end_line}]}]`). Files inside `details` are relative to the package directory, as the extractor's `Details` gives them, except `cross_blocks` occurrence files, which are relative to the module root; `package` is the module-relative directory in the same form as `package_path`. On the module row, `details.cross_blocks` lists every cross-package block in the module. Text and table outputs do not render details.
 
-`package_path` is the package directory relative to the module root (`.` for the root package); the full import path is `module_path` joined with it. `agent_passes` and `human_days` are rounded to one decimal; `rebuild_tokens` and driver `tokens` are integers. `passed`, `baseline`, `violations` and `warnings` are present whenever a gate ran, with `violations` and `warnings` as empty arrays rather than omitted; all four are absent from `assess` output.
+`package_path` is the package directory relative to the module root (`.` for the root package); the full import path is `module_path` joined with it. `agent_passes` and `human_days` are rounded to one decimal; `rebuild_tokens` and driver `tokens` are integers. `rebuild.calibrated` is true only when `config_version` starts with `rebuild-`, the prefix section 11.2 assigns to measured rebuild parameters; a `thresholds-<date>` version has calibrated thresholds and still reports `false`, because the flag describes the estimate's parameters, not the gate. `passed`, `baseline`, `violations` and `warnings` are present whenever a gate ran, with `violations` and `warnings` as empty arrays rather than omitted; all four are absent from `assess` output.
 
 ## 11. Calibration
 

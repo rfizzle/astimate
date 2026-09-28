@@ -1,5 +1,5 @@
 package: trivial (example.com/fixture)
-rebuild: 0.0 agent passes, 0.2 human days (estimate, uncalibrated)
+rebuild: 0.0 agent passes, 0.2 human days (estimate from uncalibrated parameters)
 tier: ONE_PASS
 
 drivers:

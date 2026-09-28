@@ -60,7 +60,9 @@ type Rebuild struct {
 	HumanDays float64 `json:"human_days"`
 	// Tier is the tier of the unrounded agent_passes.
 	Tier score.Tier `json:"tier"`
-	// Calibrated reports whether the rebuild parameters were measured.
+	// Calibrated reports whether the rebuild parameters were measured by the
+	// rebuild experiments of SPEC.md 11.2. It says nothing about the gate
+	// thresholds, which are calibrated separately (SPEC.md 11.1).
 	Calibrated bool `json:"calibrated"`
 	// Drivers are the largest terms of rebuild_tokens; never null.
 	Drivers []Driver `json:"drivers"`

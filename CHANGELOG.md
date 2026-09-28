@@ -10,6 +10,13 @@ history.
 
 ## [Unreleased]
 
+### Changed
+
+- The text report's estimate line now reads `(estimate from uncalibrated
+  parameters)` instead of `(estimate, uncalibrated)`, so it no longer reads
+  as a statement about the gate thresholds, which are calibrated. The JSON
+  field `rebuild.calibrated` is unchanged.
+
 ## [0.1.0] - 2026-09-27
 
 First release: Go and TypeScript extractors, the rebuild estimate, the

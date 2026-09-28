@@ -6,7 +6,7 @@ The gate targets the ways LLM-written changes tend to degrade a package: copy-pa
 
 ## Status
 
-Every command below, the GitHub Action, the Claude Code hook, the pre-commit hook and the MCP server are implemented and tested. No release has been tagged yet, so install from source. The default thresholds are calibrated against a corpus of the standard library and 36 well-regarded Go modules (`SPEC.md` section 11, [the report](calibration/reports/thresholds-2026-09-27.md)); the rebuild estimate's parameters are not calibrated yet, and every report says so. See `SPEC.md` for the full design and `AGENTS.md` for contribution rules.
+Every command below, the GitHub Action, the Claude Code hook, the pre-commit hook and the MCP server are implemented and tested, and `v0.1.0` is released. The default thresholds are calibrated against a corpus of the standard library and 36 well-regarded Go modules (`SPEC.md` section 11, [the report](calibration/reports/thresholds-2026-09-27.md)); the rebuild estimate's parameters are not calibrated yet, and every estimate line says so (`estimate from uncalibrated parameters`); that label is about the estimate, not the gate. See `SPEC.md` for the full design and `AGENTS.md` for contribution rules.
 
 Go and TypeScript are supported. The extractor interface and its conformance suite are language-agnostic; Go is analyzed with the standard toolchain, TypeScript with a pure-Go tree-sitter runtime, so neither needs cgo.
 
@@ -75,7 +75,7 @@ The samples below are the real output for the fixture modules under `testdata/`,
 ```
 $ astimate assess testdata/go/fixture/dupes
 package: dupes (example.com/fixture)
-rebuild: 0.1 agent passes, 0.7 human days (estimate, uncalibrated)
+rebuild: 0.1 agent passes, 0.7 human days (estimate from uncalibrated parameters)
 tier: ONE_PASS
 
 drivers:
@@ -271,7 +271,7 @@ date: <date>
 
 One file, `astimate.yaml`, holds the rebuild-estimate parameters and the gate thresholds. `astimate config init` writes the defaults with a comment on every line. Resolution order is `--config` (`--thresholds` is an alias on `check`), then `./astimate.yaml`, then the embedded default. The top-level keys `config_version`, `chars_per_token`, `rebuild` and `thresholds` are required: a missing one is an error, not filled from the default, so start from the file `config init` writes. Sections that group optional tuning, today `duplication` (`min_tokens`, `ignore_literal_only`, `fold_signs`), may be partial or absent, and absent keys take the embedded defaults. An optional `languages:` section, keyed by language id (`go` or `typescript`), overrides the configuration for one language: its `rebuild:` sets only the parameters it names, the rest coming from the top-level `rebuild`; its `thresholds:` rules replace the top-level rule on the same metric or add one, and `- metric: <name>` with `disabled: true` drops that metric's rules for the language. Everything else is shared. Reports judged with an override show `config_version` suffixed with `+<language>`. `SPEC.md` section 9 has the full rules.
 
-The default thresholds (`config_version: thresholds-2026-09-27`) are the rounded 90th percentiles of a reference corpus of the standard library and 36 well-regarded Go modules, fitted by `calibration/fit` (`SPEC.md` section 11.1); [calibration/reports/thresholds-2026-09-27.md](calibration/reports/thresholds-2026-09-27.md) has the distributions and a before and after table, and `configs/uncalibrated.yaml` keeps the earlier placeholders. The zero-tolerance ratchets stay at 0 by policy. The rebuild parameters are still uncalibrated, and every report's estimate says so.
+The default thresholds (`config_version: thresholds-2026-09-27`) are the rounded 90th percentiles of a reference corpus of the standard library and 36 well-regarded Go modules, fitted by `calibration/fit` (`SPEC.md` section 11.1); [calibration/reports/thresholds-2026-09-27.md](calibration/reports/thresholds-2026-09-27.md) has the distributions and a before and after table, and `configs/uncalibrated.yaml` keeps the earlier placeholders. The zero-tolerance ratchets stay at 0 by policy. The rebuild parameters are still uncalibrated, and every estimate line says so; `SPEC.md` section 11.2 is the experiment that measures them.
 
 ## Integrations
 
