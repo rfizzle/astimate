@@ -87,6 +87,8 @@ astimate/
 │   ├── metrics/                 # RawMetrics struct and Extractor interface (language-agnostic)
 │   │   └── metricstest/         # Conformance suite every extractor runs, plus a fake extractor
 │   ├── config/                  # Embedded default config and the unified loader
+│   ├── engine/                  # Operations: resolve a target, assess, rank, check, baseline write
+│   │   └── internal/judge/      # Per-row gating: package and module rows, function diff, locations, blame, exemption notices
 │   ├── lang/
 │   │   ├── golang/              # Go extractor (internal/load, imports, inspect, tests, dup, cover)
 │   │   └── typescript/          # TypeScript extractor (internal/resolve, internal/inspect, internal/walk)
