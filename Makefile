@@ -1,4 +1,4 @@
-.PHONY: check actionlint tidy fmt vet lint test race-soak build test-subset readme-samples readme-check
+.PHONY: check actionlint tidy fmt vet lint test selfcheck race-soak build test-subset readme-samples readme-check
 .NOTPARALLEL:
 
 # Build metadata linked into the binary by `make build`. Each is overridable
@@ -17,9 +17,10 @@ LDFLAGS := -X main.buildVersion=$(VERSION) -X main.buildCommit=$(COMMIT) -X main
 BUILD_TAGS := grammar_subset grammar_subset_typescript grammar_subset_tsx
 
 # check is the full gate: workflow lint, module tidiness, format, vet, lint,
-# test, README samples, in that order, stopping on the first failure. CI
-# runs the same seven commands.
-check: actionlint tidy fmt vet lint test readme-check
+# test, this repository's own astimate gate, README samples, in that order,
+# stopping on the first failure. CI runs the same steps: the check job runs
+# all but selfcheck, which is its own job running the action in action/.
+check: actionlint tidy fmt vet lint test selfcheck readme-check
 
 # actionlint lints .github/workflows when the binary is on PATH and skips
 # with a notice otherwise; CI always runs it from a pinned release.
@@ -51,6 +52,18 @@ COLLECT_PKG := ./calibration/collect/
 test:
 	go test -race $$(go list ./... | grep -v /calibration/collect$$)
 	GOMAXPROCS=1 go test -race $(COLLECT_PKG)
+
+# selfcheck builds astimate and runs its gate on this repository: every
+# package, judged against the merge-base with SELFCHECK_BASE. On a branch,
+# the packages changed since master are ratcheted and fail on new debt; on
+# master itself base and head are the same tree, so --all is what makes it
+# judge every package, and legacy packages over a ceiling only warn (SPEC.md
+# 8.1). Exit 3 (a violation) or 2 (analysis failed) fails the target;
+# warnings do not. It takes a few seconds.
+SELFCHECK_BASE ?= master
+
+selfcheck: build
+	./astimate check . --all --base $(SELFCHECK_BASE) --format text
 
 # race-soak re-verifies the fix after a toolchain or x/tools bump: 50 runs of
 # the test that used to flake, under the same setting test uses. Not part of

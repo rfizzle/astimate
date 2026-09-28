@@ -56,6 +56,26 @@ Install the snippet in a scratch repository, have the agent add an untested expo
 | `gate` job passes on a pull request that leaves every package unchanged or better | _pending the first pull request; record the run URL and date_ |
 | A pull request that degrades a copy of the fixture fails the job with `::error` annotations on the diff lines | _pending the first pull request; record the run URL and date_ |
 
+### Self-check job
+
+2026-09-28: the `selfcheck` job in `ci.yml` runs this repository's own action with `version: source` and `path: .`: on a pull request with `base: origin/<base_ref>` over the changed packages, on a push to `master` with `all: true` against the push's previous `master` commit (`HEAD` when that commit is not in the clone). `make check` runs `make selfcheck`, `./astimate check . --all --base master --format text`, after the tests. On the unchanged tree at e77534d it exits 0 in about 4 seconds with 25 warnings on 10 packages (legacy packages over or near a capacity ceiling) and no violations. The workflow was linted with actionlint v1.7.12 built from the Go module cache (no `shellcheck` on the machine), with no findings.
+
+Local simulation of a failing pull request: a throwaway commit on a branch from c98a01e added `internal/score/dupsim.go` holding two unexported copies of `RebuildParams.Validate`'s body. `./astimate check . --base master --format github` exited 3 with
+
+```
+::error file=internal/score/doc.go,line=1::cognitive_p90: 6 -> 10, max_delta +3. The 90th-percentile function has cognitive complexity 10; split the most complex functions.
+::error file=internal/score/dupsim.go,line=9::dup_blocks: 2 -> 3, max_delta +0. 3 duplicate blocks cover 26.3%25 of lines; extract shared helpers, starting with dupsim.go:9-43.
+::error file=internal/score/dupsim.go,line=9::duplication_pct: 8 -> 26.3, max_delta +6. 3 duplicate blocks cover 26.3%25 of lines; extract shared helpers, starting with dupsim.go:9-43.
+```
+
+`action/run.sh` with `ASTIMATE_BASE=master` printed the same three lines, then `astimate: the gate failed (exit 3); see the annotations`, and exited 3; `make selfcheck` failed with `Error 3`. The throwaway commit was then dropped.
+
+| Check | Status |
+| --- | --- |
+| `selfcheck` job passes, with `::warning` annotations only, on a pull request that leaves every package unchanged or better | _pending the first pull request; record the run URL and date_ |
+| A pull request that adds a duplicate block to a package fails `selfcheck` with a `dup_blocks` `::error` annotation on the block's first line in the diff | _pending; open a throwaway pull request like the simulation above and look for the annotation on `dupsim.go` line 9 in the Files changed tab and the job ending with `the gate failed (exit 3)`; record the run URL and date_ |
+| `selfcheck` job on a push to `master` passes with `--all` against the previous `master` commit | _pending the next push; record the run URL and date_ |
+
 ## CI run time
 
 2026-09-27: the `check` job in `ci.yml` took 2m12s on the first push to `master` and 1m25s on the second, against a two-minute target for an unchanged tree. `actions/setup-go@v6` restores the Go module and build caches by default (`cache` defaults to `true` in its `action.yml`), keyed on `go.sum`, so both runs already had caching and the second run was the warm one. The `setup-go` steps in the `check`, `gate` and `release-snapshot` jobs now set `cache: true` and `cache-dependency-path: go.sum` explicitly. `golangci/golangci-lint-action@v8` caches its analysis results by default (`skip-cache: false`); no extra cache step was added. The run time after this change is to be observed on the next push.

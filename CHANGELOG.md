@@ -12,6 +12,10 @@ history.
 
 ### Added
 
+- Self-check: this repository gates itself with its own action. The CI
+  `selfcheck` job builds the action from source and runs `astimate check
+  --format github` over the packages a pull request changes and with `--all`
+  on pushes to `master`; `make check` runs `make selfcheck` after the tests.
 - Exemptions: an `exemptions:` list in the config accepts one rule's
   violations on one package (`package`, `metric`, a required `reason` and an
   optional `expires` date). An exempted violation does not fail the gate but

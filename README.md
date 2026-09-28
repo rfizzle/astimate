@@ -52,7 +52,8 @@ From a clone, `make build` writes `./astimate` with the version, commit and date
 ## Build and test
 
 ```
-make check           # actionlint, go mod tidy, gofmt, go vet, golangci-lint, go test -race, README sample check
+make check           # actionlint, go mod tidy, gofmt, go vet, golangci-lint, go test -race, self-check, README sample check
+make selfcheck       # build ./astimate and run its gate on this repository against master
 make build           # ./astimate with version, commit and date injected
 make readme-samples  # regenerate the sample outputs in this README
 ```
@@ -365,6 +366,8 @@ jobs:
 `fetch-depth: 0` is required: with the default shallow clone the merge-base does not exist and the action stops with exit 2 (`base ref ... not found`) or warns that the clone is shallow. For a `pull_request` event the checkout is the merge commit, so the packages checked are those the pull request changes. If `origin/<base>` might be missing, fetch it first with `git fetch --no-tags origin "+refs/heads/<base>:refs/remotes/origin/<base>"`, as this repository's `gate` job in [`ci.yml`](.github/workflows/ci.yml) does.
 
 A release install downloads `astimate_<version>_<os>_<arch>.tar.gz` (`<version>` without the leading `v`, `<os>` `linux` or `darwin`, `<arch>` `amd64` or `arm64`) and `checksums.txt` from the GitHub release and refuses to install when the archive's SHA-256 does not match its line in `checksums.txt`. Linux and macOS runners are supported. Releases are built by goreleaser from [`.goreleaser.yaml`](.goreleaser.yaml) when a `v*` tag is pushed. The first release is `v0.1.0`; `version: latest` follows the newest one. `version: source` builds the checked-out repository with `actions/setup-go`, for testing the action itself; this repository's own `gate` job pins `v0.1.0`.
+
+This repository gates itself with its own action. The `selfcheck` job in [`ci.yml`](.github/workflows/ci.yml) builds the action's astimate from source (`version: source`, `path: .`) and runs `astimate check --format github`: on a pull request against the packages it changes since the merge-base with `origin/<base>`, and on a push to `master` with `--all`, against the commit `master` pointed at before the push. Exit 3 or 2 fails the job; the legacy packages over a capacity ceiling only warn, the same policy every user gets. `make check` runs the same gate locally as `make selfcheck` (`--all --base master`).
 
 ## Layout
 
