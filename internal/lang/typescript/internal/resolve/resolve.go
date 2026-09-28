@@ -1,4 +1,4 @@
-package typescript
+package resolve
 
 import (
 	"encoding/json"
@@ -8,28 +8,28 @@ import (
 	"strings"
 )
 
-// importKind is the class of one import specifier.
-type importKind int
+// Kind is the class of one import specifier.
+type Kind int
 
 const (
-	// importNone is an import counted in no class: a relative one that
-	// resolves to no file, or one resolving inside the module to a file
-	// whose directory is not a package.
-	importNone importKind = iota
-	// importInternal resolves to a package of the module.
-	importInternal
-	// importExternal names a package outside the module.
-	importExternal
-	// importStdlib names a Node built-in module.
-	importStdlib
+	// None is an import counted in no class: a relative one that resolves
+	// to no file, or one resolving inside the module to a file whose
+	// directory is not a package.
+	None Kind = iota
+	// Internal resolves to a package of the module.
+	Internal
+	// External names a package outside the module.
+	External
+	// Stdlib names a Node built-in module.
+	Stdlib
 )
 
-// classified is the class of an import and the name it is counted under:
-// the package identifier for internal imports, the package name for
-// external ones, and the built-in's name for stdlib ones.
-type classified struct {
-	kind importKind
-	name string
+// Import is the class of an import and the name it is counted under: the
+// package identifier for internal imports, the package name for external
+// ones, and the built-in's name for stdlib ones.
+type Import struct {
+	Kind Kind
+	Name string
 }
 
 // nodeBuiltins lists Node's built-in modules, which a specifier may name
@@ -52,13 +52,13 @@ func nodeBuiltins() map[string]bool {
 	return m
 }
 
-// resolver classifies the import specifiers of one module. It stats the
+// Resolver classifies the import specifiers of one module. It stats the
 // file system to find the file an import resolves to and caches the
 // answers for the extraction; it is not safe for concurrent use.
-type resolver struct {
+type Resolver struct {
 	root     string
-	pkgs     map[string]*pkg
-	cfg      tsconfig
+	pkgs     map[string]struct{}
+	cfg      Config
 	builtins map[string]bool
 	// stat caches what exists at a path; module the file an import of a
 	// path resolves to in a pass, "" for none; manifests the entries of
@@ -103,16 +103,17 @@ const (
 	statDir
 )
 
-// newResolver returns a resolver for the module at the absolute path root
-// with packages pkgs and the path aliases of cfg.
-func newResolver(root string, pkgs map[string]*pkg, cfg tsconfig) *resolver {
-	return &resolver{
+// New returns a resolver for the module at the absolute path root with the
+// package identifiers pkgs and the compiler options of cfg, which ReadConfig
+// returns.
+func New(root string, pkgs map[string]struct{}, cfg Config) *Resolver {
+	return &Resolver{
 		root: root, pkgs: pkgs, cfg: cfg, builtins: nodeBuiltins(),
 		stat: map[string]statKind{}, module: map[moduleKey]string{}, manifests: map[string]manifest{},
 	}
 }
 
-// classify returns the class of spec imported from a file in the slash
+// Classify returns the class of spec imported from a file in the slash
 // directory dir, relative to the module root. A specifier resolves to a
 // file as tsc resolves it under moduleResolution bundler (resolveModule):
 //
@@ -140,7 +141,7 @@ func newResolver(root string, pkgs map[string]*pkg, cfg tsconfig) *resolver {
 // A resolved file inside the module is internal to the package holding
 // it, and counted nowhere when its directory is in no package; a resolved
 // file outside the module is external under the specifier itself.
-func (r *resolver) classify(dir, spec string) classified {
+func (r *Resolver) Classify(dir, spec string) Import {
 	f := r.resolveLocal(dir, spec, passTS)
 	if f == "" && r.cfg.allowJS {
 		f = r.resolveLocal(dir, spec, passJS)
@@ -149,22 +150,22 @@ func (r *resolver) classify(dir, spec string) classified {
 		return r.landed(spec, f)
 	}
 	if isRelative(spec) {
-		return classified{kind: importNone}
+		return Import{Kind: None}
 	}
 	if name, ok := strings.CutPrefix(spec, "node:"); ok {
-		return classified{kind: importStdlib, name: firstSegment(name)}
+		return Import{Kind: Stdlib, Name: firstSegment(name)}
 	}
 	if first := firstSegment(spec); r.builtins[first] {
-		return classified{kind: importStdlib, name: first}
+		return Import{Kind: Stdlib, Name: first}
 	}
-	return classified{kind: importExternal, name: packageName(spec)}
+	return Import{Kind: External, Name: packageName(spec)}
 }
 
 // resolveLocal returns the file spec, imported from a file in the slash
 // directory dir, resolves to in pass ps on the file system: relative to
 // dir, else through the first paths alias target that resolves, else under
 // baseUrl; "" when none does.
-func (r *resolver) resolveLocal(dir, spec string, ps pass) string {
+func (r *Resolver) resolveLocal(dir, spec string, ps pass) string {
 	if isRelative(spec) {
 		p := filepath.Join(r.root, filepath.FromSlash(path.Join(dir, spec)))
 		if last := path.Base(spec); strings.HasSuffix(spec, "/") || last == "." || last == ".." {
@@ -192,23 +193,23 @@ func (r *resolver) resolveLocal(dir, spec string, ps pass) string {
 // landed classifies an import of spec that resolved to the absolute file
 // f: internal under the package holding f, nowhere when f's directory is
 // in no package, and external under spec when f is outside the module.
-func (r *resolver) landed(spec, f string) classified {
+func (r *Resolver) landed(spec, f string) Import {
 	rel, err := filepath.Rel(r.root, f)
 	if err != nil || rel == ".." || strings.HasPrefix(filepath.ToSlash(rel), "../") {
-		return classified{kind: importExternal, name: spec}
+		return Import{Kind: External, Name: spec}
 	}
 	id := packageDir(path.Dir(filepath.ToSlash(rel)))
 	if _, ok := r.pkgs[id]; !ok {
-		return classified{kind: importNone}
+		return Import{Kind: None}
 	}
-	return classified{kind: importInternal, name: id}
+	return Import{Kind: Internal, Name: id}
 }
 
 // resolveModule returns the file an import of the absolute path p
 // resolves to in pass ps, or "" when there is none. As tsc does, it tries
 // p as a file (resolveFile) before p as a directory (resolveDir). A file
 // with no extension of the pass, and a missing path, resolve to nothing.
-func (r *resolver) resolveModule(p string, ps pass) string {
+func (r *Resolver) resolveModule(p string, ps pass) string {
 	k := moduleKey{p, ps}
 	if f, ok := r.module[k]; ok {
 		return f
@@ -228,7 +229,7 @@ func (r *resolver) resolveModule(p string, ps pass) string {
 // being a directory, through that directory's index file; failing those,
 // its own index file (resolveIndex). A directory with neither resolves to
 // nothing.
-func (r *resolver) resolveDir(p string, ps pass) string {
+func (r *Resolver) resolveDir(p string, ps pass) string {
 	if r.kindOf(p) != statDir {
 		return ""
 	}
@@ -261,11 +262,11 @@ func (r *resolver) resolveDir(p string, ps pass) string {
 // In the JavaScript pass: nothing for TypeScript names or those same JSON
 // names; the JavaScript files of a JavaScript extension
 // (scriptCandidates); else p with .js or .jsx appended.
-func (r *resolver) resolveFile(p string, ps pass) string {
+func (r *Resolver) resolveFile(p string, ps pass) string {
 	var candidates []string
 	isJSON := r.cfg.resolveJSON && strings.HasSuffix(p, ".json")
 	switch {
-	case ps == passJS && (isJSON || hasTSExtension(p)):
+	case ps == passJS && (isJSON || IsTypeScriptName(p)):
 	case ps == passJS && hasJSExtension(p):
 		candidates = scriptCandidates(p)
 	case ps == passJS:
@@ -288,7 +289,7 @@ func (r *resolver) resolveFile(p string, ps pass) string {
 // then index.d.ts; in the JavaScript pass index.js, then index.jsx. As in
 // tsc, which resolves a directory as the extensionless name "index", no
 // .mts or .cts form is tried.
-func (r *resolver) resolveIndex(dir string, ps pass) string {
+func (r *Resolver) resolveIndex(dir string, ps pass) string {
 	names := []string{"index.ts", "index.tsx", "index.d.ts"}
 	if ps == passJS {
 		names = []string{"index.js", "index.jsx"}
@@ -306,12 +307,12 @@ func (r *resolver) resolveIndex(dir string, ps pass) string {
 // zero manifest when dir has no readable, valid package.json, since tsc
 // then goes on to the index file.
 // Each package.json is read at most once per resolver.
-func (r *resolver) manifestEntries(dir string) manifest {
+func (r *Resolver) manifestEntries(dir string) manifest {
 	if m, ok := r.manifests[dir]; ok {
 		return m
 	}
 	var m manifest
-	if p := filepath.Join(dir, manifestName); r.kindOf(p) == statFile {
+	if p := filepath.Join(dir, ManifestName); r.kindOf(p) == statFile {
 		m = readManifestEntries(dir, p)
 	}
 	r.manifests[dir] = m
@@ -343,7 +344,7 @@ func readManifestEntries(dir, p string) manifest {
 }
 
 // kindOf reports what exists at the absolute path p, caching the answer.
-func (r *resolver) kindOf(p string) statKind {
+func (r *Resolver) kindOf(p string) statKind {
 	if k, ok := r.stat[p]; ok {
 		return k
 	}
@@ -360,26 +361,9 @@ func (r *resolver) kindOf(p string) statKind {
 	return k
 }
 
-// hasTSExtension reports whether p ends in a TypeScript source or
-// declaration extension: .ts, .tsx, .mts or .cts, which the declaration
-// forms (.d.ts, .d.mts, .d.cts) end in too.
-func hasTSExtension(p string) bool {
-	for _, ext := range []string{".ts", ".tsx", ".mts", ".cts"} {
-		if strings.HasSuffix(p, ext) {
-			return true
-		}
-	}
-	return false
-}
-
 // hasJSExtension reports whether p ends in .js, .jsx, .mjs or .cjs.
 func hasJSExtension(p string) bool {
-	for _, ext := range []string{".js", ".jsx", ".mjs", ".cjs"} {
-		if strings.HasSuffix(p, ext) {
-			return true
-		}
-	}
-	return false
+	return hasSuffix(p, ".js", ".jsx", ".mjs", ".cjs")
 }
 
 // sourceCandidates returns the TypeScript files tsc tries for an import of
@@ -391,26 +375,11 @@ func hasJSExtension(p string) bool {
 func sourceCandidates(p string) []string {
 	var exts []string
 	stem := p
-	for _, m := range []struct {
-		ext  string
-		exts []string
-	}{
-		// The declaration forms come before the extensions they end in,
-		// so the stem of a.d.ts is a, not a.d.
-		{".d.ts", []string{".ts", ".tsx", ".d.ts"}},
-		{".d.mts", []string{".mts", ".d.mts"}},
-		{".d.cts", []string{".cts", ".d.cts"}},
-		{".ts", []string{".ts", ".tsx", ".d.ts"}},
-		{".js", []string{".ts", ".tsx", ".d.ts"}},
-		{".tsx", []string{".tsx", ".ts", ".d.ts"}},
-		{".jsx", []string{".tsx", ".ts", ".d.ts"}},
-		{".mts", []string{".mts", ".d.mts"}},
-		{".mjs", []string{".mts", ".d.mts"}},
-		{".cts", []string{".cts", ".d.cts"}},
-		{".cjs", []string{".cts", ".d.cts"}},
-	} {
-		if s, ok := strings.CutSuffix(p, m.ext); ok {
-			stem, exts = s, m.exts
+	// The declaration forms come before the extensions they end in, so the
+	// stem of a.d.ts is a, not a.d.
+	for _, ext := range []string{".d.ts", ".d.mts", ".d.cts", ".ts", ".js", ".tsx", ".jsx", ".mts", ".mjs", ".cts", ".cjs"} {
+		if s, ok := strings.CutSuffix(p, ext); ok {
+			stem, exts = s, replacements(ext)
 			break
 		}
 	}
@@ -420,6 +389,21 @@ func sourceCandidates(p string) []string {
 		out = append(out, stem+ext)
 	}
 	return out
+}
+
+// replacements returns the extensions sourceCandidates tries, in order, for
+// an import written with the extension ext.
+func replacements(ext string) []string {
+	switch ext {
+	case ".d.ts", ".ts", ".js":
+		return []string{".ts", ".tsx", ".d.ts"}
+	case ".tsx", ".jsx":
+		return []string{".tsx", ".ts", ".d.ts"}
+	case ".d.mts", ".mts", ".mjs":
+		return []string{".mts", ".d.mts"}
+	default:
+		return []string{".cts", ".d.cts"}
+	}
 }
 
 // scriptCandidates returns the JavaScript files tsc tries under allowJs

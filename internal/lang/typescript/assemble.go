@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/rfizzle/astimate/internal/lang/duptok"
+	"github.com/rfizzle/astimate/internal/lang/typescript/internal/inspect"
 	"github.com/rfizzle/astimate/internal/metrics"
 )
 
@@ -35,33 +36,33 @@ func assemble(m *module, p *pkg, opts assembleOptions) (metrics.RawMetrics, erro
 	largest := ""
 	inits := 0
 	for _, f := range p.src {
-		rel := relFile(p.dir, f.abs)
+		rel := relFile(p.dir, f.Abs)
 		files = append(files, rel)
 		r.Files++
-		r.SLOC += f.sloc
-		if largest == "" || f.sloc > r.LargestFileSLOC {
-			largest, r.LargestFileSLOC = rel, f.sloc
+		r.SLOC += f.SLOC
+		if largest == "" || f.SLOC > r.LargestFileSLOC {
+			largest, r.LargestFileSLOC = rel, f.SLOC
 		}
-		srcBytes += f.size
-		srcTokens += f.o200k
-		r.ExportedSymbols += f.exports
-		types += f.exportedTypes
-		interfaces += f.exportedInterfaces
-		r.Globals += len(f.globals)
-		for _, line := range f.globals {
+		srcBytes += f.Size
+		srcTokens += f.O200k
+		r.ExportedSymbols += f.Exports
+		types += f.ExportedTypes
+		interfaces += f.ExportedInterfaces
+		r.Globals += len(f.Globals)
+		for _, line := range f.Globals {
 			globalPos = append(globalPos, metrics.Position{File: rel, Line: line})
 		}
-		globalNames = append(globalNames, f.globalNames...)
-		if f.hasInit {
+		globalNames = append(globalNames, f.GlobalNames...)
+		if f.HasInit {
 			inits++
 		}
-		for _, fn := range f.funcs {
-			scores = append(scores, fn.cognitive)
-			r.CognitiveTotal += fn.cognitive
-			r.MaxNesting = max(r.MaxNesting, fn.nesting)
+		for _, fn := range f.Funcs {
+			scores = append(scores, fn.Cognitive)
+			r.CognitiveTotal += fn.Cognitive
+			r.MaxNesting = max(r.MaxNesting, fn.Nesting)
 		}
-		for _, c := range f.exportedFuncs {
-			candidates = append(candidates, candidate{exportedFunc: c, file: rel})
+		for _, c := range f.ExportedFuncs {
+			candidates = append(candidates, candidate{ExportedFunc: c, file: rel})
 		}
 	}
 	r.InitFuncs = inits
@@ -73,10 +74,10 @@ func assemble(m *module, p *pkg, opts assembleOptions) (metrics.RawMetrics, erro
 	allBytes, allTokens = srcBytes, srcTokens
 	for _, f := range p.tests {
 		r.TestFiles++
-		r.TestFuncs += f.testFuncs
-		allBytes += f.size
-		allTokens += f.o200k
-		for id := range f.idents {
+		r.TestFuncs += f.TestFuncs
+		allBytes += f.Size
+		allTokens += f.O200k
+		for id := range f.Idents {
 			referenced[id] = true
 		}
 	}
@@ -85,21 +86,21 @@ func assemble(m *module, p *pkg, opts assembleOptions) (metrics.RawMetrics, erro
 	var missed []candidate
 	for _, c := range candidates {
 		switch {
-		case c.directed:
-			excluded = append(excluded, c.display)
-		case !referenced[c.match]:
+		case c.Directed:
+			excluded = append(excluded, c.Display)
+		case !referenced[c.Match]:
 			missed = append(missed, c)
 		}
 	}
-	slices.SortStableFunc(missed, func(a, b candidate) int { return strings.Compare(a.display, b.display) })
+	slices.SortStableFunc(missed, func(a, b candidate) int { return strings.Compare(a.Display, b.Display) })
 	var untested []string
 	var untestedPos []metrics.Position
 	if len(missed) > 0 {
 		untested = make([]string, len(missed))
 		untestedPos = make([]metrics.Position, len(missed))
 		for i, c := range missed {
-			untested[i] = c.display
-			untestedPos[i] = metrics.Position{File: c.file, Line: c.line}
+			untested[i] = c.Display
+			untestedPos[i] = metrics.Position{File: c.file, Line: c.Line}
 		}
 	}
 	slices.Sort(excluded)
@@ -157,7 +158,7 @@ func assemble(m *module, p *pkg, opts assembleOptions) (metrics.RawMetrics, erro
 // candidate is an untested_exports candidate of a package with the file,
 // relative to the package directory, that declares it.
 type candidate struct {
-	exportedFunc
+	inspect.ExportedFunc
 	file string
 }
 
@@ -166,13 +167,13 @@ type candidate struct {
 func duplication(p *pkg, sloc int, opts duptok.Options) (duptok.Result, error) {
 	var s duptok.Stream
 	for _, f := range p.src {
-		t := &f.toks
-		for i, c := range t.codes {
-			if err := s.Add(c, t.class[i], int(t.line[i]), int(t.last[i])); err != nil {
+		t := &f.Tokens
+		for i, c := range t.Codes {
+			if err := s.Add(c, t.Class[i], int(t.Line[i]), int(t.Last[i])); err != nil {
 				return duptok.Result{}, err
 			}
 		}
-		s.EndFile(f.abs, f.codeLines)
+		s.EndFile(f.Abs, f.CodeLines)
 	}
 	return s.Count(opts, sloc)
 }
@@ -191,4 +192,16 @@ func relFile(dir, file string) string {
 		rel = r
 	}
 	return filepath.ToSlash(rel)
+}
+
+// p90 returns the nearest-rank 90th percentile of scores: the value at
+// 1-based rank ceil(0.9 * n) after sorting ascending, or 0 when scores is
+// empty. It sorts scores in place.
+func p90(scores []int) int {
+	n := len(scores)
+	if n == 0 {
+		return 0
+	}
+	slices.Sort(scores)
+	return scores[(9*n+9)/10-1]
 }

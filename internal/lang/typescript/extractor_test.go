@@ -6,12 +6,28 @@ import (
 	"errors"
 	"log/slog"
 	"math"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/metrics"
 )
+
+// writeTree writes files, keyed by slash path relative to root, under root.
+func writeTree(t *testing.T, root string, files map[string]string) {
+	t.Helper()
+	for name, content := range files {
+		p := filepath.Join(root, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(content), 0o600); err != nil {
+			t.Fatalf("writing %s: %v", p, err)
+		}
+	}
+}
 
 func TestLanguage(t *testing.T) {
 	if got := New().Language(); got != "typescript" {
@@ -33,48 +49,6 @@ func TestDetect(t *testing.T) {
 	writeTree(t, other, map[string]string{"package.json": "{}"})
 	if !e.Detect(other) {
 		t.Error("Detect with a package.json = false")
-	}
-}
-
-func TestIsTestPath(t *testing.T) {
-	cases := map[string]bool{
-		"a/x.ts":                 false,
-		"a/x.test.ts":            true,
-		"a/x.spec.ts":            true,
-		"a/x.test.tsx":           true,
-		"a/x.spec.tsx":           true,
-		"a/x.test.mts":           true,
-		"a/x.spec.mts":           true,
-		"a/x.test.cts":           true,
-		"a/x.spec.cts":           true,
-		"a/x.mts":                false,
-		"a/x.test.mjs":           false,
-		"a/__tests__/x.ts":       true,
-		"a/__tests__/deep/x.tsx": true,
-		"a/x.tests.ts":           false,
-		"a/testsuite/x.ts":       false,
-	}
-	for rel, want := range cases {
-		if got := isTestPath(rel); got != want {
-			t.Errorf("isTestPath(%q) = %v, want %v", rel, got, want)
-		}
-	}
-}
-
-func TestPackageOf(t *testing.T) {
-	cases := map[string]string{
-		"x.ts":                   ".",
-		"a/x.ts":                 "a",
-		"a/b/x.ts":               "a/b",
-		"a/__tests__/x.ts":       "a",
-		"a/__tests__/d/x.ts":     "a",
-		"__tests__/x.ts":         ".",
-		"a/b/__tests__/__t/x.ts": "a/b",
-	}
-	for rel, want := range cases {
-		if got := packageOf(rel); got != want {
-			t.Errorf("packageOf(%q) = %q, want %q", rel, got, want)
-		}
 	}
 }
 

@@ -1,4 +1,4 @@
-package typescript
+package walk
 
 // Function fingerprints (SPEC.md 6.5 and 13.1).
 //

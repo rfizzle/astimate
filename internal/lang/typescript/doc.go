@@ -42,6 +42,15 @@
 // aggregates one package's facts into RawMetrics. The same walk
 // fingerprints each function's body, so Functions can list a package's
 // functions for the changed-function rule without another parse. The
-// counting rules are
-// written out in testdata/ts/fixture/golden/COUNTING.md.
+// counting rules are written out in testdata/ts/fixture/golden/COUNTING.md.
+//
+// The work is split across three internal packages this one composes:
+// internal/resolve finds the module's files and resolves import specifiers
+// as tsc does (package.json entries, the tsconfig.json extends chain,
+// paths, baseUrl, allowJs, resolveJsonModule); internal/inspect reads and
+// parses each file once and records its declarations; internal/walk, which
+// inspect drives in the same pass, emits the duplication tokens and scores
+// and fingerprints each function. This package groups the facts into
+// packages, links the import graph, runs the duplicate finder over
+// internal/lang/duptok and assembles RawMetrics.
 package typescript

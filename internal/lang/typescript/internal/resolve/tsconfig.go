@@ -1,4 +1,4 @@
-package typescript
+package resolve
 
 import (
 	"encoding/json"
@@ -18,11 +18,11 @@ const tsconfigName = "tsconfig.json"
 // maxExtendsDepth bounds the length of a tsconfig.json extends chain.
 const maxExtendsDepth = 32
 
-// tsconfig is the part of a tsconfig.json the extractor reads, after its
+// Config is the part of a tsconfig.json the extractor reads, after its
 // extends chain is applied: the path aliases under compilerOptions.paths
 // and the baseUrl they resolve against, whether JSON modules resolve, and
 // whether JavaScript files do.
-type tsconfig struct {
+type Config struct {
 	// base is the absolute directory alias targets are relative to:
 	// baseUrl when set, else the directory of the configuration file that
 	// declared paths, else the module root.
@@ -66,7 +66,7 @@ type compilerOptions struct {
 	allowJS, checkJS *bool
 }
 
-// readTSConfig reads tsconfig.json at root and the configurations it
+// ReadConfig reads tsconfig.json at root and the configurations it
 // extends. A missing file yields no aliases. Files may hold comments and
 // trailing commas, as tsc accepts. An extends value, a string or an array
 // of them, is a path relative to the extending file or a bare name
@@ -80,18 +80,18 @@ type compilerOptions struct {
 // be found, a cycle, or a chain deeper than maxExtendsDepth ends the chain
 // there without an error: a configuration package that is not installed
 // must not stop the analysis.
-func readTSConfig(root string) (tsconfig, error) {
-	cfg := tsconfig{base: root}
+func ReadConfig(root string) (Config, error) {
+	cfg := Config{base: root}
 	p := filepath.Join(root, tsconfigName)
 	if !isFile(p) {
 		if _, err := os.Stat(p); err != nil && !errors.Is(err, fs.ErrNotExist) {
-			return tsconfig{}, fmt.Errorf("reading %s: %w", p, err)
+			return Config{}, fmt.Errorf("reading %s: %w", p, err)
 		}
 		return cfg, nil
 	}
 	opts, err := loadCompilerOptions(p, root, map[string]bool{}, 0)
 	if err != nil {
-		return tsconfig{}, err
+		return Config{}, err
 	}
 	cfg.baseURL = opts.baseURL
 	cfg.resolveJSON = opts.resolveJSON != nil && *opts.resolveJSON
@@ -183,15 +183,9 @@ func loadCompilerOptions(p, configDir string, seen map[string]bool, depth int) (
 		if po.paths != nil {
 			opts.paths, opts.pathsDir = po.paths, po.pathsDir
 		}
-		if po.resolveJSON != nil {
-			opts.resolveJSON = po.resolveJSON
-		}
-		if po.allowJS != nil {
-			opts.allowJS = po.allowJS
-		}
-		if po.checkJS != nil {
-			opts.checkJS = po.checkJS
-		}
+		overrideBool(&opts.resolveJSON, po.resolveJSON)
+		overrideBool(&opts.allowJS, po.allowJS)
+		overrideBool(&opts.checkJS, po.checkJS)
 	}
 	if b := raw.CompilerOptions.BaseURL; b != nil {
 		if abs, ok := expandConfigDir(*b, configDir); ok {
@@ -200,15 +194,9 @@ func loadCompilerOptions(p, configDir string, seen map[string]bool, depth int) (
 			opts.baseURL = filepath.Join(dir, filepath.FromSlash(*b))
 		}
 	}
-	if v := raw.CompilerOptions.ResolveJSON; v != nil {
-		opts.resolveJSON = v
-	}
-	if v := raw.CompilerOptions.AllowJS; v != nil {
-		opts.allowJS = v
-	}
-	if v := raw.CompilerOptions.CheckJS; v != nil {
-		opts.checkJS = v
-	}
+	overrideBool(&opts.resolveJSON, raw.CompilerOptions.ResolveJSON)
+	overrideBool(&opts.allowJS, raw.CompilerOptions.AllowJS)
+	overrideBool(&opts.checkJS, raw.CompilerOptions.CheckJS)
 	if ps := raw.CompilerOptions.Paths; ps != nil {
 		opts.paths, opts.pathsDir = *ps, dir
 		if opts.paths == nil {
@@ -223,6 +211,14 @@ func loadCompilerOptions(p, configDir string, seen map[string]bool, depth int) (
 		}
 	}
 	return opts, nil
+}
+
+// overrideBool sets *dst to v when v is set, as a later configuration of
+// an extends chain overrides an earlier one.
+func overrideBool(dst **bool, v *bool) {
+	if v != nil {
+		*dst = v
+	}
 }
 
 // configDirVar is the template tsc 5.5 replaces, at the start of a path
@@ -310,7 +306,7 @@ func packageConfig(nm, spec string) string {
 // (conditions, subpaths only) and a target that is no file are passed
 // over.
 func manifestConfig(dir string) string {
-	p := filepath.Join(dir, manifestName)
+	p := filepath.Join(dir, ManifestName)
 	if !isFile(p) {
 		return ""
 	}
@@ -366,7 +362,7 @@ func configFile(p string) string {
 // match returns the targets of the first alias spec matches, with the
 // wildcard substituted, relative to c.base unless ${configDir} made them
 // absolute; nil when none matches.
-func (c *tsconfig) match(spec string) []string {
+func (c *Config) match(spec string) []string {
 	for _, a := range c.aliases {
 		if !a.wildcard {
 			if spec == a.prefix {
@@ -441,4 +437,9 @@ func stripJSONC(data []byte) []byte {
 		}
 	}
 	return out
+}
+
+// isSpace reports whether b is ASCII white space other than a newline.
+func isSpace(b byte) bool {
+	return b == ' ' || b == '\t' || b == '\r' || b == '\v' || b == '\f'
 }

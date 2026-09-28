@@ -1,4 +1,4 @@
-package typescript
+package walk
 
 import (
 	"slices"
@@ -31,27 +31,27 @@ import (
 // complexity scores n, of type typ, inside a function when it is a node the
 // rules above name, visiting its children itself, and reports whether it
 // did.
-func (w *walker) complexity(n *sitter.Node, typ string, st state) bool {
+func (w *Walker) complexity(n *sitter.Node, typ string, st state) bool {
 	switch typ {
 	case "if_statement":
 		w.ifStatement(n, st, false)
 	case "for_statement", "for_in_statement", "while_statement", "do_statement", "switch_statement":
-		w.fn.cognitive += st.nest + 1
+		w.fn.Cognitive += st.nest + 1
 		w.bodyNested(n, st, true)
 	case "catch_clause":
-		w.fn.cognitive += st.nest + 1
+		w.fn.Cognitive += st.nest + 1
 		w.bodyNested(n, st, false)
 	case "try_statement":
 		w.children(n, state{nest: st.nest, depth: st.depth + 1, quiet: st.quiet})
 	case "ternary_expression", "conditional_expression":
-		w.fn.cognitive += st.nest + 1
+		w.fn.Cognitive += st.nest + 1
 		w.fieldsNested(n, state{nest: st.nest, depth: st.depth, quiet: st.quiet}, "consequence", "alternative")
 	case "arrow_function", "function_expression", "function", "generator_function",
 		"function_declaration", "generator_function_declaration", "method_definition":
 		w.children(n, state{nest: st.nest + 1, depth: st.depth + 1, quiet: st.quiet})
 	case "break_statement", "continue_statement":
-		if hasChildType(w, n, "statement_identifier") {
-			w.fn.cognitive++
+		if w.HasChild(n, "statement_identifier") {
+			w.fn.Cognitive++
 		}
 		return false
 	case "binary_expression":
@@ -65,12 +65,12 @@ func (w *walker) complexity(n *sitter.Node, typ string, st state) bool {
 // ifStatement scores an if statement: +1 plus the nesting level, or +1
 // alone for the if of an else if. Its consequence is one level deeper; an
 // else block is not, and scores +1.
-func (w *walker) ifStatement(n *sitter.Node, st state, elseIf bool) {
-	w.fn.nesting = max(w.fn.nesting, st.depth)
+func (w *Walker) ifStatement(n *sitter.Node, st state, elseIf bool) {
+	w.fn.Nesting = max(w.fn.Nesting, st.depth)
 	if elseIf {
-		w.fn.cognitive++
+		w.fn.Cognitive++
 	} else {
-		w.fn.cognitive += st.nest + 1
+		w.fn.Cognitive += st.nest + 1
 	}
 	inner := state{nest: st.nest, depth: st.depth + 1, quiet: st.quiet}
 	for i := range n.ChildCount() {
@@ -89,7 +89,7 @@ func (w *walker) ifStatement(n *sitter.Node, st state, elseIf bool) {
 // elseClause scores an else clause: an if inside it is an else if, and any
 // other statement is an else block, +1, walked at the if's own nesting
 // level as gocognit walks it.
-func (w *walker) elseClause(n *sitter.Node, st state) {
+func (w *Walker) elseClause(n *sitter.Node, st state) {
 	if n.Type(w.lang) != "else_clause" {
 		w.visit(n, st)
 		return
@@ -100,7 +100,7 @@ func (w *walker) elseClause(n *sitter.Node, st state) {
 		case c.Type(w.lang) == "if_statement":
 			w.ifStatement(c, st, true)
 		case c.IsNamed() && c.Type(w.lang) != "comment":
-			w.fn.cognitive++
+			w.fn.Cognitive++
 			w.visit(c, st)
 		default:
 			w.visit(c, st)
@@ -110,7 +110,7 @@ func (w *walker) elseClause(n *sitter.Node, st state) {
 
 // bodyNested walks n with its body one nesting level deeper and, when
 // deepen is set, every child one max_nesting level deeper.
-func (w *walker) bodyNested(n *sitter.Node, st state, deepen bool) {
+func (w *Walker) bodyNested(n *sitter.Node, st state, deepen bool) {
 	inner := state{nest: st.nest, depth: st.depth, quiet: st.quiet}
 	if deepen {
 		inner.depth++
@@ -120,7 +120,7 @@ func (w *walker) bodyNested(n *sitter.Node, st state, deepen bool) {
 
 // fieldsNested visits the children of n with flat, except those in one of
 // fields, which it visits one nesting level deeper.
-func (w *walker) fieldsNested(n *sitter.Node, flat state, fields ...string) {
+func (w *Walker) fieldsNested(n *sitter.Node, flat state, fields ...string) {
 	deep := flat
 	deep.nest++
 	for i := range n.ChildCount() {
@@ -135,13 +135,13 @@ func (w *walker) fieldsNested(n *sitter.Node, flat state, fields ...string) {
 // binary scores a binary expression: the first one of a tree, if logical,
 // adds one per run of like logical operators over the whole tree of binary
 // expressions below it, which then count nothing themselves.
-func (w *walker) binary(n *sitter.Node, st state) {
+func (w *Walker) binary(n *sitter.Node, st state) {
 	counted := st.chained
 	if !st.chained && isLogicalOp(w.operator(n)) {
 		var last string
 		for _, op := range w.logicalOps(n, nil) {
 			if op != last {
-				w.fn.cognitive++
+				w.fn.Cognitive++
 				last = op
 			}
 		}
@@ -152,20 +152,20 @@ func (w *walker) binary(n *sitter.Node, st state) {
 
 // logicalOps appends the logical operators of the binary expression tree
 // rooted at n to ops, left to right.
-func (w *walker) logicalOps(n *sitter.Node, ops []string) []string {
+func (w *Walker) logicalOps(n *sitter.Node, ops []string) []string {
 	if n == nil || n.Type(w.lang) != "binary_expression" {
 		return ops
 	}
-	ops = w.logicalOps(w.field(n, "left"), ops)
+	ops = w.logicalOps(w.Field(n, "left"), ops)
 	if op := w.operator(n); isLogicalOp(op) {
 		ops = append(ops, op)
 	}
-	return w.logicalOps(w.field(n, "right"), ops)
+	return w.logicalOps(w.Field(n, "right"), ops)
 }
 
 // operator returns the operator of binary expression n.
-func (w *walker) operator(n *sitter.Node) string {
-	if op := w.field(n, "operator"); op != nil {
+func (w *Walker) operator(n *sitter.Node) string {
+	if op := w.Field(n, "operator"); op != nil {
 		return op.Type(w.lang)
 	}
 	return ""
@@ -174,16 +174,4 @@ func (w *walker) operator(n *sitter.Node) string {
 // isLogicalOp reports whether op is &&, || or ??.
 func isLogicalOp(op string) bool {
 	return op == "&&" || op == "||" || op == "??"
-}
-
-// p90 returns the nearest-rank 90th percentile of scores: the value at
-// 1-based rank ceil(0.9 * n) after sorting ascending, or 0 when scores is
-// empty. It sorts scores in place.
-func p90(scores []int) int {
-	n := len(scores)
-	if n == 0 {
-		return 0
-	}
-	slices.Sort(scores)
-	return scores[(9*n+9)/10-1]
 }

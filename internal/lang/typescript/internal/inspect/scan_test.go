@@ -1,4 +1,4 @@
-package typescript
+package inspect
 
 import (
 	"os"
@@ -6,11 +6,14 @@ import (
 	"slices"
 	"strconv"
 	"testing"
+
+	"github.com/rfizzle/astimate/internal/lang/typescript/internal/resolve"
+	"github.com/rfizzle/astimate/internal/lang/typescript/internal/walk"
 )
 
 // scanSource scans src as the file name, a test file when name says so,
 // and returns its facts.
-func scanSource(t *testing.T, name, src string) *fileFacts {
+func scanSource(t *testing.T, name, src string) *Facts {
 	t.Helper()
 	dir := t.TempDir()
 	p := filepath.Join(dir, name)
@@ -20,7 +23,7 @@ func scanSource(t *testing.T, name, src string) *fileFacts {
 	if err := os.WriteFile(p, []byte(src), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	ff, err := newScanner(loadOptions{}).scanFile(sourceFile{abs: p, rel: name, pkg: packageOf(name), test: isTestPath(name)})
+	ff, err := NewScanner(Options{}).Scan(p, name, resolve.IsTestPath(name))
 	if err != nil {
 		t.Fatalf("scanning %s: %v", name, err)
 	}
@@ -28,12 +31,12 @@ func scanSource(t *testing.T, name, src string) *fileFacts {
 }
 
 // only returns the single function score of ff.
-func only(t *testing.T, ff *fileFacts) funcScore {
+func only(t *testing.T, ff *Facts) walk.Func {
 	t.Helper()
-	if len(ff.funcs) != 1 {
-		t.Fatalf("funcs = %+v, want exactly one", ff.funcs)
+	if len(ff.Funcs) != 1 {
+		t.Fatalf("funcs = %+v, want exactly one", ff.Funcs)
 	}
-	return ff.funcs[0]
+	return ff.Funcs[0]
 }
 
 func TestCognitive(t *testing.T) {
@@ -67,8 +70,8 @@ func TestCognitive(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ff := scanSource(t, "x.ts", "function f(n: number) {\n"+tc.body+"\n}\n")
 			got := only(t, ff)
-			if got.cognitive != tc.cognitive || got.nesting != tc.nesting {
-				t.Errorf("cognitive, nesting = %d, %d, want %d, %d", got.cognitive, got.nesting, tc.cognitive, tc.nesting)
+			if got.Cognitive != tc.cognitive || got.Nesting != tc.nesting {
+				t.Errorf("cognitive, nesting = %d, %d, want %d, %d", got.Cognitive, got.Nesting, tc.cognitive, tc.nesting)
 			}
 		})
 	}
@@ -95,10 +98,10 @@ function overload(a: any) {}
 `
 	ff := scanSource(t, "x.ts", src)
 	var names []string
-	for _, f := range ff.funcs {
-		name := f.ident
-		if f.receiver != "" {
-			name = f.receiver + "." + name
+	for _, f := range ff.Funcs {
+		name := f.Ident
+		if f.Receiver != "" {
+			name = f.Receiver + "." + name
 		}
 		names = append(names, name)
 	}
@@ -132,15 +135,15 @@ export function over(a: string): void;
 	ff := scanSource(t, "x.ts", src)
 	// f g h value p r s C A I T E N local renamed Hidden default; the
 	// overload signature and the re-exports are not counted here.
-	if ff.exports != 17 {
-		t.Errorf("exports = %d, want 17", ff.exports)
+	if ff.Exports != 17 {
+		t.Errorf("exports = %d, want 17", ff.Exports)
 	}
-	if ff.exportedTypes != 5 || ff.exportedInterfaces != 1 {
-		t.Errorf("exported types, interfaces = %d, %d, want 5, 1", ff.exportedTypes, ff.exportedInterfaces)
+	if ff.ExportedTypes != 5 || ff.ExportedInterfaces != 1 {
+		t.Errorf("exported types, interfaces = %d, %d, want 5, 1", ff.ExportedTypes, ff.ExportedInterfaces)
 	}
 	var got []string
-	for _, e := range ff.exportedFuncs {
-		got = append(got, e.display+"="+e.match+"@"+strconv.Itoa(e.line))
+	for _, e := range ff.ExportedFuncs {
+		got = append(got, e.Display+"="+e.Match+"@"+strconv.Itoa(e.Line))
 	}
 	// Each candidate carries the line of its declaration, not of the
 	// export list naming it.
@@ -151,9 +154,9 @@ export function over(a: string): void;
 	if !slices.Equal(got, want) {
 		t.Errorf("exported funcs = %q, want %q", got, want)
 	}
-	wantRe := []reexport{{"./other", 1}, {"./star", 0}, {"./ns", 1}}
-	if !slices.Equal(ff.reexports, wantRe) {
-		t.Errorf("reexports = %+v, want %+v", ff.reexports, wantRe)
+	wantRe := []Reexport{{"./other", 1}, {"./star", 0}, {"./ns", 1}}
+	if !slices.Equal(ff.Reexports, wantRe) {
+		t.Errorf("reexports = %+v, want %+v", ff.Reexports, wantRe)
 	}
 }
 
@@ -180,11 +183,11 @@ func TestGlobalsAndInit(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ff := scanSource(t, "x.ts", tc.src)
-			if !slices.Equal(ff.globals, tc.globals) || ff.hasInit != tc.init {
-				t.Errorf("global lines, init = %v, %v, want %v, %v", ff.globals, ff.hasInit, tc.globals, tc.init)
+			if !slices.Equal(ff.Globals, tc.globals) || ff.HasInit != tc.init {
+				t.Errorf("global lines, init = %v, %v, want %v, %v", ff.Globals, ff.HasInit, tc.globals, tc.init)
 			}
-			if len(ff.globalNames) != len(ff.globals) {
-				t.Errorf("global names %q for %d globals, want one per global", ff.globalNames, len(ff.globals))
+			if len(ff.GlobalNames) != len(ff.Globals) {
+				t.Errorf("global names %q for %d globals, want one per global", ff.GlobalNames, len(ff.Globals))
 			}
 		})
 	}
@@ -192,8 +195,8 @@ func TestGlobalsAndInit(t *testing.T) {
 
 func TestGlobalNames(t *testing.T) {
 	ff := scanSource(t, "x.ts", "let a = 1, _ = 2;\nvar { b, c: [d, e = 1], ...f } = o;\nexport let g = 3;\nconst h = 4;\n")
-	if want := []string{"a", "b", "d", "e", "f", "g"}; !slices.Equal(ff.globalNames, want) {
-		t.Errorf("global names = %q, want %q", ff.globalNames, want)
+	if want := []string{"a", "b", "d", "e", "f", "g"}; !slices.Equal(ff.GlobalNames, want) {
+		t.Errorf("global names = %q, want %q", ff.GlobalNames, want)
 	}
 }
 
@@ -217,11 +220,11 @@ func TestTestCases(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ff := scanSource(t, "x.test.ts", tc.src+"\n")
-			if ff.testFuncs != tc.want {
-				t.Errorf("test cases = %d, want %d", ff.testFuncs, tc.want)
+			if ff.TestFuncs != tc.want {
+				t.Errorf("test cases = %d, want %d", ff.TestFuncs, tc.want)
 			}
-			if len(ff.funcs) != 0 || len(ff.toks.codes) != 0 {
-				t.Errorf("test file recorded functions %v or %d duplication tokens", ff.funcs, len(ff.toks.codes))
+			if len(ff.Funcs) != 0 || len(ff.Tokens.Codes) != 0 {
+				t.Errorf("test file recorded functions %v or %d duplication tokens", ff.Funcs, len(ff.Tokens.Codes))
 			}
 		})
 	}
@@ -230,11 +233,11 @@ func TestTestCases(t *testing.T) {
 func TestTestIdentifiers(t *testing.T) {
 	ff := scanSource(t, "x.spec.ts", "import { a } from \"./a\";\nconst s = `${b.c}`;\nnew D().e(\"f\");\n")
 	for _, id := range []string{"a", "b", "c", "D", "e", "s"} {
-		if !ff.idents[id] {
-			t.Errorf("identifier %q not recorded; got %v", id, ff.idents)
+		if !ff.Idents[id] {
+			t.Errorf("identifier %q not recorded; got %v", id, ff.Idents)
 		}
 	}
-	if ff.idents["f"] {
+	if ff.Idents["f"] {
 		t.Error("string contents recorded as an identifier")
 	}
 }
@@ -253,8 +256,8 @@ function lazy() { return import("./lazy"); }
 `
 	ff := scanSource(t, "x.ts", src)
 	want := []string{"./a", "b", "side-effect", "c", "./d", "e", "f", "g", "./lazy"}
-	if !slices.Equal(ff.imports, want) {
-		t.Errorf("imports = %q, want %q", ff.imports, want)
+	if !slices.Equal(ff.Imports, want) {
+		t.Errorf("imports = %q, want %q", ff.Imports, want)
 	}
 }
 
@@ -264,12 +267,12 @@ func TestSLOC(t *testing.T) {
 	// Line 3 (code with a trailing comment), 5 (code after a block
 	// comment) and 7 (template text) count; line 6 is blank inside the
 	// template and line 8 a comment.
-	if ff.sloc != 3 {
-		t.Errorf("sloc = %d, want 3", ff.sloc)
+	if ff.SLOC != 3 {
+		t.Errorf("sloc = %d, want 3", ff.SLOC)
 	}
 	wantLines := []int{3, 5, 7}
 	var got []int
-	for ln, ok := range ff.codeLines {
+	for ln, ok := range ff.CodeLines {
 		if ok {
 			got = append(got, ln)
 		}
@@ -282,8 +285,8 @@ func TestSLOC(t *testing.T) {
 func TestDuplicationTokens(t *testing.T) {
 	ff := scanSource(t, "x.ts", "f(foo, -1, `a${b}`, \"s\", /r/g, true, null, undefined);\n")
 	// f ( ID , - LIT , LIT , LIT , LIT , LIT , LIT , ID ) ;
-	lit, id := literalCode, identCode
-	codes := ff.toks.codes
+	lit, id := walk.LiteralCode, walk.IdentCode
+	codes := ff.Tokens.Codes
 	if len(codes) != 20 {
 		t.Fatalf("tokens = %v, want 20", codes)
 	}
@@ -293,7 +296,7 @@ func TestDuplicationTokens(t *testing.T) {
 		}
 	}
 	signs := 0
-	for _, c := range ff.toks.class {
+	for _, c := range ff.Tokens.Class {
 		if c == 3 { // duptok.Sign
 			signs++
 		}
@@ -343,8 +346,8 @@ func TestUntestedDirective(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ff := scanSource(t, "x.ts", tc.src)
 			var got []string
-			for _, e := range ff.exportedFuncs {
-				got = append(got, e.display+"="+strconv.FormatBool(e.directed))
+			for _, e := range ff.ExportedFuncs {
+				got = append(got, e.Display+"="+strconv.FormatBool(e.Directed))
 			}
 			if !slices.Equal(got, tc.want) {
 				t.Errorf("candidates = %q, want %q", got, tc.want)
@@ -361,8 +364,8 @@ func TestModuleExtensions(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ff := scanSource(t, tc.name, tc.src)
-			if len(ff.funcs) != 1 || len(ff.imports) != 1 || ff.sloc != 2 {
-				t.Errorf("funcs, imports, sloc = %d, %q, %d, want 1, one import, 2", len(ff.funcs), ff.imports, ff.sloc)
+			if len(ff.Funcs) != 1 || len(ff.Imports) != 1 || ff.SLOC != 2 {
+				t.Errorf("funcs, imports, sloc = %d, %q, %d, want 1, one import, 2", len(ff.Funcs), ff.Imports, ff.SLOC)
 			}
 		})
 	}
@@ -372,11 +375,25 @@ func TestModuleExtensions(t *testing.T) {
 // largest file.
 func BenchmarkScanFile(b *testing.B) {
 	rel := "dupes/dupes.ts"
-	f := sourceFile{abs: filepath.Join(fixtureRoot(b), filepath.FromSlash(rel)), rel: rel, pkg: "dupes"}
-	s := newScanner(loadOptions{})
+	abs := filepath.Join(fixtureRoot(b), filepath.FromSlash(rel))
+	s := NewScanner(Options{})
 	for b.Loop() {
-		if _, err := s.scanFile(f); err != nil {
+		if _, err := s.Scan(abs, rel, false); err != nil {
 			b.Fatal(err)
 		}
 	}
+}
+
+// fixtureRoot returns the absolute path of testdata/ts/fixture, relative to
+// this package's directory, where go test runs.
+func fixtureRoot(tb testing.TB) string {
+	tb.Helper()
+	root, err := filepath.Abs(filepath.Join("..", "..", "..", "..", "..", "testdata", "ts", "fixture"))
+	if err != nil {
+		tb.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, resolve.ManifestName)); err != nil {
+		tb.Fatalf("TypeScript fixture missing: %v", err)
+	}
+	return root
 }

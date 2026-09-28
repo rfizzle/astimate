@@ -11,6 +11,8 @@ import (
 	"sync"
 
 	"github.com/rfizzle/astimate/internal/lang/duptok"
+	"github.com/rfizzle/astimate/internal/lang/typescript/internal/inspect"
+	"github.com/rfizzle/astimate/internal/lang/typescript/internal/resolve"
 	"github.com/rfizzle/astimate/internal/metrics"
 )
 
@@ -112,7 +114,7 @@ func (e *Extractor) Language() string { return "typescript" }
 
 // Detect reports whether root contains a package.json file.
 func (e *Extractor) Detect(root string) bool {
-	fi, err := os.Stat(filepath.Join(root, manifestName))
+	fi, err := os.Stat(filepath.Join(root, resolve.ManifestName))
 	return err == nil && fi.Mode().IsRegular()
 }
 
@@ -223,23 +225,23 @@ func (e *Extractor) Functions(ctx context.Context, mod *metrics.ModuleContext, p
 	}
 	n := 0
 	for _, f := range p.src {
-		n += len(f.funcs)
+		n += len(f.Funcs)
 	}
 	fns := make([]metrics.FunctionInfo, 0, n)
 	for _, f := range p.src {
-		file := filepath.Base(f.abs)
-		if rel, err := filepath.Rel(p.dir, f.abs); err == nil {
+		file := filepath.Base(f.Abs)
+		if rel, err := filepath.Rel(p.dir, f.Abs); err == nil {
 			file = rel
 		}
 		file = filepath.ToSlash(file)
-		for _, fn := range f.funcs {
+		for _, fn := range f.Funcs {
 			fns = append(fns, metrics.FunctionInfo{
-				Receiver:    fn.receiver,
-				Name:        fn.ident,
-				Fingerprint: fn.fingerprint,
-				Cognitive:   fn.cognitive,
+				Receiver:    fn.Receiver,
+				Name:        fn.Ident,
+				Fingerprint: fn.Fingerprint,
+				Cognitive:   fn.Cognitive,
 				File:        file,
-				Line:        fn.line,
+				Line:        fn.Line,
 			})
 		}
 	}
@@ -304,7 +306,7 @@ func (e *Extractor) module(ctx context.Context, root string) (*module, error) {
 		e.mu.Unlock()
 
 		if !joined {
-			l.m, l.err = loadModule(ctx, abs, loadOptions{o200k: e.tokenizer == methodO200k, logger: e.logger})
+			l.m, l.err = loadModule(ctx, abs, inspect.Options{O200k: e.tokenizer == methodO200k, Logger: e.logger})
 			if l.err != nil {
 				e.mu.Lock()
 				delete(e.modules, abs)

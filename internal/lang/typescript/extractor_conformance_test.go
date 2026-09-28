@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/rfizzle/astimate/internal/lang/typescript/internal/resolve"
 	"github.com/rfizzle/astimate/internal/metrics/metricstest"
 )
 
@@ -47,7 +48,7 @@ func fixtureRoot(tb testing.TB) string {
 	if err != nil {
 		tb.Fatal(err)
 	}
-	if _, err := os.Stat(filepath.Join(root, manifestName)); err != nil {
+	if _, err := os.Stat(filepath.Join(root, resolve.ManifestName)); err != nil {
 		tb.Fatalf("TypeScript fixture missing: %v", err)
 	}
 	return root

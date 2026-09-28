@@ -1,4 +1,4 @@
-package typescript
+package resolve
 
 import (
 	"os"
@@ -54,55 +54,55 @@ func TestClassify(t *testing.T) {
   }
 }`,
 	})
-	pkgs := map[string]*pkg{
+	pkgs := map[string]struct{}{
 		".": {}, "src/app": {}, "src/lib": {}, "src/lib/deep": {}, "src/shadow": {}, "sub": {},
 	}
-	cfg, err := readTSConfig(root)
+	cfg, err := ReadConfig(root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	r := newResolver(root, pkgs, cfg)
+	r := New(root, pkgs, cfg)
 
 	cases := []struct {
 		name, dir, spec string
-		want            classified
+		want            Import
 	}{
-		{"relative directory", "src/app", "../lib", classified{importInternal, "src/lib"}},
-		{"relative file", "src/app", "../lib/index", classified{importInternal, "src/lib"}},
-		{"relative file with js extension", "src/app", "../lib/index.js", classified{importInternal, "src/lib"}},
-		{"relative same directory", "src/app", "./util", classified{importInternal, "src/app"}},
-		{"relative dot without an index counts nowhere", "src/app", ".", classified{importNone, ""}},
-		{"relative directory without an index counts nowhere", "src/app", "../lib/deep", classified{importNone, ""}},
-		{"relative file in a nested directory", "src/app", "../lib/deep/deep", classified{importInternal, "src/lib/deep"}},
-		{"relative file wins over directory", ".", "./sub", classified{importInternal, "."}},
-		{"relative trailing slash is a directory only", ".", "./sub/", classified{importInternal, "sub"}},
-		{"relative dot-dot is a directory", "src/lib/deep", "..", classified{importInternal, "src/lib"}},
-		{"relative non-TypeScript file counts nowhere", "src/app", "../../assets/logo.svg", classified{importNone, ""}},
-		{"relative missing file counts nowhere", "src/app", "./nothing", classified{importNone, ""}},
-		{"relative escaping the module", "src/app", "../../../other/x", classified{importExternal, "../../../other/x"}},
-		{"relative escaping the module to nothing counts nowhere", "src/app", "../../../other/y", classified{importNone, ""}},
-		{"exact alias", "src/app", "@lib", classified{importInternal, "src/lib"}},
-		{"wildcard alias", "src/app", "@lib/deep/deep", classified{importInternal, "src/lib/deep"}},
-		{"alias to a directory without an index falls through to npm", "src/app", "@lib/deep", classified{importExternal, "@lib/deep"}},
-		{"alias falls through to the target that exists", "src/app", "@deep/deep", classified{importInternal, "src/lib/deep"}},
-		{"alias outside the module", "src/app", "@out/x", classified{importExternal, "@out/x"}},
-		{"alias with no target outside the module falls through to npm", "src/app", "@out/y/z", classified{importExternal, "@out/y"}},
-		{"alias with no target falls through to baseUrl", "src/app", "shadow/s", classified{importInternal, "src/shadow"}},
-		{"bare directory without an index under baseUrl is npm", "src/app", "shadow", classified{importExternal, "shadow"}},
-		{"bare", "src/app", "lodash", classified{importExternal, "lodash"}},
-		{"bare subpath", "src/app", "lodash/map", classified{importExternal, "lodash"}},
-		{"scoped bare", "src/app", "@scope/pkg/sub", classified{importExternal, "@scope/pkg"}},
-		{"scoped bare not matching an alias", "src/app", "@libx/y", classified{importExternal, "@libx/y"}},
-		{"node prefix", "src/app", "node:fs/promises", classified{importStdlib, "fs"}},
-		{"node prefix only built-in", "src/app", "node:test", classified{importStdlib, "test"}},
-		{"built-in without prefix", "src/app", "path", classified{importStdlib, "path"}},
-		{"built-in subpath", "src/app", "fs/promises", classified{importStdlib, "fs"}},
-		{"not a built-in", "src/app", "pathlib", classified{importExternal, "pathlib"}},
+		{"relative directory", "src/app", "../lib", Import{Internal, "src/lib"}},
+		{"relative file", "src/app", "../lib/index", Import{Internal, "src/lib"}},
+		{"relative file with js extension", "src/app", "../lib/index.js", Import{Internal, "src/lib"}},
+		{"relative same directory", "src/app", "./util", Import{Internal, "src/app"}},
+		{"relative dot without an index counts nowhere", "src/app", ".", Import{None, ""}},
+		{"relative directory without an index counts nowhere", "src/app", "../lib/deep", Import{None, ""}},
+		{"relative file in a nested directory", "src/app", "../lib/deep/deep", Import{Internal, "src/lib/deep"}},
+		{"relative file wins over directory", ".", "./sub", Import{Internal, "."}},
+		{"relative trailing slash is a directory only", ".", "./sub/", Import{Internal, "sub"}},
+		{"relative dot-dot is a directory", "src/lib/deep", "..", Import{Internal, "src/lib"}},
+		{"relative non-TypeScript file counts nowhere", "src/app", "../../assets/logo.svg", Import{None, ""}},
+		{"relative missing file counts nowhere", "src/app", "./nothing", Import{None, ""}},
+		{"relative escaping the module", "src/app", "../../../other/x", Import{External, "../../../other/x"}},
+		{"relative escaping the module to nothing counts nowhere", "src/app", "../../../other/y", Import{None, ""}},
+		{"exact alias", "src/app", "@lib", Import{Internal, "src/lib"}},
+		{"wildcard alias", "src/app", "@lib/deep/deep", Import{Internal, "src/lib/deep"}},
+		{"alias to a directory without an index falls through to npm", "src/app", "@lib/deep", Import{External, "@lib/deep"}},
+		{"alias falls through to the target that exists", "src/app", "@deep/deep", Import{Internal, "src/lib/deep"}},
+		{"alias outside the module", "src/app", "@out/x", Import{External, "@out/x"}},
+		{"alias with no target outside the module falls through to npm", "src/app", "@out/y/z", Import{External, "@out/y"}},
+		{"alias with no target falls through to baseUrl", "src/app", "shadow/s", Import{Internal, "src/shadow"}},
+		{"bare directory without an index under baseUrl is npm", "src/app", "shadow", Import{External, "shadow"}},
+		{"bare", "src/app", "lodash", Import{External, "lodash"}},
+		{"bare subpath", "src/app", "lodash/map", Import{External, "lodash"}},
+		{"scoped bare", "src/app", "@scope/pkg/sub", Import{External, "@scope/pkg"}},
+		{"scoped bare not matching an alias", "src/app", "@libx/y", Import{External, "@libx/y"}},
+		{"node prefix", "src/app", "node:fs/promises", Import{Stdlib, "fs"}},
+		{"node prefix only built-in", "src/app", "node:test", Import{Stdlib, "test"}},
+		{"built-in without prefix", "src/app", "path", Import{Stdlib, "path"}},
+		{"built-in subpath", "src/app", "fs/promises", Import{Stdlib, "fs"}},
+		{"not a built-in", "src/app", "pathlib", Import{External, "pathlib"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := r.classify(tc.dir, tc.spec); got != tc.want {
-				t.Errorf("classify(%q, %q) = %+v, want %+v", tc.dir, tc.spec, got, tc.want)
+			if got := r.Classify(tc.dir, tc.spec); got != tc.want {
+				t.Errorf("Classify(%q, %q) = %+v, want %+v", tc.dir, tc.spec, got, tc.want)
 			}
 		})
 	}
@@ -129,46 +129,46 @@ func TestClassifyBaseURLAndExtensions(t *testing.T) {
 			"@m/*": ["missing/*", "esm/*"],
 		}}}`,
 	})
-	pkgs := map[string]*pkg{
+	pkgs := map[string]struct{}{
 		"src": {}, "src/app": {}, "src/lib": {}, "src/esm": {}, "src/cjs": {}, "src/view": {}, "src/path": {}, "src/multi": {}, "src/os": {}, "src/solo": {},
 	}
-	cfg, err := readTSConfig(root)
+	cfg, err := ReadConfig(root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	r := newResolver(root, pkgs, cfg)
+	r := New(root, pkgs, cfg)
 	cases := []struct {
 		name, spec string
-		want       classified
+		want       Import
 	}{
-		{"bare directory under baseUrl", "lib", classified{importInternal, "src/lib"}},
-		{"bare file under baseUrl", "lib/index", classified{importInternal, "src/lib"}},
-		{"bare file wins over directory", "esm", classified{importInternal, "src"}},
-		{"bare name under baseUrl shadows a built-in", "path", classified{importInternal, "src/path"}},
-		{"node prefix is never under baseUrl", "node:path", classified{importStdlib, "path"}},
-		{"bare name missing under baseUrl", "lodash", classified{importExternal, "lodash"}},
-		{"built-in missing under baseUrl", "fs", classified{importStdlib, "fs"}},
-		{"js extension to ts", "../lib/index.js", classified{importInternal, "src/lib"}},
-		{"jsx extension to tsx", "../view/v.jsx", classified{importInternal, "src/view"}},
-		{"mjs extension to mts", "../esm/m.mjs", classified{importInternal, "src/esm"}},
-		{"mjs extension to d.mts", "../esm/d.mjs", classified{importInternal, "src/esm"}},
-		{"cjs extension to cts", "../cjs/c.cjs", classified{importInternal, "src/cjs"}},
-		{"alias target found through the mjs mapping", "@m/m.mjs", classified{importInternal, "src/esm"}},
-		{"alias with no target falls through to npm", "@m/none.mjs", classified{importExternal, "@m/none.mjs"}},
-		{"bare directory without an index under baseUrl is npm", "solo", classified{importExternal, "solo"}},
-		{"bare directory without an index under baseUrl is a built-in", "os", classified{importStdlib, "os"}},
-		{"bare file in a directory without an index under baseUrl", "solo/s", classified{importInternal, "src/solo"}},
-		{"bare non-TypeScript file under baseUrl is npm", "data.json", classified{importExternal, "data.json"}},
-		{"bare JavaScript file under baseUrl is npm", "plain.js", classified{importExternal, "plain.js"}},
-		{"relative non-TypeScript file counts nowhere", "../data.json", classified{importNone, ""}},
-		{"relative JavaScript file counts nowhere", "../plain.js", classified{importNone, ""}},
-		{"extensionless import never finds an mts file", "../esm/m", classified{importNone, ""}},
-		{"explicit mts extension", "../esm/m.mts", classified{importInternal, "src/esm"}},
+		{"bare directory under baseUrl", "lib", Import{Internal, "src/lib"}},
+		{"bare file under baseUrl", "lib/index", Import{Internal, "src/lib"}},
+		{"bare file wins over directory", "esm", Import{Internal, "src"}},
+		{"bare name under baseUrl shadows a built-in", "path", Import{Internal, "src/path"}},
+		{"node prefix is never under baseUrl", "node:path", Import{Stdlib, "path"}},
+		{"bare name missing under baseUrl", "lodash", Import{External, "lodash"}},
+		{"built-in missing under baseUrl", "fs", Import{Stdlib, "fs"}},
+		{"js extension to ts", "../lib/index.js", Import{Internal, "src/lib"}},
+		{"jsx extension to tsx", "../view/v.jsx", Import{Internal, "src/view"}},
+		{"mjs extension to mts", "../esm/m.mjs", Import{Internal, "src/esm"}},
+		{"mjs extension to d.mts", "../esm/d.mjs", Import{Internal, "src/esm"}},
+		{"cjs extension to cts", "../cjs/c.cjs", Import{Internal, "src/cjs"}},
+		{"alias target found through the mjs mapping", "@m/m.mjs", Import{Internal, "src/esm"}},
+		{"alias with no target falls through to npm", "@m/none.mjs", Import{External, "@m/none.mjs"}},
+		{"bare directory without an index under baseUrl is npm", "solo", Import{External, "solo"}},
+		{"bare directory without an index under baseUrl is a built-in", "os", Import{Stdlib, "os"}},
+		{"bare file in a directory without an index under baseUrl", "solo/s", Import{Internal, "src/solo"}},
+		{"bare non-TypeScript file under baseUrl is npm", "data.json", Import{External, "data.json"}},
+		{"bare JavaScript file under baseUrl is npm", "plain.js", Import{External, "plain.js"}},
+		{"relative non-TypeScript file counts nowhere", "../data.json", Import{None, ""}},
+		{"relative JavaScript file counts nowhere", "../plain.js", Import{None, ""}},
+		{"extensionless import never finds an mts file", "../esm/m", Import{None, ""}},
+		{"explicit mts extension", "../esm/m.mts", Import{Internal, "src/esm"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := r.classify("src/app", tc.spec); got != tc.want {
-				t.Errorf("classify(%q) = %+v, want %+v", tc.spec, got, tc.want)
+			if got := r.Classify("src/app", tc.spec); got != tc.want {
+				t.Errorf("Classify(%q) = %+v, want %+v", tc.spec, got, tc.want)
 			}
 		})
 	}
@@ -267,7 +267,7 @@ func TestResolveModule(t *testing.T) {
 		"real.ts":       "",
 		"real.js.ts":    "",
 	})
-	r := newResolver(root, nil, tsconfig{base: root})
+	r := New(root, nil, Config{base: root})
 	cases := map[string]string{
 		"idx/ts":  "idx/ts/index.ts",
 		"idx/tsx": "idx/tsx/index.tsx",
@@ -314,7 +314,7 @@ func TestResolveModule(t *testing.T) {
 		"dotted.ts": "dotted.ts.tsx",
 		"real.js":   "real.ts",
 	}
-	// The JavaScript pass, which classify runs under allowJs only after
+	// The JavaScript pass, which Classify runs under allowJs only after
 	// the TypeScript pass found nothing.
 	jsCases := map[string]string{
 		"idx/ts":      "",
@@ -587,7 +587,7 @@ func TestReadTSConfigExtends(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
 			writeTree(t, dir, tc.files)
-			cfg, err := readTSConfig(filepath.Join(dir, tc.root))
+			cfg, err := ReadConfig(filepath.Join(dir, tc.root))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -627,7 +627,7 @@ func TestReadTSConfigDepthBound(t *testing.T) {
 	files["c"+strconv.Itoa(maxExtendsDepth+1)+".json"] = `{"compilerOptions": {"baseUrl": "deep"}}`
 	files["c"+strconv.Itoa(maxExtendsDepth)+".json"] = `{"extends": "./c` + strconv.Itoa(maxExtendsDepth+1) + `.json", "compilerOptions": {"baseUrl": "last"}}`
 	writeTree(t, root, files)
-	cfg, err := readTSConfig(root)
+	cfg, err := ReadConfig(root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -645,8 +645,8 @@ func TestReadTSConfigExtendsErrors(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			root := t.TempDir()
 			writeTree(t, root, files)
-			if _, err := readTSConfig(root); err == nil {
-				t.Error("readTSConfig = nil error, want one")
+			if _, err := ReadConfig(root); err == nil {
+				t.Error("ReadConfig = nil error, want one")
 			}
 		})
 	}
@@ -655,13 +655,13 @@ func TestReadTSConfigExtendsErrors(t *testing.T) {
 func TestClassifyWithoutTSConfig(t *testing.T) {
 	root := t.TempDir()
 	writeTree(t, root, map[string]string{"package.json": "{}", "a/a.ts": "export {};\n"})
-	cfg, err := readTSConfig(root)
+	cfg, err := ReadConfig(root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	r := newResolver(root, map[string]*pkg{"a": {}}, cfg)
-	if got, want := r.classify(".", "@app/a"), (classified{importExternal, "@app/a"}); got != want {
-		t.Errorf("classify without aliases = %+v, want %+v", got, want)
+	r := New(root, map[string]struct{}{"a": {}}, cfg)
+	if got, want := r.Classify(".", "@app/a"), (Import{External, "@app/a"}); got != want {
+		t.Errorf("Classify without aliases = %+v, want %+v", got, want)
 	}
 }
 
@@ -676,21 +676,21 @@ func TestClassifyConfigDirAlias(t *testing.T) {
 		"cfg/lib/x.ts":  "export const x = 1;\n",
 		"lib/x.ts":      "export const x = 1;\n",
 	})
-	cfg, err := readTSConfig(root)
+	cfg, err := ReadConfig(root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	r := newResolver(root, map[string]*pkg{"lib": {}, "cfg/lib": {}}, cfg)
-	if got, want := r.classify(".", "@c/x"), (classified{importInternal, "lib"}); got != want {
-		t.Errorf("classify(@c/x) = %+v, want %+v", got, want)
+	r := New(root, map[string]struct{}{"lib": {}, "cfg/lib": {}}, cfg)
+	if got, want := r.Classify(".", "@c/x"), (Import{Internal, "lib"}); got != want {
+		t.Errorf("Classify(@c/x) = %+v, want %+v", got, want)
 	}
 }
 
 func TestReadTSConfigErrors(t *testing.T) {
 	root := t.TempDir()
 	writeTree(t, root, map[string]string{"tsconfig.json": "{ not json"})
-	if _, err := readTSConfig(root); err == nil || !strings.Contains(err.Error(), "tsconfig.json") {
-		t.Errorf("readTSConfig on bad JSON = %v, want an error naming tsconfig.json", err)
+	if _, err := ReadConfig(root); err == nil || !strings.Contains(err.Error(), "tsconfig.json") {
+		t.Errorf("ReadConfig on bad JSON = %v, want an error naming tsconfig.json", err)
 	}
 }
 
@@ -715,7 +715,7 @@ func TestAliasOrder(t *testing.T) {
 	root := t.TempDir()
 	writeTree(t, root, map[string]string{"tsconfig.json": `{"compilerOptions": {"paths": {
 		"*": ["any/*"], "@a/*": ["short/*"], "@a/b/*": ["long/*"], "@a/b/c": ["exact"]}}}`})
-	cfg, err := readTSConfig(root)
+	cfg, err := ReadConfig(root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -744,30 +744,30 @@ func TestClassifyResolveJSONModule(t *testing.T) {
 		"assets/x.json":     "{}",
 	}
 	const opts = `"baseUrl": "src", "paths": {"@d/*": ["lib/*"]}`
-	on := map[string]classified{
-		"./data.json":         {importInternal, "src/app"},
-		"../lib/data.json":    {importInternal, "src/lib"},
-		"../../assets/x.json": {importNone, ""},
-		"./none.json":         {importNone, ""},
-		"./data":              {importNone, ""},
-		"@d/data.json":        {importInternal, "src/lib"},
-		"lib/data.json":       {importInternal, "src/lib"},
-		"../lib":              {importInternal, "src/lib"},
+	on := map[string]Import{
+		"./data.json":         {Internal, "src/app"},
+		"../lib/data.json":    {Internal, "src/lib"},
+		"../../assets/x.json": {None, ""},
+		"./none.json":         {None, ""},
+		"./data":              {None, ""},
+		"@d/data.json":        {Internal, "src/lib"},
+		"lib/data.json":       {Internal, "src/lib"},
+		"../lib":              {Internal, "src/lib"},
 	}
-	off := map[string]classified{
-		"./data.json":         {importNone, ""},
-		"../lib/data.json":    {importNone, ""},
-		"../../assets/x.json": {importNone, ""},
-		"./none.json":         {importNone, ""},
-		"./data":              {importNone, ""},
-		"@d/data.json":        {importExternal, "@d/data.json"},
-		"lib/data.json":       {importExternal, "lib"},
-		"../lib":              {importInternal, "src/lib"},
+	off := map[string]Import{
+		"./data.json":         {None, ""},
+		"../lib/data.json":    {None, ""},
+		"../../assets/x.json": {None, ""},
+		"./none.json":         {None, ""},
+		"./data":              {None, ""},
+		"@d/data.json":        {External, "@d/data.json"},
+		"lib/data.json":       {External, "lib"},
+		"../lib":              {Internal, "src/lib"},
 	}
 	cases := []struct {
 		name  string
 		files map[string]string
-		want  map[string]classified
+		want  map[string]Import
 	}{
 		{"unset", map[string]string{
 			"tsconfig.json": `{"compilerOptions": {` + opts + `}}`,
@@ -798,14 +798,14 @@ func TestClassifyResolveJSONModule(t *testing.T) {
 			root := t.TempDir()
 			writeTree(t, root, tree)
 			writeTree(t, root, tc.files)
-			cfg, err := readTSConfig(root)
+			cfg, err := ReadConfig(root)
 			if err != nil {
 				t.Fatal(err)
 			}
-			r := newResolver(root, map[string]*pkg{"src/app": {}, "src/lib": {}}, cfg)
+			r := New(root, map[string]struct{}{"src/app": {}, "src/lib": {}}, cfg)
 			for spec, want := range tc.want {
-				if got := r.classify("src/app", spec); got != want {
-					t.Errorf("classify(%q) = %+v, want %+v", spec, got, want)
+				if got := r.Classify("src/app", spec); got != want {
+					t.Errorf("Classify(%q) = %+v, want %+v", spec, got, want)
 				}
 			}
 		})
@@ -835,47 +835,47 @@ func TestClassifyAllowJS(t *testing.T) {
 		"node_modules/lib/widget.d.ts":  "export declare const w: number;\n",
 	}
 	const opts = `"baseUrl": "src", "paths": {"@l/*": ["lib/*"]}`
-	on := map[string]classified{
-		"../lib/legacy.js":  {importInternal, "src/lib"},
-		"../lib/legacy":     {importInternal, "src/lib"},
-		"../lib/widget":     {importInternal, "src/lib"},
-		"../lib/widget.js":  {importInternal, "src/lib"},
-		"@l/legacy":         {importInternal, "src/lib"},
-		"lib/legacy":        {importInternal, "src/lib"},
-		"../jsonly":         {importNone, ""},
-		"jsonly":            {importNone, ""},
-		"../shadow":         {importInternal, "src/shadow"},
-		"../lib":            {importInternal, "src/lib"},
-		"../../vendor/v.js": {importNone, ""},
-		"../lib/missing":    {importNone, ""},
-		"lodash":            {importExternal, "lodash"},
-		"../lib/data.json":  {importInternal, "src/lib"},
+	on := map[string]Import{
+		"../lib/legacy.js":  {Internal, "src/lib"},
+		"../lib/legacy":     {Internal, "src/lib"},
+		"../lib/widget":     {Internal, "src/lib"},
+		"../lib/widget.js":  {Internal, "src/lib"},
+		"@l/legacy":         {Internal, "src/lib"},
+		"lib/legacy":        {Internal, "src/lib"},
+		"../jsonly":         {None, ""},
+		"jsonly":            {None, ""},
+		"../shadow":         {Internal, "src/shadow"},
+		"../lib":            {Internal, "src/lib"},
+		"../../vendor/v.js": {None, ""},
+		"../lib/missing":    {None, ""},
+		"lodash":            {External, "lodash"},
+		"../lib/data.json":  {Internal, "src/lib"},
 		// A deliberate difference from tsc, which picks the typed package
 		// node_modules/lib: a bare name resolving to a local JavaScript
 		// file under baseUrl is internal.
-		"lib/widget": {importInternal, "src/lib"},
+		"lib/widget": {Internal, "src/lib"},
 	}
-	off := map[string]classified{
-		"../lib/legacy.js":  {importNone, ""},
-		"../lib/legacy":     {importNone, ""},
-		"../lib/widget":     {importNone, ""},
-		"../lib/widget.js":  {importNone, ""},
-		"@l/legacy":         {importExternal, "@l/legacy"},
-		"lib/legacy":        {importExternal, "lib"},
-		"../jsonly":         {importNone, ""},
-		"jsonly":            {importExternal, "jsonly"},
-		"../shadow":         {importInternal, "src/shadow"},
-		"../lib":            {importInternal, "src/lib"},
-		"../../vendor/v.js": {importNone, ""},
-		"../lib/missing":    {importNone, ""},
-		"lodash":            {importExternal, "lodash"},
-		"../lib/data.json":  {importNone, ""},
-		"lib/widget":        {importExternal, "lib"},
+	off := map[string]Import{
+		"../lib/legacy.js":  {None, ""},
+		"../lib/legacy":     {None, ""},
+		"../lib/widget":     {None, ""},
+		"../lib/widget.js":  {None, ""},
+		"@l/legacy":         {External, "@l/legacy"},
+		"lib/legacy":        {External, "lib"},
+		"../jsonly":         {None, ""},
+		"jsonly":            {External, "jsonly"},
+		"../shadow":         {Internal, "src/shadow"},
+		"../lib":            {Internal, "src/lib"},
+		"../../vendor/v.js": {None, ""},
+		"../lib/missing":    {None, ""},
+		"lodash":            {External, "lodash"},
+		"../lib/data.json":  {None, ""},
+		"lib/widget":        {External, "lib"},
 	}
 	cases := []struct {
 		name  string
 		files map[string]string
-		want  map[string]classified
+		want  map[string]Import
 	}{
 		{"unset", map[string]string{
 			"tsconfig.json": `{"compilerOptions": {` + opts + `}}`,
@@ -923,14 +923,14 @@ func TestClassifyAllowJS(t *testing.T) {
 			root := t.TempDir()
 			writeTree(t, root, tree)
 			writeTree(t, root, tc.files)
-			cfg, err := readTSConfig(root)
+			cfg, err := ReadConfig(root)
 			if err != nil {
 				t.Fatal(err)
 			}
-			r := newResolver(root, map[string]*pkg{"src/app": {}, "src/lib": {}, "src/shadow": {}}, cfg)
+			r := New(root, map[string]struct{}{"src/app": {}, "src/lib": {}, "src/shadow": {}}, cfg)
 			for spec, want := range tc.want {
-				if got := r.classify("src/app", spec); got != want {
-					t.Errorf("classify(%q) = %+v, want %+v", spec, got, want)
+				if got := r.Classify("src/app", spec); got != want {
+					t.Errorf("Classify(%q) = %+v, want %+v", spec, got, want)
 				}
 			}
 		})
@@ -947,12 +947,12 @@ func TestClassifyAllowJSWithResolveJSONModule(t *testing.T) {
 		"src/lib/data.json.js": "export const d = 1;\n",
 		"tsconfig.json":        `{"compilerOptions": {"allowJs": true, "resolveJsonModule": true}}`,
 	})
-	cfg, err := readTSConfig(root)
+	cfg, err := ReadConfig(root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	r := newResolver(root, map[string]*pkg{"src/app": {}, "src/lib": {}}, cfg)
-	if got, want := r.classify("src/app", "../lib/data.json"), (classified{importNone, ""}); got != want {
+	r := New(root, map[string]struct{}{"src/app": {}, "src/lib": {}}, cfg)
+	if got, want := r.Classify("src/app", "../lib/data.json"), (Import{None, ""}); got != want {
 		t.Errorf("classify = %+v, want %+v", got, want)
 	}
 }
