@@ -12,6 +12,19 @@ history.
 
 ### Added
 
+- Rebuild fit: `go run ./calibration/rebuild/fit --runs <runs.jsonl>` fits
+  the SPEC.md 7.2 parameters to the rebuild runner's measurements. It takes
+  each package's median footprint tokens (input, cache writes and output)
+  over its passing runs, fits the 7.2 form with its knee by nonlinear least
+  squares (per-session overhead and scale as nuisance terms, budget held
+  and profiled), and writes the base configuration with only the rebuild
+  parameters and `config_version: rebuild-<date>-<agent>` changed, parsed
+  and validated. Its report gives fit quality per output (tokens, turns,
+  wall time, passing), residuals by tier, each 7.1 input's and each
+  complexity candidate's correlation and coefficient with robust standard
+  errors, names the inputs with no measurable contribution, and lists
+  failed runs as censored rather than dropping them. Tested on synthetic
+  runs with planted parameters; the real fit and the default swap follow.
 - Gate validation: `go run ./calibration/validate` joins replay rows with
   commit labels and reports the gate's recall and false-failure rate against
   the 80% and 10% targets, each rule's precision and recall per corpus beside
