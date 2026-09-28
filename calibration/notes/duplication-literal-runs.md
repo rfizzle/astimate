@@ -39,14 +39,42 @@ union so that does not change `duplication_pct`, only `dup_blocks`.
 ## Method
 
 `TestDupMeasureStdlibLiteralRuns` in
-`internal/lang/golang/duplication_test.go`, skipped unless
-`ASTIMATE_MEASURE_STDLIB=1`. The test built its variants from the Go
-extractor's own token stream, which was removed when Go duplication moved
-onto the shared finder in `internal/lang/duptok`; to rerun it, check out
-commit `a8d3002`, the last one that has it:
+`internal/lang/golang/dupmeasure_test.go`, skipped unless
+`ASTIMATE_MEASURE_STDLIB=1`:
 
 ```
-ASTIMATE_MEASURE_STDLIB=1 go test ./internal/lang/golang/ -run TestDupMeasureStdlibLiteralRuns -v -count=1
+ASTIMATE_MEASURE_STDLIB=1 go test ./internal/lang/golang/ -run TestDupMeasureStdlibLiteralRuns -v -count=1 -timeout 60m
+```
+
+The test was first written against the Go extractor's own token stream,
+which was removed when Go duplication moved onto the shared finder in
+`internal/lang/duptok`. It now builds its variants over `duptok` through
+the test-only recorder in `internal/lang/duptok/duptoktest`, which returns
+each block's occurrence positions and each token's class without widening
+duptok's API.
+
+**Reproduction.** Rerun on 2026-09-28 on the recorded toolchain (Go 1.27.1,
+darwin/arm64, `golang.org/x/tools` v0.50.0), the ported test's log is
+identical line for line to the log of the original test at commit
+`a8d3002`, source positions and wall times aside, including every changed
+block. Every number in this note reproduces.
+
+**Denominator.** Since this note was written, the extractor leaves
+generated files out of `sloc` (`generated-files-2026-09-27.md`). The test
+keeps the denominator these numbers were measured with, which is SLOC with
+generated files counted. Setting `ASTIMATE_MEASURE_SLOC=authored` switches
+it to the extractor's current authored SLOC. On that denominator 215
+packages pass the 200-SLOC filter and `duplication_pct` p50 is 21.7 for
+the baseline, 18.3 for T, 19.8 for S and 19.7 for S10. Total `dup_blocks`
+is 4843 for the baseline and 4749 for S. The blocks S and S10 change and
+the `math` file lines are unchanged. T changes 185 packages instead of 186,
+because some packages drop below the SLOC filter.
+
+**Other modules.** `TestDupMeasureModuleLiteralRuns` runs the same variants
+over every package of one module, with the authored denominator:
+
+```
+ASTIMATE_MEASURE_MODULE=/path/to/module go test ./internal/lang/golang/ -run TestDupMeasureModuleLiteralRuns -v -count=1 -timeout 60m
 ```
 
 It loads `std` once with `NeedName | NeedFiles | NeedSyntax` and keeps the

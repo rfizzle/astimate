@@ -40,15 +40,34 @@ identifiers and literals normalized, `dup_ignore_literal_only` on.
 ## Method
 
 `TestDupMeasureStdlibRefinements` in
-`internal/lang/golang/duplication_test.go`, skipped unless
-`ASTIMATE_MEASURE_STDLIB=1`. The test built its variants from the Go
-extractor's own token stream, which was removed when Go duplication moved
-onto the shared finder in `internal/lang/duptok`; to rerun it, check out
-commit `a8d3002`, the last one that has it:
+`internal/lang/golang/dupmeasure_test.go`, skipped unless
+`ASTIMATE_MEASURE_STDLIB=1`:
 
 ```
-ASTIMATE_MEASURE_STDLIB=1 go test ./internal/lang/golang/ -run TestDupMeasureStdlibRefinements -v -count=1
+ASTIMATE_MEASURE_STDLIB=1 go test ./internal/lang/golang/ -run TestDupMeasureStdlibRefinements -v -count=1 -timeout 60m
 ```
+
+The test was first written against the Go extractor's own token stream,
+which was removed when Go duplication moved onto the shared finder in
+`internal/lang/duptok`. It now builds its variants over `duptok` through
+the test-only recorder in `internal/lang/duptok/duptoktest`, which returns
+each block's occurrence positions and each token's class without widening
+duptok's API.
+
+**Reproduction.** Rerun on 2026-09-28 on the recorded toolchain (Go 1.27.1,
+darwin/arm64, `golang.org/x/tools` v0.50.0), the ported test's log is
+identical line for line to the log of the original test at commit
+`a8d3002`, source positions and wall times aside. Every number in this
+note reproduces.
+
+**Denominator.** Since this note was written, the extractor leaves
+generated files out of `sloc` (`generated-files-2026-09-27.md`). The test
+keeps the denominator these numbers were measured with, which is SLOC with
+generated files counted. Setting `ASTIMATE_MEASURE_SLOC=authored` switches
+it to the extractor's current authored SLOC. On that denominator 215
+packages pass the 200-SLOC filter. The baseline is then p50 21.7, p90 54.7
+and p99 82.1, with 4844 blocks (A2 4843). The changed-package counts (13,
+1, 2, 6) are unchanged.
 
 It loads `std` once with `NeedName | NeedFiles | NeedSyntax`, keeps the 225
 packages without load errors and with at least 200 SLOC (the same set as
