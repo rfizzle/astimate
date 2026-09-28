@@ -1,0 +1,50 @@
+{
+  "started_at": "2026-09-28T11:37:30.754705Z",
+  "finished_at": "2026-09-28T12:25:45.118326Z",
+  "go_version": "go1.27.1",
+  "goos": "darwin",
+  "goarch": "arm64",
+  "cpus": 14,
+  "astimate_commit": "9bb4fe89f532a4592b214992460fbfaccb04fd64",
+  "definition": "calibration/rebuild/rebuild.yaml",
+  "definition_config_version": "thresholds-2026-09-27",
+  "definition_go_version": "go1.27.1",
+  "env": [
+    "CGO_ENABLED=0",
+    "GOTOOLCHAIN=local",
+    "GOWORK=off"
+  ],
+  "agent": "claude-code-opus",
+  "template": "claude -p \"$(cat {prompt_file})\" --output-format stream-json --verbose --model {model} --max-turns {turn_cap} --permission-mode dontAsk --allowedTools 'Read,Edit,Write,Glob,Grep,Bash(go build *),Bash(go test *),Bash(go vet *),Bash(go doc *),Bash(go list *),Bash(gofmt *)' --disallowedTools 'Bash(*git *),Bash(*-toolexec*),Bash(*-exec*),Bash(*-vettool*),Bash(*-overlay*),Bash(*pkg/mod*)' --safe-mode --strict-mcp-config --no-session-persistence",
+  "model": "claude-opus-5-5",
+  "repeats": 1,
+  "parallel": 3,
+  "timeout_seconds": 3600,
+  "only": "",
+  "experiments": 34,
+  "skipped": 1,
+  "written": 25,
+  "failures": [
+    "gitea.dev/services/auth/source/db run 1: run setup failed: oracle tests do not build on the stub: /private/var/folders/s1/lsxt90l571g4cvq56f55f15c0000gp/T/astimate-rebuild-run-4101145698/module/services/auth/source/db/source.go:35 +0x2c / FAIL gitea.dev/services/auth/source/oauth2 / FAIL",
+    "github.com/dgraph-io/badger/v4/y run 1: run setup failed: oracle tests do not build on the stub: /private/var/folders/s1/lsxt90l571g4cvq56f55f15c0000gp/T/astimate-rebuild-run-3193452291/module/y/file_dsync.go:12 +0x2c / FAIL github.com/dgraph-io/badger/v4/y / FAIL",
+    "github.com/gin-gonic/gin/codec/json run 1: run setup failed: oracle tests do not build on the stub: /private/var/folders/s1/lsxt90l571g4cvq56f55f15c0000gp/T/astimate-rebuild-run-407313181/module/codec/json/json.go:17 +0x2c / FAIL github.com/gin-gonic/gin/render / FAIL",
+    "github.com/gofiber/fiber/v3/binder run 1: run setup failed: oracle tests do not build on the stub: /private/var/folders/s1/lsxt90l571g4cvq56f55f15c0000gp/T/astimate-rebuild-run-855879793/module/binder/mapping.go:69 +0x2c / FAIL github.com/gofiber/fiber/v3/binder / FAIL",
+    "github.com/gofiber/fiber/v3/middleware/logger run 1: run setup failed: oracle tests do not build on the stub: /private/var/folders/s1/lsxt90l571g4cvq56f55f15c0000gp/T/astimate-rebuild-run-729759593/module/middleware/logger/context_tag.go:29 +0x2c / FAIL github.com/gofiber/fiber/v3/middleware/logger / FAIL",
+    "github.com/redis/go-redis/v9/internal/maintnotifications/logs run 1: run setup failed: oracle tests do not build on the stub: /private/var/folders/s1/lsxt90l571g4cvq56f55f15c0000gp/T/astimate-rebuild-run-532744253/module/maintnotifications/errors.go:11 +0x10c / FAIL github.com/redis/go-redis/v9/maintnotifications/e2e / FAIL",
+    "google.golang.org/grpc/credentials/google run 1: run setup failed: oracle tests do not build on the stub: /private/var/folders/s1/lsxt90l571g4cvq56f55f15c0000gp/T/astimate-rebuild-run-1763780143/module/credentials/google/gcp_service_account_identity_credentials.go:64 +0x2c / FAIL google.golang.org/grpc/credentials/google / FAIL",
+    "google.golang.org/grpc/internal/resolver/dns run 1: run setup failed: oracle tests do not build on the stub: /private/var/folders/s1/lsxt90l571g4cvq56f55f15c0000gp/T/astimate-rebuild-run-4052863762/module/internal/resolver/dns/dns_resolver.go:56 +0x2c / FAIL google.golang.org/grpc/internal/resolver/dns / FAIL"
+  ],
+  "totals": {
+    "rows": 26,
+    "passed": 25,
+    "valid": 26,
+    "turn_cap_hit": 1,
+    "input_tokens": 896,
+    "output_tokens": 774679,
+    "cache_read_tokens": 32402899,
+    "cache_write_tokens": 1693016,
+    "cost_usd": 35.4835288,
+    "turns": 671,
+    "agent_wall_seconds": 6573.783
+  }
+}

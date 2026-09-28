@@ -17,3 +17,6 @@ coverage.*
 # Agent worktrees (the shared hook settings in .claude/settings.json are tracked)
 .claude/worktrees/
 .claude/settings.local.json
+
+# Rebuild-run transcripts are kept locally for audit and are too large to commit.
+calibration/data/rebuild-*/transcripts/

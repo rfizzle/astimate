@@ -1,0 +1,239 @@
+# Astimate configuration: rebuild parameters and gate thresholds in one file.
+#
+# The gate thresholds are calibrated (SPEC.md sections 8.2 and 11.1): fitted
+# by calibration/fit from the reference corpus in calibration/corpus.md, with
+# the evidence in calibration/reports/thresholds-2026-09-28.md. The rebuild
+# parameters are uncalibrated placeholders (SPEC.md section 7) until the
+# rebuild experiments in SPEC.md section 11.2 have run. TypeScript packages
+# are judged by the typescript override at the end of this file, fitted from
+# a TypeScript corpus (SPEC.md section 13).
+
+# Identifies the defaults this file was generated from.
+config_version: rebuild-2026-09-28-claude-code-opus
+
+# Bytes of source per estimated token; tokens_est = bytes / chars_per_token.
+chars_per_token: 3.2
+
+# Duplicate-block detection. This section is optional: any key left out, or
+# the whole section, takes the value shown here.
+duplication:
+  # Minimum normalized token run that counts as a duplicate block.
+  min_tokens: 40
+  # Drop a duplicate block made only of literals and the punctuation of a
+  # literal table, so repeated runs of data tables are not duplication.
+  ignore_literal_only: true
+  # Under ignore_literal_only, count a unary + or - directly before a
+  # numeric literal as part of the literal, so tables of negative numbers
+  # are data too. Matching is unchanged.
+  fold_signs: true
+  # Under ignore_literal_only, also cut each block at every run of at least
+  # min_tokens literal-only tokens and keep the parts of at least min_tokens,
+  # so tables that declaration headers join into one block are data too.
+  split_literal_runs: false
+
+# Rebuild estimate parameters (SPEC.md sections 7.2 to 7.4).
+rebuild:
+  # Tokens one agent can hold in context for a rebuild; past it work is split.
+  context_budget: 25000
+  # Tokens charged per exported symbol whose signature must survive.
+  tokens_per_export: 0
+  # Tokens charged per untested export whose behavior must be reverse-engineered.
+  tokens_per_untested_export: 120
+  # Tokens charged per global or init function, state no signature reveals.
+  tokens_per_hidden_state: 0
+  # Exponent on the budget ratio once a rebuild no longer fits one pass.
+  superlinear_exponent: 2.79
+  # COCOMO basic organic-mode coefficient for the human estimate.
+  cocomo_a: 2.4
+  # COCOMO basic organic-mode exponent for the human estimate.
+  cocomo_b: 1.05
+  # Working days per person-month when converting the human estimate.
+  days_per_month: 19
+  # Upper bounds on agent_passes for each tier.
+  tiers:
+    # At or below this a package is ONE_PASS.
+    one_pass_max: 1.0
+    # At or below this a package is FEW_PASSES; above it, PARTITION.
+    few_passes_max: 3.0
+
+# Gate thresholds (SPEC.md section 8.2). Density rules ratchet on the change
+# via max_delta and may add a max; for a package new at head only their max
+# applies, plus max_delta against zero where ratchet_from_zero is true.
+# Capacity rules carry an absolute max with a warn_at band (default 0.75);
+# requirement rules demand a boolean, optionally guarded by
+# when: "<metric> > <number>".
+thresholds:
+  # No new duplicate blocks; copy-paste is the primary target.
+  - metric: dup_blocks
+    kind: density
+    max_delta: 0
+    # Counted from zero for a package with no baseline.
+    ratchet_from_zero: true
+  # Guards against a large duplicated feature that adds only one block.
+  - metric: duplication_pct
+    kind: density
+    max_delta: 6
+    max: 40
+  # New exported behavior needs a test; legacy gaps are reported, not failed.
+  - metric: untested_exports
+    kind: density
+    max_delta: 0
+    # Counted from zero for a package with no baseline.
+    ratchet_from_zero: true
+  # No new package-level state.
+  - metric: globals
+    kind: density
+    max_delta: 0
+    # Counted from zero for a package with no baseline.
+    ratchet_from_zero: true
+  # No new init functions.
+  - metric: init_funcs
+    kind: density
+    max_delta: 0
+    # Counted from zero for a package with no baseline.
+    ratchet_from_zero: true
+  # Never nest deeper than today, and never past the ceiling.
+  - metric: max_nesting
+    kind: density
+    max_delta: 0
+    max: 5
+  # Small drift allowed since p90 moves with function count.
+  - metric: cognitive_p90
+    kind: density
+    max_delta: 3
+    # What a new package, which has no baseline to drift from, is judged by.
+    max: 20
+  # No added or modified function past this complexity, even when the
+  # package's p90 stays low. The metric is already a diff against the
+  # baseline, so it takes a max and no max_delta; it is null, and the rule
+  # skipped, when there is no function-level baseline to diff against.
+  - metric: changed_func_cognitive_max
+    kind: density
+    max: 50
+  # No new code copied between packages: evaluated on the module row
+  # (<module>) only, so one copy is one finding. The max judges a module with
+  # no baseline, which is not counted from zero.
+  - metric: dup_blocks_cross_pkg
+    kind: density
+    max_delta: 0
+    max: 450
+  # The rebuild bar: past this a rebuild no longer fits one agent pass; split.
+  - metric: tokens_est
+    kind: capacity
+    max: 16000
+    warn_at: 0.75
+  # Files past this rarely fit an edit in one view.
+  - metric: largest_file_sloc
+    kind: capacity
+    max: 600
+    warn_at: 0.75
+  # Surface past this is a package boundary problem.
+  - metric: exported_symbols
+    kind: capacity
+    max: 60
+    warn_at: 0.75
+  # Fan-out ceiling on internal imports.
+  - metric: internal_imports
+    kind: capacity
+    max: 10
+    warn_at: 0.75
+  # Overall non-test source size ceiling.
+  - metric: sloc
+    kind: capacity
+    max: 1000
+    warn_at: 0.75
+  # Packages of meaningful size must have tests.
+  - metric: has_tests
+    kind: requirement
+    require: true
+    when: sloc > 100
+
+# Per-language overrides (optional), keyed by language id: go or typescript.
+# A language's rebuild section sets only the parameters it names; the rest
+# come from the top-level rebuild section. Its thresholds replace the
+# top-level rules on the same metric or add a rule, and a rule with
+# disabled: true drops the top-level rule on that metric for the language.
+# Every other setting is shared. Reports for a language with an override
+# show config_version suffixed with +<language>. For example, a language
+# section may set
+#
+#   rebuild:
+#     tokens_per_export: 30
+#
+# and drop a top-level rule with
+#
+#   thresholds:
+#     - metric: init_funcs
+#       disabled: true
+#
+# The typescript override below is fitted by calibration/fit --language
+# typescript from the corpus in calibration/corpus-typescript.yaml, with the
+# evidence in calibration/reports/thresholds-2026-09-28-typescript.md. Each
+# rule replaces the top-level rule on its metric for TypeScript; the rules
+# it does not name (the zero-tolerance ratchets, has_tests, and
+# dup_blocks_cross_pkg, which TypeScript leaves null) apply as they stand.
+# It sets no rebuild parameter: those wait for the rebuild experiments.
+languages:
+  typescript:
+    thresholds:
+      # p90 46 over 1209 packages; the top level has max 40, max_delta 6.
+      - metric: duplication_pct
+        kind: density
+        max_delta: 7
+        max: 45
+      # p90 7 over 1209 packages; the top level has max 5, max_delta 0.
+      - metric: max_nesting
+        kind: density
+        max_delta: 0
+        max: 7
+      # p90 27 over 1209 packages; the top level has max 20, max_delta 3.
+      - metric: cognitive_p90
+        kind: density
+        max_delta: 4
+        max: 25
+      # p99 56 over 39878 functions; the top level has max 50, max_delta none.
+      - metric: changed_func_cognitive_max
+        kind: density
+        max: 55
+      # p90 34818 over 1209 packages; the top level has max 16000, max_delta none.
+      - metric: tokens_est
+        kind: capacity
+        max: 35000
+        warn_at: 0.75
+      # p90 891 over 1209 packages; the top level has max 600, max_delta none.
+      - metric: largest_file_sloc
+        kind: capacity
+        max: 900
+        warn_at: 0.75
+      # p90 57 over 1209 packages; the top level has max 60, max_delta none.
+      - metric: exported_symbols
+        kind: capacity
+        max: 55
+        warn_at: 0.75
+      # p90 8 over 1209 packages; the top level has max 10, max_delta none.
+      - metric: internal_imports
+        kind: capacity
+        max: 8
+        warn_at: 0.75
+      # p90 2508 over 1209 packages; the top level has max 1000, max_delta none.
+      - metric: sloc
+        kind: capacity
+        max: 2500
+        warn_at: 0.75
+
+# Exemptions (optional; SPEC.md 8.6) accept one rule's violations on one
+# package, with the reason recorded beside them. An exempted violation does
+# not fail the gate, but every output format still reports it, as exempted,
+# with its reason. package is a directory relative to the module root (. for
+# the root package, <module> for the module row), metric a gated metric and
+# reason is required; expires, a YYYY-MM-DD date, is optional, and after that
+# day the exemption is ignored with a warning. Warnings are never exempted.
+# A check with --all warns about an exemption that matched no violation. A
+# languages override carries no exemptions; they apply to every language.
+# For example:
+#
+#   exemptions:
+#     - package: internal/registry
+#       metric: globals
+#       reason: the registry is process-wide by design; see ADR 12
+#       expires: 2026-12-31
