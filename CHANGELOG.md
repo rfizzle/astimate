@@ -12,6 +12,9 @@ history.
 
 ### Added
 
+- Calibration: replayed and rule-labeled 812 commits (538 agent-authored) from
+  roborev, github-mcp-server and beads; shared labels format and loader in
+  `calibration/replay/labels`.
 - Commit replay: `go run ./calibration/replay` runs the gate at every commit
   of a repository's history against its parent and writes per-package and
   per-commit rows for gate validation.
