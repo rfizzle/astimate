@@ -58,9 +58,9 @@ func TestRankPackagesTool(t *testing.T) {
 		wantFirst string
 		sorted    func(a, b report.Row) bool
 	}{
-		{name: "default sort", in: map[string]any{}, wantRows: 8,
+		{name: "default sort", in: map[string]any{}, wantRows: 12,
 			sorted: func(a, b report.Row) bool { return a.AgentPasses >= b.AgentPasses }},
-		{name: "duplication", in: map[string]any{"sort": "duplication"}, wantRows: 8, wantFirst: "dupes",
+		{name: "duplication", in: map[string]any{"sort": "duplication"}, wantRows: 12, wantFirst: "dupes",
 			sorted: func(a, b report.Row) bool { return a.DuplicationPct >= b.DuplicationPct }},
 		{name: "top two", in: map[string]any{"top": 2, "module_root": "."}, wantRows: 2,
 			sorted: func(a, b report.Row) bool { return a.AgentPasses >= b.AgentPasses }},

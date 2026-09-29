@@ -70,25 +70,23 @@ func assemble(m *module, p *pkg, opts assembleOptions) (metrics.RawMetrics, erro
 	r.FuncCount = len(scores)
 	r.CognitiveP90 = p90(scores)
 
-	referenced := map[string]bool{}
 	allBytes, allTokens = srcBytes, srcTokens
 	for _, f := range p.tests {
 		r.TestFiles++
 		r.TestFuncs += f.TestFuncs
 		allBytes += f.Size
 		allTokens += f.O200k
-		for id := range f.Idents {
-			referenced[id] = true
-		}
 	}
 	r.HasTests = r.TestFuncs > 0
+	// A candidate is tested when a test file of any package of the module
+	// names it (SPEC.md 13.1).
 	var excluded []string
 	var missed []candidate
 	for _, c := range candidates {
 		switch {
 		case c.Directed:
 			excluded = append(excluded, c.Display)
-		case !referenced[c.Match]:
+		case !m.testRefs[c.Match]:
 			missed = append(missed, c)
 		}
 	}

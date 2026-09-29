@@ -21,7 +21,7 @@
   "test_files": 0,
   "test_funcs": 0,
   "has_tests": false,
-  "untested_exports": 4,
+  "untested_exports": 3,
   "instability": 0,
   "abstractness": 0,
   "main_sequence_distance": 1

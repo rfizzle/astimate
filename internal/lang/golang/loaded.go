@@ -25,6 +25,11 @@ type loaded struct {
 	// graph is the reverse import graph behind fan_in and fan_in_tests,
 	// built on first use.
 	graph imports.Graph
+	// testRefs is the module-wide test reference index behind
+	// untested_exports: what the test files of every package refer to,
+	// built on first use. A metric that needs "referenced from a test
+	// anywhere in the module" reads it.
+	testRefs tests.Refs
 	// cross memoizes the cross-package duplication counts and block
 	// locations behind dup_blocks_cross_pkg, per duplication options, built
 	// once per load on first use. It holds counts and line ranges only,
@@ -32,8 +37,8 @@ type loaded struct {
 	cross dup.Memo
 
 	// detailsMu guards details, which maps an import path to the debug
-	// details of its most recent Extract. Besides graph and cross it is the
-	// only state on loaded written after the load.
+	// details of its most recent Extract. Besides graph, testRefs and cross
+	// it is the only state on loaded written after the load.
 	detailsMu sync.Mutex
 	details   map[string]details
 }

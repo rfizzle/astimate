@@ -34,11 +34,13 @@ type UntestedCounts struct {
 }
 
 // Untested counts the exported funcs and methods declared in p's
-// authored non-test files that no identifier in any _test.go file of p's
-// in-package test variant or external test package refers to (SPEC.md
-// 6.4). A generated file's exports are left out (see
-// load.Module.AuthoredSyntax): a rebuild regenerates them, so they need no
-// test.
+// authored non-test files that no _test.go file of any package of m refers
+// to (SPEC.md 6.4), reading the module-wide index refs, which it builds on
+// first use. A method that implements an interface of the closed list of
+// SPEC.md 6.4, such as Error on a type that implements error, is called by
+// the runtime or the standard library and counts as referenced. A
+// generated file's exports are left out (see load.Module.AuthoredSyntax): a
+// rebuild regenerates them, so they need no test.
 //
 // The non-test package and its test variants are separate type-checks, so
 // their objects are not pointer-equal. Declarations are identified by a key
@@ -53,10 +55,11 @@ type UntestedCounts struct {
 // interface, or through a type parameter, resolves to the interface's
 // method instead; it marks every method of p with that name whose receiver
 // type T, or *T, implements the interface the selection is made on,
-// whichever package declares that interface. When T is generic, the check
-// runs on each instantiation of T in the test files instead of on T itself.
-// When the interface mentions the type parameters of a generic function
-// declared in a test file, such as Getter[T] inside a helper
+// whichever package declares that interface, when the calling test
+// package's type-check sees p. When T is generic, the check runs on each
+// instantiation of T in that test package's test files instead of on T
+// itself. When the interface mentions the type parameters of a generic
+// function declared in a test file, such as Getter[T] inside a helper
 // get[T any](g Getter[T]), the check runs once per instantiation of that
 // function in the test files, on the receiver type with the type arguments
 // substituted; a receiver that substitutes to a concrete type marks the
@@ -74,13 +77,35 @@ type UntestedCounts struct {
 // cgo marks every file it writes as generated, a tree of p.Syntax is
 // matched to a generated source file by name, its own or the one its
 // package clause's //line directive names, never by its own header.
-func Untested(m *load.Module, p *packages.Package) UntestedCounts {
+func Untested(m *load.Module, refs *Refs, p *packages.Package) UntestedCounts {
+	return untested(m, refs, p, allRules)
+}
+
+// rules selects the refinements of SPEC.md 6.4 that untested treats a
+// method as referenced by. Untested applies all of them; the others are
+// for measuring what each refinement covers.
+type rules uint8
+
+const (
+	// ruleOtherTests counts references from the test files of other
+	// packages of the module, not only the package's own.
+	ruleOtherTests rules = 1 << iota
+	// ruleStdInterfaces counts a method implementing an interface of the
+	// closed list as referenced.
+	ruleStdInterfaces
+	// allRules is every refinement, the metric as SPEC.md 6.4 defines it.
+	allRules = ruleOtherTests | ruleStdInterfaces
+)
+
+// untested is Untested under the refinements in on.
+func untested(m *load.Module, refs *Refs, p *packages.Package, on rules) UntestedCounts {
+	refs.build(m)
 	var c UntestedCounts
 	// marked holds every counted key, true once a test refers to it.
 	marked := make(map[string]bool)
-	// recvs maps a method name to the receiver type names declaring it, for
-	// interface dispatch.
-	recvs := make(map[string][]string)
+	// methods maps each counted method key to its receiver type name and
+	// its object.
+	methods := make(map[string]countedMethod)
 	// declared holds the position of each counted key's identifier.
 	declared := make(map[string]token.Pos)
 	generated := m.GeneratedNames(p)
@@ -100,13 +125,29 @@ func Untested(m *load.Module, p *packages.Package) UntestedCounts {
 				marked[key] = false
 				declared[key] = fd.Name.Pos()
 				if recv != "" {
-					recvs[fd.Name.Name] = append(recvs[fd.Name.Name], recv)
+					fn, _ := p.TypesInfo.Defs[fd.Name].(*types.Func)
+					methods[key] = countedMethod{recv: recv, fn: fn}
 				}
 			}
 		}
 	}
-	for _, tp := range m.TestPackages(p) {
-		markTestRefs(m, p.PkgPath, tp, marked, recvs)
+	want := fromOwn
+	if on&ruleOtherTests != 0 {
+		want |= fromOther
+	}
+	for key, o := range refs.direct[p.PkgPath] {
+		if _, counted := marked[key]; counted && o&want != 0 {
+			marked[key] = true
+		}
+	}
+	for key, cm := range methods {
+		switch {
+		case marked[key]:
+		case on&ruleStdInterfaces != 0 && refs.std.covers(cm.fn):
+			marked[key] = true
+		default:
+			marked[key] = refs.dispatched(m, p.PkgPath, cm, on)
+		}
 	}
 	for key, ok := range marked {
 		if !ok {
@@ -121,6 +162,48 @@ func Untested(m *load.Module, p *packages.Package) UntestedCounts {
 	}
 	c.Untested = len(c.Names)
 	return c
+}
+
+// countedMethod is an exported method untested counts: the name of its
+// receiver type and its object.
+type countedMethod struct {
+	recv string
+	fn   *types.Func
+}
+
+// dispatched reports whether a test file calls the method cm of the
+// package at pkgPath through an interface its receiver type, or a pointer
+// to it, implements; when the type is generic, one of its instantiations
+// in that test package's test files. Only the package's own test packages
+// count unless on has ruleOtherTests, and only test packages whose
+// type-check sees the package.
+func (r *Refs) dispatched(m *load.Module, pkgPath string, cm countedMethod, on rules) bool {
+	if cm.fn == nil {
+		return false
+	}
+	for _, d := range r.dispatch[cm.fn.Name()] {
+		if d.under != pkgPath && on&ruleOtherTests == 0 {
+			continue
+		}
+		scope := r.scopeIn(m, d.tp, pkgPath)
+		if scope == nil {
+			continue
+		}
+		tn, ok := scope.Lookup(cm.recv).(*types.TypeName)
+		if !ok {
+			continue
+		}
+		if !isGeneric(tn) {
+			if implements(tn.Type(), d.iface) {
+				return true
+			}
+			continue
+		}
+		if slices.ContainsFunc(r.instantiationsOf(m, d.tp)[tn], func(t types.Type) bool { return implements(t, d.iface) }) {
+			return true
+		}
+	}
+	return false
 }
 
 // exportKind says how untested_exports treats one declaration.
@@ -179,107 +262,6 @@ func isGeneratedTree(m *load.Module, p *packages.Package, f *ast.File, generated
 	return generated[fset.Position(f.Package).Filename]
 }
 
-// markTestRefs sets marked[key] for every key of the package at pkgPath
-// that an identifier in one of tp's _test.go files refers to, in one pass
-// over tp's Uses and one over its Selections. Keys absent from marked are
-// ignored.
-func markTestRefs(m *load.Module, pkgPath string, tp *packages.Package, marked map[string]bool, recvs map[string][]string) {
-	files := make(map[*token.File]bool, len(tp.Syntax))
-	for _, f := range tp.Syntax {
-		if tf := m.Fset.File(f.Pos()); tf != nil && strings.HasSuffix(tf.Name(), "_test.go") {
-			files[tf] = true
-		}
-	}
-	if len(files) == 0 || tp.TypesInfo == nil {
-		return
-	}
-	inTest := func(pos token.Pos) bool { return files[m.Fset.File(pos)] }
-
-	for id, obj := range tp.TypesInfo.Uses {
-		fn, ok := obj.(*types.Func)
-		if !ok || fn.Pkg() == nil || fn.Pkg().Path() != pkgPath || !inTest(id.Pos()) {
-			continue
-		}
-		if key, _, ok := funcKey(fn); ok {
-			if _, counted := marked[key]; counted {
-				marked[key] = true
-			}
-		}
-	}
-
-	scope := scopeOf(tp, pkgPath)
-	if scope == nil {
-		return
-	}
-	// insts holds tp's instantiations of generic types, built on the first
-	// dispatch that needs one.
-	var insts map[*types.TypeName][]types.Type
-	// dispatch marks every method name of p whose receiver type, or one of
-	// its instantiations in the test files, implements iface.
-	dispatch := func(name string, iface *types.Interface) {
-		for _, recv := range recvs[name] {
-			key := recv + "." + name
-			if marked[key] {
-				continue
-			}
-			tn, ok := scope.Lookup(recv).(*types.TypeName)
-			if !ok {
-				continue
-			}
-			if !isGeneric(tn) {
-				marked[key] = implements(tn.Type(), iface)
-				continue
-			}
-			if insts == nil {
-				insts = instantiations(tp.TypesInfo, inTest)
-			}
-			marked[key] = slices.ContainsFunc(insts[tn], func(t types.Type) bool { return implements(t, iface) })
-		}
-	}
-	// helpers holds tp's generic test funcs, built on the first dispatch
-	// whose interface mentions a type parameter.
-	var helpers []genericHelper
-	for sel, s := range tp.TypesInfo.Selections {
-		if s.Kind() == types.FieldVal || !inTest(sel.Sel.Pos()) {
-			continue
-		}
-		iface, ok := s.Recv().Underlying().(*types.Interface)
-		if !ok {
-			continue
-		}
-		name := s.Obj().Name()
-		if !mentionsTypeParam(iface) {
-			dispatch(name, iface)
-			continue
-		}
-		if helpers == nil {
-			helpers = genericHelpers(tp, inTest)
-		}
-		for _, r := range helperReceivers(helpers, sel.Pos(), s.Recv()) {
-			if ri, ok := r.Underlying().(*types.Interface); ok {
-				dispatch(name, ri)
-				continue
-			}
-			markMethod(pkgPath, r, name, marked)
-		}
-	}
-}
-
-// markMethod sets marked for the method name of the concrete type t, or of
-// *t, when the package at pkgPath declares it and marked counts it.
-func markMethod(pkgPath string, t types.Type, name string, marked map[string]bool) {
-	obj, _, _ := types.LookupFieldOrMethod(t, true, nil, name)
-	fn, ok := obj.(*types.Func)
-	if !ok || fn.Pkg() == nil || fn.Pkg().Path() != pkgPath {
-		return
-	}
-	if key, _, ok := funcKey(fn); ok {
-		if _, counted := marked[key]; counted {
-			marked[key] = true
-		}
-	}
-}
-
 // isGeneric reports whether tn names a generic type, one with type
 // parameters.
 func isGeneric(tn *types.TypeName) bool {
@@ -316,19 +298,6 @@ func instantiations(info *types.Info, inTest func(token.Pos) bool) map[*types.Ty
 		add(e.Pos(), tv.Type)
 	}
 	return m
-}
-
-// scopeOf returns the scope of the package at pkgPath as tp sees it: tp's
-// own when tp is the in-package test variant, otherwise the scope of the
-// variant tp imports. It returns nil when tp does not import it.
-func scopeOf(tp *packages.Package, pkgPath string) *types.Scope {
-	if tp.Types != nil && tp.Types.Path() == pkgPath {
-		return tp.Types.Scope()
-	}
-	if ip, ok := tp.Imports[pkgPath]; ok && ip.Types != nil {
-		return ip.Types.Scope()
-	}
-	return nil
 }
 
 // implements reports whether t or *t implements iface.

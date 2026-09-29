@@ -92,7 +92,18 @@ history.
   `errors` now reports 1. The suggestion says "mutable package-level
   variable". TypeScript is unchanged; SPEC.md 13.1 records why a module-level
   `const` object is not counted.
-
+- `untested_exports` counts a reference from a test file of any package of
+  the module, not only the package's own, for Go and TypeScript alike, so
+  constructors exercised by other packages' tests and test-support packages
+  such as `metricstest` read as tested. In Go, a method whose receiver
+  implements an interface on the closed list of SPEC.md 6.4 (`error`,
+  `fmt.Stringer`, `io.Writer`, the `errors` package's `Unwrap`, `Is` and
+  `As` conventions and the rest) is covered, since the runtime or the
+  standard library calls it; the same name with another signature still
+  counts. The Go test references are indexed once per module load. On the
+  standard library the count falls from 3,427 to 2,247 and on this
+  repository from 24 to 12; extraction time is unchanged within noise
+  (`calibration/notes/untested-exports-refinements-2026-09-29.md`).
 - calibration: the rebuild stub now removes initialization code that calls the
   stubbed package, so every test binary starts, and select checks that it does
   (rebuild.yaml regenerated, 33 experiments, the 26 recorded stub hashes

@@ -130,7 +130,7 @@ func measure(ctx context.Context, l *loaded, p *packages.Package, opts assembleO
 	r.cx = inspect.Complexity(m, p)
 	r.globals = inspect.Globals(m, p, r.cx.Written)
 	r.tests = tests.Count(m, p)
-	r.untested = tests.Untested(m, p)
+	r.untested = tests.Untested(m, &l.testRefs, p)
 	next := opts.files
 	if next == nil {
 		next = load.OSFiles{}

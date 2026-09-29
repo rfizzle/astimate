@@ -133,6 +133,31 @@ func TestImportGraph(t *testing.T) {
 	check("c", "fan_in_tests", got["c"].FanInTests, 0)
 }
 
+// TestUntestedOtherPackagesTests checks that an export another package's
+// test file names counts as tested, while one no test file anywhere names
+// is counted (SPEC.md 13.1).
+func TestUntestedOtherPackagesTests(t *testing.T) {
+	root := t.TempDir()
+	writeTree(t, root, map[string]string{
+		"package.json":  "{}",
+		"lib/lib.ts":    "export function used(): number { return 1; }\nexport function lonely(): number { return 2; }\n",
+		"app/app.ts":    "export const app = 1;\n",
+		"app/a.test.ts": "import { used } from \"../lib/lib\";\nimport { app } from \"./app\";\nit(\"a\", () => { used(); app; });\n",
+	})
+	e := New()
+	mod := &metrics.ModuleContext{Root: root}
+	if _, err := e.Extract(t.Context(), mod, "lib"); err != nil {
+		t.Fatal(err)
+	}
+	d, err := e.Details(t.Context(), mod, "lib")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"lonely"}; !slices.Equal(d.UntestedExports, want) {
+		t.Errorf("UntestedExports = %q, want %q", d.UntestedExports, want)
+	}
+}
+
 // TestCouplingRatiosRounded checks that assemble rounds instability and
 // abstractness to three decimals and computes main_sequence_distance from
 // the unrounded ratios: |1/3 + 1/3 - 1| is 0.333, where the rounded ratios
@@ -213,8 +238,8 @@ func TestDetails(t *testing.T) {
 		},
 		{"tested", nil, nil, nil, nil, "tested.ts", []string{"count.ts", "tested.ts"}},
 		{
-			"trivial", []string{"Box.close", "answer", "detached", "spaced"}, []string{"Box.open", "listed", "wrapped"}, nil,
-			[]pos{{File: "wrappers.ts", Line: 23}, {File: "trivial.ts", Line: 2}, {File: "wrappers.ts", Line: 13}, {File: "wrappers.ts", Line: 9}},
+			"trivial", []string{"Box.close", "detached", "spaced"}, []string{"Box.open", "listed", "wrapped"}, nil,
+			[]pos{{File: "wrappers.ts", Line: 23}, {File: "wrappers.ts", Line: 13}, {File: "wrappers.ts", Line: 9}},
 			"wrappers.ts", []string{"trivial.ts", "wrappers.ts"},
 		},
 	}

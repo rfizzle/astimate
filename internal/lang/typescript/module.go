@@ -20,6 +20,13 @@ type module struct {
 	// pkgIDs lists the package identifiers, sorted.
 	pkgIDs []string
 	pkgs   map[string]*pkg
+	// testRefs is the module-wide test reference index: every identifier
+	// of every package's test files, the TypeScript counterpart of the Go
+	// extractor's test reference index. untested_exports reads it, so an
+	// export another package's test names counts as tested, and a later
+	// metric that needs "referenced from a test anywhere in the module"
+	// reads it too.
+	testRefs map[string]bool
 
 	detailsMu sync.Mutex
 	details   map[string]details
@@ -69,7 +76,7 @@ func loadModule(ctx context.Context, root string, opts inspect.Options) (*module
 	if err != nil {
 		return nil, fmt.Errorf("listing TypeScript files of %s: %w", root, err)
 	}
-	m := &module{root: root, pkgs: make(map[string]*pkg)}
+	m := &module{root: root, pkgs: make(map[string]*pkg), testRefs: make(map[string]bool)}
 	for _, f := range files {
 		if f.Test {
 			continue
@@ -110,12 +117,21 @@ func loadModule(ctx context.Context, root string, opts inspect.Options) (*module
 		}
 		if f.Test {
 			p.tests = append(p.tests, ff)
+			m.indexTestRefs(ff)
 		} else {
 			p.src = append(p.src, ff)
 		}
 	}
 	m.link(res)
 	return m, nil
+}
+
+// indexTestRefs adds the identifiers of f, a test file of a package of m,
+// to the module-wide test reference index.
+func (m *module) indexTestRefs(f *inspect.Facts) {
+	for id := range f.Idents {
+		m.testRefs[id] = true
+	}
 }
 
 // link resolves every file's imports and re-exports into its package's

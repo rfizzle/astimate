@@ -22,3 +22,16 @@ Expected: `untested_exports=1`, names `[Never]`, excluded `[Wrapper]`.
 
 Three exported funcs, `One`, `Two` and `Three`, one unexported func and no
 test files. Expected: `untested_exports=3`, names `[One Three Two]`.
+
+## lib, user and unseen
+
+`lib` has no test files; `user`'s test (`user_test.go`, package `user`)
+calls `lib.Lib` and calls `lib.Impl.Area` through a `refs.Shape` value.
+References from another package's test files count (SPEC.md 6.4), so
+`lib` expects `untested_exports=1`, names `[Unused]`; counting its own
+tests only, it would be 3, `[Impl.Area Lib Unused]`.
+
+`unseen.Tri` implements `refs.Shape` too, but no test package imports
+`unseen`, directly or through another package, so no test binary holds a
+`Tri` and the `Shape.Area` calls do not reach it: `untested_exports=1`,
+names `[Tri.Area]`.

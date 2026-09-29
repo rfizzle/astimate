@@ -145,15 +145,19 @@ $ astimate assess testdata/go/fixture/dupes --json | head -25
 <!-- sample:rank -->
 ```
 $ astimate rank testdata/go/fixture
-PATH     PASSES  DAYS  TIER      FAN_IN  TOKENS  DUP%
-a           0.0   1.0  ONE_PASS       0     134   0.0
-b           0.0   1.0  ONE_PASS       0     154   0.0
-dupes       0.0   0.7  ONE_PASS       0     506  80.6
-hidden      0.0   1.9  ONE_PASS       0     226   0.0
-hub         0.0   1.1  ONE_PASS       4     177   0.0
-immut       0.0   1.5  ONE_PASS       0     344   0.0
-tested      0.0   1.0  ONE_PASS       0     237   0.0
-trivial     0.0   0.2  ONE_PASS       0      47   0.0
+PATH      PASSES  DAYS  TIER      FAN_IN  TOKENS  DUP%
+a            0.0   1.0  ONE_PASS       0     134   0.0
+b            0.0   1.0  ONE_PASS       0     154   0.0
+consumer     0.0   0.1  ONE_PASS       0      45   0.0
+dupes        0.0   0.7  ONE_PASS       0     506  80.6
+errs         0.0   0.2  ONE_PASS       0     178   0.0
+hidden       0.0   1.9  ONE_PASS       0     226   0.0
+hub          0.0   1.1  ONE_PASS       4     177   0.0
+immut        0.0   1.5  ONE_PASS       0     344   0.0
+sibling      0.0   0.1  ONE_PASS       0      82   0.0
+support      0.0   0.3  ONE_PASS       0      85   0.0
+tested       0.0   1.0  ONE_PASS       0     237   0.0
+trivial      0.0   0.2  ONE_PASS       0      47   0.0
 ```
 <!-- /sample:rank -->
 
@@ -169,7 +173,7 @@ dupes       0.0   0.5  ONE_PASS       0     527  81.8
 hidden      0.0   1.3  ONE_PASS       0     210   0.0
 hub         0.0   1.7  ONE_PASS       4     232   0.0
 tested      0.0   0.9  ONE_PASS       0     216   0.0
-trivial     0.0   1.0  ONE_PASS       1     214   0.0
+trivial     0.0   0.9  ONE_PASS       1     214   0.0
 ```
 <!-- /sample:rank-ts -->
 
@@ -180,7 +184,7 @@ trivial     0.0   1.0  ONE_PASS       1     214   0.0
 <!-- sample:baseline-write -->
 ```
 $ astimate baseline write testdata/go/fixture --out /tmp/fixture-baseline.json
-wrote /tmp/fixture-baseline.json (8 packages)
+wrote /tmp/fixture-baseline.json (12 packages)
 ```
 <!-- /sample:baseline-write -->
 
@@ -203,10 +207,14 @@ violations:
 <module>: dup_blocks_cross_pkg 1, 0 violations, 0 warnings, 0 exempted
 a: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 0 exempted, +0.0 passes from baseline
 b: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 0 exempted, +0.0 passes from baseline
+consumer: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 0 exempted, +0.0 passes from baseline
 dupes: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 0 exempted, +0.0 passes from baseline
+errs: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 0 exempted, +0.0 passes from baseline
 hidden: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 0 exempted, +0.0 passes from baseline
 hub: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 0 exempted, +0.0 passes from baseline
 immut: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 0 exempted, +0.0 passes from baseline
+sibling: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 0 exempted, +0.0 passes from baseline
+support: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 0 exempted, +0.0 passes from baseline
 tested: 0.0 passes (ONE_PASS), 5 violations, 0 warnings, 0 exempted, +0.0 passes from baseline
 trivial: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 0 exempted, +0.0 passes from baseline
 $ echo $?

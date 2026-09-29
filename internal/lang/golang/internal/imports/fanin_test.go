@@ -252,8 +252,8 @@ func TestFanInFixture(t *testing.T) {
 		g.FanIn(l, l.Pkgs[pkg])
 	}
 
-	if n := len(l.Paths); n != 8 {
-		t.Errorf("fixture has %d packages, want 8", n)
+	if n := len(l.Paths); n != 12 {
+		t.Errorf("fixture has %d packages, want 12", n)
 	}
 	if g.builds != 1 {
 		t.Errorf("reverse graph built %d times, want 1", g.builds)

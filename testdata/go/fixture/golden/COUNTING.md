@@ -76,12 +76,14 @@ generated file.
 - **fan_in_tests**: distinct fixture packages that import this one only from
   test files. An external test package (`tested_test`) importing its own
   package is folded into that package (section 6.2) and is not a fan-in edge.
-  No fixture test file imports another fixture package, so this is 0
-  everywhere.
+  The one fixture test file importing other fixture packages is
+  `consumer/consumer_test.go`, which imports `sibling` and `support`, so
+  those two are 1 and every other package is 0.
 - **exported_symbols**: exported top-level funcs, methods, types, and var and
-  const names in non-test, non-generated files. The fixture has no exported
-  types, consts or methods, and only `immut` exports vars (three sentinel
-  errors), so elsewhere this equals the exported func count.
+  const names in non-test, non-generated files. Only `errs` exports types
+  or methods, no package exports a const, and only `immut` exports vars
+  (three sentinel errors), so elsewhere this equals the exported func
+  count.
 - **globals**: names declared by package-level `var` in non-test,
   non-generated files, excluding `_`, that hold mutable state (`SPEC.md`
   6.5): a spec none of whose names the package writes is left out when it
@@ -111,21 +113,25 @@ generated file.
   funcs in test files.
 - **has_tests**: `test_funcs > 0`.
 - **untested_exports**: exported funcs and methods of non-generated files
-  with no reference from any test file of the package (section 6.4). A
-  generated export needs no test: a rebuild regenerates it.
+  with no reference from any test file of any package of the module
+  (section 6.4). A method on the closed list of section 6.4 that its
+  receiver type implements, such as `Error` on an error, counts as
+  referenced. A generated export needs no test: a rebuild regenerates it.
+  `errs`, `sibling`, `support` and `consumer` exercise these rules.
 - **instability**, **abstractness**, **main_sequence_distance** (v1) are
   rounded to 3 decimals; the distance is computed from the unrounded ratios.
   Every fixture value is 0 or 1, so rounding changes none.
 - **instability** (v1): `internal_imports / (fan_in + internal_imports)`,
   null when both are 0. Present in a golden only when non-null: `hub` is 0
   (fan-in 4, fan-out 0); `a`, `b`, `hidden` and `tested` are 1 (fan-in 0,
-  fan-out 1); `dupes`, `immut` and `trivial` have no internal edges and
-  are null.
+  fan-out 1); `dupes`, `immut`, `trivial`, `errs`, `sibling`, `support`
+  and `consumer` have no internal edges from non-test files and are null.
 - **abstractness** (v1): exported interface types over exported types of
   non-generated files, null with no exported types. A type counts as an interface when its underlying
-  type is one, so `type R io.Reader` and `type R = io.Reader` count. No
-  fixture package exports a type (`dupes`' `tally`
-  is unexported), so it is null everywhere and absent from every golden.
+  type is one, so `type R io.Reader` and `type R = io.Reader` count. The
+  one fixture package exporting types is `errs`: `NotFound` and `Code`,
+  neither an interface, so it is `0 / 2 = 0`. It is null everywhere else
+  (`dupes`' `tally` is unexported) and absent from those goldens.
 - **main_sequence_distance** (v1): `|abstractness + instability - 1|`, null
   when either is null, so null everywhere in the fixture.
 - **dup_blocks_cross_pkg** (v1): duplicate blocks, by the `dup_blocks` rules,
@@ -393,6 +399,75 @@ are fixed in section 6.5.
 All other packages have no repeated 40-token sequence: `dup_blocks=0`,
 `duplication_pct=0`. `hub`'s generated file would not count even if it
 repeated, and its lines are not in `hub`'s `sloc`, the denominator.
+
+## errs
+
+One file, `errs.go`, 570 bytes, no test files, no imports. It exercises
+the closed list of section 6.4: methods the runtime and the `errors`
+package call, which no test calls.
+
+- `sloc=6`: package, `type NotFound struct{ Err error }`, the one-line
+  methods `Error` and `Unwrap` on `*NotFound`, `type Code int`, and the
+  one-line `Code.Error`. The rest is comments and blank lines.
+- `tokens_est = 570 / 3.2 = 178.1 -> 178`, the same with tests (none).
+- `exported_symbols=5`: the types `NotFound` and `Code` and the methods
+  `NotFound.Error`, `NotFound.Unwrap` and `Code.Error`.
+- Functions: the three methods, each 0. `func_count=3`, total 0, p90 0,
+  `max_nesting=0`.
+- `abstractness = 0 / 2 = 0`: two exported types, no interface. No
+  internal edges, so instability and the distance are null.
+- `untested_exports=1` (`Code.Error`). `*NotFound` implements `error`, so
+  its `Error` is on the list, and its `Unwrap() error` follows the `errors`
+  package's convention; neither counts although no test names them.
+  `Code.Error(verbose bool) string` has the name of `error`'s method but not
+  its signature, so `Code` is not an error and the method counts. Counting
+  references only, as before the closed list, gave 3.
+
+## sibling
+
+One file, `sibling.go`, 264 bytes, no test files, no imports.
+
+- `sloc=3`: package and the one-line `New` and `Orphan`.
+- `tokens_est = 264 / 3.2 = 82.5 -> 82`, the same with tests.
+- `exported_symbols=2`, `func_count=2`, each function 0.
+- `fan_in_tests=1`: `consumer`'s test imports it.
+- `untested_exports=1` (`Orphan`). `New` is called only from
+  `consumer/consumer_test.go`, another package's test file, which counts;
+  `Orphan` is referenced from no test file anywhere. Counting the
+  package's own tests only, as before the module-wide rule, gave 2.
+
+## support
+
+One file, `support.go`, 272 bytes: a test-support package, imported only
+by `consumer/consumer_test.go`.
+
+- `sloc=8`: package, `import "testing"`, and `Equal` (6 lines:
+  signature, `tb.Helper()`, `if`, `tb.Errorf`, two closing braces).
+- `tokens_est = 272 / 3.2 = 85`, the same with tests.
+- `stdlib_imports=1` (`testing`), `fan_in_tests=1` (`consumer`).
+- Functions: `Equal` 1 (one top-level `if`). Total 1, p90 1,
+  `max_nesting=1`, `func_count=1`, `exported_symbols=1`.
+- `untested_exports=0`: `consumer`'s test calls `Equal`. The package has no
+  tests of its own; no rule singles out test-support packages, they read as
+  tested because the tests that import them use their exports. Before the
+  module-wide rule it was 1.
+
+## consumer
+
+`consumer.go` (147 bytes) and `consumer_test.go` (190 bytes, package
+`consumer`), which imports `sibling` and `support`.
+
+- `sloc=2`: package and the one-line `Name`.
+- `tokens_est = 147 / 3.2 = 45.9 -> 45`;
+  `tokens_est_with_tests = 337 / 3.2 = 105.3 -> 105`.
+- Test-file imports are not counted, so every import metric is 0.
+- `exported_symbols=1`, `func_count=1`, `Name` 0.
+- `test_files=1`, `test_funcs=1` (`TestGreeting`), `has_tests=true`.
+- `untested_exports=0`: the test calls `Name`.
+
+The four packages share no duplicate run of 40 tokens with each other or
+with the rest of the fixture: each is one or a few one-line functions, and
+their `dup_blocks` and `dup_blocks_cross_pkg` are 0.
 
 ## module
 

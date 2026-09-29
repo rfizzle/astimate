@@ -80,7 +80,7 @@ func checkUntestedSrc(t *testing.T, files map[string]string) (*load.Module, *pac
 
 func TestUntestedReferenceTable(t *testing.T) {
 	l := loadRoot(t, refsRoot(t))
-	got := Untested(l, l.Pkgs["example.com/refs/refs"])
+	got := Untested(l, new(Refs), l.Pkgs["example.com/refs/refs"])
 	for _, tc := range []struct {
 		how, key string
 		tested   bool
@@ -108,7 +108,7 @@ func TestUntestedReferenceTable(t *testing.T) {
 
 func TestUntestedNoTests(t *testing.T) {
 	l := loadRoot(t, refsRoot(t))
-	got := Untested(l, l.Pkgs["example.com/refs/notests"])
+	got := Untested(l, new(Refs), l.Pkgs["example.com/refs/notests"])
 	if want := []string{"One", "Three", "Two"}; got.Untested != 3 || !slices.Equal(got.Names, want) {
 		t.Errorf("untested = %d %v, want 3 %v", got.Untested, got.Names, want)
 	}
@@ -164,7 +164,7 @@ func (*T) N() {}
 //astimate:untested
 func unexported() {}
 `})
-	got := Untested(l, p)
+	got := Untested(l, new(Refs), p)
 	if want := []string{"F", "T.M"}; !slices.Equal(got.Excluded, want) {
 		t.Errorf("excluded = %v, want %v", got.Excluded, want)
 	}
@@ -336,7 +336,7 @@ func TestDispatch(t *testing.T) {
 }
 `,
 	})
-	got := Untested(l, p)
+	got := Untested(l, new(Refs), p)
 	// Blob.Area has the wrong signature for Shape; Other.Len is never used.
 	// Gen[string].Area returns a string, so the only instantiation the test
 	// holds does not implement Shape. Lone is never instantiated, so no
@@ -365,8 +365,10 @@ func BenchmarkUntestedExports(b *testing.B) {
 	l := loadFixture(b)
 	b.ReportAllocs()
 	for b.Loop() {
+		// One index per load, as the extractor holds it.
+		var refs Refs
 		for _, path := range l.Paths {
-			Untested(l, l.Pkgs[path])
+			Untested(l, &refs, l.Pkgs[path])
 		}
 	}
 }

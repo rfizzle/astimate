@@ -96,8 +96,9 @@ are the same on every checkout.
 - **untested_exports**: exported functions (including exported arrow-function
   constants and functions exported through an `export { ... }` list) and the
   public methods of exported classes, other than constructors and accessors,
-  whose name appears as no identifier in any test file of the package. This
-  is name matching without type information. As in Go, a candidate whose
+  whose name appears as no identifier in any test file of any package of
+  the module, so a test of another package that names an export covers it.
+  This is name matching without type information. As in Go, a candidate whose
   doc comment has the line comment `//astimate:untested`, alone or followed
   by a space and a reason, is left out and listed by `Details` as excluded.
   The doc comment is the run of comments directly above the declaration
@@ -134,15 +135,19 @@ Two files: `trivial.ts` (109 bytes, 3 SLOC) and `wrappers.ts` (577 bytes,
 - Functions: `answer`, `wrapped`, `spaced`, `detached`, `Box.open`,
   `Box.close` and `listed`, each scoring 0: `func_count=7`, total 0, p90 0,
   `max_nesting=0`.
-- `untested_exports=4`. The candidates are `answer`, `wrapped`, `spaced`,
-  `detached`, `Box.open`, `Box.close` and `listed`, and no test file names
-  any. The directive leaves out three: `wrapped` (directive with a reason
-  on the line above), `Box.open` (directive above the method) and `listed`
-  (directive on the second line of the comment above its `const`, exported
-  through the list). Four remain: `answer`; `spaced`, whose comment has a
-  space after `//` and is not the directive; `detached`, whose directive is
-  separated from it by a blank line and so is not its doc comment; and
-  `Box.close`. `TestDetails` checks both lists.
+- `untested_exports=3`. The candidates are `answer`, `wrapped`, `spaced`,
+  `detached`, `Box.open`, `Box.close` and `listed`. `trivial` has no test
+  file, but `dupes/dupes.test.ts` imports and calls `answer`, and a test of
+  any package of the module counts, so `answer` is tested. No test file
+  names the others. The directive leaves out three: `wrapped` (directive
+  with a reason on the line above), `Box.open` (directive above the method)
+  and `listed` (directive on the second line of the comment above its
+  `const`, exported through the list). Three remain: `spaced`, whose
+  comment has a space after `//` and is not the directive; `detached`,
+  whose directive is separated from it by a blank line and so is not its
+  doc comment; and `Box.close`. Counting only the package's own test
+  files, as before the module-wide rule, gave 4 with `answer`.
+  `TestDetails` checks both lists.
 - `fan_in=1`: `b/esm.mts` imports `@multi/trivial.js`. The first `@multi/*`
   target, `./missing/trivial.js`, does not exist; the second,
   `./trivial/trivial.js`, exists as `trivial.ts` through the `.js` to `.ts`

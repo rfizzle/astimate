@@ -23,10 +23,14 @@ func fixturePackages() []string {
 	return []string{
 		"example.com/fixture/a",
 		"example.com/fixture/b",
+		"example.com/fixture/consumer",
 		"example.com/fixture/dupes",
+		"example.com/fixture/errs",
 		"example.com/fixture/hidden",
 		"example.com/fixture/hub",
 		"example.com/fixture/immut",
+		"example.com/fixture/sibling",
+		"example.com/fixture/support",
 		"example.com/fixture/tested",
 		"example.com/fixture/trivial",
 	}
@@ -147,7 +151,7 @@ func TestLoadedIndexesTestPackages(t *testing.T) {
 			}
 		}
 	}
-	if got, want := keys(l.Tests), []string{"example.com/fixture/dupes", "example.com/fixture/tested"}; !slices.Equal(got, want) {
+	if got, want := keys(l.Tests), []string{"example.com/fixture/consumer", "example.com/fixture/dupes", "example.com/fixture/tested"}; !slices.Equal(got, want) {
 		t.Errorf("tests keys = %v, want %v", got, want)
 	}
 	if got, want := keys(l.XTests), []string{"example.com/fixture/tested"}; !slices.Equal(got, want) {
