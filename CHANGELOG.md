@@ -12,6 +12,17 @@ history.
 
 ### Added
 
+- Split-or-extraction labels: `go run ./calibration/replay/label --rule
+  split-extract` labels a replayed history from its rows alone, `block`
+  when a later commit of the range split a package the commit took over a
+  capacity `max` (or grew by 100 or more SLOC while over one), or, changing
+  that package, removed the duplicate blocks the commit added. The labels
+  of this repository and the three external corpora are committed as
+  `calibration/replay/labels/<name>-split-extract.yaml`, beside the fix-up
+  labels, and `calibration/validate --corpus name=<dir>:<labels>,<second
+  labels>` reports every view under both label sets side by side
+  (`calibration/reports/gate-validation-2026-09-29.md`,
+  `calibration/notes/split-extract-labels-2026-09-29.md`).
 - Rebuild fit: `go run ./calibration/rebuild/fit --runs <runs.jsonl>` fits
   the SPEC.md 7.2 parameters to the rebuild runner's measurements. It takes
   each package's median footprint tokens (input, cache writes and output)

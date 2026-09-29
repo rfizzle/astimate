@@ -1,0 +1,1560 @@
+source:
+  repository: https://github.com/github/github-mcp-server.git
+  range: d4e1231cf7d7d54b742fde715fff23e3b04d729b..f0baf1c80276711bd7e26d4b8fdc26dae7802d5f
+  data: calibration/data/replay-github-mcp-server-2026-09-28
+rule: 'block when a later commit in the rest of the replayed range splits a package this commit grew past a ceiling, or extracts duplicate code this commit added, read from the replay''s rows. Split: the commit took a package over a capacity rule''s max (at or under it at the parent, or new, and over it at the commit) or added 100 or more SLOC to a package already over one, and a later commit lowers that package''s sloc by at least 25% (deleting the package counts) while the module''s total sloc falls by less than 5% (code moved, not deleted). Extraction: the commit raised a package''s dup_blocks, or the module row''s dup_blocks_cross_pkg, and a later commit that changes a file of that package (for the module row, of a package the commit changed) lowers that count by at least what this commit added while the package''s sloc (the module''s total, for the module row) falls by less than 25%. Otherwise allow. The module''s total is the sum over every package the rows show, each carried from its nearest row, so a package no replayed commit changed is not counted. A commit the replay did not load has no rows and is allow. Each reason ends with the label''s lookahead: the commits after it in the range, so the last commits of a range are censored.'
+commits:
+  - hash: 7e394af647018d1c90b5aa4d492a553447b1b697
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 269 commits)
+    provenance: rule
+    agent: true
+  - hash: c88d2ecdd3bb07f7bdd75296e3ee676febf14f58
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 268 commits)
+    provenance: rule
+    agent: true
+  - hash: f21dcd38abaafda1c555238fa018c88b5236afa7
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 267 commits)
+    provenance: rule
+    agent: false
+  - hash: bafcaf57c322d374299f54aa8b64eb4022694701
+    verdict: block
+    reason: 'extract: added 3 duplicate blocks to pkg/github (880 to 883); 0f0506d2fd72 ("refactor: remove dynamic toolsets and deprecated closure constructor (#2512)") 3 commits later removed 7 duplicate blocks from pkg/github while the SLOC there changed by -1.2% (lookahead 266 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: 0f0506d2fd72ef2f5cb7a7b07b8186053d166782
+        package: pkg/github
+  - hash: 970155ad64d2866c78a7969350cf40d5e1cd95d2
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 265 commits)
+    provenance: rule
+    agent: true
+  - hash: 272d1605127f42b848c59fd053d07683728a8b45
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 264 commits)
+    provenance: rule
+    agent: true
+  - hash: 0f0506d2fd72ef2f5cb7a7b07b8186053d166782
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 263 commits)
+    provenance: rule
+    agent: true
+  - hash: b2b49361fdde70b95e1740077c2cd54489eee235
+    verdict: block
+    reason: 'extract: added 4 duplicate blocks to pkg/github (876 to 880); 667bd3e803d8 ("Fix IFC private repository labels (#2695)") 92 commits later removed 10 duplicate blocks from pkg/github while the SLOC there changed by +0.4% (lookahead 262 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 667bd3e803d88e7bbe77e2666083595b925b3541
+        package: pkg/github
+  - hash: cc2a95725a70a28f957b5df7a2cfc178fe6e1268
+    verdict: block
+    reason: 'extract: added 2 duplicate blocks to pkg/github (880 to 882); 33849e98eb47 ("fix: Empty assignees array should clear assignees (#2600)") 68 commits later removed 2 duplicate blocks from pkg/github while the SLOC there changed by +0.1% (lookahead 261 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: 33849e98eb4797107d033b6d29ffbd5f6d9e8a2b
+        package: pkg/github
+  - hash: e9533330b0ec2ea2f81ec490cc0c84d30538fcb9
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 260 commits)
+    provenance: rule
+    agent: true
+  - hash: 8f4680b90acb7a53e1810ae569a7ea508568e7eb
+    verdict: block
+    reason: 'extract: added 2 duplicate blocks to pkg/github (882 to 884); 33849e98eb47 ("fix: Empty assignees array should clear assignees (#2600)") 66 commits later removed 2 duplicate blocks from pkg/github while the SLOC there changed by +0.1% (lookahead 259 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: 33849e98eb4797107d033b6d29ffbd5f6d9e8a2b
+        package: pkg/github
+  - hash: 0bd0bf0818df3c8e47dd03e6abc4f37cfa806425
+    verdict: block
+    reason: 'extract: added 6 duplicate blocks to pkg/github (884 to 890); 667bd3e803d8 ("Fix IFC private repository labels (#2695)") 88 commits later removed 10 duplicate blocks from pkg/github while the SLOC there changed by +0.4% (lookahead 258 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 667bd3e803d88e7bbe77e2666083595b925b3541
+        package: pkg/github
+  - hash: 6b4ca78505e719019e0b2e95ab7aec57f6c43a23
+    verdict: block
+    reason: 'extract: added 4 duplicate blocks to pkg/github (890 to 894); 667bd3e803d8 ("Fix IFC private repository labels (#2695)") 87 commits later removed 10 duplicate blocks from pkg/github while the SLOC there changed by +0.4% (lookahead 257 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 667bd3e803d88e7bbe77e2666083595b925b3541
+        package: pkg/github
+  - hash: 805ad75c62f7c8572be982d83923a8e44cb50934
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 256 commits)
+    provenance: rule
+    agent: true
+  - hash: 8f6050a5b8e42372ac40c1545ee8ca23dd3ac040
+    verdict: allow
+    reason: added 203 SLOC to pkg/github, already over tokens_est 16000, largest_file_sloc 600, exported_symbols 60, internal_imports 10, sloc 1000; added 13 duplicate blocks to pkg/github (894 to 907); no later commit split or extracted it (lookahead 255 commits)
+    provenance: rule
+    agent: false
+  - hash: 13e7f10fc8ddff977e02043aec4574d9c8ded8ec
+    verdict: block
+    reason: 'extract: added 9 duplicate blocks to pkg/github (907 to 916); 667bd3e803d8 ("Fix IFC private repository labels (#2695)") 84 commits later removed 10 duplicate blocks from pkg/github while the SLOC there changed by +0.4% (lookahead 254 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: 667bd3e803d88e7bbe77e2666083595b925b3541
+        package: pkg/github
+  - hash: f39f758d6f46475795140065972528e035a0c769
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 253 commits)
+    provenance: rule
+    agent: true
+  - hash: f929c58c6b97a03a865484bb5a347b6cb7ade3fc
+    verdict: block
+    reason: 'extract: added 3 cross-package duplicate blocks (21 to 24); 3f67b7e2c068 ("feat(auth): add per-call OAuth scope checks") 249 commits later removed 3 duplicate blocks from the module''s cross-package duplicates while the SLOC there changed by -0.1% (lookahead 252 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 3f67b7e2c06868a5ce18d1063ff345ba4be0e42e
+        package: <module>
+  - hash: f5e26a85407cd7995606086bd3ae641261756662
+    verdict: block
+    reason: 'extract: added 10 duplicate blocks to pkg/github (916 to 926); 667bd3e803d8 ("Fix IFC private repository labels (#2695)") 81 commits later removed 10 duplicate blocks from pkg/github while the SLOC there changed by +0.4% (lookahead 251 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 667bd3e803d88e7bbe77e2666083595b925b3541
+        package: pkg/github
+  - hash: 6fd9d070ba1671cf683f34faeff214a63cf43ad0
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 250 commits)
+    provenance: rule
+    agent: true
+  - hash: 0b644d7b746adf99bdf9cd0fac8ba962c1ada55c
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 249 commits)
+    provenance: rule
+    agent: true
+  - hash: 1add5fe231040119934d18eac6da5a2aab4cfffe
+    verdict: allow
+    reason: added 1 duplicate blocks to cmd/github-mcp-server (17 to 18); no later commit split or extracted it (lookahead 248 commits)
+    provenance: rule
+    agent: true
+  - hash: 57f4df4728e2f7b51ddb36c7a87b169ce24186c5
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to pkg/github (926 to 927); 014fd17fa317 ("feat: gate issue_write and get_issue behind remote_mcp_issue_fields flag") 14 commits later removed 1 duplicate blocks from pkg/github while the SLOC there changed by +0.1% (lookahead 247 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: 014fd17fa31761ea3158d98ee23fbf0f6c87b4f6
+        package: pkg/github
+  - hash: b473a5afd1d00d11ea4b13ca2aff0561ff8b3d6a
+    verdict: allow
+    reason: added 1 duplicate blocks to cmd/github-mcp-server (18 to 19); no later commit split or extracted it (lookahead 246 commits)
+    provenance: rule
+    agent: true
+  - hash: f80ca8555bd5cd89e4b0850505fb6f392413b5a2
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 245 commits)
+    provenance: rule
+    agent: false
+  - hash: b91c3b5b3a4e4d58d1c299dc299b3ac39eb8e486
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to pkg/github (927 to 928); 014fd17fa317 ("feat: gate issue_write and get_issue behind remote_mcp_issue_fields flag") 11 commits later removed 1 duplicate blocks from pkg/github while the SLOC there changed by +0.1% (lookahead 244 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 014fd17fa31761ea3158d98ee23fbf0f6c87b4f6
+        package: pkg/github
+  - hash: 389ddcce59e46b5e384d13bbaf141e8a45095faa
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 243 commits)
+    provenance: rule
+    agent: false
+  - hash: dff18de98ecb941666f95e2c3f72c005727b5adf
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 242 commits)
+    provenance: rule
+    agent: false
+  - hash: 8b5c0256699c4eb2b3ab3aa7fa9f4e3e90c1ea69
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 241 commits)
+    provenance: rule
+    agent: false
+  - hash: 2f8c7e63d2360cf9bff2064a18d998062f19e3ee
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 240 commits)
+    provenance: rule
+    agent: false
+  - hash: 6e19842c61b742ec28c6d833951d3e4c822aa40f
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 239 commits)
+    provenance: rule
+    agent: false
+  - hash: 2b7807bcb799decccb294e78b49aa3597dae3d08
+    verdict: block
+    reason: 'extract: added 4 duplicate blocks to pkg/github (928 to 932); 667bd3e803d8 ("Fix IFC private repository labels (#2695)") 68 commits later removed 10 duplicate blocks from pkg/github while the SLOC there changed by +0.4% (lookahead 238 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: 667bd3e803d88e7bbe77e2666083595b925b3541
+        package: pkg/github
+  - hash: e091ea63d721b54ba17e4d291c9c3793784c3fa7
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 237 commits)
+    provenance: rule
+    agent: false
+  - hash: d661abf4cab483204cbfc433a775bc8ddab68d0e
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to pkg/github (932 to 933); 014fd17fa317 ("feat: gate issue_write and get_issue behind remote_mcp_issue_fields flag") 3 commits later removed 1 duplicate blocks from pkg/github while the SLOC there changed by +0.1% (lookahead 236 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 014fd17fa31761ea3158d98ee23fbf0f6c87b4f6
+        package: pkg/github
+  - hash: 001f5e3c31bb4dde3cc108325907bb888204f52d
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 235 commits)
+    provenance: rule
+    agent: false
+  - hash: 13e6b8bae1f1112aa31fa99e7ac29a6df54e8024
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 234 commits)
+    provenance: rule
+    agent: true
+  - hash: 014fd17fa31761ea3158d98ee23fbf0f6c87b4f6
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 233 commits)
+    provenance: rule
+    agent: true
+  - hash: 7159cbf185ebf6c585870abee274a3108cb9d24a
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to pkg/github (932 to 933); 33849e98eb47 ("fix: Empty assignees array should clear assignees (#2600)") 39 commits later removed 2 duplicate blocks from pkg/github while the SLOC there changed by +0.1% (lookahead 232 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 33849e98eb4797107d033b6d29ffbd5f6d9e8a2b
+        package: pkg/github
+  - hash: 112334446a14e3d4966996d42ba9c508f1145f81
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 231 commits)
+    provenance: rule
+    agent: true
+  - hash: 51a7383fddf015be5e250e90cab9a5025709e8a4
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 230 commits)
+    provenance: rule
+    agent: true
+  - hash: 122951007a61624dd9205e14a1ae2c2ee694072b
+    verdict: allow
+    reason: added 547 SLOC to pkg/github, already over tokens_est 16000, largest_file_sloc 600, exported_symbols 60, internal_imports 10, sloc 1000; added 22 duplicate blocks to pkg/github (933 to 955); no later commit split or extracted it (lookahead 229 commits)
+    provenance: rule
+    agent: true
+  - hash: 3b6cdafbb5531019cf4d6a500057b0306ff26fa6
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 228 commits)
+    provenance: rule
+    agent: true
+  - hash: 9950148c9dd619f40d6fb3cb2fae327afed55c22
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 227 commits)
+    provenance: rule
+    agent: false
+  - hash: e3840b9c0c2e35f124beed46c49f8406ddc0eda1
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 226 commits)
+    provenance: rule
+    agent: false
+  - hash: 9aa7e05c5accb96ee5e2ca439d816aec0c916b6c
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 225 commits)
+    provenance: rule
+    agent: false
+  - hash: 1978d1284e89b01c452dff79c3d0c2d371e3d73d
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 224 commits)
+    provenance: rule
+    agent: false
+  - hash: 5aa0879059282f37a54fbb1690b1a81d4e223bdc
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 223 commits)
+    provenance: rule
+    agent: false
+  - hash: ca170960d0b0d45d6615d9f3202b1008b7e6be98
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 222 commits)
+    provenance: rule
+    agent: false
+  - hash: 1ddde57873b0c9f459c003c98268668a4262d8a7
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 221 commits)
+    provenance: rule
+    agent: false
+  - hash: c5be4b09c2e26e9c6adbc936b5fc661306852ebf
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 220 commits)
+    provenance: rule
+    agent: false
+  - hash: 6e0af328bca995d5c1d1e1386e0e5a6d671ebe39
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 219 commits)
+    provenance: rule
+    agent: true
+  - hash: 7d46f8d8db1d9515478cfac7a7e273067c2b316a
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 218 commits)
+    provenance: rule
+    agent: false
+  - hash: 5c638704c0c409d64b0ace751ba5de9799d20fd0
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 217 commits)
+    provenance: rule
+    agent: false
+  - hash: e1842104a4e7343273fc76fb6973e64dff976df2
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 216 commits)
+    provenance: rule
+    agent: false
+  - hash: f5f9c7242223027ba88e6c200925be891f696dbc
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 215 commits)
+    provenance: rule
+    agent: true
+  - hash: 3fbf64f7acf1ed4ba7a4aed2fa8b4ffd9ad2e3bb
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 214 commits)
+    provenance: rule
+    agent: true
+  - hash: b5397f6e3305531a1c534b90b2d347a70fa84da9
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 213 commits)
+    provenance: rule
+    agent: false
+  - hash: 561a4a79515309b45a373cf06d01791f7dc11fd2
+    verdict: allow
+    reason: took pkg/inventory over tokens_est max 16000 (15915 to 16270); no later commit split or extracted it (lookahead 212 commits)
+    provenance: rule
+    agent: true
+  - hash: 69f786b87c70e3d06d238e82dc8b149a82d9972d
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 211 commits)
+    provenance: rule
+    agent: true
+  - hash: c0dca1f1b8c25dc72d70dc7fb5433fb790324cb5
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 210 commits)
+    provenance: rule
+    agent: true
+  - hash: 5d47ccc32fbf5358e45539fb4b29791fbc1ef535
+    verdict: block
+    reason: 'extract: added 1 cross-package duplicate blocks (24 to 25); 5aa8ed36df7c ("fix(pull_requests): validate required params in add_comment_to_pending_review (#2770)") 53 commits later removed 1 duplicate blocks from the module''s cross-package duplicates while the SLOC there changed by +0.1% (lookahead 209 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 5aa8ed36df7cb1c21e04c7bf8f48256cc68ba829
+        package: <module>
+  - hash: 3a4c660033187435c838a46147d9346a35ac5952
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 208 commits)
+    provenance: rule
+    agent: false
+  - hash: 29a86780bf104bf91b5cd3ddfa2579564a68eab6
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 207 commits)
+    provenance: rule
+    agent: false
+  - hash: 03da19109e053b019b8d9555843f532ae132708b
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 206 commits)
+    provenance: rule
+    agent: false
+  - hash: d6b9dc94114496b670797eb7aa8205dedc131162
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 205 commits)
+    provenance: rule
+    agent: true
+  - hash: 830ad2c6132ca6fdf6daa46f19f7102fef7e71a8
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 204 commits)
+    provenance: rule
+    agent: false
+  - hash: 07f1d020307d31553918d283fab7ec7da5717375
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 203 commits)
+    provenance: rule
+    agent: false
+  - hash: b0d9854388d6fb51bde7b67aa4394a5081a96988
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 202 commits)
+    provenance: rule
+    agent: true
+  - hash: 92667523b3c56c0e66bf13141357d24eea01f5f5
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to pkg/github (967 to 968); 33849e98eb47 ("fix: Empty assignees array should clear assignees (#2600)") 8 commits later removed 2 duplicate blocks from pkg/github while the SLOC there changed by +0.1% (lookahead 201 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: 33849e98eb4797107d033b6d29ffbd5f6d9e8a2b
+        package: pkg/github
+  - hash: 28846988e997bd604fcb2c283842170f9758a92f
+    verdict: allow
+    reason: added 3 duplicate blocks to cmd/mcpcurl (1 to 4); no later commit split or extracted it (lookahead 200 commits)
+    provenance: rule
+    agent: false
+  - hash: c05e1bb1d8771d6fb2129b3cd685c73694626688
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 199 commits)
+    provenance: rule
+    agent: false
+  - hash: e5f19db688fd56fa4fbbf62061a944ebff61347e
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 198 commits)
+    provenance: rule
+    agent: true
+  - hash: 2bd162acaf4c234f6aa6e73d948129b06f9b25d1
+    verdict: block
+    reason: 'extract: added 2 duplicate blocks to pkg/github (968 to 970); 33849e98eb47 ("fix: Empty assignees array should clear assignees (#2600)") 4 commits later removed 2 duplicate blocks from pkg/github while the SLOC there changed by +0.1% (lookahead 197 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: 33849e98eb4797107d033b6d29ffbd5f6d9e8a2b
+        package: pkg/github
+  - hash: 04c8dcbc8f7aba67e8671003783f647a784e25ef
+    verdict: block
+    reason: 'extract: added 2 duplicate blocks to pkg/github (970 to 972); 33849e98eb47 ("fix: Empty assignees array should clear assignees (#2600)") 3 commits later removed 2 duplicate blocks from pkg/github while the SLOC there changed by +0.1% (lookahead 196 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 33849e98eb4797107d033b6d29ffbd5f6d9e8a2b
+        package: pkg/github
+  - hash: 7e79ae9aa55b6caf75c1bc327aca7f65de0ef756
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to pkg/github (972 to 973); 33849e98eb47 ("fix: Empty assignees array should clear assignees (#2600)") 2 commits later removed 2 duplicate blocks from pkg/github while the SLOC there changed by +0.1% (lookahead 195 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 33849e98eb4797107d033b6d29ffbd5f6d9e8a2b
+        package: pkg/github
+  - hash: 2a5d38a2825519e109bcbd3ccfd13a459582a455
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 194 commits)
+    provenance: rule
+    agent: true
+  - hash: 33849e98eb4797107d033b6d29ffbd5f6d9e8a2b
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 193 commits)
+    provenance: rule
+    agent: false
+  - hash: 457f59932ac041c9276e03e634b0e0c30f19ba3e
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to pkg/github (971 to 972); 667bd3e803d8 ("Fix IFC private repository labels (#2695)") 22 commits later removed 10 duplicate blocks from pkg/github while the SLOC there changed by +0.4% (lookahead 192 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 667bd3e803d88e7bbe77e2666083595b925b3541
+        package: pkg/github
+  - hash: d42bb3e678b918b8e34a26fd576935d461ccc65d
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 191 commits)
+    provenance: rule
+    agent: false
+  - hash: b2db21cb060cbab026a6a19013f50ec90e1c2ebd
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 190 commits)
+    provenance: rule
+    agent: false
+  - hash: 8bbd902b9e459baa40014c9f4ad83b056c4709d4
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 189 commits)
+    provenance: rule
+    agent: true
+  - hash: 918a42f05a344be9466b18dfb153d8faf02a4d5d
+    verdict: block
+    reason: 'extract: added 2 duplicate blocks to pkg/github (972 to 974); 667bd3e803d8 ("Fix IFC private repository labels (#2695)") 18 commits later removed 10 duplicate blocks from pkg/github while the SLOC there changed by +0.4% (lookahead 188 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: 667bd3e803d88e7bbe77e2666083595b925b3541
+        package: pkg/github
+  - hash: fb7cbc8b853fb8e04697f765ee0dd5ef8164fca3
+    verdict: block
+    reason: 'extract: added 12 duplicate blocks to pkg/github (974 to 986); 6787f085697c ("Reimplement issue dependencies on go-github v89 REST API (#2839)") 46 commits later removed 12 duplicate blocks from pkg/github while the SLOC there changed by -0.2% (lookahead 187 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: 6787f085697c09f045acbba6c02c4504a878e8a0
+        package: pkg/github
+  - hash: 0e4b22a610d9e5bad9154e423e20ca8a54f97fa7
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 186 commits)
+    provenance: rule
+    agent: false
+  - hash: 2cff183ca056a13851d46b152f5892ff37c6f8ff
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 185 commits)
+    provenance: rule
+    agent: false
+  - hash: 1654d32ad8c95041c0dc2d27df57afad62bbf87d
+    verdict: allow
+    reason: added 1 duplicate blocks to pkg/errors (6 to 7); no later commit split or extracted it (lookahead 184 commits)
+    provenance: rule
+    agent: true
+  - hash: 35acc92c4f567a5d96ded95be4987ad6033971d4
+    verdict: block
+    reason: 'extract: added 7 duplicate blocks to pkg/github (986 to 993); 667bd3e803d8 ("Fix IFC private repository labels (#2695)") 13 commits later removed 10 duplicate blocks from pkg/github while the SLOC there changed by +0.4% (lookahead 183 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: 667bd3e803d88e7bbe77e2666083595b925b3541
+        package: pkg/github
+  - hash: f2219746b5f2b78e24ca83b1161847ae4fd3ff60
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 182 commits)
+    provenance: rule
+    agent: false
+  - hash: e0fba89e4c1ef1bbb2e0e7b062eba92b17f39e2f
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 181 commits)
+    provenance: rule
+    agent: false
+  - hash: 1209da8eba41fdcbabf4ef0875a405743799c2e3
+    verdict: allow
+    reason: added 372 SLOC to pkg/github, already over tokens_est 16000, largest_file_sloc 600, exported_symbols 60, internal_imports 10, sloc 1000; added 17 duplicate blocks to pkg/github (993 to 1010); no later commit split or extracted it (lookahead 180 commits)
+    provenance: rule
+    agent: true
+  - hash: 34227037fc48771baea9af7163e28cb6556ef287
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 179 commits)
+    provenance: rule
+    agent: true
+  - hash: b879ca26dfaa3e834646576332c66af6f47c27fd
+    verdict: block
+    reason: 'extract: added 2 duplicate blocks to pkg/github (1010 to 1012); 667bd3e803d8 ("Fix IFC private repository labels (#2695)") 8 commits later removed 10 duplicate blocks from pkg/github while the SLOC there changed by +0.4% (lookahead 178 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 667bd3e803d88e7bbe77e2666083595b925b3541
+        package: pkg/github
+  - hash: d27540ff67b9b1ec61a859afc7b347dadabf3878
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to pkg/github (1012 to 1013); 667bd3e803d8 ("Fix IFC private repository labels (#2695)") 7 commits later removed 10 duplicate blocks from pkg/github while the SLOC there changed by +0.4% (lookahead 177 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 667bd3e803d88e7bbe77e2666083595b925b3541
+        package: pkg/github
+  - hash: 909235ed3a04b9c5200f0de30e500fa34a54587b
+    verdict: allow
+    reason: added 1 duplicate blocks to cmd/github-mcp-server (19 to 20); no later commit split or extracted it (lookahead 176 commits)
+    provenance: rule
+    agent: false
+  - hash: 308ae5b9f04b72ea172f94c609145d1b59f0084d
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 175 commits)
+    provenance: rule
+    agent: false
+  - hash: de9aee0afa3791c3b7750d7ff1a289e0514723e7
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 174 commits)
+    provenance: rule
+    agent: false
+  - hash: 117bace5ebee04eae60cd5eaccaa240f77907127
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 173 commits)
+    provenance: rule
+    agent: false
+  - hash: 6586b84b1a540a0d33e4292844b6990b7eec513a
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 172 commits)
+    provenance: rule
+    agent: false
+  - hash: 4e8eb81daccfba8d3b8bd614360368442e3dc473
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to pkg/utils (12 to 13); 0ea1f775a7c7 ("fix: preserve authority for loopback GHES hosts") 90 commits later removed 1 duplicate blocks from pkg/utils while the SLOC there changed by +0.3% (lookahead 171 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 0ea1f775a7c73eff1bd2e25904d01136756bbfe2
+        package: pkg/utils
+  - hash: 667bd3e803d88e7bbe77e2666083595b925b3541
+    verdict: allow
+    reason: added 2 duplicate blocks to pkg/ifc (4 to 6); no later commit split or extracted it (lookahead 170 commits)
+    provenance: rule
+    agent: false
+  - hash: f9a4dc5412dc7caf88da9c2eef6dab7749446286
+    verdict: block
+    reason: 'extract: added 4 duplicate blocks to pkg/github (1034 to 1038); a37837027f6a ("Promote issue fields and deprecate legacy issue write tool  (#2696)") 3 commits later removed 5 duplicate blocks from pkg/github while the SLOC there changed by -2.4% (lookahead 169 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: a37837027f6ac03560ebebd9f51f9f1f898b28c4
+        package: pkg/github
+  - hash: 6830c4d39426f6a7931f668eacd9eaf91b4822a8
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 168 commits)
+    provenance: rule
+    agent: false
+  - hash: 4f73cfd1db141453a56c58ec25f6bde40b6b6c85
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to pkg/github (1038 to 1039); a37837027f6a ("Promote issue fields and deprecate legacy issue write tool  (#2696)") 1 commits later removed 5 duplicate blocks from pkg/github while the SLOC there changed by -2.4% (lookahead 167 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: a37837027f6ac03560ebebd9f51f9f1f898b28c4
+        package: pkg/github
+  - hash: a37837027f6ac03560ebebd9f51f9f1f898b28c4
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 166 commits)
+    provenance: rule
+    agent: false
+  - hash: 0b8bddb37b7d53e9f7345a37b45363c3976bd7ad
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 165 commits)
+    provenance: rule
+    agent: false
+  - hash: 6f338707d881dfef877545a2763e3e9be479569d
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 164 commits)
+    provenance: rule
+    agent: false
+  - hash: 27d84637313d7be7bfe7447eb9f55d9d8032a1bd
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 163 commits)
+    provenance: rule
+    agent: false
+  - hash: 7613599bd6d5c51744808031b3a2151da2adfaf8
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 162 commits)
+    provenance: rule
+    agent: false
+  - hash: 9430064a2becb382644042ce9fe5752ace1d8409
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to pkg/github (1034 to 1035); 5aa8ed36df7c ("fix(pull_requests): validate required params in add_comment_to_pending_review (#2770)") 5 commits later removed 5 duplicate blocks from pkg/github while the SLOC there changed by +0.2% (lookahead 161 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 5aa8ed36df7cb1c21e04c7bf8f48256cc68ba829
+        package: pkg/github
+  - hash: 3c4749d234f807c6be7871c863661c5157e40285
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 160 commits)
+    provenance: rule
+    agent: true
+  - hash: 63d313a9735e3b353dedc153c441b749c36daad4
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 159 commits)
+    provenance: rule
+    agent: true
+  - hash: 8ce77e3c16156b753d1576e46c304aa86c2d96bb
+    verdict: block
+    reason: 'extract: added 1 cross-package duplicate blocks (25 to 26); 5aa8ed36df7c ("fix(pull_requests): validate required params in add_comment_to_pending_review (#2770)") 2 commits later removed 1 duplicate blocks from the module''s cross-package duplicates while the SLOC there changed by +0.1% (lookahead 158 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 5aa8ed36df7cb1c21e04c7bf8f48256cc68ba829
+        package: <module>
+  - hash: fab5fc5ff239747d0e414a0199f90f1d656e3d15
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 157 commits)
+    provenance: rule
+    agent: true
+  - hash: 5aa8ed36df7cb1c21e04c7bf8f48256cc68ba829
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 156 commits)
+    provenance: rule
+    agent: true
+  - hash: 0503f2f2c50d636918471069c0a6142cc82a37ac
+    verdict: block
+    reason: 'extract: added 3 duplicate blocks to pkg/github (1030 to 1033); 6787f085697c ("Reimplement issue dependencies on go-github v89 REST API (#2839)") 14 commits later removed 12 duplicate blocks from pkg/github while the SLOC there changed by -0.2% (lookahead 155 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 6787f085697c09f045acbba6c02c4504a878e8a0
+        package: pkg/github
+  - hash: 067756a00ad6b7e940ceaf58148f23aa5c75e9b4
+    verdict: allow
+    reason: added 398 SLOC to pkg/github, already over tokens_est 16000, largest_file_sloc 600, exported_symbols 60, internal_imports 10, sloc 1000; added 33 duplicate blocks to pkg/github (1033 to 1066); no later commit split or extracted it (lookahead 154 commits)
+    provenance: rule
+    agent: true
+  - hash: 29634dad006ac5b69612035bd90b2804abaf0da0
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 153 commits)
+    provenance: rule
+    agent: true
+  - hash: 8cd03c018525ae0bafc9b3cdb84ec2133e01bac2
+    verdict: block
+    reason: 'extract: added 10 duplicate blocks to pkg/github (1066 to 1076); 6787f085697c ("Reimplement issue dependencies on go-github v89 REST API (#2839)") 11 commits later removed 12 duplicate blocks from pkg/github while the SLOC there changed by -0.2% (lookahead 152 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 6787f085697c09f045acbba6c02c4504a878e8a0
+        package: pkg/github
+  - hash: 225c47cda1d5f7fba3a90292933ade8d9a801c47
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 151 commits)
+    provenance: rule
+    agent: true
+  - hash: 9bdbcaa515dce5656cf9b7d7d02b6c6121d9c59c
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 150 commits)
+    provenance: rule
+    agent: false
+  - hash: a074b94465af83bfb040b766660f2191dcc595a9
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 149 commits)
+    provenance: rule
+    agent: false
+  - hash: e5ad9de8e1d996dc7b638fd80b4382e2595091bf
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 148 commits)
+    provenance: rule
+    agent: false
+  - hash: 49abf1557c0373267adc518f2e2c5fc30db03a42
+    verdict: allow
+    reason: added 159 SLOC to pkg/github, already over tokens_est 16000, largest_file_sloc 600, exported_symbols 60, internal_imports 10, sloc 1000; no later commit split or extracted it (lookahead 147 commits)
+    provenance: rule
+    agent: false
+  - hash: 74c34cd71b363fa960683c1f4eafd3abbef5b40a
+    verdict: block
+    reason: 'extract: added 6 duplicate blocks to pkg/github (1075 to 1081); 6787f085697c ("Reimplement issue dependencies on go-github v89 REST API (#2839)") 5 commits later removed 12 duplicate blocks from pkg/github while the SLOC there changed by -0.2% (lookahead 146 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 6787f085697c09f045acbba6c02c4504a878e8a0
+        package: pkg/github
+  - hash: 659284735780c3a71e1815ea738aada13060917e
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 145 commits)
+    provenance: rule
+    agent: true
+  - hash: b7bc3dccee601e7d90e7c455b540cc37090bbd1e
+    verdict: block
+    reason: 'extract: added 4 duplicate blocks to pkg/github (1080 to 1084); 6787f085697c ("Reimplement issue dependencies on go-github v89 REST API (#2839)") 3 commits later removed 12 duplicate blocks from pkg/github while the SLOC there changed by -0.2% (lookahead 144 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 6787f085697c09f045acbba6c02c4504a878e8a0
+        package: pkg/github
+  - hash: 40db5e37b2cf0a7afc20d97df91c88739639dc58
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 143 commits)
+    provenance: rule
+    agent: false
+  - hash: 778f5bb6a3120719bfeaeefb47169ad0739ebee8
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to pkg/github (1084 to 1085); 6787f085697c ("Reimplement issue dependencies on go-github v89 REST API (#2839)") 1 commits later removed 12 duplicate blocks from pkg/github while the SLOC there changed by -0.2% (lookahead 142 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 6787f085697c09f045acbba6c02c4504a878e8a0
+        package: pkg/github
+  - hash: 6787f085697c09f045acbba6c02c4504a878e8a0
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 141 commits)
+    provenance: rule
+    agent: true
+  - hash: a718d37f6208ac0b18afc4b29a40a89735c92072
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 140 commits)
+    provenance: rule
+    agent: false
+  - hash: 3b8ff504c0fcfd4b027ce8f6f55f12f8fb95e86f
+    verdict: allow
+    reason: added 173 SLOC to pkg/github, already over tokens_est 16000, largest_file_sloc 600, exported_symbols 60, internal_imports 10, sloc 1000; added 5 duplicate blocks to pkg/github (1073 to 1078); no later commit split or extracted it (lookahead 139 commits)
+    provenance: rule
+    agent: true
+  - hash: 439ec711fa106f06969caa9d20738f74014abe69
+    verdict: allow
+    reason: added 284 SLOC to pkg/github, already over tokens_est 16000, largest_file_sloc 600, exported_symbols 60, internal_imports 10, sloc 1000; added 20 duplicate blocks to pkg/github (1078 to 1098); no later commit split or extracted it (lookahead 138 commits)
+    provenance: rule
+    agent: true
+  - hash: c36e4e4493c76eafe2c1a9cbc5272e8eede29189
+    verdict: allow
+    reason: added 452 SLOC to pkg/github, already over tokens_est 16000, largest_file_sloc 600, exported_symbols 60, internal_imports 10, sloc 1000; added 12 duplicate blocks to pkg/github (1098 to 1110); no later commit split or extracted it (lookahead 137 commits)
+    provenance: rule
+    agent: false
+  - hash: 7629b6e7337e1fc4b11a0ca5fdea4af4edd21f6e
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 136 commits)
+    provenance: rule
+    agent: true
+  - hash: 6380a5b22322cca4c6db22c00663fef22a61d072
+    verdict: allow
+    reason: added 3 duplicate blocks to internal/ghmcp (3 to 6); no later commit split or extracted it (lookahead 135 commits)
+    provenance: rule
+    agent: true
+  - hash: 05dc8a6e3577d9c95ceef0f435e7b46614b5195c
+    verdict: block
+    reason: 'extract: added 1 cross-package duplicate blocks (25 to 26); ea4e3960b8a8 ("refactor(auth): isolate GitHub App auth to stdio startup") 26 commits later removed 2 duplicate blocks from the module''s cross-package duplicates while the SLOC there changed by -0.0% (lookahead 134 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: ea4e3960b8a8466f0c8af71e464882dd79526465
+        package: <module>
+  - hash: 9a33e071f6f2b1db4d8a08bd65d4f7a0db1b3765
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 133 commits)
+    provenance: rule
+    agent: false
+  - hash: e6b6e3eb22fe6c038f62ec509a121042291fcbf6
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 132 commits)
+    provenance: rule
+    agent: false
+  - hash: ba72f069a595d4457c47bf1ea533aa216ac89ce5
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 131 commits)
+    provenance: rule
+    agent: false
+  - hash: bb96e9bf46dce061260e21351a457919e9fea1bf
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 130 commits)
+    provenance: rule
+    agent: false
+  - hash: d69cdc59f10aedf673a8e4c2ca38c668204df992
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 129 commits)
+    provenance: rule
+    agent: false
+  - hash: e62ce5fddecbac59ae68c42d361b4e529795fda5
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 128 commits)
+    provenance: rule
+    agent: false
+  - hash: 8ac674b0562bf2d2cccaea2965d32fcb2511cdbe
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 127 commits)
+    provenance: rule
+    agent: false
+  - hash: b463b647ce6fbbad296443d50eafb605a14ac55d
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 126 commits)
+    provenance: rule
+    agent: false
+  - hash: 5a0beacbcb856bbbcbe65f16f539a307f9e26d03
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 125 commits)
+    provenance: rule
+    agent: false
+  - hash: 0ad8cc67f3777760b9990a21187e19a0fcb0c921
+    verdict: block
+    reason: 'extract: added 4 duplicate blocks to pkg/github (1110 to 1114); f8d38356e97a ("refactor(repos): simplify symlink read disclosure") 71 commits later removed 4 duplicate blocks from pkg/github while the SLOC there changed by -0.3% (lookahead 124 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: f8d38356e97a499c7ad9769f8e6b6fc1534b8f3f
+        package: pkg/github
+  - hash: 8f6aa8e9025283f0ea0c0e2f2ca4faa369276741
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 123 commits)
+    provenance: rule
+    agent: false
+  - hash: 334aac0d2b99409c1048ed713ba7b483deabf413
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 122 commits)
+    provenance: rule
+    agent: false
+  - hash: 0e9bf0c1b60ae09c555f2daff9bd05aeccaf74c9
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 121 commits)
+    provenance: rule
+    agent: false
+  - hash: 4307ff801bbb18ed4dd16b2f31c6c6ff4760464c
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 120 commits)
+    provenance: rule
+    agent: false
+  - hash: 225ba207c888bad65673380baf30b58bf692105a
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 119 commits)
+    provenance: rule
+    agent: false
+  - hash: 870f3c710a644b21e87118c06b1a8721fae3ca31
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 118 commits)
+    provenance: rule
+    agent: false
+  - hash: 1338dbed4a044ee26422d4212bac3a8037fdb7ff
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 117 commits)
+    provenance: rule
+    agent: true
+  - hash: 9184f777bdcb7c6b60ca5a05a8585954e1686b02
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 116 commits)
+    provenance: rule
+    agent: false
+  - hash: 6a44cf24af97d8858754141bbf2fa05c40413b40
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 115 commits)
+    provenance: rule
+    agent: false
+  - hash: 9d130049e9074772c2afbbd5e904725d240443ad
+    verdict: allow
+    reason: added 311 SLOC to pkg/github, already over tokens_est 16000, largest_file_sloc 600, exported_symbols 60, internal_imports 10, sloc 1000; added 16 duplicate blocks to pkg/github (1109 to 1125); no later commit split or extracted it (lookahead 114 commits)
+    provenance: rule
+    agent: false
+  - hash: 4c68b1b6405ed6cc47afad71e218447b23ed575f
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to pkg/github (1125 to 1126); 456fae9d0464 ("Make fields parameter available by default (#2952)") 14 commits later removed 1 duplicate blocks from pkg/github while the SLOC there changed by -0.6% (lookahead 113 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 456fae9d0464944b946a288aed152dbb0c369a76
+        package: pkg/github
+  - hash: de310d4806f3181bd3351fdec93d363c64c6889d
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 112 commits)
+    provenance: rule
+    agent: true
+  - hash: 4ed4f816ccbfe52144a98f029d27a4936e426ff4
+    verdict: allow
+    reason: added 101 SLOC to pkg/github, already over tokens_est 16000, largest_file_sloc 600, exported_symbols 60, internal_imports 10, sloc 1000; no later commit split or extracted it (lookahead 111 commits)
+    provenance: rule
+    agent: true
+  - hash: d3cd40520f8f6ad0314f92b0e9b71dc473a10ab8
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 110 commits)
+    provenance: rule
+    agent: false
+  - hash: e05a38403ff9a394d8cb6677819ccff0354f752f
+    verdict: allow
+    reason: added 5 cross-package duplicate blocks (26 to 31); no later commit split or extracted it (lookahead 109 commits)
+    provenance: rule
+    agent: true
+  - hash: ea4e3960b8a8466f0c8af71e464882dd79526465
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 108 commits)
+    provenance: rule
+    agent: false
+  - hash: c5f4caaec43950ffc29940e1634673b66440ec1a
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 107 commits)
+    provenance: rule
+    agent: false
+  - hash: 5d13598c88b2e49fbf46e3aa046456f2aa7d84c2
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 106 commits)
+    provenance: rule
+    agent: false
+  - hash: 4f26c17aae0221428122a5452c3d6b4f964cb64f
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 105 commits)
+    provenance: rule
+    agent: false
+  - hash: b8bfb499e2f75406f3b84c9595ee99374b74dac2
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 104 commits)
+    provenance: rule
+    agent: false
+  - hash: a217a7f43a76a4cd6909ba6814d88a886064488c
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 103 commits)
+    provenance: rule
+    agent: true
+  - hash: d1dd472bcfb7be1df5ec19ed4a5ef0b566eff478
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 102 commits)
+    provenance: rule
+    agent: false
+  - hash: eb088dfe9d854dab6453a8d4ae5871a5ced20974
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 101 commits)
+    provenance: rule
+    agent: true
+  - hash: 1348c479bc672b24451dab0617a93d2c5ed6135b
+    verdict: allow
+    reason: added 6 duplicate blocks to pkg/github (1126 to 1132); no later commit split or extracted it (lookahead 100 commits)
+    provenance: rule
+    agent: false
+  - hash: 456fae9d0464944b946a288aed152dbb0c369a76
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 99 commits)
+    provenance: rule
+    agent: true
+  - hash: d080b23f593d153808fc212dc9a69d6e38ef68c9
+    verdict: allow
+    reason: added 789 SLOC to pkg/github, already over tokens_est 16000, largest_file_sloc 600, exported_symbols 60, internal_imports 10, sloc 1000; added 18 duplicate blocks to pkg/github (1131 to 1149); no later commit split or extracted it (lookahead 98 commits)
+    provenance: rule
+    agent: true
+  - hash: 96a3d782e11598d094ce6ec1e77dbb77fa6b2ac7
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 97 commits)
+    provenance: rule
+    agent: true
+  - hash: ea8099d7b29fbb8a8ba6df41f221cc313ccf00c1
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 96 commits)
+    provenance: rule
+    agent: true
+  - hash: ca8ab52dcc45b86fae190398178fd22edb7b1362
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 95 commits)
+    provenance: rule
+    agent: true
+  - hash: 3778a41476e31a072430cfee7c5d31c5f72def60
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 94 commits)
+    provenance: rule
+    agent: false
+  - hash: e6e3a4e8414686d9763e5e4840e1e0d61db9a992
+    verdict: block
+    reason: 'extract: added 2 duplicate blocks to pkg/github (1149 to 1151); f8d38356e97a ("refactor(repos): simplify symlink read disclosure") 40 commits later removed 4 duplicate blocks from pkg/github while the SLOC there changed by -0.3% (lookahead 93 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: f8d38356e97a499c7ad9769f8e6b6fc1534b8f3f
+        package: pkg/github
+  - hash: f3cb662c25456f993115ad11fffafd0c5a5b9f97
+    verdict: block
+    reason: 'extract: added 3 duplicate blocks to pkg/github (1151 to 1154); f8d38356e97a ("refactor(repos): simplify symlink read disclosure") 39 commits later removed 4 duplicate blocks from pkg/github while the SLOC there changed by -0.3% (lookahead 92 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: f8d38356e97a499c7ad9769f8e6b6fc1534b8f3f
+        package: pkg/github
+  - hash: e7f7bb8b31bd98c3a65167905126e136aa8d85eb
+    verdict: allow
+    reason: took cmd/github-mcp-server over sloc max 1000 (990 to 1010); no later commit split or extracted it (lookahead 91 commits)
+    provenance: rule
+    agent: false
+  - hash: 1b3f89a90af6cad490384b8fdbf7fd3f057670c1
+    verdict: allow
+    reason: added 152 SLOC to pkg/github, already over tokens_est 16000, largest_file_sloc 600, exported_symbols 60, internal_imports 10, sloc 1000; added 11 duplicate blocks to pkg/github (1154 to 1165); no later commit split or extracted it (lookahead 90 commits)
+    provenance: rule
+    agent: false
+  - hash: eb4c099e05ef622445e930b18682a0464f22418f
+    verdict: allow
+    reason: added 298 SLOC to pkg/github, already over tokens_est 16000, largest_file_sloc 600, exported_symbols 60, internal_imports 10, sloc 1000; added 14 duplicate blocks to pkg/github (1165 to 1179); no later commit split or extracted it (lookahead 89 commits)
+    provenance: rule
+    agent: true
+  - hash: cdfa34e0a9d3e1ae6825345471f25185dd61d74e
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 88 commits)
+    provenance: rule
+    agent: true
+  - hash: eff4c3c041742426f417f7c2247b96bbf6d60b69
+    verdict: allow
+    reason: added 192 SLOC to pkg/github, already over tokens_est 16000, largest_file_sloc 600, exported_symbols 60, internal_imports 10, sloc 1000; added 18 duplicate blocks to pkg/github (1179 to 1197); no later commit split or extracted it (lookahead 87 commits)
+    provenance: rule
+    agent: false
+  - hash: ff15f6825deca167aea593dbb23781705b0d21ab
+    verdict: allow
+    reason: added 6 duplicate blocks to pkg/github (1197 to 1203); no later commit split or extracted it (lookahead 86 commits)
+    provenance: rule
+    agent: false
+  - hash: d6cab9757ac577eecf1821ff167895a76b342beb
+    verdict: allow
+    reason: added 500 SLOC to pkg/github, already over tokens_est 16000, largest_file_sloc 600, exported_symbols 60, internal_imports 10, sloc 1000; added 39 duplicate blocks to pkg/github (1203 to 1242); no later commit split or extracted it (lookahead 85 commits)
+    provenance: rule
+    agent: true
+  - hash: 2198e8599bbbcb98a0d6cd7cabe9a48629acdf29
+    verdict: block
+    reason: 'extract: added 3 duplicate blocks to pkg/github (1242 to 1245); f8d38356e97a ("refactor(repos): simplify symlink read disclosure") 31 commits later removed 4 duplicate blocks from pkg/github while the SLOC there changed by -0.3% (lookahead 84 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: f8d38356e97a499c7ad9769f8e6b6fc1534b8f3f
+        package: pkg/github
+  - hash: accc2e0970795b2a5789a3c4c373fe7f5112cec2
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 83 commits)
+    provenance: rule
+    agent: false
+  - hash: 0c825b4233cb321c1b6b6271f49495bd2230a5a0
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 82 commits)
+    provenance: rule
+    agent: true
+  - hash: 0ea1f775a7c73eff1bd2e25904d01136756bbfe2
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 81 commits)
+    provenance: rule
+    agent: true
+  - hash: 3085e59f66d2386aa76b1b3657d5ec252776ce66
+    verdict: allow
+    reason: added 1 cross-package duplicate blocks (27 to 28); no later commit split or extracted it (lookahead 80 commits)
+    provenance: rule
+    agent: true
+  - hash: 05ebfd54be1ebec59ea60caf5e9058d5c14b0c66
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 79 commits)
+    provenance: rule
+    agent: false
+  - hash: 4fb8b89d4e39af5444ee9da733a1dc06ebd4bc03
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 78 commits)
+    provenance: rule
+    agent: false
+  - hash: bbdd9e304e619f39f8955ffe7781b265dcce379d
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 77 commits)
+    provenance: rule
+    agent: false
+  - hash: 0d7ca0e2402d11587207faa675a2c0f581171e45
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 76 commits)
+    provenance: rule
+    agent: false
+  - hash: bfb59bb7862f54362d832f083e2255a263f2b814
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 75 commits)
+    provenance: rule
+    agent: false
+  - hash: 8ec62491c61715e190bf9a01aa66eed8f5bc0240
+    verdict: block
+    reason: 'extract: added 1 cross-package duplicate blocks (28 to 29); 21c5a6f1dd52 ("fix(auth): scope tokens across GitHub clients") 6 commits later removed 1 duplicate blocks from the module''s cross-package duplicates while the SLOC there changed by +0.0% (lookahead 74 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: 21c5a6f1dd5229ecee45f36ce3d675b888a1e3c1
+        package: <module>
+  - hash: 2211a4d645dec3f77d4f49b89accbe0739746b72
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 73 commits)
+    provenance: rule
+    agent: true
+  - hash: bb19060e63f8933cd5fe9ac4aded5009820ff465
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 72 commits)
+    provenance: rule
+    agent: false
+  - hash: a4f801e3d6ba2963c6926cbfd0a7a4072d4f2145
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 71 commits)
+    provenance: rule
+    agent: true
+  - hash: 505b88f8ac4c66b3db064814e66766de36c34b69
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 70 commits)
+    provenance: rule
+    agent: true
+  - hash: 198017fb54ba566d069afe13dda696b136405758
+    verdict: block
+    reason: 'extract: added 1 cross-package duplicate blocks (29 to 30); 21c5a6f1dd52 ("fix(auth): scope tokens across GitHub clients") 1 commits later removed 1 duplicate blocks from the module''s cross-package duplicates while the SLOC there changed by +0.0% (lookahead 69 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: 21c5a6f1dd5229ecee45f36ce3d675b888a1e3c1
+        package: <module>
+  - hash: 21c5a6f1dd5229ecee45f36ce3d675b888a1e3c1
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 68 commits)
+    provenance: rule
+    agent: true
+  - hash: 4e6329eb46ce5d45b9a610ddb71630c010660491
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 67 commits)
+    provenance: rule
+    agent: false
+  - hash: bf47e3eca9aeda1e3826916a57c0f9fb0f9d2bc7
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 66 commits)
+    provenance: rule
+    agent: true
+  - hash: d8a1627b13020416cb95e4d56af66e99dc19cb47
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to pkg/github (1253 to 1254); 30600ba3353e ("perf(repos): reduce symlink guard overhead") 10 commits later removed 1 duplicate blocks from pkg/github while the SLOC there changed by +0.0% (lookahead 65 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 30600ba3353ea8c1c46f2163639a3771c38d4fc5
+        package: pkg/github
+  - hash: 30000614308aa6c7a13779a47db1286db48b0b6d
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to pkg/github (1254 to 1255); 30600ba3353e ("perf(repos): reduce symlink guard overhead") 9 commits later removed 1 duplicate blocks from pkg/github while the SLOC there changed by +0.0% (lookahead 64 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 30600ba3353ea8c1c46f2163639a3771c38d4fc5
+        package: pkg/github
+  - hash: 95a8e7570581e15f383d261d4e6db5bfdaebfdbb
+    verdict: block
+    reason: 'extract: added 3 duplicate blocks to pkg/github (1255 to 1258); f8d38356e97a ("refactor(repos): simplify symlink read disclosure") 10 commits later removed 4 duplicate blocks from pkg/github while the SLOC there changed by -0.3% (lookahead 63 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: f8d38356e97a499c7ad9769f8e6b6fc1534b8f3f
+        package: pkg/github
+  - hash: 8395beae410e4fe50c4610e2b354a40d21997f45
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 62 commits)
+    provenance: rule
+    agent: true
+  - hash: b036edcac5d5a276a2e7a56d8fc4f35b91c0c125
+    verdict: block
+    reason: 'extract: added 4 duplicate blocks to pkg/github (1258 to 1262); f8d38356e97a ("refactor(repos): simplify symlink read disclosure") 8 commits later removed 4 duplicate blocks from pkg/github while the SLOC there changed by -0.3% (lookahead 61 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: f8d38356e97a499c7ad9769f8e6b6fc1534b8f3f
+        package: pkg/github
+  - hash: 91de9a0bf11915b01f4247bc9517b8c458f64d32
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 60 commits)
+    provenance: rule
+    agent: true
+  - hash: 316b8efcd05b849e3f97ab37129083240f8e4c21
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 59 commits)
+    provenance: rule
+    agent: true
+  - hash: 46651854efe30fce1683af0173e4847f1b3c4e9d
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 58 commits)
+    provenance: rule
+    agent: true
+  - hash: 596203ef54fc465d60f883b08d75c4b8961a4a50
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to pkg/github (1262 to 1263); 30600ba3353e ("perf(repos): reduce symlink guard overhead") 2 commits later removed 1 duplicate blocks from pkg/github while the SLOC there changed by +0.0% (lookahead 57 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: 30600ba3353ea8c1c46f2163639a3771c38d4fc5
+        package: pkg/github
+  - hash: bb3a1b2a03c4c84655652e376c331959eb9a8464
+    verdict: block
+    reason: 'extract: added 3 duplicate blocks to pkg/github (1263 to 1266); f8d38356e97a ("refactor(repos): simplify symlink read disclosure") 3 commits later removed 4 duplicate blocks from pkg/github while the SLOC there changed by -0.3% (lookahead 56 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: f8d38356e97a499c7ad9769f8e6b6fc1534b8f3f
+        package: pkg/github
+  - hash: 30600ba3353ea8c1c46f2163639a3771c38d4fc5
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 55 commits)
+    provenance: rule
+    agent: false
+  - hash: 8aeb670b0ba0e63074902616641f981b1538a749
+    verdict: allow
+    reason: added 225 SLOC to pkg/github, already over tokens_est 16000, largest_file_sloc 600, exported_symbols 60, internal_imports 10, sloc 1000; added 5 duplicate blocks to pkg/github (1265 to 1270); no later commit split or extracted it (lookahead 54 commits)
+    provenance: rule
+    agent: true
+  - hash: f8d38356e97a499c7ad9769f8e6b6fc1534b8f3f
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 53 commits)
+    provenance: rule
+    agent: false
+  - hash: a6b820741b6b60fbb9a758189327f1a067f74eaf
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 52 commits)
+    provenance: rule
+    agent: false
+  - hash: 9cfe97e20a79c8690c9863fd91f80edccfffc884
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 51 commits)
+    provenance: rule
+    agent: false
+  - hash: 1e7b3f9bc5da0b54045b61fbb770c54ca05d77c5
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 50 commits)
+    provenance: rule
+    agent: true
+  - hash: ee37dd8bdbb0660658db8840bda7e034a04f66e8
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 49 commits)
+    provenance: rule
+    agent: false
+  - hash: c64b6fed32d934215fe412e8be2ad79f0bfd1161
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 48 commits)
+    provenance: rule
+    agent: true
+  - hash: c54cd63e3ee6d0ef546f02d261e1bbecf80e2aa6
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 47 commits)
+    provenance: rule
+    agent: true
+  - hash: 769340d6a1b8b0aee9ea6b5a9dd6d56cac58f468
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 46 commits)
+    provenance: rule
+    agent: true
+  - hash: 3bad3bc651c45cc4a1bf9dc70c8bb20d315ece1c
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 45 commits)
+    provenance: rule
+    agent: false
+  - hash: 56bfeec0a9bd0ad6a6d88a047541d9e9acad8101
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 44 commits)
+    provenance: rule
+    agent: true
+  - hash: 912cce687ba641b64a0ff16963a93d6c0ce76048
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 43 commits)
+    provenance: rule
+    agent: true
+  - hash: ea2d97919812ade914a8e5ec69d78c77a246cefd
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to pkg/sanitize (0 to 1); 53fc915a1005 ("Re-run fence filter and preserve valid variation sequences") 1 commits later removed 1 duplicate blocks from pkg/sanitize while the SLOC there changed by +13.5% (lookahead 42 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: 53fc915a1005388a7e1bfeb420ce3d6692304413
+        package: pkg/sanitize
+  - hash: 53fc915a1005388a7e1bfeb420ce3d6692304413
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 41 commits)
+    provenance: rule
+    agent: true
+  - hash: 51ea58e70b7147e7c992902f17afafa449b7eee7
+    verdict: allow
+    reason: added 1 duplicate blocks to pkg/raw (0 to 1); no later commit split or extracted it (lookahead 40 commits)
+    provenance: rule
+    agent: true
+  - hash: c195fb9fea7a915791a2262572afec95c1a77ec6
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 39 commits)
+    provenance: rule
+    agent: true
+  - hash: 08edfa86f3db0c349d49f4f541283f1481f8dfd2
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 38 commits)
+    provenance: rule
+    agent: true
+  - hash: e0096d87d5aeebe407ded7c97994620ead63abdd
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 37 commits)
+    provenance: rule
+    agent: true
+  - hash: 0f0e191bb06ddae23cfc4f8b6026a6d437f502cf
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 36 commits)
+    provenance: rule
+    agent: true
+  - hash: b0b41a5515ef321f0952f7f0e74458460e61f00c
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 35 commits)
+    provenance: rule
+    agent: true
+  - hash: b3ecab4a012e3a75782e10897c4e67e4e17ba67f
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 34 commits)
+    provenance: rule
+    agent: true
+  - hash: a429a8759f07f73532734d9dc8c33ba2b8963bb9
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 33 commits)
+    provenance: rule
+    agent: true
+  - hash: 56c9088c60c5998067f958fbc49b3e33374a127a
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 32 commits)
+    provenance: rule
+    agent: true
+  - hash: bd4e80fb54cf1561ab09b42b6ac33d06f0471fbc
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 31 commits)
+    provenance: rule
+    agent: false
+  - hash: 566f4839e8968f7276c432d07a54e84a76159290
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 30 commits)
+    provenance: rule
+    agent: true
+  - hash: acd2afc766f047355f15c2bfb0ba04b0722952e0
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 29 commits)
+    provenance: rule
+    agent: true
+  - hash: 95b347e945cfab83848a419a96c7e462bc13ffb0
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 28 commits)
+    provenance: rule
+    agent: true
+  - hash: 02cf0f7d750fc021c8719dbab0ab22faed741eb2
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 27 commits)
+    provenance: rule
+    agent: true
+  - hash: 0bb1e569ce3452cdd5d1e1941a56e0c0c5aa867b
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 26 commits)
+    provenance: rule
+    agent: true
+  - hash: e95b7fda29e5fdee470f58fddffcbbeae8f6c7fb
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 25 commits)
+    provenance: rule
+    agent: false
+  - hash: 24dc8b08c1b0971d54bbe3d0792631b856711c98
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 24 commits)
+    provenance: rule
+    agent: true
+  - hash: 55f7b721fd9ae5867382b6c3208c9d9be5e5fe20
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 23 commits)
+    provenance: rule
+    agent: false
+  - hash: fcdd664099f957c4a7dc183d9381cef191e8c8a9
+    verdict: allow
+    reason: added 2 duplicate blocks to pkg/github (1261 to 1263); no later commit split or extracted it (lookahead 22 commits)
+    provenance: rule
+    agent: true
+  - hash: 0ae533c163eaaf42b71cc5ff6cd1ee69f17d3448
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 21 commits)
+    provenance: rule
+    agent: false
+  - hash: a7c3b494e6cdd70312ad4535f661eadf323b8e18
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 20 commits)
+    provenance: rule
+    agent: true
+  - hash: 64a49f34d076b6f5917dae1424521d43c7bcae84
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 19 commits)
+    provenance: rule
+    agent: false
+  - hash: c393e4a3b99e88b561b14ca0181ecfe7adada59e
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 18 commits)
+    provenance: rule
+    agent: false
+  - hash: 8898db96b8043db1ddacff444600e408cf824fa2
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 17 commits)
+    provenance: rule
+    agent: false
+  - hash: dedfc007e51b4542675ede62c67c72503b8b9337
+    verdict: allow
+    reason: added 394 SLOC to pkg/github, already over tokens_est 16000, largest_file_sloc 600, exported_symbols 60, internal_imports 10, sloc 1000; added 21 duplicate blocks to pkg/github (1263 to 1284); no later commit split or extracted it (lookahead 16 commits)
+    provenance: rule
+    agent: true
+  - hash: 5d29d9b143c6417ca835da658fca04400b6370ce
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 15 commits)
+    provenance: rule
+    agent: false
+  - hash: 85044de27e2e4592df94d3a91dd475c3d71295a5
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to pkg/github (1284 to 1285); 6641c96d1130 ("Fold atomic creation into issue tools") 1 commits later removed 1 duplicate blocks from pkg/github while the SLOC there changed by -0.0% (lookahead 14 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: 6641c96d1130039b1122c4e15bb303f0b6dd2f87
+        package: pkg/github
+  - hash: 6641c96d1130039b1122c4e15bb303f0b6dd2f87
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 13 commits)
+    provenance: rule
+    agent: false
+  - hash: c4d12b567c9224fb35204cab3c3cfa2c17a06259
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 12 commits)
+    provenance: rule
+    agent: false
+  - hash: 884c791d000c6ad27bbd76b3d0e3307e3988d0b3
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 11 commits)
+    provenance: rule
+    agent: false
+  - hash: a58b40d5e9f8961da97fbbfc9b6c8a9bfd0085b8
+    verdict: allow
+    reason: added 1 duplicate blocks to pkg/http/transport (1 to 2); no later commit split or extracted it (lookahead 10 commits)
+    provenance: rule
+    agent: true
+  - hash: f51ee72b89c9f44f9e6c77301836a3cd39255469
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 9 commits)
+    provenance: rule
+    agent: true
+  - hash: 67df0362d417e965f617dd00feb18a3189c56f88
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 8 commits)
+    provenance: rule
+    agent: true
+  - hash: 7667cc760b9138884359b0817f64aeefe7fb34cf
+    verdict: allow
+    reason: added 1 cross-package duplicate blocks (30 to 31); added 1 duplicate blocks to internal/ghmcp (5 to 6); no later commit split or extracted it (lookahead 7 commits)
+    provenance: rule
+    agent: true
+  - hash: e9581542233a23072c63a64a875c6166738b9850
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 6 commits)
+    provenance: rule
+    agent: true
+  - hash: 65782e65a5013a084e7f6577fb526937f4e7128f
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 5 commits)
+    provenance: rule
+    agent: false
+  - hash: a39e540f6696b924f533ce3cf6a9523cd5eaf380
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 4 commits)
+    provenance: rule
+    agent: false
+  - hash: 3f67b7e2c06868a5ce18d1063ff345ba4be0e42e
+    verdict: allow
+    reason: added 126 SLOC to pkg/github, already over tokens_est 16000, largest_file_sloc 600, exported_symbols 60, internal_imports 10, sloc 1000; added 12 duplicate blocks to pkg/github (1283 to 1295); no later commit split or extracted it (lookahead 3 commits)
+    provenance: rule
+    agent: true
+  - hash: 499c175bb23dcf6a6cff276a78cdd16095616712
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 2 commits)
+    provenance: rule
+    agent: true
+  - hash: b59c4e72debda6fbc1ac13cb8d187b9e13486c30
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 1 commits)
+    provenance: rule
+    agent: true
+  - hash: f0baf1c80276711bd7e26d4b8fdc26dae7802d5f
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 0 commits)
+    provenance: rule
+    agent: true

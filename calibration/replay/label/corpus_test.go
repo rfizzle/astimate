@@ -12,8 +12,8 @@ import (
 const repoRoot = "../../.."
 
 // TestCorpusCommits checks calibration/corpus-commits.yaml against what is
-// committed: every entry's replay data exists, its labels file labels
-// every replayed commit by the rule, agent_commits is the number of
+// committed: every entry's replay data exists, its two labels files label
+// every replayed commit by each rule, agent_commits is the number of
 // replayed commits its agent rule matches, and the labels agree on which
 // commits those are. The corpus must hold at least three repositories and
 // 300 agent commits.
@@ -33,23 +33,25 @@ func TestCorpusCommits(t *testing.T) {
 			if revRange != r.Range {
 				t.Errorf("replayed range %q, corpus range %q", revRange, r.Range)
 			}
-			f, err := labels.Load(filepath.Join(repoRoot, r.Labels))
-			if err != nil {
-				t.Fatal(err)
-			}
 			hashes := make([]string, len(rows))
 			agents := 0
 			for k := range rows {
 				hashes[k] = rows[k].Commit
 				agents += b2i(r.Agent.matches(&rows[k]))
 			}
-			if err := f.Validate(hashes); err != nil {
-				t.Fatal(err)
-			}
-			for k := range f.Commits {
-				l := &f.Commits[k]
-				if l.Provenance != labels.Rule || l.Agent == nil || *l.Agent != r.Agent.matches(&rows[k]) {
-					t.Errorf("label %s: provenance %s, agent %v, not the rule's", l.Hash, l.Provenance, l.Agent)
+			for _, path := range []string{r.Labels, r.SplitExtractLabels} {
+				f, err := labels.Load(filepath.Join(repoRoot, path))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := f.Validate(hashes); err != nil {
+					t.Fatalf("%s: %v", path, err)
+				}
+				for k := range f.Commits {
+					l := &f.Commits[k]
+					if l.Provenance != labels.Rule || l.Agent == nil || *l.Agent != r.Agent.matches(&rows[k]) {
+						t.Errorf("%s label %s: provenance %s, agent %v, not the rule's", path, l.Hash, l.Provenance, l.Agent)
+					}
 				}
 			}
 			if agents != r.AgentCommits {
@@ -66,7 +68,7 @@ func TestCorpusCommits(t *testing.T) {
 func TestCorpusValidate(t *testing.T) {
 	good := repository{
 		Name: "a", Repo: "https://example.com/a.git", Commit: strings.Repeat("b", 40), Range: "x.." + strings.Repeat("b", 40),
-		History: "squash", Agent: agentRule{Authors: []string{"bot"}}, Data: "d", Labels: "l",
+		History: "squash", Agent: agentRule{Authors: []string{"bot"}}, Data: "d", Labels: "l", SplitExtractLabels: "s",
 	}
 	tests := []struct {
 		name string
@@ -80,6 +82,7 @@ func TestCorpusValidate(t *testing.T) {
 		{"history", func(r *repository) { r.History = "rebase" }, "history"},
 		{"no agent rule", func(r *repository) { r.Agent = agentRule{} }, "agent rule"},
 		{"no labels", func(r *repository) { r.Labels = "" }, "labels path"},
+		{"no split-extract labels", func(r *repository) { r.SplitExtractLabels = "" }, "split_extract_labels path"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

@@ -10,6 +10,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/rfizzle/astimate/calibration/replay/label/internal/split"
 )
 
 // commit is the part of a commits.jsonl row the labeler reads.
@@ -106,19 +108,14 @@ func (g gitRepo) touched(ctx context.Context, c *commit) (map[string]bool, error
 // readCommits returns the rows of dir's commits.jsonl, in replay order, and
 // the range run.json records.
 func readCommits(dir string) ([]commit, string, error) {
-	data, err := os.ReadFile(filepath.Join(dir, "run.json"))
+	run, err := split.ReadRun(dir)
+	if err == nil && run.Range == "" {
+		err = fmt.Errorf("%s/run.json has no source range", dir)
+	}
 	if err != nil {
-		return nil, "", fmt.Errorf("reading the replay's run: %w", err)
+		return nil, "", err
 	}
-	var run struct {
-		Source struct {
-			Range string `json:"range"`
-		} `json:"source"`
-	}
-	if err := json.Unmarshal(data, &run); err != nil || run.Source.Range == "" {
-		return nil, "", fmt.Errorf("%s/run.json has no source range", dir)
-	}
-	data, err = os.ReadFile(filepath.Join(dir, "commits.jsonl"))
+	data, err := os.ReadFile(filepath.Join(dir, "commits.jsonl"))
 	if err != nil {
 		return nil, "", fmt.Errorf("reading the replayed commits: %w", err)
 	}
@@ -129,5 +126,5 @@ func readCommits(dir string) ([]commit, string, error) {
 			return nil, "", fmt.Errorf("decoding %s/commits.jsonl row %d: %w", dir, len(rows), err)
 		}
 	}
-	return rows, run.Source.Range, nil
+	return rows, run.Range, nil
 }

@@ -1,9 +1,12 @@
 # External corpus of agent-authored commits for the gate validation (SPEC.md
 # 11.3). Each repository's history is replayed with calibration/replay over
 # range, into data, and labeled by the revert-and-fix-up rule with
-# calibration/replay/label into labels. Selection, rejected candidates and
-# the rule's known failure modes are in
-# calibration/notes/agent-commits-corpus-2026-09-28.md. The schema, and that
+# calibration/replay/label into labels, and by the split-or-extraction rule
+# (--rule split-extract) into split_extract_labels. Selection, rejected
+# candidates and the fix-up rule's known failure modes are in
+# calibration/notes/agent-commits-corpus-2026-09-28.md; the
+# split-or-extraction labels in
+# calibration/notes/split-extract-labels-2026-09-29.md. The schema, and that
 # agent_commits matches the replayed rows, are checked by
 # go test ./calibration/replay/label.
 note: >-
@@ -28,6 +31,7 @@ repositories:
     agent_commits: 227
     data: calibration/data/replay-roborev-2026-09-28
     labels: calibration/replay/labels/roborev.yaml
+    split_extract_labels: calibration/replay/labels/roborev-split-extract.yaml
     reason: >-
       Go daemon that reviews agent commits, written largely with Claude Code
       and Codex, whose Co-Authored-By trailers name the agent. Direct
@@ -48,6 +52,7 @@ repositories:
     agent_commits: 136
     data: calibration/data/replay-github-mcp-server-2026-09-28
     labels: calibration/replay/labels/github-mcp-server.yaml
+    split_extract_labels: calibration/replay/labels/github-mcp-server-split-extract.yaml
     reason: >-
       GitHub's MCP server in Go, a different organization and agent from
       the other two: squash-merged pull requests of which many carry a
@@ -68,6 +73,7 @@ repositories:
     agent_commits: 175
     data: calibration/data/replay-beads-2026-09-28
     labels: calibration/replay/labels/beads.yaml
+    split_extract_labels: calibration/replay/labels/beads-split-extract.yaml
     reason: >-
       Go issue tracker for coding agents, written mostly by Claude Code and
       Amp, whose Co-Authored-By trailers name the agent. Mostly direct

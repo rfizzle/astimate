@@ -4,10 +4,13 @@
 // the targets, each rule's precision and recall per corpus beside a
 // size-only rule on sloc_delta, sweeps each rule's limits, recommends
 // keep, retune or drop per rule, and lists the block commits it missed.
+// When every corpus names a second labels file, every view is also scored
+// under that second label set, side by side with the first; the sweeps
+// and recommendations use the first.
 //
 // Usage, from the repository root:
 //
-//	go run ./calibration/validate --corpus <name>=<replay dir>:<labels file> [--corpus ...] \
+//	go run ./calibration/validate --corpus <name>=<replay dir>:<labels file>[,<second labels file>] [--corpus ...] \
 //	    [--config <file>] [--out <report.md>] [--agent-only=false] [--date YYYY-MM-DD]
 //
 // The configuration must be the one the replays gated with (the rows'
@@ -21,12 +24,14 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"time"
 
+	"github.com/rfizzle/astimate/calibration/replay/labels"
 	"github.com/rfizzle/astimate/calibration/validate/internal/corpus"
 	"github.com/rfizzle/astimate/calibration/validate/internal/measure"
 	"github.com/rfizzle/astimate/calibration/validate/internal/report"
@@ -103,7 +108,7 @@ func newOptions() options {
 func (o *options) parse(args []string, stderr io.Writer) error {
 	fs := flag.NewFlagSet("validate", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	fs.Func("corpus", "a corpus as name=<replay dir>:<labels file>; repeat for each", func(s string) error {
+	fs.Func("corpus", "a corpus as name=<replay dir>:<labels file>[,<second labels file>]; repeat for each", func(s string) error {
 		src, err := corpus.ParseSource(s)
 		o.sources = append(o.sources, src)
 		return err
@@ -202,8 +207,52 @@ func measureAll(o *options) (*report.Input, error) {
 			return nil, err
 		}
 	}
-	fill(in, scored, o)
+	advised := fill(in, scored, o)
+	if err := scoreSecond(in, views, rules, advised); err != nil {
+		return nil, err
+	}
 	return in, nil
+}
+
+// scoreSecond scores every view under the second label set, when the
+// corpora name one: the same commits, each with its label from the
+// corpus's second labels file. Every corpus must name a second file, or
+// none.
+func scoreSecond(in *report.Input, views []*corpus.Corpus, rules *measure.Rules, advised map[int]*gate.Threshold) error {
+	byHash := map[string]*labels.Label{}
+	named := 0
+	for i := range in.Corpora {
+		c := &in.Corpora[i]
+		lf, err := corpus.LoadSecond(c.Source)
+		if err != nil {
+			return err
+		}
+		if lf == nil {
+			continue
+		}
+		named++
+		c.SecondRule = lf.Rule
+		maps.Copy(byHash, lf.ByHash())
+	}
+	switch named {
+	case 0:
+		return nil
+	case len(in.Corpora):
+	default:
+		return errors.New("give every --corpus a second labels file, or none")
+	}
+	for _, v := range views {
+		rv, err := v.Relabel(byHash)
+		if err != nil {
+			return err
+		}
+		s, err := measure.Score(rv, rules)
+		if err != nil {
+			return err
+		}
+		in.Second = append(in.Second, report.View{Name: v.Name, Gate: s.Gate(), Advised: s.With(advised), Size: s.Size(in.SizeT)})
+	}
+	return nil
 }
 
 // describe counts one scored corpus's capacity-only labels and rechecks
@@ -255,8 +304,9 @@ func viewsOf(cs []*corpus.Corpus, capacity func(string) bool) []*corpus.Corpus {
 
 // fill computes, on the last view, the size-only threshold, each rule's
 // sweeps and advice; then every view's rates, with the advice applied
-// too; and each corpus's missed block commits.
-func fill(in *report.Input, scored []*measure.Scored, o *options) {
+// too; and each corpus's missed block commits. It returns the advised
+// rules, nil for a dropped one, by rule index.
+func fill(in *report.Input, scored []*measure.Scored, o *options) map[int]*gate.Threshold {
 	basis := scored[len(scored)-1]
 	in.SizeCurve = basis.SizeCurve(o.sizeGrid)
 	best, met := measure.BestSize(in.SizeCurve, o.targets.FalseFailure)
@@ -293,4 +343,5 @@ func fill(in *report.Input, scored []*measure.Scored, o *options) {
 			}
 		}
 	}
+	return advised
 }

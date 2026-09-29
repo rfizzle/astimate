@@ -43,15 +43,19 @@ func labelData(ctx context.Context, repo gitRepo, dir string, window int, rule *
 		Rule:    fmt.Sprintf(ruleText, window),
 		Commits: decide(commits, msgs, touched, window),
 	}
-	for i := range f.Commits {
-		if rule != nil {
-			agent := rule.matches(&commits[i])
-			f.Commits[i].Agent = &agent
-		}
-	}
+	return classify(f, commits, rule)
+}
+
+// classify sets each label of f's Agent from rule, when rule is not nil,
+// and checks that f labels exactly commits.
+func classify(f *labels.File, commits []commit, rule *agentRule) (*labels.File, error) {
 	hashes := make([]string, len(commits))
 	for i := range commits {
 		hashes[i] = commits[i].Commit
+		if rule != nil && i < len(f.Commits) {
+			agent := rule.matches(&commits[i])
+			f.Commits[i].Agent = &agent
+		}
 	}
 	if err := f.Validate(hashes); err != nil {
 		return nil, fmt.Errorf("labels do not cover the replay: %w", err)

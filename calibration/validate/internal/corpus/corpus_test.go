@@ -112,6 +112,55 @@ func TestLoadErrors(t *testing.T) {
 	}
 }
 
+func TestSecondLabelSet(t *testing.T) {
+	src := writeReplay(t, fixtureCommits, fixturePackages, fixtureLabels)
+	if lf, err := LoadSecond(src); lf != nil || err != nil {
+		t.Fatalf("LoadSecond without a second file = %v, %v", lf, err)
+	}
+	src.Second = filepath.Join(t.TempDir(), "second.yaml")
+	second := `source: {repository: r, range: x, data: d}
+rule: split or extraction
+commits:
+  - {hash: c1, verdict: allow, reason: nothing split, provenance: rule, agent: true}
+  - {hash: c2, verdict: allow, reason: not loaded, provenance: rule, agent: true}
+  - {hash: c3, verdict: allow, reason: r, provenance: rule, agent: false}
+  - {hash: c4, verdict: block, reason: split later, provenance: rule, fired: [{part: split, by: c9, package: a}]}
+`
+	if err := os.WriteFile(src.Second, []byte(second), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	lf, err := LoadSecond(src)
+	if err != nil || lf.Rule != "split or extraction" {
+		t.Fatalf("LoadSecond = %+v, %v", lf, err)
+	}
+	c, err := Load(src, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rc, err := c.Relabel(lf.ByHash())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rc.Commits) != len(c.Commits) || rc.Commits[0].Block() || !rc.Commits[1].Block() || !rc.RuleLabels {
+		t.Errorf("relabeled %+v", rc)
+	}
+	if !c.Commits[0].Block() || c.Commits[1].Block() {
+		t.Error("Relabel changed the original view")
+	}
+	if b, a := rc.Counts(); b != 1 || a != 1 {
+		t.Errorf("relabeled counts %d %d", b, a)
+	}
+	if _, err := c.Relabel(map[string]*labels.Label{}); err == nil || !strings.Contains(err.Error(), "no label in the second label set") {
+		t.Errorf("Relabel without labels: %v", err)
+	}
+	if err := os.WriteFile(src.Second, []byte(strings.Replace(second, "  - {hash: c4", "  - {hash: c5", 1)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadSecond(src); err == nil || !strings.Contains(err.Error(), "c4 has no label") {
+		t.Errorf("LoadSecond of a file missing a commit: %v", err)
+	}
+}
+
 func TestParseSource(t *testing.T) {
 	cases := []struct {
 		in   string
@@ -124,6 +173,10 @@ func TestParseSource(t *testing.T) {
 		{"=d:l", Source{}, false},
 		{"a=d:", Source{}, false},
 		{"a=:l", Source{}, false},
+		{"a=d:l.yaml,s.yaml", Source{Name: "a", Data: "d", Labels: "l.yaml", Second: "s.yaml"}, true},
+		{"a=d:l.yaml,", Source{}, false},
+		{"a=d:,s.yaml", Source{}, false},
+		{"a=d:l,s,t", Source{}, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.in, func(t *testing.T) {

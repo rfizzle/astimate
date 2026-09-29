@@ -1,0 +1,1029 @@
+source:
+  repository: git@github.com:rfizzle/astimate.git
+  range: master
+  data: calibration/data/replay-astimate-2026-09-28
+rule: 'block when a later commit in the rest of the replayed range splits a package this commit grew past a ceiling, or extracts duplicate code this commit added, read from the replay''s rows. Split: the commit took a package over a capacity rule''s max (at or under it at the parent, or new, and over it at the commit) or added 100 or more SLOC to a package already over one, and a later commit lowers that package''s sloc by at least 25% (deleting the package counts) while the module''s total sloc falls by less than 5% (code moved, not deleted). Extraction: the commit raised a package''s dup_blocks, or the module row''s dup_blocks_cross_pkg, and a later commit that changes a file of that package (for the module row, of a package the commit changed) lowers that count by at least what this commit added while the package''s sloc (the module''s total, for the module row) falls by less than 25%. Otherwise allow. The module''s total is the sum over every package the rows show, each carried from its nearest row, so a package no replayed commit changed is not counted. A commit the replay did not load has no rows and is allow. Each reason ends with the label''s lookahead: the commits after it in the range, so the last commits of a range are censored.'
+commits:
+  - hash: e40cfabb469058f2127356c877516879f4ff785c
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 221 commits)
+    provenance: rule
+  - hash: a58c6209e0fb21b5b1571c029773e9075161dd0f
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 220 commits)
+    provenance: rule
+  - hash: b641a5987bdb1d1b0ee3c543b640e1c1843c296a
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 219 commits)
+    provenance: rule
+  - hash: cf70ea3f03d1d6818ea163b741a6482fc8519bd9
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 218 commits)
+    provenance: rule
+  - hash: ee45fa65f8c1720e9626f2d11e2ae5d33d734a09
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 217 commits)
+    provenance: rule
+  - hash: f5a7e161cfda6504bfa46da70748090a8dcfa41f
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 216 commits)
+    provenance: rule
+  - hash: 43622336f18754344b753affce2c6a9e0f59b4de
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 215 commits)
+    provenance: rule
+  - hash: 97debce4a841c09b144e55376427d799f6f76e82
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 214 commits)
+    provenance: rule
+  - hash: e5a22bc4ea31e542e55417989731616dfb5a450f
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 213 commits)
+    provenance: rule
+  - hash: 339a8724dfe5353d966104c781d4cc712103c8b0
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 212 commits)
+    provenance: rule
+  - hash: bde93d4d7b91fb944b117919d6e20647e874aafa
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 211 commits)
+    provenance: rule
+  - hash: f295dd4fc923e3fd5c8d24108c9e8a2f9b822c80
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 210 commits)
+    provenance: rule
+  - hash: 935049916babdf2e8be1558d2afa1d8e00c8acaa
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 209 commits)
+    provenance: rule
+  - hash: 78ea92a11eeabc190c3a67f68d186804825d8a7e
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 208 commits)
+    provenance: rule
+  - hash: c5564d82cbbbdd4e21e9f748de662e3a11ba2864
+    verdict: block
+    reason: 'extract: added 1 cross-package duplicate blocks (0 to 1); 6e8312f3a315 ("feat(gate): flag the most complex changed function") 109 commits later removed 1 duplicate blocks from the module''s cross-package duplicates while the SLOC there changed by +4.2% (lookahead 207 commits)'
+    provenance: rule
+    fired:
+      - part: extract
+        by: 6e8312f3a315f0ef308f3808152d270213bf5785
+        package: <module>
+  - hash: 382fe38347d79f58af279d7f3a4ea27cc84e20af
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 206 commits)
+    provenance: rule
+  - hash: e456a2458a27522c13f4a1ba32781940ae915af5
+    verdict: allow
+    reason: added 1 duplicate blocks to internal/metrics/metricstest (0 to 1); no later commit split or extracted it (lookahead 205 commits)
+    provenance: rule
+  - hash: 4bf8009202abe2c12a3735fa4e3b865be4e7e01f
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 204 commits)
+    provenance: rule
+  - hash: f3bd7df1627be302b77cf06104fa21894a20e27e
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to internal/score (0 to 1); ab2d63092c09 ("feat(lang/go): measure coverage behind --coverage") 164 commits later removed 2 duplicate blocks from internal/score while the SLOC there changed by +3.9% (lookahead 203 commits)'
+    provenance: rule
+    fired:
+      - part: extract
+        by: ab2d63092c09fcefd800738fb56b95e039a4133f
+        package: internal/score
+  - hash: 6f5feb31892f3ceb3264d06474feff729e6f2245
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 202 commits)
+    provenance: rule
+  - hash: 2de8c5b0a371899b10efde6f150758782b74d8ec
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 201 commits)
+    provenance: rule
+  - hash: 3349b446bcd24dd6696fa4b4f4b3598de46e2abf
+    verdict: block
+    reason: 'extract: added 2 duplicate blocks to internal/score (1 to 3); ab2d63092c09 ("feat(lang/go): measure coverage behind --coverage") 161 commits later removed 2 duplicate blocks from internal/score while the SLOC there changed by +3.9% (lookahead 200 commits)'
+    provenance: rule
+    fired:
+      - part: extract
+        by: ab2d63092c09fcefd800738fb56b95e039a4133f
+        package: internal/score
+  - hash: 827795fd431e273a817ef194e16c2d281ce2f452
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 199 commits)
+    provenance: rule
+  - hash: e9d44d279448f00e50861bc2fbcde0e9fa10e44d
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 198 commits)
+    provenance: rule
+  - hash: 23b641f4b8638506d31fd9666aea7334d100a393
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 197 commits)
+    provenance: rule
+  - hash: a9befb553627c23d480f41155b0f6d550532ca04
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 196 commits)
+    provenance: rule
+  - hash: 2b4c71514c80b9c3fa50467328b95fe16af38ccf
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 195 commits)
+    provenance: rule
+  - hash: c4fe11a645010b4dcb6cc162b218c42757086bca
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 194 commits)
+    provenance: rule
+  - hash: 8a725f95d0ed0a9f20cb93147eca9ba395c9f44f
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to internal/lang/golang (0 to 1); 4132fa0b3cb9 ("refactor(lang/go): run Go duplication through the shared token finder") 120 commits later removed 2 duplicate blocks from internal/lang/golang while the SLOC there changed by -8.3% (lookahead 193 commits)'
+    provenance: rule
+    fired:
+      - part: extract
+        by: 4132fa0b3cb957629edcd279c4918f1e5592707f
+        package: internal/lang/golang
+  - hash: 15d7d83bc61fa528210e6172766a641942bcdaca
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 192 commits)
+    provenance: rule
+  - hash: 52ac174de586e547f0dc30b888138bb38d3080c4
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to internal/lang/golang (1 to 2); 4132fa0b3cb9 ("refactor(lang/go): run Go duplication through the shared token finder") 118 commits later removed 2 duplicate blocks from internal/lang/golang while the SLOC there changed by -8.3% (lookahead 191 commits)'
+    provenance: rule
+    fired:
+      - part: extract
+        by: 4132fa0b3cb957629edcd279c4918f1e5592707f
+        package: internal/lang/golang
+  - hash: 7bfd9b5dc0aafdf0c9dfe00a41d4aa3be7a9ee84
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 190 commits)
+    provenance: rule
+  - hash: a932f2c510778cb64412eb328acdde7192b2c6cf
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to internal/lang/golang (2 to 3); 4132fa0b3cb9 ("refactor(lang/go): run Go duplication through the shared token finder") 116 commits later removed 2 duplicate blocks from internal/lang/golang while the SLOC there changed by -8.3% (lookahead 189 commits)'
+    provenance: rule
+    fired:
+      - part: extract
+        by: 4132fa0b3cb957629edcd279c4918f1e5592707f
+        package: internal/lang/golang
+  - hash: faccda158ffb470af7e01239336a9e25b24394a7
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 188 commits)
+    provenance: rule
+  - hash: 44f2806fa91108398c1c49960082ad0c20cacfed
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 187 commits)
+    provenance: rule
+  - hash: aaac1fa4a4ece3998cc51e0a851405176b5c5d06
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 186 commits)
+    provenance: rule
+  - hash: 635a95abdf727dc9436414af348196bcb4d28cda
+    verdict: allow
+    reason: added 1 duplicate blocks to internal/gate (0 to 1); no later commit split or extracted it (lookahead 185 commits)
+    provenance: rule
+  - hash: b6a1d0d14a2556bc1d6ca9b1847b6f4b61c33911
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 184 commits)
+    provenance: rule
+  - hash: a13cfa26f341618d2c25f8942f5f056175ec9690
+    verdict: block
+    reason: 'split: took internal/lang/golang over tokens_est max 16000 (12748 to 17635), sloc max 1000 (965 to 1328); 9a10fd6e4729 ("refactor(lang/go): split the Go extractor into internal packages") 182 commits later cut internal/lang/golang from 3094 to 670 SLOC while the module''s total changed by +0.7% (lookahead 183 commits)'
+    provenance: rule
+    fired:
+      - part: split
+        by: 9a10fd6e472993bed2b58a58f65d3981894f7f37
+        package: internal/lang/golang
+  - hash: 716fe754a927fd45b044811e33d2952fc3604bf3
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 182 commits)
+    provenance: rule
+  - hash: 91aac48a91327c0757c7087cd7728613c73d51a2
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 181 commits)
+    provenance: rule
+  - hash: 0fcfd6b5f4d2d45847c55998a0dbadd4bf2d92c4
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 180 commits)
+    provenance: rule
+  - hash: 2fca91e37101f98fcf1c1fbe837588fb6923cec1
+    verdict: block
+    reason: 'split: added 125 SLOC to internal/lang/golang, already over tokens_est 16000, sloc 1000; 9a10fd6e4729 ("refactor(lang/go): split the Go extractor into internal packages") 178 commits later cut internal/lang/golang from 3094 to 670 SLOC while the module''s total changed by +0.7% (lookahead 179 commits)'
+    provenance: rule
+    fired:
+      - part: split
+        by: 9a10fd6e472993bed2b58a58f65d3981894f7f37
+        package: internal/lang/golang
+  - hash: 162ce754bafbf0783ae19359300ad687a3f711c3
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 178 commits)
+    provenance: rule
+  - hash: 688b5ea2e5649d638823570cf0c8f7b0af667ded
+    verdict: block
+    reason: 'extract: added 1 cross-package duplicate blocks (1 to 2); 2251316cdafe ("refactor(cli): move command orchestration into internal/engine") 29 commits later removed 1 duplicate blocks from the module''s cross-package duplicates while the SLOC there changed by +2.0% (lookahead 177 commits)'
+    provenance: rule
+    fired:
+      - part: extract
+        by: 2251316cdafef8464455067baf9830235fc27445
+        package: <module>
+  - hash: b5be5a6bcda6a83c5ee9403f587b5857a5c87bbf
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 176 commits)
+    provenance: rule
+  - hash: 626682bf62183f03675a408c23e1437d98a73108
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 175 commits)
+    provenance: rule
+  - hash: 1102d041147c8625b701c3c5ceec8ab9e005b3da
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 174 commits)
+    provenance: rule
+  - hash: 29661137732d609665fd79b6e263ffe340f2d507
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 173 commits)
+    provenance: rule
+  - hash: e10a0f5465bfa77768563ee28dfc294b542c53b6
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to internal/report (0 to 1); e25b497c9ee3 ("fix(report): stop HTML-escaping assess and rank JSON") 130 commits later removed 2 duplicate blocks from internal/report while the SLOC there changed by +0.1% (lookahead 172 commits)'
+    provenance: rule
+    fired:
+      - part: extract
+        by: e25b497c9ee35aafe351e6e79f76c4f405507244
+        package: internal/report
+  - hash: 399af8c2c9524eef4c9b33c799371168ea9fb51e
+    verdict: allow
+    reason: added 3 duplicate blocks to cmd/astimate (6 to 9); no later commit split or extracted it (lookahead 171 commits)
+    provenance: rule
+  - hash: 3c19af6106b7fbcde038430ced1eedc584f52764
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to internal/lang/golang (10 to 11); 4132fa0b3cb9 ("refactor(lang/go): run Go duplication through the shared token finder") 97 commits later removed 2 duplicate blocks from internal/lang/golang while the SLOC there changed by -8.3% (lookahead 170 commits)'
+    provenance: rule
+    fired:
+      - part: extract
+        by: 4132fa0b3cb957629edcd279c4918f1e5592707f
+        package: internal/lang/golang
+  - hash: 8cd4c35cd41f99d5ea92beaffe653bfe61a57385
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to internal/lang/golang (11 to 12); 4132fa0b3cb9 ("refactor(lang/go): run Go duplication through the shared token finder") 96 commits later removed 2 duplicate blocks from internal/lang/golang while the SLOC there changed by -8.3% (lookahead 169 commits)'
+    provenance: rule
+    fired:
+      - part: extract
+        by: 4132fa0b3cb957629edcd279c4918f1e5592707f
+        package: internal/lang/golang
+  - hash: 5042e37caa7eb7dca4b167a46f5145057f52136f
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 168 commits)
+    provenance: rule
+  - hash: b37de2c6760c27bfed0612e0805ba38018cc7204
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 167 commits)
+    provenance: rule
+  - hash: 41dd6468df1b749968063781627ad7db119cb7c9
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 166 commits)
+    provenance: rule
+  - hash: 2aa3b3cfbb5c8cdf713fc3cd826cc6a4d54565e6
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 165 commits)
+    provenance: rule
+  - hash: b241edcec1530c7c02b8fa910f5d4b84e0f7688c
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 164 commits)
+    provenance: rule
+  - hash: d7b08559bd0c386438ad263bb2d6174d445def65
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 163 commits)
+    provenance: rule
+  - hash: 8d255664b7836d5e6fa60468bfaa564e71ad141b
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 162 commits)
+    provenance: rule
+  - hash: be9ac98ec99232e6d5de357c29dc2f34711bb853
+    verdict: block
+    reason: 'split: added 217 SLOC to internal/lang/golang, already over tokens_est 16000, sloc 1000; 9a10fd6e4729 ("refactor(lang/go): split the Go extractor into internal packages") 160 commits later cut internal/lang/golang from 3094 to 670 SLOC while the module''s total changed by +0.7%; extract: added 2 duplicate blocks to internal/lang/golang (12 to 14); 4132fa0b3cb9 ("refactor(lang/go): run Go duplication through the shared token finder") 88 commits later removed 2 duplicate blocks from internal/lang/golang while the SLOC there changed by -8.3% (lookahead 161 commits)'
+    provenance: rule
+    fired:
+      - part: split
+        by: 9a10fd6e472993bed2b58a58f65d3981894f7f37
+        package: internal/lang/golang
+      - part: extract
+        by: 4132fa0b3cb957629edcd279c4918f1e5592707f
+        package: internal/lang/golang
+  - hash: ef8480f3fd4ac362987b1b18cc43946133fe1110
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 160 commits)
+    provenance: rule
+  - hash: 662f7f93a3d0d347e6a2f7780adf50624e4b6be4
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 159 commits)
+    provenance: rule
+  - hash: 49adff2ebf276c1c1702b8e1b09ca785458ee900
+    verdict: block
+    reason: 'extract: added 1 cross-package duplicate blocks (2 to 3); 2251316cdafe ("refactor(cli): move command orchestration into internal/engine") 10 commits later removed 1 duplicate blocks from the module''s cross-package duplicates while the SLOC there changed by +2.0% (lookahead 158 commits)'
+    provenance: rule
+    fired:
+      - part: extract
+        by: 2251316cdafef8464455067baf9830235fc27445
+        package: <module>
+  - hash: 14c13b6f16091d0d6e7c70e24801a0c295d14362
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 157 commits)
+    provenance: rule
+  - hash: 7db060b4b27a1bc1eb8646fd4f217b84f8a2d526
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 156 commits)
+    provenance: rule
+  - hash: 55d45c2491a3b441f54d54d9aa41cee9181c6332
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 155 commits)
+    provenance: rule
+  - hash: d7cf439a731c53015ef857937e4cda9288bbda3b
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 154 commits)
+    provenance: rule
+  - hash: 8915b8927077605de15d8f28066692d9e2c13169
+    verdict: allow
+    reason: added 3 duplicate blocks to cmd/astimate (13 to 16); no later commit split or extracted it (lookahead 153 commits)
+    provenance: rule
+  - hash: 8d89444726969c2bc2ecc4d6c1af784d9dbb70a0
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 152 commits)
+    provenance: rule
+  - hash: 4d348015046d9b6f00ddaf33caa8d791b3687839
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 151 commits)
+    provenance: rule
+  - hash: 1683e94a1dba8dd213353f5dc2f055982092406d
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 150 commits)
+    provenance: rule
+  - hash: 3c818cb4498704680ac431109ad51b3149b44aca
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 149 commits)
+    provenance: rule
+  - hash: 2251316cdafef8464455067baf9830235fc27445
+    verdict: allow
+    reason: added 3 duplicate blocks to internal/engine (0 to 3); no later commit split or extracted it (lookahead 148 commits)
+    provenance: rule
+  - hash: f44bea4fb2dffe8bf13b4ef65d5d78ef9b5430b0
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 147 commits)
+    provenance: rule
+  - hash: 1532219735cee62f37a83446b441dd72bef20400
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 146 commits)
+    provenance: rule
+  - hash: f1edae7f851de5eb4942ba78f0b76664a74497c8
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 145 commits)
+    provenance: rule
+  - hash: 348af5868c164300f35ddeaba04f62a9e2b061fc
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 144 commits)
+    provenance: rule
+  - hash: 5dd71adeb708eaeebf15fe1a651991b45ef44ea9
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 143 commits)
+    provenance: rule
+  - hash: 9ba46b77b02fc44dd5097a175c29ac1e48e183fb
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 142 commits)
+    provenance: rule
+  - hash: 02d4dec9246bba7cbba5e78be8caea2a31e10349
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 141 commits)
+    provenance: rule
+  - hash: 6a3ccc5feb96bc82fe3934f97afe4ca37552d166
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 140 commits)
+    provenance: rule
+  - hash: 1a42ce081c52e162d131d013683162d889c7fa69
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to internal/engine (3 to 4); 66b5a08911a4 ("feat(lang/ts): add a TypeScript extractor behind tree-sitter") 28 commits later removed 2 duplicate blocks from internal/engine while the SLOC there changed by +10.2% (lookahead 139 commits)'
+    provenance: rule
+    fired:
+      - part: extract
+        by: 66b5a08911a4a23197e1ce5db843f2b1e7c17df3
+        package: internal/engine
+  - hash: 8a6c0fefd446020567258280ec9d134558b1f5ec
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 138 commits)
+    provenance: rule
+  - hash: 0ca9db5c8eae4280feeb13e49a7056f0c29cd788
+    verdict: allow
+    reason: added 5 cross-package duplicate blocks (3 to 8); no later commit split or extracted it (lookahead 137 commits)
+    provenance: rule
+  - hash: 499b8b2eb754b68ab33a6c43ef07c381b3b20b9c
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 136 commits)
+    provenance: rule
+  - hash: 29f89f7c991f63c0b9869b9c05837ce68aa220ed
+    verdict: allow
+    reason: added 2 duplicate blocks to internal/mcpserver (0 to 2); no later commit split or extracted it (lookahead 135 commits)
+    provenance: rule
+  - hash: 68327d38b84aa2368859f240f7b53136e3091f37
+    verdict: allow
+    reason: added 1 duplicate blocks to internal/mcpserver (2 to 3); no later commit split or extracted it (lookahead 134 commits)
+    provenance: rule
+  - hash: 97c79be93790b12a3b5c54dbecdd73fbb3a28d29
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 133 commits)
+    provenance: rule
+  - hash: e28074920074db2026476b09d73e50914280f044
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 132 commits)
+    provenance: rule
+  - hash: 143de6ac3869d9d71c3b3c9e5a6e076b7d44d8de
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 131 commits)
+    provenance: rule
+  - hash: e36f071c6c2c3594ac7e59a27cb7f723b4a6c69f
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 130 commits)
+    provenance: rule
+  - hash: f9418c1f024dc6c3579bf3167118b568086386aa
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 129 commits)
+    provenance: rule
+  - hash: 529f952e1b75dafc69351a7980c908d3226b3dc9
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 128 commits)
+    provenance: rule
+  - hash: 8e892bcfc4f0cd46758c416328e3282753385bfd
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 127 commits)
+    provenance: rule
+  - hash: 5e351a870f1168c13202f8a467d9f059ba972c49
+    verdict: block
+    reason: 'split: added 105 SLOC to internal/lang/golang, already over tokens_est 16000, sloc 1000; 9a10fd6e4729 ("refactor(lang/go): split the Go extractor into internal packages") 125 commits later cut internal/lang/golang from 3094 to 670 SLOC while the module''s total changed by +0.7%; extract: added 1 duplicate blocks to internal/lang/golang (14 to 15); 4132fa0b3cb9 ("refactor(lang/go): run Go duplication through the shared token finder") 53 commits later removed 2 duplicate blocks from internal/lang/golang while the SLOC there changed by -8.3% (lookahead 126 commits)'
+    provenance: rule
+    fired:
+      - part: split
+        by: 9a10fd6e472993bed2b58a58f65d3981894f7f37
+        package: internal/lang/golang
+      - part: extract
+        by: 4132fa0b3cb957629edcd279c4918f1e5592707f
+        package: internal/lang/golang
+  - hash: dd6fc811bbd30b0a78710158fe6cab2d14dab4d8
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 125 commits)
+    provenance: rule
+  - hash: b69ea5f55e752a210f74d8f2d19fab4f026a0efd
+    verdict: allow
+    reason: added 11 duplicate blocks to internal/metrics (6 to 17); no later commit split or extracted it (lookahead 124 commits)
+    provenance: rule
+  - hash: 25094909c3ea0da365cd1cf9f1d70ae8d18450be
+    verdict: block
+    reason: 'split: added 117 SLOC to internal/lang/golang, already over tokens_est 16000, sloc 1000; 9a10fd6e4729 ("refactor(lang/go): split the Go extractor into internal packages") 122 commits later cut internal/lang/golang from 3094 to 670 SLOC while the module''s total changed by +0.7% (lookahead 123 commits)'
+    provenance: rule
+    fired:
+      - part: split
+        by: 9a10fd6e472993bed2b58a58f65d3981894f7f37
+        package: internal/lang/golang
+  - hash: cb7fd8ac156a06d2a289e9b43ac69e6fca811776
+    verdict: allow
+    reason: added 2 duplicate blocks to internal/mcpserver (3 to 5); no later commit split or extracted it (lookahead 122 commits)
+    provenance: rule
+  - hash: c7e543edc5cba9d2adcf7b8ea9138357f962d24b
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 121 commits)
+    provenance: rule
+  - hash: 61b34f88078a2f04ece7f5f88d5775721c4cc7f2
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 120 commits)
+    provenance: rule
+  - hash: 8432ed15d41729adb6f3f36bf964dbcf9ed3c22e
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 119 commits)
+    provenance: rule
+  - hash: d7b88310960a89fde3f686acfa4e5f33f64e5126
+    verdict: allow
+    reason: added 5 cross-package duplicate blocks (8 to 13); added 5 duplicate blocks to calibration/fit (0 to 5); no later commit split or extracted it (lookahead 118 commits)
+    provenance: rule
+  - hash: d3d9249636d28b2e44277c275c9de743aafc1184
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 117 commits)
+    provenance: rule
+  - hash: aa71b7c307ad3dbb4c0e7a72dc1631efdc4a669a
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 116 commits)
+    provenance: rule
+  - hash: ea33c1d6d423331e0a0532f284d8155024d200fd
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 115 commits)
+    provenance: rule
+  - hash: 2f4de4c584f8315a9c58865d31219a65ec95cdd3
+    verdict: block
+    reason: 'split: added 165 SLOC to internal/lang/golang, already over tokens_est 16000, sloc 1000; 9a10fd6e4729 ("refactor(lang/go): split the Go extractor into internal packages") 113 commits later cut internal/lang/golang from 3094 to 670 SLOC while the module''s total changed by +0.7%; extract: added 2 duplicate blocks to internal/engine (4 to 6); 66b5a08911a4 ("feat(lang/ts): add a TypeScript extractor behind tree-sitter") 3 commits later removed 2 duplicate blocks from internal/engine while the SLOC there changed by +10.2% (lookahead 114 commits)'
+    provenance: rule
+    fired:
+      - part: split
+        by: 9a10fd6e472993bed2b58a58f65d3981894f7f37
+        package: internal/lang/golang
+      - part: extract
+        by: 66b5a08911a4a23197e1ce5db843f2b1e7c17df3
+        package: internal/engine
+  - hash: f8734e19cb2715b07c6e2e3e9daf6833c3c44dd5
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 113 commits)
+    provenance: rule
+  - hash: 3c514d8d003fee7333aa6e30e80bc0166dcfc09d
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 112 commits)
+    provenance: rule
+  - hash: 66b5a08911a4a23197e1ce5db843f2b1e7c17df3
+    verdict: block
+    reason: 'split: took internal/lang/typescript over tokens_est max 16000 (0 to 20922), sloc max 1000 (0 to 1650); 46ffb57f9617 ("refactor(lang/ts): split the TypeScript extractor into resolve, inspect and walk") 106 commits later cut internal/lang/typescript from 2346 to 611 SLOC while the module''s total changed by +0.0% (lookahead 111 commits)'
+    provenance: rule
+    fired:
+      - part: split
+        by: 46ffb57f96176d5166cb001e1094597710decb13
+        package: internal/lang/typescript
+  - hash: c76181d602d988de646b3ce4d1303b0ce614d972
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 110 commits)
+    provenance: rule
+  - hash: aba8507095a7b270986c4553b5a8b728bfb4d2d8
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 109 commits)
+    provenance: rule
+  - hash: a4231124817169ec531fcff1e051c7258eeea12c
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 108 commits)
+    provenance: rule
+  - hash: b26f5b6f908c694f4c243e0980f9ac75a3cb86a7
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 107 commits)
+    provenance: rule
+  - hash: 3780c6d4182b90e05dcb6b35fdc649c6bd9291b7
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 106 commits)
+    provenance: rule
+  - hash: 0328a56c2a3e0672f85a951f14847a55c50d2442
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 105 commits)
+    provenance: rule
+  - hash: bec9d62f502f629a6617c6e6208062c18c09f855
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 104 commits)
+    provenance: rule
+  - hash: 2b0a3208154190be020720ecb9c6d2bda2fb6b25
+    verdict: block
+    reason: 'split: added 180 SLOC to internal/lang/typescript, already over tokens_est 16000, sloc 1000; 46ffb57f9617 ("refactor(lang/ts): split the TypeScript extractor into resolve, inspect and walk") 98 commits later cut internal/lang/typescript from 2346 to 611 SLOC while the module''s total changed by +0.0%; extract: added 1 cross-package duplicate blocks (38 to 39); 46ffb57f9617 ("refactor(lang/ts): split the TypeScript extractor into resolve, inspect and walk") 98 commits later removed 1 duplicate blocks from the module''s cross-package duplicates while the SLOC there changed by +0.0% (lookahead 103 commits)'
+    provenance: rule
+    fired:
+      - part: split
+        by: 46ffb57f96176d5166cb001e1094597710decb13
+        package: internal/lang/typescript
+      - part: extract
+        by: 46ffb57f96176d5166cb001e1094597710decb13
+        package: <module>
+  - hash: bab46e74c339a93190df42d35220e8fd299231fd
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 102 commits)
+    provenance: rule
+  - hash: 3f1f41b23ebfaa57c19c02519ca10781690f2559
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 101 commits)
+    provenance: rule
+  - hash: 3f01734275fc180ee49d540efdd765054b3545cd
+    verdict: block
+    reason: 'split: added 165 SLOC to internal/lang/typescript, already over tokens_est 16000, sloc 1000; 46ffb57f9617 ("refactor(lang/ts): split the TypeScript extractor into resolve, inspect and walk") 95 commits later cut internal/lang/typescript from 2346 to 611 SLOC while the module''s total changed by +0.0% (lookahead 100 commits)'
+    provenance: rule
+    fired:
+      - part: split
+        by: 46ffb57f96176d5166cb001e1094597710decb13
+        package: internal/lang/typescript
+  - hash: 95a6d9000152e607b334425e5c6fa3318a4b83cb
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 99 commits)
+    provenance: rule
+  - hash: 6e8312f3a315f0ef308f3808152d270213bf5785
+    verdict: block
+    reason: 'split: added 241 SLOC to internal/lang/golang, already over tokens_est 16000, sloc 1000; 9a10fd6e4729 ("refactor(lang/go): split the Go extractor into internal packages") 97 commits later cut internal/lang/golang from 3094 to 670 SLOC while the module''s total changed by +0.7% (lookahead 98 commits)'
+    provenance: rule
+    fired:
+      - part: split
+        by: 9a10fd6e472993bed2b58a58f65d3981894f7f37
+        package: internal/lang/golang
+  - hash: 63a4b98bf48fe771f6bf2d9bbec303f00c5dc059
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 97 commits)
+    provenance: rule
+  - hash: beadbfd43e08d1508d18cfbc6890ee2284ead542
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 96 commits)
+    provenance: rule
+  - hash: 15c281e27ba39b3ba52b80a12b352c79570c0582
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 95 commits)
+    provenance: rule
+  - hash: 783a96152ed1656f139645d5ff4179996c5aeab7
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 94 commits)
+    provenance: rule
+  - hash: 91ccc8226866bb3bdf37d3f365f0bb2c1c3f6913
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 93 commits)
+    provenance: rule
+  - hash: cc7a0d1ee57b98c40520faced6de7dda60c8577e
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to internal/lang/golang (25 to 26); 4132fa0b3cb9 ("refactor(lang/go): run Go duplication through the shared token finder") 19 commits later removed 2 duplicate blocks from internal/lang/golang while the SLOC there changed by -8.3% (lookahead 92 commits)'
+    provenance: rule
+    fired:
+      - part: extract
+        by: 4132fa0b3cb957629edcd279c4918f1e5592707f
+        package: internal/lang/golang
+  - hash: 97a282983031495e03d0ed0a21cebd8f7bbaf7b8
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 91 commits)
+    provenance: rule
+  - hash: 4ac37dcc9c466b1b7a96b6ed874607c323bfaaf6
+    verdict: allow
+    reason: added 1 duplicate blocks to internal/lang/typescript (3 to 4); no later commit split or extracted it (lookahead 90 commits)
+    provenance: rule
+  - hash: a8d3002001e2280743013d879d7f66382e7c8b38
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 89 commits)
+    provenance: rule
+  - hash: 566d78a9c09e478698da6e314000173bfd338cb0
+    verdict: allow
+    reason: added 2 duplicate blocks to internal/metrics/metricstest (2 to 4); no later commit split or extracted it (lookahead 88 commits)
+    provenance: rule
+  - hash: 01101b0657b04bcc7a29a90693ab1edb85820f32
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 87 commits)
+    provenance: rule
+  - hash: c9eeb905922d4c912fe93cbb81a31e65d272f8ee
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 86 commits)
+    provenance: rule
+  - hash: 7f67606c21e32624ad936e0c97d41a74116249a4
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 85 commits)
+    provenance: rule
+  - hash: 482a623c37a510cfff4b273bbb1f4c459c235832
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 84 commits)
+    provenance: rule
+  - hash: c4d3fe13f47342795936f036b4d7ddb2df70cea6
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 83 commits)
+    provenance: rule
+  - hash: c937d9b2566ef9e81cde5c0e7b52e3600b34e573
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 82 commits)
+    provenance: rule
+  - hash: bb4561a49620261c8381b7b2144950343ae095a7
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 81 commits)
+    provenance: rule
+  - hash: 69e72501e35ff6218a06a62f4115a905ac57488c
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 80 commits)
+    provenance: rule
+  - hash: 80cf58ac62bfdcfcbb94cdfa38a8b62d4667ada2
+    verdict: block
+    reason: 'extract: added 2 cross-package duplicate blocks (38 to 40); 09146a4acaaf ("feat(lang/go): name where cross-package duplicates live") 13 commits later removed 2 duplicate blocks from the module''s cross-package duplicates while the SLOC there changed by +1.5% (lookahead 79 commits)'
+    provenance: rule
+    fired:
+      - part: extract
+        by: 09146a4acaaf3ec8cf88920506505459933610d7
+        package: <module>
+  - hash: d15d19a0739f195373ca9d24814d79f6d2be1e23
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 78 commits)
+    provenance: rule
+  - hash: ccda62e8c78edfaab94239adfe0f5f1244b4df34
+    verdict: allow
+    reason: added 1 duplicate blocks to internal/lang/typescript (4 to 5); no later commit split or extracted it (lookahead 77 commits)
+    provenance: rule
+  - hash: c98874a1cd4b0a04e92f1450aad3c87f9a7af727
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 76 commits)
+    provenance: rule
+  - hash: ac4470ce6a86fd3c0d0dc7e3dc63a29202bb5371
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 75 commits)
+    provenance: rule
+  - hash: 9e6ccd9bbaa1180ec8f2ec53d2c03b302ea93a0d
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 74 commits)
+    provenance: rule
+  - hash: 4132fa0b3cb957629edcd279c4918f1e5592707f
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 73 commits)
+    provenance: rule
+  - hash: d8b029c4bba3a793612456920fb863b905eb6b0d
+    verdict: allow
+    reason: added 1 duplicate blocks to internal/baseline (1 to 2); no later commit split or extracted it (lookahead 72 commits)
+    provenance: rule
+  - hash: 598146b4ec851fd718a1229191d6be713b8add60
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 71 commits)
+    provenance: rule
+  - hash: 183df46b7c68c72e58acccff0a79ed01c23cf011
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 70 commits)
+    provenance: rule
+  - hash: 01718bb9a2e2cd9785c87a6f0c96830ca4a2999c
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 69 commits)
+    provenance: rule
+  - hash: d9f721ff187878c77f161d99d3c271142b68b1da
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 68 commits)
+    provenance: rule
+  - hash: 27998bfb8bf633752a8446696ffdc69a838560d1
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 67 commits)
+    provenance: rule
+  - hash: 09146a4acaaf3ec8cf88920506505459933610d7
+    verdict: allow
+    reason: added 2 duplicate blocks to internal/engine (3 to 5); no later commit split or extracted it (lookahead 66 commits)
+    provenance: rule
+  - hash: 7c90b602a4401017f96e5b284b8ac00c342ac915
+    verdict: block
+    reason: 'split: took internal/lang/typescript over largest_file_sloc max 600 (581 to 609); 46ffb57f9617 ("refactor(lang/ts): split the TypeScript extractor into resolve, inspect and walk") 60 commits later cut internal/lang/typescript from 2346 to 611 SLOC while the module''s total changed by +0.0% (lookahead 65 commits)'
+    provenance: rule
+    fired:
+      - part: split
+        by: 46ffb57f96176d5166cb001e1094597710decb13
+        package: internal/lang/typescript
+  - hash: 51d6ec478ff2fb9a097ff794381487bb0a44456e
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 64 commits)
+    provenance: rule
+  - hash: 3dd5d664aa9f102132f25c2706da0b330c2086b4
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 63 commits)
+    provenance: rule
+  - hash: d54d36434398cd2eb9dd43d3b5fa39d67673733d
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 62 commits)
+    provenance: rule
+  - hash: 5e8a7a360ab01fc56cb4d36d997976f41fa5441c
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 61 commits)
+    provenance: rule
+  - hash: a45e781af0dda55fa526a2c5c8c394cf0d14c61e
+    verdict: allow
+    reason: added 1 duplicate blocks to internal/engine (4 to 5); added 1 duplicate blocks to internal/lang/golang (23 to 24); no later commit split or extracted it (lookahead 60 commits)
+    provenance: rule
+  - hash: 02199d105b46ce5cfdeccd07a9ed758bb9b4881e
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 59 commits)
+    provenance: rule
+  - hash: e1623a40c91089e819051fb8257189d7ac17c1b8
+    verdict: allow
+    reason: took internal/engine over tokens_est max 16000 (15956 to 16335), sloc max 1000 (980 to 1001); no later commit split or extracted it (lookahead 58 commits)
+    provenance: rule
+  - hash: 0ca8aa281c6f5a9d4475ece362ed66c0d6edeb77
+    verdict: allow
+    reason: added 2 duplicate blocks to internal/lang/typescript (5 to 7); added 2 duplicate blocks to internal/metrics/metricstest (4 to 6); no later commit split or extracted it (lookahead 57 commits)
+    provenance: rule
+  - hash: f70aa8664bfb04f8e4296e4f334b4528266a877b
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 56 commits)
+    provenance: rule
+  - hash: e7de35a2cd8df7773dce81fb1822e4486f40b7c9
+    verdict: allow
+    reason: added 3 duplicate blocks to internal/lang/typescript (7 to 10); no later commit split or extracted it (lookahead 55 commits)
+    provenance: rule
+  - hash: 99c74e59f5750c9813aca14514d74f32884accc8
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 54 commits)
+    provenance: rule
+  - hash: 4749e47e20edc4083cd3505449eb4119eb5ea5f6
+    verdict: allow
+    reason: added 6 duplicate blocks to internal/metrics/metricstest (6 to 12); no later commit split or extracted it (lookahead 53 commits)
+    provenance: rule
+  - hash: 9dae722b2d0677262efb4f374d3ba34feea45e78
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 52 commits)
+    provenance: rule
+  - hash: e420e4c777169839d9e893187285f6cabf77f2e6
+    verdict: block
+    reason: 'extract: added 2 duplicate blocks to internal/report (3 to 5); e25b497c9ee3 ("fix(report): stop HTML-escaping assess and rank JSON") 9 commits later removed 2 duplicate blocks from internal/report while the SLOC there changed by +0.1% (lookahead 51 commits)'
+    provenance: rule
+    fired:
+      - part: extract
+        by: e25b497c9ee35aafe351e6e79f76c4f405507244
+        package: internal/report
+  - hash: 3067932e3b04670bdd463b9359a4ca56c9f2ad2d
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 50 commits)
+    provenance: rule
+  - hash: 4e108f92daa4a74a23a878973ab3bf8a7c66470b
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 49 commits)
+    provenance: rule
+  - hash: 91ee7a6dd17cd21c6fb5c779edc8ae361d48233f
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 48 commits)
+    provenance: rule
+  - hash: e3bc939a866709509af758f10aca6ba6132fcbea
+    verdict: allow
+    reason: added 3 cross-package duplicate blocks (31 to 34); added 1 duplicate blocks to internal/lang/typescript (10 to 11); no later commit split or extracted it (lookahead 47 commits)
+    provenance: rule
+  - hash: 4f5b2367b0964fcf18da01ed677f367eb366c8f0
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 46 commits)
+    provenance: rule
+  - hash: b5020d627d36d32191f3f352c11ba2fb830b8a8d
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 45 commits)
+    provenance: rule
+  - hash: 3f6294f07299e5bc8763c82e28bf791eb231e3cb
+    verdict: allow
+    reason: took internal/engine over largest_file_sloc max 600 (588 to 627); added 1 duplicate blocks to internal/baseline (2 to 3); no later commit split or extracted it (lookahead 44 commits)
+    provenance: rule
+  - hash: 44497c02d7ac9ba63bfd49c0cceb04bc5f483af9
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 43 commits)
+    provenance: rule
+  - hash: e25b497c9ee35aafe351e6e79f76c4f405507244
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 42 commits)
+    provenance: rule
+  - hash: 8eaa6f08395a07558a2ba1a6b88dd0ba56c242b7
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to internal/score (3 to 4); ab2d63092c09 ("feat(lang/go): measure coverage behind --coverage") 2 commits later removed 2 duplicate blocks from internal/score while the SLOC there changed by +3.9% (lookahead 41 commits)'
+    provenance: rule
+    fired:
+      - part: extract
+        by: ab2d63092c09fcefd800738fb56b95e039a4133f
+        package: internal/score
+  - hash: cfa7bdf04ed5816ae91eeae2d8cce5b3ab5e1df4
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 40 commits)
+    provenance: rule
+  - hash: ab2d63092c09fcefd800738fb56b95e039a4133f
+    verdict: block
+    reason: 'split: added 166 SLOC to internal/lang/golang, already over tokens_est 16000, sloc 1000; 9a10fd6e4729 ("refactor(lang/go): split the Go extractor into internal packages") 38 commits later cut internal/lang/golang from 3094 to 670 SLOC while the module''s total changed by +0.7%; extract: added 1 cross-package duplicate blocks (34 to 35); 9a10fd6e4729 ("refactor(lang/go): split the Go extractor into internal packages") 38 commits later removed 3 duplicate blocks from the module''s cross-package duplicates while the SLOC there changed by +0.7% (lookahead 39 commits)'
+    provenance: rule
+    fired:
+      - part: split
+        by: 9a10fd6e472993bed2b58a58f65d3981894f7f37
+        package: internal/lang/golang
+      - part: extract
+        by: 9a10fd6e472993bed2b58a58f65d3981894f7f37
+        package: <module>
+  - hash: e3e6f96e9dc37f73b69134cce7817749c9968faa
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 38 commits)
+    provenance: rule
+  - hash: 60522272417aeb9092bcc4bda675c0d3a97ecc20
+    verdict: allow
+    reason: took internal/metrics over tokens_est max 16000 (15942 to 16716); added 1 duplicate blocks to internal/metrics/metricstest (14 to 15); no later commit split or extracted it (lookahead 37 commits)
+    provenance: rule
+  - hash: fdde4364b8b3d24c236a8fb97fe0bdae2dda13a1
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 36 commits)
+    provenance: rule
+  - hash: f64280f09c977400318d028f8011795244154828
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 35 commits)
+    provenance: rule
+  - hash: ab67ac398b760962096228e3e695d7fcc3f75d3d
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 34 commits)
+    provenance: rule
+  - hash: a44e6de981853712292f1603527c3f78abc6105f
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 33 commits)
+    provenance: rule
+  - hash: c703b18b13fd0c5b8cd974bcb73237eb99b3a6f2
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 32 commits)
+    provenance: rule
+  - hash: 3d497445b90f419af884cd27728767fa9c6e98da
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 31 commits)
+    provenance: rule
+  - hash: 7bc9c4d20dba27085303f88af0bc98c967734fdf
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 30 commits)
+    provenance: rule
+  - hash: 95441659e94d9d6c5e1cff666037bd2fe172eee0
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 29 commits)
+    provenance: rule
+  - hash: db80420c4928f68e948214c619926d33b37342a9
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 28 commits)
+    provenance: rule
+  - hash: 1945d9f0dc48e5180e12b2431474c672c7a392ea
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 27 commits)
+    provenance: rule
+  - hash: 1da2995af00a722425b595c0e227fd7c4e6c90cc
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 26 commits)
+    provenance: rule
+  - hash: 8eea3d2467677e9f2746f7e8a86d31b732dcff5c
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 25 commits)
+    provenance: rule
+  - hash: 176ca48f37fc1c054a56e1a945a6f30def86de76
+    verdict: block
+    reason: 'extract: added 3 cross-package duplicate blocks (35 to 38); 9a10fd6e4729 ("refactor(lang/go): split the Go extractor into internal packages") 23 commits later removed 3 duplicate blocks from the module''s cross-package duplicates while the SLOC there changed by +0.7% (lookahead 24 commits)'
+    provenance: rule
+    fired:
+      - part: extract
+        by: 9a10fd6e472993bed2b58a58f65d3981894f7f37
+        package: <module>
+  - hash: 94bc679c4249a2a7d0cf57ae55a0ea08fcef473f
+    verdict: allow
+    reason: added 7 duplicate blocks to calibration/fit (5 to 12); no later commit split or extracted it (lookahead 23 commits)
+    provenance: rule
+  - hash: 7fd4a455c97bab5a40e754afee2a439a35a64d52
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 22 commits)
+    provenance: rule
+  - hash: b1612df77056eeb8aa6b97af23a4614598bd1204
+    verdict: block
+    reason: 'extract: added 2 cross-package duplicate blocks (38 to 40); 9a10fd6e4729 ("refactor(lang/go): split the Go extractor into internal packages") 20 commits later removed 3 duplicate blocks from the module''s cross-package duplicates while the SLOC there changed by +0.7% (lookahead 21 commits)'
+    provenance: rule
+    fired:
+      - part: extract
+        by: 9a10fd6e472993bed2b58a58f65d3981894f7f37
+        package: <module>
+  - hash: 7d08de0a5e38941403372c49b83197c06307893f
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 20 commits)
+    provenance: rule
+  - hash: 5ae2fbbd38b5b80cca8ac747a65dacf8b88d77ba
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 19 commits)
+    provenance: rule
+  - hash: 7cf8cef0992cc2797ba1d73efa3c4a71d40b89f4
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 18 commits)
+    provenance: rule
+  - hash: d3458881437684284c89038a06c5135894800121
+    verdict: allow
+    reason: took calibration/rebuild over sloc max 1000 (0 to 1036); added 14 cross-package duplicate blocks (40 to 54); added 5 duplicate blocks to calibration/rebuild (0 to 5); no later commit split or extracted it (lookahead 17 commits)
+    provenance: rule
+  - hash: 1d8c6d8b327439f9ff1fc42faa8af0035c30b08d
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 16 commits)
+    provenance: rule
+  - hash: b8fd067ef65d7753bb9620587606de4afd7fbbf3
+    verdict: allow
+    reason: took calibration/collect over sloc max 1000 (778 to 1008); took calibration/fit over tokens_est max 16000 (13517 to 18299), sloc max 1000 (961 to 1278); added 5 cross-package duplicate blocks (54 to 59); added 2 duplicate blocks to calibration/collect (2 to 4); added 4 duplicate blocks to calibration/fit (11 to 15); no later commit split or extracted it (lookahead 15 commits)
+    provenance: rule
+  - hash: cdf66cc345bbb717b267acf3b46173198f7259ed
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 14 commits)
+    provenance: rule
+  - hash: 9da995ad51622a252f920ba19e60268d348ae605
+    verdict: allow
+    reason: took calibration/rebuild over tokens_est max 16000 (14043 to 29022); added 15 cross-package duplicate blocks (59 to 74); added 10 duplicate blocks to calibration/rebuild (5 to 15); no later commit split or extracted it (lookahead 13 commits)
+    provenance: rule
+  - hash: 8e63e0deb20e10f737087b9baabb14498a05b930
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 12 commits)
+    provenance: rule
+  - hash: 39b2de0ac1fec4a48010fae8ee0468a14c2b094d
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 11 commits)
+    provenance: rule
+  - hash: 9c1235049685f89633222fa9cf49a4693518a925
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 10 commits)
+    provenance: rule
+  - hash: ece07674bafdcaaa221ef91e5372e4b1c139802b
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 9 commits)
+    provenance: rule
+  - hash: 40aa722ade2699d0803f95de8364b1fa655b5cd1
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 8 commits)
+    provenance: rule
+  - hash: fafd1153c26ac73d91c262cd91ae4afcab15318e
+    verdict: allow
+    reason: added 2 duplicate blocks to internal/report (3 to 5); no later commit split or extracted it (lookahead 7 commits)
+    provenance: rule
+  - hash: c98a01e43dc4cc31918687c3e43f35a38a570ea0
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 6 commits)
+    provenance: rule
+  - hash: 46ffb57f96176d5166cb001e1094597710decb13
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 5 commits)
+    provenance: rule
+  - hash: e77534dc5ed6ae21dc0e9b89cf93622134a32bc5
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 4 commits)
+    provenance: rule
+  - hash: 75bd1a8f1d97a547e87e150ba0d5348139222609
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 3 commits)
+    provenance: rule
+  - hash: b21cb7daea9df2bdf557014476252ad7fdb18fe8
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 2 commits)
+    provenance: rule
+  - hash: 9a10fd6e472993bed2b58a58f65d3981894f7f37
+    verdict: allow
+    reason: added 5 duplicate blocks to internal/lang/golang/internal/inspect (0 to 5); no later commit split or extracted it (lookahead 1 commits)
+    provenance: rule
+  - hash: 5e8c77757b1bc1374331c468e311a7bf1e95ac24
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 0 commits)
+    provenance: rule

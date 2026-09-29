@@ -32,8 +32,8 @@ func fixture(t *testing.T, dir, name, commits, packages, labelsYAML string) stri
 }
 
 // corpora writes a hand-labeled corpus with one capacity-only block label
-// and a rule-labeled corpus, both replayed under the default.
-func corpora(t *testing.T) (hand, rule string) {
+// and a rule-labeled corpus, both replayed under the default, under dir.
+func corpora(t *testing.T, dir string) (hand, rule string) {
 	t.Helper()
 	cfg, err := config.Parse(config.Default())
 	if err != nil {
@@ -46,7 +46,7 @@ func corpora(t *testing.T) (hand, rule string) {
 		}
 		return `{"commit":"` + hash + `","subject":"subject ` + hash + `","config_version":"` + cfg.Version + `","baseline":"parent","loaded":true,"passed":` + p + "}\n"
 	}
-	dir := t.TempDir()
+
 	hand = fixture(t, dir, "hand",
 		c("h1", false)+c("h2", true)+c("h3", false),
 		`{"commit":"h1","package":"a","language":"go","metrics":{"sloc":1500,"has_tests":true},"base":null,"sloc_delta":1500,"violations":[{"metric":"sloc"}]}
@@ -71,7 +71,7 @@ commits:
 }
 
 func TestRun(t *testing.T) {
-	hand, rule := corpora(t)
+	hand, rule := corpora(t, t.TempDir())
 	out := filepath.Join(t.TempDir(), "report.md")
 	var stdout, stderr bytes.Buffer
 	if err := run([]string{"--corpus", hand, "--corpus", rule, "--out", out, "--date", "2026-09-28"}, &stdout, &stderr); err != nil {
@@ -102,7 +102,7 @@ func TestRun(t *testing.T) {
 }
 
 func TestRunErrors(t *testing.T) {
-	hand, _ := corpora(t)
+	hand, _ := corpora(t, t.TempDir())
 	other := filepath.Join(t.TempDir(), "astimate.yaml")
 	def, err := config.Parse(config.Default())
 	if err != nil {

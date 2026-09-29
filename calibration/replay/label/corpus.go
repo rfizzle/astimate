@@ -21,9 +21,12 @@ type corpus struct {
 // level. History says how changes reach the default branch: linear, squash
 // or merge commits. AgentCommits counts the replayed commits the agent rule
 // matches. Data and Labels are the replay data directory and the labels
-// file, relative to this repository's root.
+// file of the revert-and-fix-up rule, and SplitExtractLabels the labels
+// file of the split-or-extraction rule, relative to this repository's root.
 type repository struct {
 	Name, Repo, License, Commit, Range, Dir, History, Data, Labels, Reason string
+
+	SplitExtractLabels string `yaml:"split_extract_labels"`
 
 	Agent        agentRule
 	AgentCommits int `yaml:"agent_commits"`
@@ -94,8 +97,8 @@ func (c *corpus) validate() error {
 		if len(r.Agent.CoAuthoredBy)+len(r.Agent.Authors) == 0 {
 			bad("no agent rule")
 		}
-		if r.Data == "" || r.Labels == "" {
-			bad("data or labels path missing")
+		if r.Data == "" || r.Labels == "" || r.SplitExtractLabels == "" {
+			bad("data, labels or split_extract_labels path missing")
 		}
 	}
 	return errors.Join(errs...)

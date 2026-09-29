@@ -43,14 +43,34 @@ const (
 	Rule Provenance = "rule"
 )
 
-// Parts of the revert-and-fix-up rule that can mark a commit block.
+// Parts of a labeling rule that can mark a commit block: revert and fixup
+// of the revert-and-fix-up rule, split and extract of the
+// split-or-extraction rule.
 const (
 	// PartRevert: a later commit reverted the commit.
 	PartRevert = "revert"
 	// PartFixup: a later fix or revert commit changed a function the
 	// commit added or changed.
 	PartFixup = "fixup"
+	// PartSplit: the commit took a package over a capacity max, or grew
+	// one already over by 100 or more SLOC, and a later commit split it:
+	// cut its sloc by a quarter or more while the module's total barely
+	// fell.
+	PartSplit = "split"
+	// PartExtract: the commit added duplicate blocks to a package, or
+	// cross-package ones to the module, and a later commit removed at
+	// least as many there without deleting a quarter of the code.
+	PartExtract = "extract"
 )
+
+// knownPart reports whether part is one of the rule parts above.
+func knownPart(part string) bool {
+	switch part {
+	case PartRevert, PartFixup, PartSplit, PartExtract:
+		return true
+	}
+	return false
+}
 
 // File is a labels file.
 type File struct {
@@ -90,15 +110,20 @@ type Label struct {
 
 // Evidence is one part of a labeling rule that fired on a commit.
 type Evidence struct {
-	// Part is PartRevert or PartFixup.
+	// Part is PartRevert, PartFixup, PartSplit or PartExtract.
 	Part string `yaml:"part"`
-	// By is the full hash of the reverting or fixing commit. A revert may
-	// come from a merged branch, so By need not be a replayed commit.
+	// By is the full hash of the reverting, fixing, splitting or
+	// extracting commit. A revert may come from a merged branch, so By
+	// need not be a replayed commit.
 	By string `yaml:"by"`
 	// Functions are the functions both commits changed, as
 	// <file>:<receiver.name>, or <file>:var <name> for a package-level
 	// variable holding a function literal, for PartFixup.
 	Functions []string `yaml:"functions,omitempty"`
+	// Package is the package the later commit split or extracted from, or
+	// the module row's id for cross-package duplicates, for PartSplit and
+	// PartExtract.
+	Package string `yaml:"package,omitempty"`
 }
 
 // Load reads and decodes the labels file at path.
@@ -189,8 +214,8 @@ func (l *Label) check() error {
 		problems = append(problems, "rule evidence on a "+string(l.Verdict)+" label")
 	}
 	for _, e := range l.Fired {
-		if (e.Part != PartRevert && e.Part != PartFixup) || e.By == "" {
-			problems = append(problems, fmt.Sprintf("evidence %q by %q is not a revert or fixup with its commit", e.Part, e.By))
+		if !knownPart(e.Part) || e.By == "" {
+			problems = append(problems, fmt.Sprintf("evidence %q by %q is not a revert, fixup, split or extract with its commit", e.Part, e.By))
 		}
 	}
 	if len(problems) == 0 {

@@ -1,0 +1,1588 @@
+source:
+  repository: https://github.com/steveyegge/beads.git
+  range: 218ee6d2b411d701e63a5b61d7bda9f21abede5e..de64d817e588ed8048f7f00308edb1d1fbbc1591
+  data: calibration/data/replay-beads-2026-09-28
+rule: 'block when a later commit in the rest of the replayed range splits a package this commit grew past a ceiling, or extracts duplicate code this commit added, read from the replay''s rows. Split: the commit took a package over a capacity rule''s max (at or under it at the parent, or new, and over it at the commit) or added 100 or more SLOC to a package already over one, and a later commit lowers that package''s sloc by at least 25% (deleting the package counts) while the module''s total sloc falls by less than 5% (code moved, not deleted). Extraction: the commit raised a package''s dup_blocks, or the module row''s dup_blocks_cross_pkg, and a later commit that changes a file of that package (for the module row, of a package the commit changed) lowers that count by at least what this commit added while the package''s sloc (the module''s total, for the module row) falls by less than 25%. Otherwise allow. The module''s total is the sum over every package the rows show, each carried from its nearest row, so a package no replayed commit changed is not counted. A commit the replay did not load has no rows and is allow. Each reason ends with the label''s lookahead: the commits after it in the range, so the last commits of a range are censored.'
+commits:
+  - hash: e861a667fca220ddc64bc581c9032e8055e0efa8
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 269 commits)
+    provenance: rule
+    agent: true
+  - hash: 669ea40684565fb5e41a5d2e74d3e4ff088cc68a
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/bd (1520 to 1521); e723417168ae ("Fix git hooks not working in worktrees (#1126)") 19 commits later removed 1 duplicate blocks from cmd/bd while the SLOC there changed by -0.0% (lookahead 268 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: e723417168ae92ce5a835fb2c2ce6b6db49ddfba
+        package: cmd/bd
+  - hash: d1722d9204c809e33a75f3592c9c0ca74e505c28
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 267 commits)
+    provenance: rule
+    agent: true
+  - hash: 39dbe90ade79072ae59a5f090373d56b31d45025
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 266 commits)
+    provenance: rule
+    agent: true
+  - hash: 159114563b39000ee0566efa8dd1fd1ce687fc4a
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/bd (1521 to 1522); e723417168ae ("Fix git hooks not working in worktrees (#1126)") 16 commits later removed 1 duplicate blocks from cmd/bd while the SLOC there changed by -0.0% (lookahead 265 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: e723417168ae92ce5a835fb2c2ce6b6db49ddfba
+        package: cmd/bd
+  - hash: 0a48519561227df4bbbc1737981371cc2a425e7d
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/bd (1522 to 1523); e723417168ae ("Fix git hooks not working in worktrees (#1126)") 15 commits later removed 1 duplicate blocks from cmd/bd while the SLOC there changed by -0.0% (lookahead 264 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: e723417168ae92ce5a835fb2c2ce6b6db49ddfba
+        package: cmd/bd
+  - hash: 81828db6ef3f2298982d68dc9db36ddf5f8c2872
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 263 commits)
+    provenance: rule
+    agent: true
+  - hash: fe67e9e2323b59200c36bf83a654a3d4359de53e
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 262 commits)
+    provenance: rule
+    agent: true
+  - hash: 28a7f1095503e2c2be6fc082b08247e3f1b29a31
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 261 commits)
+    provenance: rule
+    agent: true
+  - hash: d3db8253ff09e0f139ffbb6f839afe13acbf7bdb
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/bd (1523 to 1524); e723417168ae ("Fix git hooks not working in worktrees (#1126)") 11 commits later removed 1 duplicate blocks from cmd/bd while the SLOC there changed by -0.0% (lookahead 260 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: e723417168ae92ce5a835fb2c2ce6b6db49ddfba
+        package: cmd/bd
+  - hash: 6b5bebfa1241eb165b7d2e634fea3ac9a3da8c9f
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 259 commits)
+    provenance: rule
+    agent: false
+  - hash: 68403ae6318b755970858c19028404f89095159a
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 258 commits)
+    provenance: rule
+    agent: false
+  - hash: 490e9f695f98d32f1453d84c0ae0f6cc2fd05160
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 257 commits)
+    provenance: rule
+    agent: true
+  - hash: c40affd6014e2d3cdb778e50b2332e99a19ae422
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 256 commits)
+    provenance: rule
+    agent: true
+  - hash: 5d93aaf722648dbdbb19890e397d5d45b2370367
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 255 commits)
+    provenance: rule
+    agent: false
+  - hash: c1a9dda17344ce8192f47a2b1d32cbbf8884a733
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 254 commits)
+    provenance: rule
+    agent: false
+  - hash: 55e733cf624a94c63257a657970f1fc9a287883d
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 253 commits)
+    provenance: rule
+    agent: false
+  - hash: fabf857b2a6e5fce7a336ec6d09bc24f6dd3328c
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 252 commits)
+    provenance: rule
+    agent: true
+  - hash: e110632afce676406ad19037a41fd62ca528570a
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/bd (1524 to 1525); e723417168ae ("Fix git hooks not working in worktrees (#1126)") 2 commits later removed 1 duplicate blocks from cmd/bd while the SLOC there changed by -0.0% (lookahead 251 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: e723417168ae92ce5a835fb2c2ce6b6db49ddfba
+        package: cmd/bd
+  - hash: 493b7008a236b1cfbae52b1d4395c26dc6391a56
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 250 commits)
+    provenance: rule
+    agent: false
+  - hash: e723417168ae92ce5a835fb2c2ce6b6db49ddfba
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 249 commits)
+    provenance: rule
+    agent: false
+  - hash: 93bbdab78f0ff0b8afab5554dd9d93dc66d2862f
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 248 commits)
+    provenance: rule
+    agent: false
+  - hash: 3a7971d2b69294a6e8fc094cb62ff1181569ece6
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 247 commits)
+    provenance: rule
+    agent: true
+  - hash: 15d74a9a4958edf0908159681e1de92561e0a939
+    verdict: block
+    reason: 'extract: added 1 cross-package duplicate blocks (524 to 525); 9ecdc0066468 ("feat(types): add \"enhancement\" as alias for \"feature\" type") 6 commits later removed 1 duplicate blocks from the module''s cross-package duplicates while the SLOC there changed by +0.0% (lookahead 246 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 9ecdc0066468412f6faf54149d67105218ac7662
+        package: <module>
+  - hash: d05f7cee8fd4c1038a8516040d52271978efaee9
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 245 commits)
+    provenance: rule
+    agent: true
+  - hash: fc19a94ad952c24b5e7ca018f98a6db31e327e94
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 244 commits)
+    provenance: rule
+    agent: true
+  - hash: 3d813c21430c0a51b4b97ab788200caacaf1b174
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 243 commits)
+    provenance: rule
+    agent: true
+  - hash: b51c0101ba670850151bd90226b4ce90c06a1a27
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/bd (1550 to 1551); aee86dfae23b ("fix(types): consolidate enhancement alias and fix update command") 5 commits later removed 1 duplicate blocks from cmd/bd while the SLOC there changed by -0.0% (lookahead 242 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: aee86dfae23b40fc0c8c2a92b30f4d47a1b79506
+        package: cmd/bd
+  - hash: 99d6592207d10986eeb1d3f09944ee9a74b49490
+    verdict: allow
+    reason: added 193 SLOC to internal/storage/dolt, already over tokens_est 16000, largest_file_sloc 600, exported_symbols 60, sloc 1000; no later commit split or extracted it (lookahead 241 commits)
+    provenance: rule
+    agent: true
+  - hash: 9ecdc0066468412f6faf54149d67105218ac7662
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 240 commits)
+    provenance: rule
+    agent: true
+  - hash: 13af11768f24dbba9a077b1369ea9a732b87556a
+    verdict: block
+    reason: 'extract: added 2 duplicate blocks to cmd/bd (1551 to 1553); 5d68e6b61aa9 ("refactor(hook): simplify export state logic, add tests") 52 commits later removed 2 duplicate blocks from cmd/bd while the SLOC there changed by -0.0% (lookahead 239 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 5d68e6b61aa91dc28c932873209f5965f2a9998a
+        package: cmd/bd
+  - hash: 62dd5f8585c8089fd9a7e6b725badb6a1e1c12ac
+    verdict: block
+    reason: 'extract: added 1 cross-package duplicate blocks (522 to 523); 2c00d6d20325 ("Merge branch ''main'' of github.com:steveyegge/beads into mayor-rig") 8 commits later removed 1 duplicate blocks from the module''s cross-package duplicates while the SLOC there changed by +0.0% (lookahead 238 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 2c00d6d2032595803205094280b74c9e728b7066
+        package: <module>
+  - hash: aee86dfae23b40fc0c8c2a92b30f4d47a1b79506
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 237 commits)
+    provenance: rule
+    agent: true
+  - hash: c8187137f542e02cbc797572c66e1f0a329d2f6e
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 236 commits)
+    provenance: rule
+    agent: true
+  - hash: 24bff73c54af4480e8ea16b122dc9341f10f0ea7
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 235 commits)
+    provenance: rule
+    agent: false
+  - hash: 6aa8ebd26f21f759d14a3e2517b9973a814a8ed1
+    verdict: block
+    reason: 'extract: added 1 cross-package duplicate blocks (523 to 524); 2c00d6d20325 ("Merge branch ''main'' of github.com:steveyegge/beads into mayor-rig") 4 commits later removed 1 duplicate blocks from the module''s cross-package duplicates while the SLOC there changed by +0.0% (lookahead 234 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: 2c00d6d2032595803205094280b74c9e728b7066
+        package: <module>
+  - hash: ba77a1095ff38b1c3a4e3f73e45894baa4bedb9c
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 233 commits)
+    provenance: rule
+    agent: false
+  - hash: e477264e6e9c16e76217e8038385f88b861f84b1
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 232 commits)
+    provenance: rule
+    agent: false
+  - hash: ec90643d3d697417f323643733929704b32ce348
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 231 commits)
+    provenance: rule
+    agent: false
+  - hash: 2c00d6d2032595803205094280b74c9e728b7066
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to internal/storage/sqlite (265 to 266); 5264d7aa604d ("fix(daemon): prevent zombie state after database file replacement (#1213)") 114 commits later removed 1 duplicate blocks from internal/storage/sqlite while the SLOC there changed by +0.1% (lookahead 230 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: 5264d7aa604d0bbc4107ba18ba4bffdc023820e3
+        package: internal/storage/sqlite
+  - hash: 87f84c5fa6d4fb7016659f7beaf3a90d40bbf183
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 229 commits)
+    provenance: rule
+    agent: true
+  - hash: 2cbffca4f3c56743b13f98ee3f2e2e3917f6a721
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to internal/storage/dolt (132 to 133); ea51c4b0bd91 ("fix(federation): add configurable ports, password support, fix log leak") 71 commits later removed 1 duplicate blocks from internal/storage/dolt while the SLOC there changed by +0.6% (lookahead 228 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: ea51c4b0bd915f2e4f9293f600eb4a16579cbc92
+        package: internal/storage/dolt
+  - hash: ab5f507c666f6647f92e77f02e7a308b934ae049
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 227 commits)
+    provenance: rule
+    agent: true
+  - hash: ca24c17af8552d2c319164e429617ce6c9d192b3
+    verdict: block
+    reason: 'extract: added 1 cross-package duplicate blocks (526 to 527); 7cf67153de31 ("refactor(types): remove Gas Town type constants from beads core (bd-w2zz4)") 79 commits later removed 3 duplicate blocks from the module''s cross-package duplicates while the SLOC there changed by -0.1% (lookahead 226 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 7cf67153de316c799f9fc5cba037293976e20c7e
+        package: <module>
+  - hash: a7cd9136d86089c179e672b690267e3e9852e8bf
+    verdict: block
+    reason: 'extract: added 10 duplicate blocks to cmd/bd (1555 to 1565); 97d4b174d089 ("fix(migrate): address code review issues in Dolt migration") 91 commits later removed 17 duplicate blocks from cmd/bd while the SLOC there changed by -0.2% (lookahead 225 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 97d4b174d08937db8f2ff74db5433aab128c578d
+        package: cmd/bd
+  - hash: 94581ab2333e3097444d77e38357dd6563730b9c
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 224 commits)
+    provenance: rule
+    agent: true
+  - hash: c220542926b66239534dccf6dee24985c1e98cb1
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 223 commits)
+    provenance: rule
+    agent: true
+  - hash: e60e8f1823859c4f3e6bea9573f93c575d7e3bf2
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 222 commits)
+    provenance: rule
+    agent: true
+  - hash: f06e74227353a0cd7f3bccff98d009e0adb80926
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 221 commits)
+    provenance: rule
+    agent: false
+  - hash: 9f44884f9dbbf6a58ff852abf8e2fa0b054fc240
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 220 commits)
+    provenance: rule
+    agent: true
+  - hash: a21a29c283cc23d7f8892173cd14cb871a6b42ec
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 219 commits)
+    provenance: rule
+    agent: true
+  - hash: 251ded73be31f271e85ba10a76b642167c1008b7
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 218 commits)
+    provenance: rule
+    agent: true
+  - hash: feed888b571f90f2b2cb4ca3c09f23148c501638
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 217 commits)
+    provenance: rule
+    agent: true
+  - hash: 828fc11b571a69f0cc01f924331ad47a1677210d
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 216 commits)
+    provenance: rule
+    agent: true
+  - hash: 10bdc942943411583b1f679b32ea13a3462e39f0
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 215 commits)
+    provenance: rule
+    agent: true
+  - hash: 6af5cae1d188ad970b7601ef9cb0fbb7e53e8723
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 214 commits)
+    provenance: rule
+    agent: false
+  - hash: 88a6438c80c04c6da52f905fa8f5b30007bf3732
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 213 commits)
+    provenance: rule
+    agent: true
+  - hash: 4f0f5744a6dc2b65d4f8ea4c758c8b7947cf4bb3
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 212 commits)
+    provenance: rule
+    agent: true
+  - hash: 1f59119144edcf3f141957b810363bb443c4f642
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 211 commits)
+    provenance: rule
+    agent: true
+  - hash: ba0e754dc823c29df51b871caed2ef78345c60c5
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 210 commits)
+    provenance: rule
+    agent: true
+  - hash: 16f8c3d3ae9a433c5261bfd5d88cbe6340a4e171
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 209 commits)
+    provenance: rule
+    agent: true
+  - hash: e82e15a8c23312413b189f9461d88411d64ad159
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 208 commits)
+    provenance: rule
+    agent: true
+  - hash: 9ddd7a2620ab0c83f2e43757a1fee0df81f1019a
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 207 commits)
+    provenance: rule
+    agent: true
+  - hash: c99bd00ca71a728b50736c8b5c23d3b05016bc11
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 206 commits)
+    provenance: rule
+    agent: true
+  - hash: 356ab92b78613799f8bbdb2a887d604899a8e94d
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 205 commits)
+    provenance: rule
+    agent: true
+  - hash: c8ffcce62169eb937c64bb491ee014b137795a45
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 204 commits)
+    provenance: rule
+    agent: true
+  - hash: 4bc0b698a8b222cb6f97d37291812dec0675e872
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 203 commits)
+    provenance: rule
+    agent: true
+  - hash: ba832c4f37ac21c1570517804388fd5164e2b22a
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 202 commits)
+    provenance: rule
+    agent: true
+  - hash: 8e4001870185921eb299c0e44cea27404a8c1580
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 201 commits)
+    provenance: rule
+    agent: true
+  - hash: 73d4d5ecb2d51c1bb447d5c39d3d79c7f1cf6fb1
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 200 commits)
+    provenance: rule
+    agent: true
+  - hash: 460d2bf11304fed67f649f183254d0d191cb4681
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 199 commits)
+    provenance: rule
+    agent: false
+  - hash: f4ee7ee73b0224871478c2d598e677dc916d76b0
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 198 commits)
+    provenance: rule
+    agent: true
+  - hash: 4fffdb7faecb269dcd14120dae00f81025bf8449
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 197 commits)
+    provenance: rule
+    agent: false
+  - hash: 2cbf3a54972aa4d5beeea35e714feb7e2c0f8ea7
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 196 commits)
+    provenance: rule
+    agent: false
+  - hash: 065ca3d6af0daa272abe265bc8ef204a6fc27bb0
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 195 commits)
+    provenance: rule
+    agent: false
+  - hash: b09aee377fb92a5d0f9fa0b90f58400add635ca6
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 194 commits)
+    provenance: rule
+    agent: false
+  - hash: aa3b318939b4b7fa236888094842b64e9c57c5f5
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 193 commits)
+    provenance: rule
+    agent: true
+  - hash: 34b741d2e0cf50fcecf08d0a066ab0f910aa8ec6
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 192 commits)
+    provenance: rule
+    agent: false
+  - hash: 82426423fe7e7807ca92d58efe774e93e481dc79
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 191 commits)
+    provenance: rule
+    agent: true
+  - hash: 6a4a6170e7c8205407b5930ee524f9161e8c3788
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 190 commits)
+    provenance: rule
+    agent: false
+  - hash: 0335067e349e3e36e69c85aea0ee8ac88386f206
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 189 commits)
+    provenance: rule
+    agent: true
+  - hash: 38af99f300c41c2a4d76cd146912d11ed91dafaa
+    verdict: block
+    reason: 'extract: added 1 cross-package duplicate blocks (528 to 529); 7cf67153de31 ("refactor(types): remove Gas Town type constants from beads core (bd-w2zz4)") 41 commits later removed 3 duplicate blocks from the module''s cross-package duplicates while the SLOC there changed by -0.1% (lookahead 188 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 7cf67153de316c799f9fc5cba037293976e20c7e
+        package: <module>
+  - hash: 5d68e6b61aa91dc28c932873209f5965f2a9998a
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 187 commits)
+    provenance: rule
+    agent: true
+  - hash: 80cd1f35c09a0f82909781cfb11809479d72782a
+    verdict: block
+    reason: 'extract: added 2 duplicate blocks to cmd/bd (1598 to 1600); 4ccdd7a2df36 ("fix(routing): close original store before replacing with target store (#1215)") 5 commits later removed 2 duplicate blocks from cmd/bd while the SLOC there changed by -0.0% (lookahead 186 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 4ccdd7a2df36199756f8ce40fd8e01399b8729a6
+        package: cmd/bd
+  - hash: 521239cfdc3c1fc57ee842fb7433b4ae42fc90a1
+    verdict: allow
+    reason: added 1 duplicate blocks to internal/config (13 to 14); no later commit split or extracted it (lookahead 185 commits)
+    provenance: rule
+    agent: true
+  - hash: f7134954b9762c016e99635f7a882c12e60e5ba1
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 184 commits)
+    provenance: rule
+    agent: false
+  - hash: 9ed74ca233643a0f1d46f66efd2b51e75d76974f
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/bd (1600 to 1601); 4ccdd7a2df36 ("fix(routing): close original store before replacing with target store (#1215)") 2 commits later removed 2 duplicate blocks from cmd/bd while the SLOC there changed by -0.0% (lookahead 183 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 4ccdd7a2df36199756f8ce40fd8e01399b8729a6
+        package: cmd/bd
+  - hash: 228d78c18051301b7b1bd6d2748f7ce9d87c4420
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 182 commits)
+    provenance: rule
+    agent: false
+  - hash: 4ccdd7a2df36199756f8ce40fd8e01399b8729a6
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 181 commits)
+    provenance: rule
+    agent: false
+  - hash: e36e2f6679f422bb280e3d6b132a44e5aa21c613
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 180 commits)
+    provenance: rule
+    agent: true
+  - hash: ee44498659aedf4ffc5884867edcd68ab7d2ffee
+    verdict: block
+    reason: 'extract: added 4 duplicate blocks to cmd/bd (1599 to 1603); 7cf67153de31 ("refactor(types): remove Gas Town type constants from beads core (bd-w2zz4)") 32 commits later removed 4 duplicate blocks from cmd/bd while the SLOC there changed by -0.1% (lookahead 179 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 7cf67153de316c799f9fc5cba037293976e20c7e
+        package: cmd/bd
+  - hash: d929c8f974dbd449c56e63725a12039fab099fbe
+    verdict: block
+    reason: 'extract: added 4 duplicate blocks to cmd/bd (1603 to 1607); 7cf67153de31 ("refactor(types): remove Gas Town type constants from beads core (bd-w2zz4)") 31 commits later removed 4 duplicate blocks from cmd/bd while the SLOC there changed by -0.1% (lookahead 178 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: 7cf67153de316c799f9fc5cba037293976e20c7e
+        package: cmd/bd
+  - hash: f336e669e9a98a94bad6eb901fbfdf60ad19de20
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 177 commits)
+    provenance: rule
+    agent: false
+  - hash: 09355eee8c0ab3e6ab7746b38cb7d75dd2ab158b
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 176 commits)
+    provenance: rule
+    agent: true
+  - hash: c1ac69da3e26c5f295d7fe64275673f5cae4f474
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 175 commits)
+    provenance: rule
+    agent: true
+  - hash: d3ccd5cfba115e8c61ccea0d3532b805eba918c6
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 174 commits)
+    provenance: rule
+    agent: false
+  - hash: 4f3c3febd5734a80b810f09ec923da4d78b00772
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 173 commits)
+    provenance: rule
+    agent: true
+  - hash: d72f37551b745ba1b3c54ff4f8f875a58c96be49
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 172 commits)
+    provenance: rule
+    agent: true
+  - hash: a3ef7722f93d8ac50f55d051486193b0a6a86261
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/bd (1617 to 1618); 4b2d1791ee1f ("refactor(hooks): consolidate duplicate JSONL file lists into shared constant") 3 commits later removed 1 duplicate blocks from cmd/bd while the SLOC there changed by +0.0% (lookahead 171 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 4b2d1791ee1fb7c24caab9325ffcf57aca0fcf12
+        package: cmd/bd
+  - hash: e00f013bda87249491eb3df66cdcf2183385fa31
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/bd (1618 to 1619); 4b2d1791ee1f ("refactor(hooks): consolidate duplicate JSONL file lists into shared constant") 2 commits later removed 1 duplicate blocks from cmd/bd while the SLOC there changed by +0.0% (lookahead 170 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 4b2d1791ee1fb7c24caab9325ffcf57aca0fcf12
+        package: cmd/bd
+  - hash: 2fe15e23282f85de4cff9dd8a173df9f01af420b
+    verdict: block
+    reason: 'extract: added 1 cross-package duplicate blocks (527 to 528); 7cf67153de31 ("refactor(types): remove Gas Town type constants from beads core (bd-w2zz4)") 22 commits later removed 3 duplicate blocks from the module''s cross-package duplicates while the SLOC there changed by -0.1% (lookahead 169 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 7cf67153de316c799f9fc5cba037293976e20c7e
+        package: <module>
+  - hash: 4b2d1791ee1fb7c24caab9325ffcf57aca0fcf12
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 168 commits)
+    provenance: rule
+    agent: true
+  - hash: 3824abaf1b958ad99175395b649558437f98cdae
+    verdict: block
+    reason: 'extract: added 2 cross-package duplicate blocks (528 to 530); 7cf67153de31 ("refactor(types): remove Gas Town type constants from beads core (bd-w2zz4)") 20 commits later removed 3 duplicate blocks from the module''s cross-package duplicates while the SLOC there changed by -0.1% (lookahead 167 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: 7cf67153de316c799f9fc5cba037293976e20c7e
+        package: <module>
+  - hash: d41fb30720270e5969209f47025c84069eabe664
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/bd (1627 to 1628); 83e3c7563515 ("fix(ci): resolve lint errors and test failures") 8 commits later removed 1 duplicate blocks from cmd/bd while the SLOC there changed by -0.1% (lookahead 166 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 83e3c7563515700eab7b8eac19d486ac749f959f
+        package: cmd/bd
+  - hash: cf6356b98adc424febc696e4b821fb05e108a16c
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/bd (1628 to 1629); 83e3c7563515 ("fix(ci): resolve lint errors and test failures") 7 commits later removed 1 duplicate blocks from cmd/bd while the SLOC there changed by -0.1% (lookahead 165 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 83e3c7563515700eab7b8eac19d486ac749f959f
+        package: cmd/bd
+  - hash: 6190dd93627b174c0b5e92a722c8f5a0ce2ce4eb
+    verdict: block
+    reason: 'extract: added 1 cross-package duplicate blocks (530 to 531); 7cf67153de31 ("refactor(types): remove Gas Town type constants from beads core (bd-w2zz4)") 17 commits later removed 3 duplicate blocks from the module''s cross-package duplicates while the SLOC there changed by -0.1% (lookahead 164 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 7cf67153de316c799f9fc5cba037293976e20c7e
+        package: <module>
+  - hash: 938a17cda51cdabb6700d90816014e7705e1582b
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 163 commits)
+    provenance: rule
+    agent: true
+  - hash: 90344b99392c38d7eb0d8ea62782aa4d5d744cd1
+    verdict: allow
+    reason: added 123 SLOC to internal/storage/dolt, already over tokens_est 16000, largest_file_sloc 600, exported_symbols 60, sloc 1000; added 6 cross-package duplicate blocks (531 to 537); added 4 duplicate blocks to internal/storage/dolt (144 to 148); no later commit split or extracted it (lookahead 162 commits)
+    provenance: rule
+    agent: true
+  - hash: 458fb7197a9088f2723d7934a788336b7aef2c25
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 161 commits)
+    provenance: rule
+    agent: true
+  - hash: da4584ae57343930a927d2769f892412f0e7fd45
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 160 commits)
+    provenance: rule
+    agent: true
+  - hash: 8807a171d34938d8d45c2f57031fb1767b63460c
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 159 commits)
+    provenance: rule
+    agent: true
+  - hash: 83e3c7563515700eab7b8eac19d486ac749f959f
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 158 commits)
+    provenance: rule
+    agent: true
+  - hash: ea51c4b0bd915f2e4f9293f600eb4a16579cbc92
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/bd (1646 to 1647); c3f68caf7a0b ("feat(federation): enhance bd federation status command (bd-wkumz.5)") 4 commits later removed 2 duplicate blocks from cmd/bd while the SLOC there changed by +0.1% (lookahead 157 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: c3f68caf7a0b71a49f2b32b491e6fd37a47d9147
+        package: cmd/bd
+  - hash: d3d2326a8b0e53e0a8fed99ce632fce60ce9fe3f
+    verdict: block
+    reason: 'extract: added 2 cross-package duplicate blocks (535 to 537); 7cf67153de31 ("refactor(types): remove Gas Town type constants from beads core (bd-w2zz4)") 9 commits later removed 3 duplicate blocks from the module''s cross-package duplicates while the SLOC there changed by -0.1% (lookahead 156 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 7cf67153de316c799f9fc5cba037293976e20c7e
+        package: <module>
+  - hash: 63c2e5015845fc5d272d0c345867d8d4a2aeffd0
+    verdict: block
+    reason: 'extract: added 6 duplicate blocks to cmd/bd (1650 to 1656); 97d4b174d089 ("fix(migrate): address code review issues in Dolt migration") 21 commits later removed 17 duplicate blocks from cmd/bd while the SLOC there changed by -0.2% (lookahead 155 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 97d4b174d08937db8f2ff74db5433aab128c578d
+        package: cmd/bd
+  - hash: b7242a67d172634d70469774444ddbc2a854fd22
+    verdict: block
+    reason: 'extract: added 1 cross-package duplicate blocks (541 to 542); 7cf67153de31 ("refactor(types): remove Gas Town type constants from beads core (bd-w2zz4)") 7 commits later removed 3 duplicate blocks from the module''s cross-package duplicates while the SLOC there changed by -0.1% (lookahead 154 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 7cf67153de316c799f9fc5cba037293976e20c7e
+        package: <module>
+  - hash: c3f68caf7a0b71a49f2b32b491e6fd37a47d9147
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 153 commits)
+    provenance: rule
+    agent: true
+  - hash: 1a7f8efc9e212962947b4c04badd6cce7f05c496
+    verdict: block
+    reason: 'extract: added 1 cross-package duplicate blocks (542 to 543); 7cf67153de31 ("refactor(types): remove Gas Town type constants from beads core (bd-w2zz4)") 5 commits later removed 3 duplicate blocks from the module''s cross-package duplicates while the SLOC there changed by -0.1% (lookahead 152 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 7cf67153de316c799f9fc5cba037293976e20c7e
+        package: <module>
+  - hash: fa14b9ee24f644667c23538e23b456e5898ab508
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 151 commits)
+    provenance: rule
+    agent: true
+  - hash: cff58c463960bce29d1dcdd8809cacfb465331eb
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to internal/storage/dolt (159 to 160); ab61b0956b41 ("feat(dolt): auto-commit write commands and set explicit commit authors (#1270)") 44 commits later removed 2 duplicate blocks from internal/storage/dolt while the SLOC there changed by +0.1% (lookahead 150 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: ab61b0956b411ac72e472592c42a52cfd6277b10
+        package: internal/storage/dolt
+  - hash: bf92fda88619ad84359eabe176018aa6fa5b5425
+    verdict: block
+    reason: 'extract: added 1 cross-package duplicate blocks (543 to 544); 7cf67153de31 ("refactor(types): remove Gas Town type constants from beads core (bd-w2zz4)") 2 commits later removed 3 duplicate blocks from the module''s cross-package duplicates while the SLOC there changed by -0.1% (lookahead 149 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 7cf67153de316c799f9fc5cba037293976e20c7e
+        package: <module>
+  - hash: 4a0f4abc709f66a0c392f90c251f0176b04ec545
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/bd (1658 to 1659); 7cf67153de31 ("refactor(types): remove Gas Town type constants from beads core (bd-w2zz4)") 1 commits later removed 4 duplicate blocks from cmd/bd while the SLOC there changed by -0.1% (lookahead 148 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 7cf67153de316c799f9fc5cba037293976e20c7e
+        package: cmd/bd
+  - hash: 7cf67153de316c799f9fc5cba037293976e20c7e
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 147 commits)
+    provenance: rule
+    agent: true
+  - hash: cb46db603d34c0190605eecb8724a6c581119f09
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 146 commits)
+    provenance: rule
+    agent: true
+  - hash: caf4c368c4bf907bd23dee64677dafecab3655bc
+    verdict: allow
+    reason: took internal/importer over tokens_est max 16000 (15227 to 20548), sloc max 1000 (967 to 1477); added 135 SLOC to internal/storage/dolt, already over tokens_est 16000, largest_file_sloc 600, exported_symbols 60, sloc 1000; added 173 SLOC to internal/storage/sqlite, already over tokens_est 16000, largest_file_sloc 600, exported_symbols 60, sloc 1000; added 24 cross-package duplicate blocks (547 to 571); added 15 duplicate blocks to internal/importer (12 to 27); added 4 duplicate blocks to internal/storage (11 to 15); added 11 duplicate blocks to internal/storage/dolt (160 to 171); added 2 duplicate blocks to internal/storage/memory (45 to 47); added 6 duplicate blocks to internal/storage/sqlite (268 to 274); no later commit split or extracted it (lookahead 145 commits)
+    provenance: rule
+    agent: false
+  - hash: 0eb3dd05a95dd7133bf07d07addad97ea9de4106
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 144 commits)
+    provenance: rule
+    agent: false
+  - hash: ef162a954a41dc9f601880b0392f9b37c39820f7
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 143 commits)
+    provenance: rule
+    agent: false
+  - hash: 65f0af3ff4d1b3f1a8821f9133c8468690f86960
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 142 commits)
+    provenance: rule
+    agent: true
+  - hash: 77423d367fdf764230ffe50b8201dd22d1073da5
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 141 commits)
+    provenance: rule
+    agent: true
+  - hash: e74cab8c6d27ea179147278682a19e5ca2e37324
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 140 commits)
+    provenance: rule
+    agent: false
+  - hash: 4e3e9d1441fbb1b4ede02da8276e054f8d1f11d2
+    verdict: allow
+    reason: added 760 SLOC to cmd/bd, already over tokens_est 16000, largest_file_sloc 600, exported_symbols 60, internal_imports 10, sloc 1000; added 11 cross-package duplicate blocks (571 to 582); added 38 duplicate blocks to cmd/bd (1655 to 1693); no later commit split or extracted it (lookahead 139 commits)
+    provenance: rule
+    agent: true
+  - hash: bb4549abddf9053ff689df8523342cd847683fab
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 138 commits)
+    provenance: rule
+    agent: true
+  - hash: 3daec76ac9e133af81ab014d6e76d57026f959c0
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 137 commits)
+    provenance: rule
+    agent: false
+  - hash: 0877e1428ed6a188d73c5b09a6301c8ffc4fc7c9
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 136 commits)
+    provenance: rule
+    agent: false
+  - hash: de73002c0327b13160a27260f66e62ac5b682678
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 135 commits)
+    provenance: rule
+    agent: true
+  - hash: 97d4b174d08937db8f2ff74db5433aab128c578d
+    verdict: allow
+    reason: added 5 cross-package duplicate blocks (582 to 587); no later commit split or extracted it (lookahead 134 commits)
+    provenance: rule
+    agent: true
+  - hash: 46b1678274b86f0c8173856b6157be630678d183
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 133 commits)
+    provenance: rule
+    agent: false
+  - hash: 0b6df198a5c81f2b6ac6abdf9698000ecad5ab5a
+    verdict: block
+    reason: 'extract: added 1 cross-package duplicate blocks (587 to 588); e0dc3a37c36f ("feat(create): add -m as alias for --description flag") 1 commits later removed 1 duplicate blocks from the module''s cross-package duplicates while the SLOC there changed by +0.1% (lookahead 132 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: e0dc3a37c36f4967ad43335c0a677af684c33eec
+        package: <module>
+  - hash: e0dc3a37c36f4967ad43335c0a677af684c33eec
+    verdict: allow
+    reason: added 3 duplicate blocks to cmd/bd (1674 to 1677); no later commit split or extracted it (lookahead 131 commits)
+    provenance: rule
+    agent: true
+  - hash: 9a9704b451976e0cad2e86023e7bac8555144c4d
+    verdict: block
+    reason: 'extract: added 2 duplicate blocks to cmd/bd (1677 to 1679); 484cd9d5fde0 ("feat(dolt): add server mode config to metadata.json schema (bd-dolt.2.2)") 26 commits later removed 2 duplicate blocks from cmd/bd while the SLOC there changed by +0.1% (lookahead 130 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 484cd9d5fde0999a2b41255ea8a2ebe1a515c83c
+        package: cmd/bd
+  - hash: a0dac11e421d62340093f9d6b3e73f603cf99891
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/bd (1679 to 1680); 9c3c21efe3dd ("feat(cli): add ''view'' as alias for ''show'' command (#1249)") 2 commits later removed 1 duplicate blocks from cmd/bd while the SLOC there changed by +0.0% (lookahead 129 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: 9c3c21efe3dd556bb412aa7f17b6781187dd9b5f
+        package: cmd/bd
+  - hash: c11fa799be495ba984414196157bcc46c4c27fa4
+    verdict: block
+    reason: 'extract: added 1 cross-package duplicate blocks (584 to 585); b7d650bd8ebd ("fix(init): respect BEADS_DIR environment variable (#1273)") 38 commits later removed 1 duplicate blocks from the module''s cross-package duplicates while the SLOC there changed by +0.0% (lookahead 128 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: b7d650bd8ebd896e9cbeed391e66265ee82b3dbb
+        package: <module>
+  - hash: 9c3c21efe3dd556bb412aa7f17b6781187dd9b5f
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 127 commits)
+    provenance: rule
+    agent: true
+  - hash: 8da7f274d658f0e6cac9416faf0338f2cc6467dc
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 126 commits)
+    provenance: rule
+    agent: true
+  - hash: 2a56aab92c50dde1df412ff02ed96cef32a8e2c0
+    verdict: allow
+    reason: added 2 cross-package duplicate blocks (585 to 587); no later commit split or extracted it (lookahead 125 commits)
+    provenance: rule
+    agent: true
+  - hash: b63e7b8cf054cde88a733ee278feb4f21e9bcc0b
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 124 commits)
+    provenance: rule
+    agent: true
+  - hash: 2cc96197c0496529ddb6ca8bc09b3b7ffa5fb1f3
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to internal/storage/dolt (171 to 172); ab61b0956b41 ("feat(dolt): auto-commit write commands and set explicit commit authors (#1270)") 17 commits later removed 2 duplicate blocks from internal/storage/dolt while the SLOC there changed by +0.1% (lookahead 123 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: ab61b0956b411ac72e472592c42a52cfd6277b10
+        package: internal/storage/dolt
+  - hash: abd3feb76156ef5f9d2f76a7cd458b404f9e0f3f
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 122 commits)
+    provenance: rule
+    agent: true
+  - hash: be306b6c660488dedb55f1e20974cf8b2d89b38e
+    verdict: allow
+    reason: added 109 SLOC to cmd/bd/doctor, already over tokens_est 16000, largest_file_sloc 600, exported_symbols 60, internal_imports 10, sloc 1000; added 2 cross-package duplicate blocks (597 to 599); added 3 duplicate blocks to cmd/bd (1679 to 1682); added 2 duplicate blocks to cmd/bd/doctor (218 to 220); no later commit split or extracted it (lookahead 121 commits)
+    provenance: rule
+    agent: true
+  - hash: ce622f56885ae2141a8aad6b6422410b071b6e00
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/bd (1682 to 1683); 484cd9d5fde0 ("feat(dolt): add server mode config to metadata.json schema (bd-dolt.2.2)") 16 commits later removed 2 duplicate blocks from cmd/bd while the SLOC there changed by +0.1% (lookahead 120 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: 484cd9d5fde0999a2b41255ea8a2ebe1a515c83c
+        package: cmd/bd
+  - hash: 1d3ca436200ac6625369ae7ba6170a686b0f2558
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 119 commits)
+    provenance: rule
+    agent: true
+  - hash: 1f8a6bf84e7cd63ea9ca62eb26bc9f88096a3ca6
+    verdict: block
+    reason: 'extract: added 2 duplicate blocks to cmd/bd (1683 to 1685); 484cd9d5fde0 ("feat(dolt): add server mode config to metadata.json schema (bd-dolt.2.2)") 14 commits later removed 2 duplicate blocks from cmd/bd while the SLOC there changed by +0.1% (lookahead 118 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: 484cd9d5fde0999a2b41255ea8a2ebe1a515c83c
+        package: cmd/bd
+  - hash: 78e1d6f229eb3f5163900b92cdd17c3a95b1218a
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 117 commits)
+    provenance: rule
+    agent: true
+  - hash: 5264d7aa604d0bbc4107ba18ba4bffdc023820e3
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 116 commits)
+    provenance: rule
+    agent: true
+  - hash: 9381190462a0009966b85cff169b96a8e8b90441
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/bd (1685 to 1686); 484cd9d5fde0 ("feat(dolt): add server mode config to metadata.json schema (bd-dolt.2.2)") 11 commits later removed 2 duplicate blocks from cmd/bd while the SLOC there changed by +0.1% (lookahead 115 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 484cd9d5fde0999a2b41255ea8a2ebe1a515c83c
+        package: cmd/bd
+  - hash: f91bbf3a03e79b22e6f4e00a3bdcdd5be4ac4534
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/bd (1686 to 1687); 484cd9d5fde0 ("feat(dolt): add server mode config to metadata.json schema (bd-dolt.2.2)") 10 commits later removed 2 duplicate blocks from cmd/bd while the SLOC there changed by +0.1% (lookahead 114 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 484cd9d5fde0999a2b41255ea8a2ebe1a515c83c
+        package: cmd/bd
+  - hash: b5178e1895e7db638725f9aeaad3cd5039eb7e73
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 113 commits)
+    provenance: rule
+    agent: true
+  - hash: 040839a4324c6130312f9a573c27aaa61454a57c
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 112 commits)
+    provenance: rule
+    agent: false
+  - hash: a597e013e05cb2c13f084e928ce571f4a7f99c6b
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 111 commits)
+    provenance: rule
+    agent: false
+  - hash: 244b32b624d484cbf7e35ebe2524b5832a6a738e
+    verdict: block
+    reason: 'extract: added 1 cross-package duplicate blocks (601 to 602); cec1356995a6 ("Merge pull request #1274 from aleiby/fix/1272-sqlite-retry-logic") 5 commits later removed 4 duplicate blocks from the module''s cross-package duplicates while the SLOC there changed by -0.0% (lookahead 110 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: cec1356995a69f3a7d11415440797ca7144b46aa
+        package: <module>
+  - hash: d0371586244ffe428afaba13db2544c5d660b531
+    verdict: block
+    reason: 'extract: added 1 cross-package duplicate blocks (602 to 603); 9e85b9f5d7ac ("perf(list): optimize bd list --json to fetch only needed dependencies (#1316)") 53 commits later removed 1 duplicate blocks from the module''s cross-package duplicates while the SLOC there changed by +0.1% (lookahead 109 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 9e85b9f5d7ac2c954b434a470a8f049fbb4269bf
+        package: <module>
+  - hash: 16749e6731986d25cfc955f31396ecbbc382f9b1
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 108 commits)
+    provenance: rule
+    agent: false
+  - hash: 1f94b4b363a1caf727f2e9c46e3511bda8bc935f
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 107 commits)
+    provenance: rule
+    agent: false
+  - hash: ab61b0956b411ac72e472592c42a52cfd6277b10
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/bd (1687 to 1688); 484cd9d5fde0 ("feat(dolt): add server mode config to metadata.json schema (bd-dolt.2.2)") 2 commits later removed 2 duplicate blocks from cmd/bd while the SLOC there changed by +0.1% (lookahead 106 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: 484cd9d5fde0999a2b41255ea8a2ebe1a515c83c
+        package: cmd/bd
+  - hash: cec1356995a69f3a7d11415440797ca7144b46aa
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 105 commits)
+    provenance: rule
+    agent: false
+  - hash: 484cd9d5fde0999a2b41255ea8a2ebe1a515c83c
+    verdict: allow
+    reason: added 1 duplicate blocks to internal/configfile (1 to 2); no later commit split or extracted it (lookahead 104 commits)
+    provenance: rule
+    agent: true
+  - hash: 433115725bb5b6f32ad2fcccb7cf4d523b0467e2
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 103 commits)
+    provenance: rule
+    agent: true
+  - hash: 66d994264b7fde8d5834eac43deda705d4bf8efd
+    verdict: block
+    reason: 'extract: added 1 cross-package duplicate blocks (599 to 600); b7d650bd8ebd ("fix(init): respect BEADS_DIR environment variable (#1273)") 12 commits later removed 1 duplicate blocks from the module''s cross-package duplicates while the SLOC there changed by +0.0% (lookahead 102 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: b7d650bd8ebd896e9cbeed391e66265ee82b3dbb
+        package: <module>
+  - hash: 3bcbca41fe1734cbdd1c0f70204ed28d73886e7d
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 101 commits)
+    provenance: rule
+    agent: true
+  - hash: 03400fbdbcaa029a02d719e493ca15ba72fd8cd2
+    verdict: allow
+    reason: added 3 duplicate blocks to cmd/bd (1685 to 1688); no later commit split or extracted it (lookahead 100 commits)
+    provenance: rule
+    agent: true
+  - hash: a9c8c952f6c07849e1046d0226d1e34957b8652c
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 99 commits)
+    provenance: rule
+    agent: true
+  - hash: db0c6fbd3fd67591166230bd6834e45167fd1b16
+    verdict: allow
+    reason: added 3 cross-package duplicate blocks (600 to 603); added 1 duplicate blocks to internal/storage/factory (0 to 1); no later commit split or extracted it (lookahead 98 commits)
+    provenance: rule
+    agent: true
+  - hash: 13c362e67eed912139f3459f82f59211508e3b1d
+    verdict: allow
+    reason: added 1 duplicate blocks to internal/configfile (2 to 3); no later commit split or extracted it (lookahead 97 commits)
+    provenance: rule
+    agent: true
+  - hash: e82f5136c1ac7642c645c43d60fd949b7e0816a4
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 96 commits)
+    provenance: rule
+    agent: true
+  - hash: dedde444cc90f9a6d8c174cd18cf7694d05dee5c
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 95 commits)
+    provenance: rule
+    agent: true
+  - hash: e051a31f5c5e18ddaa885dde9b4656627e4f9d8d
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 94 commits)
+    provenance: rule
+    agent: true
+  - hash: c952e2549988abd6ebfce0384eb113d7ac4af5a9
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 93 commits)
+    provenance: rule
+    agent: false
+  - hash: fde40a79cf8a181122c0e9a46d182938de3f30b7
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 92 commits)
+    provenance: rule
+    agent: true
+  - hash: 810192157c3ab0a2067fa82b614419292cae0db8
+    verdict: block
+    reason: 'extract: added 1 cross-package duplicate blocks (603 to 604); b7d650bd8ebd ("fix(init): respect BEADS_DIR environment variable (#1273)") 1 commits later removed 1 duplicate blocks from the module''s cross-package duplicates while the SLOC there changed by +0.0% (lookahead 91 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: b7d650bd8ebd896e9cbeed391e66265ee82b3dbb
+        package: <module>
+  - hash: b7d650bd8ebd896e9cbeed391e66265ee82b3dbb
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 90 commits)
+    provenance: rule
+    agent: false
+  - hash: dbd505656dbc245da291e7c305ba4a0b659a6d4f
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/bd (1686 to 1687); 132f9d2f6f24 ("feat(dolt): auto-commit write commands and set explicit commit authors (#1267)") 28 commits later removed 1 duplicate blocks from cmd/bd while the SLOC there changed by +0.0% (lookahead 89 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: 132f9d2f6f245e9eb38e28054ccf48bda7fe6733
+        package: cmd/bd
+  - hash: 8fab565f35a54a2ec4e1fd8cbcd6d1c6d2e2ba16
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/bd (1687 to 1688); 132f9d2f6f24 ("feat(dolt): auto-commit write commands and set explicit commit authors (#1267)") 27 commits later removed 1 duplicate blocks from cmd/bd while the SLOC there changed by +0.0% (lookahead 88 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 132f9d2f6f245e9eb38e28054ccf48bda7fe6733
+        package: cmd/bd
+  - hash: 369c5a3bc0e9bf8cfa2a433a285c7c372411fb02
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 87 commits)
+    provenance: rule
+    agent: false
+  - hash: 0cf19d438adc36303710a12e5ea3f024faa3a266
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 86 commits)
+    provenance: rule
+    agent: false
+  - hash: 8619d08db9279fe276236566673bf7e549285ff9
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 85 commits)
+    provenance: rule
+    agent: false
+  - hash: 44485bcf3561129b9e6ad6e449ce2c6b25f2a2b4
+    verdict: allow
+    reason: added 1 cross-package duplicate blocks (603 to 604); no later commit split or extracted it (lookahead 84 commits)
+    provenance: rule
+    agent: true
+  - hash: 66d1e63158e3dd484b25156dbe7d795ee4bdd1c3
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 83 commits)
+    provenance: rule
+    agent: false
+  - hash: 702f686fc0ed871025474f9e49b2816f88f2af65
+    verdict: block
+    reason: 'extract: added 2 duplicate blocks to cmd/bd (1688 to 1690); 07600dcffbed ("refactor(hooks): remove Gas Town role detection from beads core") 41 commits later removed 2 duplicate blocks from cmd/bd while the SLOC there changed by -0.1% (lookahead 82 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 07600dcffbedd9560e9b4041c811a9a06d59c506
+        package: cmd/bd
+  - hash: 1472d115f1a11442ced0e1467967401ffc817397
+    verdict: allow
+    reason: added 3 duplicate blocks to cmd/bd (1690 to 1693); no later commit split or extracted it (lookahead 81 commits)
+    provenance: rule
+    agent: true
+  - hash: 847858d3a2c7e4eff73ad19c29035310e21ffef4
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 80 commits)
+    provenance: rule
+    agent: true
+  - hash: 9d64be56cfd615fa4706eda963aa6cc77484a8bc
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 79 commits)
+    provenance: rule
+    agent: true
+  - hash: e45a7489b2b03bd395b625b6d3501ba1845b9489
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 78 commits)
+    provenance: rule
+    agent: false
+  - hash: 4669de762514b5f49c4a80048bf332e5ae9dbe60
+    verdict: block
+    reason: 'extract: added 2 duplicate blocks to cmd/bd (1693 to 1695); 07600dcffbed ("refactor(hooks): remove Gas Town role detection from beads core") 36 commits later removed 2 duplicate blocks from cmd/bd while the SLOC there changed by -0.1% (lookahead 77 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 07600dcffbedd9560e9b4041c811a9a06d59c506
+        package: cmd/bd
+  - hash: bf0bf7b156eca84fb7319cf3db2d67bbe8180760
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/bd (1695 to 1696); 132f9d2f6f24 ("feat(dolt): auto-commit write commands and set explicit commit authors (#1267)") 15 commits later removed 1 duplicate blocks from cmd/bd while the SLOC there changed by +0.0% (lookahead 76 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 132f9d2f6f245e9eb38e28054ccf48bda7fe6733
+        package: cmd/bd
+  - hash: f845bb1be38becb5bc38ece243ad81a6e4ca770b
+    verdict: block
+    reason: 'extract: added 1 cross-package duplicate blocks (597 to 598); 9e85b9f5d7ac ("perf(list): optimize bd list --json to fetch only needed dependencies (#1316)") 19 commits later removed 1 duplicate blocks from the module''s cross-package duplicates while the SLOC there changed by +0.1% (lookahead 75 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 9e85b9f5d7ac2c954b434a470a8f049fbb4269bf
+        package: <module>
+  - hash: 825e1952c03f76a2fffe7748bff5f4b555286032
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 74 commits)
+    provenance: rule
+    agent: true
+  - hash: d08c1b5162304b01b72454a8533955876dba4033
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 73 commits)
+    provenance: rule
+    agent: true
+  - hash: c2d4a6d793b3e21b47e063213334d48f824ead2c
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 72 commits)
+    provenance: rule
+    agent: true
+  - hash: c7b16d00d4584600a611c9faa4f03bc454b18480
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 71 commits)
+    provenance: rule
+    agent: true
+  - hash: c78889fa656fbb2d49462d4d88274869dd382e96
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 70 commits)
+    provenance: rule
+    agent: true
+  - hash: a93c32b4259a0a05d37e161adb48b351cbc360c6
+    verdict: block
+    reason: 'extract: added 2 duplicate blocks to cmd/bd (1696 to 1698); 07600dcffbed ("refactor(hooks): remove Gas Town role detection from beads core") 28 commits later removed 2 duplicate blocks from cmd/bd while the SLOC there changed by -0.1% (lookahead 69 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 07600dcffbedd9560e9b4041c811a9a06d59c506
+        package: cmd/bd
+  - hash: ca51980ffc106081ce858575c0d1c70300f13cd4
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 68 commits)
+    provenance: rule
+    agent: true
+  - hash: 20271a9a7158d5a234c65e03d1e9dc3ed7e36e45
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 67 commits)
+    provenance: rule
+    agent: false
+  - hash: f38aa765cecdff5c28f725464da36c94a7161987
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 66 commits)
+    provenance: rule
+    agent: false
+  - hash: cc23ccb557c33a3b3e0332a389badab80877ee67
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 65 commits)
+    provenance: rule
+    agent: false
+  - hash: 1423bdc5fb9354185dc8b5d94a12885c063e0c85
+    verdict: allow
+    reason: added 102 SLOC to internal/storage/dolt, already over tokens_est 16000, largest_file_sloc 600, exported_symbols 60, sloc 1000; added 6 cross-package duplicate blocks (598 to 604); added 1 duplicate blocks to internal/storage/dolt (170 to 171); no later commit split or extracted it (lookahead 64 commits)
+    provenance: rule
+    agent: false
+  - hash: 27d6a8c2da09c35668109ea70702e0f92cc13bcb
+    verdict: allow
+    reason: added 1 cross-package duplicate blocks (604 to 605); added 2 duplicate blocks to cmd/bd/doctor (233 to 235); added 1 duplicate blocks to internal/configfile (3 to 4); no later commit split or extracted it (lookahead 63 commits)
+    provenance: rule
+    agent: false
+  - hash: 9f0a85d11187bce06fe2d9c7fcf82393ee651e0c
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 62 commits)
+    provenance: rule
+    agent: false
+  - hash: 132f9d2f6f245e9eb38e28054ccf48bda7fe6733
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 61 commits)
+    provenance: rule
+    agent: false
+  - hash: 5ed65ed6a8806805e9bf83e2da8d40ce0156e3a3
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/bd (1697 to 1698); 119774fa7dd6 ("fix(list): prevent nil pointer panic in watch mode with daemon (#1324)") 1 commits later removed 1 duplicate blocks from cmd/bd while the SLOC there changed by +0.0% (lookahead 60 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: 119774fa7dd675c51bacf8438c51a5be46e3bad8
+        package: cmd/bd
+  - hash: 119774fa7dd675c51bacf8438c51a5be46e3bad8
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 59 commits)
+    provenance: rule
+    agent: true
+  - hash: d9bd02d95219ecf48da3af4303784c763182290f
+    verdict: allow
+    reason: added 2 duplicate blocks to internal/storage/sqlite (273 to 275); no later commit split or extracted it (lookahead 58 commits)
+    provenance: rule
+    agent: true
+  - hash: f8a4fcd0366d82672003248895e960f5f29052a4
+    verdict: block
+    reason: 'extract: added 2 duplicate blocks to cmd/bd (1697 to 1699); 07600dcffbed ("refactor(hooks): remove Gas Town role detection from beads core") 16 commits later removed 2 duplicate blocks from cmd/bd while the SLOC there changed by -0.1% (lookahead 57 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: 07600dcffbedd9560e9b4041c811a9a06d59c506
+        package: cmd/bd
+  - hash: 9e85b9f5d7ac2c954b434a470a8f049fbb4269bf
+    verdict: allow
+    reason: added 1 duplicate blocks to internal/storage (15 to 16); added 1 duplicate blocks to internal/storage/dolt (171 to 172); added 1 duplicate blocks to internal/storage/memory (47 to 48); added 5 duplicate blocks to internal/storage/sqlite (275 to 280); no later commit split or extracted it (lookahead 56 commits)
+    provenance: rule
+    agent: true
+  - hash: 028921b04a279604d5a9c82dc69ca8cad1df017e
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 55 commits)
+    provenance: rule
+    agent: false
+  - hash: 9b9ef9fdbad3484f4cf2756703752f921d6a1ea5
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 54 commits)
+    provenance: rule
+    agent: true
+  - hash: 45e89d3dd4c77ff1561556bfbf8dddd9f1112cf7
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 53 commits)
+    provenance: rule
+    agent: false
+  - hash: f70b1f9b4a229525a9a8eb6405658c5a76d044a8
+    verdict: allow
+    reason: added 1 cross-package duplicate blocks (604 to 605); added 1 duplicate blocks to internal/storage/dolt (172 to 173); no later commit split or extracted it (lookahead 52 commits)
+    provenance: rule
+    agent: true
+  - hash: 9e2aa9627c4d4312b1490fd91bf847918b6008a1
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 51 commits)
+    provenance: rule
+    agent: false
+  - hash: 9bbcee38d0471391f1a1d6e0befa3b1d7f4ca516
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/bd (1698 to 1699); 07600dcffbed ("refactor(hooks): remove Gas Town role detection from beads core") 9 commits later removed 2 duplicate blocks from cmd/bd while the SLOC there changed by -0.1% (lookahead 50 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: 07600dcffbedd9560e9b4041c811a9a06d59c506
+        package: cmd/bd
+  - hash: 0d99d15370030b953a8df0ea67cd3d1b845bb07b
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 49 commits)
+    provenance: rule
+    agent: false
+  - hash: ba3a725299de5a554a86e7d038262946cbca475a
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 48 commits)
+    provenance: rule
+    agent: false
+  - hash: 6e82d1e2eea121ce5dc0964d554879f8b0c08563
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 47 commits)
+    provenance: rule
+    agent: false
+  - hash: cbf21eaf533a12aa6aa2a091737d0559af7e7b4c
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 46 commits)
+    provenance: rule
+    agent: true
+  - hash: 36e17250b36774d5d5ba590e90591081dd6306a5
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 45 commits)
+    provenance: rule
+    agent: true
+  - hash: 6320e2a16f346ee433ad26a4dfd5e53f56ae93a3
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 44 commits)
+    provenance: rule
+    agent: false
+  - hash: a5c1664e4448fcc144bef3de96023296ab9a93ce
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 43 commits)
+    provenance: rule
+    agent: true
+  - hash: c6571263ae3fb050d8c0ffef0b2bc6d5d6b46d23
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 42 commits)
+    provenance: rule
+    agent: false
+  - hash: 07600dcffbedd9560e9b4041c811a9a06d59c506
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 41 commits)
+    provenance: rule
+    agent: true
+  - hash: ed3d36da8b2964fb2ac8ea2c6799ed9cbc29f0fc
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 40 commits)
+    provenance: rule
+    agent: true
+  - hash: 2d4469763c8308608204cd9e67e3613f5b2878c2
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 39 commits)
+    provenance: rule
+    agent: true
+  - hash: 1752e585be546ac8c7df3cb069652b37f62a07fe
+    verdict: allow
+    reason: added 1 cross-package duplicate blocks (605 to 606); no later commit split or extracted it (lookahead 38 commits)
+    provenance: rule
+    agent: false
+  - hash: 3abec58fc4e083cf8c2ec95ad120f5f3cd387c02
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 37 commits)
+    provenance: rule
+    agent: true
+  - hash: dc8bb7af1a30dce8026f60aa69c8a75067468349
+    verdict: allow
+    reason: added 296 SLOC to cmd/bd, already over tokens_est 16000, largest_file_sloc 600, exported_symbols 60, internal_imports 10, sloc 1000; added 13 duplicate blocks to cmd/bd (1697 to 1710); no later commit split or extracted it (lookahead 36 commits)
+    provenance: rule
+    agent: true
+  - hash: e07ac184cf0de31a2266a76936f1d1282f7081b9
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 35 commits)
+    provenance: rule
+    agent: true
+  - hash: aa663c40d7edfc499f765103b016ea69b57bdd09
+    verdict: allow
+    reason: added 2 cross-package duplicate blocks (606 to 608); no later commit split or extracted it (lookahead 34 commits)
+    provenance: rule
+    agent: false
+  - hash: a17617704d0d333dba852fb9100b02c6f6ecbf38
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 33 commits)
+    provenance: rule
+    agent: false
+  - hash: 8516436c9e6eff7e83e9a76d5d4b98781867b94d
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 32 commits)
+    provenance: rule
+    agent: true
+  - hash: 1f2418762f3da884a445850198f4df328914c951
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 31 commits)
+    provenance: rule
+    agent: false
+  - hash: 6a9de494784ed3a933bc0ccdd5db62faacd0f08e
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 30 commits)
+    provenance: rule
+    agent: false
+  - hash: cb1e3555110afe83dfad41c94ddbf6d8287f7a6c
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 29 commits)
+    provenance: rule
+    agent: false
+  - hash: 704affb90224dfb696a4cd6a5b193b4a7ae0af4d
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 28 commits)
+    provenance: rule
+    agent: true
+  - hash: 9df801effd606b3195c2108278eb511ebec7e27b
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 27 commits)
+    provenance: rule
+    agent: true
+  - hash: 1fefbaf1b7c28b364a5815895b3bd52f644f3c87
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 26 commits)
+    provenance: rule
+    agent: true
+  - hash: 051aeb0a631ffc726fbb254b7b07be24a8c8ca4a
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 25 commits)
+    provenance: rule
+    agent: true
+  - hash: f4050946fec7459214b89141f03867fbe12f654e
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 24 commits)
+    provenance: rule
+    agent: true
+  - hash: 42fbef61890b52c25e7043ded8e1d46568ec58ff
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 23 commits)
+    provenance: rule
+    agent: true
+  - hash: bf194b7d8be357a6f1215bc3431d000ce255a48a
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 22 commits)
+    provenance: rule
+    agent: false
+  - hash: fc278403546dce5d6f93505183e7d4a894ea7496
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 21 commits)
+    provenance: rule
+    agent: true
+  - hash: e78bcc082a8c6382d9392c3356ced81ec243b786
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 20 commits)
+    provenance: rule
+    agent: true
+  - hash: 379c4c124900849c8a1d42522250712addfa5162
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 19 commits)
+    provenance: rule
+    agent: false
+  - hash: c1565805b84018a1242967d424b10d21aaa3373f
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 18 commits)
+    provenance: rule
+    agent: false
+  - hash: 18f47fe8b6f9d689ce9933181c0b0124906878dd
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 17 commits)
+    provenance: rule
+    agent: true
+  - hash: b8f4f917cfa37060f081dc735ad64cbaf4182a90
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 16 commits)
+    provenance: rule
+    agent: false
+  - hash: 76dec5e51297f208c44481d4d72744964fcb85e5
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 15 commits)
+    provenance: rule
+    agent: false
+  - hash: 5f63be2f8ccbcc2d3b74efd4c8b1202f08090d50
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 14 commits)
+    provenance: rule
+    agent: true
+  - hash: 57f9f6151aad11b88a96d73abc89d4663df80de0
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 13 commits)
+    provenance: rule
+    agent: false
+  - hash: 6bc0bdbf3c7d6423bbe55227408571f9e956f7a6
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 12 commits)
+    provenance: rule
+    agent: false
+  - hash: edfdd2a964069be7f1f16d14ae2708745038eb7c
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 11 commits)
+    provenance: rule
+    agent: false
+  - hash: 1db06ec18a3d45c3c7a96f5c53d824ab3553dd49
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 10 commits)
+    provenance: rule
+    agent: false
+  - hash: cadce8937d47256ab11d6f771f7dec702dbaec66
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 9 commits)
+    provenance: rule
+    agent: false
+  - hash: e1ecc342c01f2fc83cd99461c917f2cda4332613
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 8 commits)
+    provenance: rule
+    agent: false
+  - hash: 81b586602dd4dacdbde64faaf335613d686c2488
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 7 commits)
+    provenance: rule
+    agent: false
+  - hash: a2a94e1f2d3a3c7bca6d77cc69ed14933bd2db61
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 6 commits)
+    provenance: rule
+    agent: false
+  - hash: bd1709321e979c182efc3975e740f8fc8a93d531
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 5 commits)
+    provenance: rule
+    agent: true
+  - hash: 6f707fc06805f41f1844429fbcf5fd58d19a3d9e
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 4 commits)
+    provenance: rule
+    agent: true
+  - hash: 7448754152b1ef5bf3408ccec0c0acbc805335f0
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 3 commits)
+    provenance: rule
+    agent: false
+  - hash: 02b445e87662389154cd6b94230099c0a46b2707
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 2 commits)
+    provenance: rule
+    agent: true
+  - hash: cb1a3790503618e89ba86d5cc0f328f625a230e6
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 1 commits)
+    provenance: rule
+    agent: true
+  - hash: de64d817e588ed8048f7f00308edb1d1fbbc1591
+    verdict: allow
+    reason: the replay did not load the commit, so there are no rows to read (lookahead 0 commits)
+    provenance: rule
+    agent: true

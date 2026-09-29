@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/rfizzle/astimate/calibration/replay/labels"
+	"github.com/rfizzle/astimate/internal/config"
 )
 
 // step is one commit of a synthetic history: files to write (empty content
@@ -168,7 +169,7 @@ func TestRun(t *testing.T) {
 	corpus := filepath.Join(t.TempDir(), "corpus.yaml")
 	writeFile(t, corpus, "repositories:\n  - name: a\n    repo: https://example.com/a.git\n    commit: "+
 		strings.Repeat("a", 40)+"\n    range: master.."+strings.Repeat("a", 40)+
-		"\n    history: linear\n    agent: {co_authored_by: [anthropic]}\n    data: d\n    labels: l\n")
+		"\n    history: linear\n    agent: {co_authored_by: [anthropic]}\n    data: d\n    labels: l\n    split_extract_labels: s\n")
 	out := filepath.Join(t.TempDir(), "a.yaml")
 	var stderr bytes.Buffer
 	err := run(context.Background(), []string{"--repo", repo, "--data", data, "--out", out, "--corpus", corpus, "--name", "a"}, &stderr)
@@ -192,26 +193,73 @@ func TestRun(t *testing.T) {
 
 func TestParseFlags(t *testing.T) {
 	base := []string{"--repo", "r", "--data", "d", "--out", "o"}
+	split := []string{"--rule", "split-extract", "--data", "d", "--out", "o"}
 	tests := []struct {
-		name string
-		args []string
-		ok   bool
+		name   string
+		args   []string
+		ok     bool
+		window int
 	}{
-		{"minimal", base, true},
-		{"with corpus", append(slices.Clone(base), "--corpus", "c", "--name", "n"), true},
-		{"corpus without name", append(slices.Clone(base), "--corpus", "c"), false},
-		{"missing out", base[:4], false},
-		{"zero window", append(slices.Clone(base), "--window", "0"), false},
-		{"extra argument", append(slices.Clone(base), "x"), false},
-		{"unknown flag", []string{"--nope"}, false},
+		{"minimal", base, true, 20},
+		{"with corpus", append(slices.Clone(base), "--corpus", "c", "--name", "n"), true, 20},
+		{"corpus without name", append(slices.Clone(base), "--corpus", "c"), false, 0},
+		{"missing out", base[:4], false, 0},
+		{"zero window", append(slices.Clone(base), "--window", "0"), false, 0},
+		{"extra argument", append(slices.Clone(base), "x"), false, 0},
+		{"unknown flag", []string{"--nope"}, false, 0},
+		{"unknown rule", append(slices.Clone(base), "--rule", "vibes"), false, 0},
+		{"config with the fixup rule", append(slices.Clone(base), "--config", "c.yaml"), false, 0},
+		{"fixup without repo", base[2:], false, 0},
+		{"split-extract needs no repo and looks to the range end", split, true, 0},
+		{"split-extract with a window and a config", append(slices.Clone(split), "--window", "40", "--config", "c.yaml"), true, 40},
+		{"split-extract, zero window", append(slices.Clone(split), "--window", "0"), false, 0},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			o, err := parseFlags(tc.args, &bytes.Buffer{})
-			if (err == nil) != tc.ok {
+			if (err == nil) != tc.ok || (tc.ok && o.window != tc.window) {
 				t.Fatalf("parseFlags(%v) = %+v, %v", tc.args, o, err)
 			}
 		})
+	}
+}
+
+func TestRunSplitExtract(t *testing.T) {
+	def, err := config.Parse(config.Default())
+	if err != nil {
+		t.Fatal(err)
+	}
+	data := t.TempDir()
+	writeFile(t, filepath.Join(data, "run.json"), `{"source":{"range":"master","remote":"https://example.com/a.git","module_dir":"."}}`)
+	writeFile(t, filepath.Join(data, "commits.jsonl"),
+		`{"commit":"c0","config_version":"`+def.Version+`","loaded":true,"files_changed":["a/a.go"],"co_authored_by":["Claude <noreply@anthropic.com>"]}
+{"commit":"c1","config_version":"`+def.Version+`","loaded":true,"files_changed":["a/a.go"]}
+`)
+	writeFile(t, filepath.Join(data, "packages.jsonl"),
+		`{"commit":"c0","package":"a","language":"go","metrics":{"sloc":100,"dup_blocks":2},"base":{"sloc":80},"sloc_delta":20}
+{"commit":"c1","package":"a","language":"go","metrics":{"sloc":90,"dup_blocks":0},"base":{"sloc":100,"dup_blocks":2},"sloc_delta":-10}
+`)
+	corpus := filepath.Join(t.TempDir(), "corpus.yaml")
+	writeFile(t, corpus, "repositories:\n  - name: a\n    repo: https://example.com/a.git\n    commit: "+
+		strings.Repeat("a", 40)+"\n    range: master.."+strings.Repeat("a", 40)+
+		"\n    history: linear\n    agent: {co_authored_by: [anthropic]}\n    data: d\n    labels: l\n    split_extract_labels: s\n")
+	out := filepath.Join(t.TempDir(), "a-split-extract.yaml")
+	var stderr bytes.Buffer
+	if err := run(context.Background(), []string{"--rule", "split-extract", "--data", data, "--out", out, "--corpus", corpus, "--name", "a"}, &stderr); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimSpace(stderr.String()); got != "commits=2 agent=1 block=1 split=0 extract=1 both=0" {
+		t.Errorf("summary %q", got)
+	}
+	f, err := labels.Load(out)
+	if err != nil || f.Source.Repository != "https://example.com/a.git" || !strings.Contains(f.Rule, "rest of the replayed range") {
+		t.Fatalf("labels file: %+v, %v", f, err)
+	}
+	if err := f.Validate([]string{"c0", "c1"}); err != nil {
+		t.Error(err)
+	}
+	if err := run(context.Background(), []string{"--rule", "split-extract", "--data", t.TempDir(), "--out", out}, &stderr); err == nil {
+		t.Error("run without replay data succeeded")
 	}
 }
 

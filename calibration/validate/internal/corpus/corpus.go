@@ -26,19 +26,74 @@ type Source struct {
 	// Data is the replay's output directory, holding commits.jsonl and
 	// packages.jsonl.
 	Data string
-	// Labels is the labels file for that directory.
+	// Labels is the labels file for that directory: the first label set,
+	// which every view, sweep and recommendation is scored with.
 	Labels string
+	// Second is an optional second labels file for the same directory,
+	// the second label set, which each view is also scored with (Relabel).
+	Second string
 }
 
-// ParseSource parses the --corpus form name=<data dir>:<labels file>. The
-// labels file is everything after the last colon.
+// ParseSource parses the --corpus form name=<data dir>:<labels
+// file>[,<second labels file>]. The labels files are everything after the
+// last colon.
 func ParseSource(s string) (Source, error) {
 	name, rest, ok := strings.Cut(s, "=")
 	i := strings.LastIndexByte(rest, ':')
 	if !ok || name == "" || i <= 0 || i == len(rest)-1 {
-		return Source{}, fmt.Errorf("corpus %q is not name=<data dir>:<labels file>", s)
+		return Source{}, fmt.Errorf("corpus %q is not name=<data dir>:<labels file>[,<second labels file>]", s)
 	}
-	return Source{Name: name, Data: rest[:i], Labels: rest[i+1:]}, nil
+	first, second, two := strings.Cut(rest[i+1:], ",")
+	if first == "" || (two && (second == "" || strings.Contains(second, ","))) {
+		return Source{}, fmt.Errorf("corpus %q does not name one or two labels files", s)
+	}
+	return Source{Name: name, Data: rest[:i], Labels: first, Second: second}, nil
+}
+
+// LoadSecond reads src's second labels file and validates it against the
+// replayed commits; nil when src has no second file.
+func LoadSecond(src Source) (*labels.File, error) {
+	if src.Second == "" {
+		return nil, nil
+	}
+	return loadLabels(src.Second, src.Data)
+}
+
+// loadLabels reads the labels file at path and validates it against the
+// commits the replay data directory data replayed.
+func loadLabels(path, data string) (*labels.File, error) {
+	lf, err := labels.Load(path)
+	if err != nil {
+		return nil, err
+	}
+	replayed, err := labels.Replayed(data)
+	if err != nil {
+		return nil, err
+	}
+	if err := lf.Validate(replayed); err != nil {
+		return nil, fmt.Errorf("labels %s: %w", path, err)
+	}
+	return lf, nil
+}
+
+// Relabel returns a copy of c with every commit's label replaced by its
+// label in byHash, so a view keeps its commits and is scored under
+// another label set. RuleLabels holds when every new label has provenance
+// rule. It fails when byHash has no label for one of c's commits.
+func (c *Corpus) Relabel(byHash map[string]*labels.Label) (*Corpus, error) {
+	out := *c
+	out.Commits = make([]Commit, len(c.Commits))
+	out.RuleLabels = true
+	for i := range c.Commits {
+		l, ok := byHash[c.Commits[i].Hash]
+		if !ok {
+			return nil, fmt.Errorf("view %s: commit %s has no label in the second label set", c.Name, c.Commits[i].Hash)
+		}
+		out.Commits[i] = c.Commits[i]
+		out.Commits[i].Label = *l
+		out.RuleLabels = out.RuleLabels && l.Provenance == labels.Rule
+	}
+	return &out, nil
 }
 
 // Row is one checked package, or the module row, of one commit.
@@ -117,6 +172,9 @@ type Corpus struct {
 	ConfigVersion string
 	// RuleLabels is true when every label has provenance rule.
 	RuleLabels bool
+	// Rule is the labels file's rule text, empty for hand labels; a pool
+	// keeps its first part's.
+	Rule string
 }
 
 // Counts returns the numbers of block and allow commits in c.
@@ -156,7 +214,7 @@ func Pool(name string, cs ...*Corpus) *Corpus {
 		out.NotAgent += c.NotAgent
 		out.RuleLabels = out.RuleLabels && c.RuleLabels
 		if out.ConfigVersion == "" {
-			out.ConfigVersion = c.ConfigVersion
+			out.ConfigVersion, out.Rule = c.ConfigVersion, c.Rule
 		}
 	}
 	return out
@@ -167,22 +225,15 @@ func Pool(name string, cs ...*Corpus) *Corpus {
 // agent: false is dropped; a label that does not classify is kept. A
 // commit the replay did not load has no verdict and is left out.
 func Load(src Source, agentOnly bool) (*Corpus, error) {
-	lf, err := labels.Load(src.Labels)
+	lf, err := loadLabels(src.Labels, src.Data)
 	if err != nil {
 		return nil, err
-	}
-	replayed, err := labels.Replayed(src.Data)
-	if err != nil {
-		return nil, err
-	}
-	if err := lf.Validate(replayed); err != nil {
-		return nil, fmt.Errorf("labels %s: %w", src.Labels, err)
 	}
 	rows, err := readRows(filepath.Join(src.Data, "packages.jsonl"))
 	if err != nil {
 		return nil, err
 	}
-	c := &Corpus{Name: src.Name, Labeled: len(lf.Commits), RuleLabels: true}
+	c := &Corpus{Name: src.Name, Labeled: len(lf.Commits), RuleLabels: true, Rule: lf.Rule}
 	for i := range lf.Commits {
 		c.RuleLabels = c.RuleLabels && lf.Commits[i].Provenance == labels.Rule
 	}

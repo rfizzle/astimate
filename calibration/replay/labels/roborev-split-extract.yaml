@@ -1,0 +1,1574 @@
+source:
+  repository: https://github.com/wesm/roborev.git
+  range: 21e05fe6758eed3f984f68821ab0466278562092
+  data: calibration/data/replay-roborev-2026-09-28
+rule: 'block when a later commit in the rest of the replayed range splits a package this commit grew past a ceiling, or extracts duplicate code this commit added, read from the replay''s rows. Split: the commit took a package over a capacity rule''s max (at or under it at the parent, or new, and over it at the commit) or added 100 or more SLOC to a package already over one, and a later commit lowers that package''s sloc by at least 25% (deleting the package counts) while the module''s total sloc falls by less than 5% (code moved, not deleted). Extraction: the commit raised a package''s dup_blocks, or the module row''s dup_blocks_cross_pkg, and a later commit that changes a file of that package (for the module row, of a package the commit changed) lowers that count by at least what this commit added while the package''s sloc (the module''s total, for the module row) falls by less than 25%. Otherwise allow. The module''s total is the sum over every package the rows show, each carried from its nearest row, so a package no replayed commit changed is not counted. A commit the replay did not load has no rows and is allow. Each reason ends with the label''s lookahead: the commits after it in the range, so the last commits of a range are censored.'
+commits:
+  - hash: 1aacb414133734f7d9c78014b17b74a8e6b72083
+    verdict: block
+    reason: 'extract: added 2 cross-package duplicate blocks (0 to 2); dd33a5acc461 ("Add roborev tui subcommand and fix codex agent") 1 commits later removed 2 duplicate blocks from the module''s cross-package duplicates while the SLOC there changed by +0.5% (lookahead 271 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: dd33a5acc461024ebef2f7f93759b3cc919fa829
+        package: <module>
+  - hash: dd33a5acc461024ebef2f7f93759b3cc919fa829
+    verdict: allow
+    reason: added 5 duplicate blocks to cmd/roborev (7 to 12); no later commit split or extracted it (lookahead 270 commits)
+    provenance: rule
+    agent: true
+  - hash: 49edff9351b7b275729873ced1e9c410f22b2c54
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 269 commits)
+    provenance: rule
+    agent: true
+  - hash: ccf492c822800dc06cb6112b7dacc8cb173c4cee
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 268 commits)
+    provenance: rule
+    agent: true
+  - hash: 47be9a2744b3fb93e6c91724330c4c7cd6d4fa0b
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to internal/git (3 to 4); 980b749a2477 ("Add ''y'' hotkey to copy review content to clipboard (#90)") 179 commits later removed 1 duplicate blocks from internal/git while the SLOC there changed by +1.8% (lookahead 267 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 980b749a24771d9c5215d9e48db550df44ec877c
+        package: internal/git
+  - hash: b4267ec6722e37284c62eaa2f29399d48225e042
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 266 commits)
+    provenance: rule
+    agent: true
+  - hash: dd8cf29c50e34525d487898f846d9a754adfef5b
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 265 commits)
+    provenance: rule
+    agent: true
+  - hash: 53b63a76aa3b4768f2e9b4f5bfadea86656b1a07
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 264 commits)
+    provenance: rule
+    agent: true
+  - hash: 5b10becab5883f723b379c707798cef9ba003285
+    verdict: block
+    reason: 'extract: added 4 cross-package duplicate blocks (0 to 4); 49390427a7fa ("Add --addr flag to tui command") 2 commits later removed 4 duplicate blocks from the module''s cross-package duplicates while the SLOC there changed by -0.8% (lookahead 263 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 49390427a7fa0a5b7cc494051bd1da4c32beac8e
+        package: <module>
+  - hash: cdd5f650c469594107215ce31a657f1c74509906
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to internal/storage (19 to 20); 7cb9575bea0f ("Fix SQLite datetime parsing for TUI timestamps") 13 commits later removed 1 duplicate blocks from internal/storage while the SLOC there changed by +1.7% (lookahead 262 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 7cb9575bea0f53e157dd3d87a52efa72dca3084b
+        package: internal/storage
+  - hash: 49390427a7fa0a5b7cc494051bd1da4c32beac8e
+    verdict: allow
+    reason: added 4 duplicate blocks to cmd/roborev (7 to 11); no later commit split or extracted it (lookahead 261 commits)
+    provenance: rule
+    agent: true
+  - hash: 121b5b1dadab4f37a8a0bedb8b61cd583d1845b6
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 260 commits)
+    provenance: rule
+    agent: true
+  - hash: c76ce4af55e5a99d164613cfe3c1b6469b52dfe1
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to internal/daemon (8 to 9); 26cb8b8a1706 ("Implement pagination in TUI (#20)") 108 commits later removed 1 duplicate blocks from internal/daemon while the SLOC there changed by +3.3% (lookahead 259 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 26cb8b8a1706db4b5931d04f78642f728d012f0c
+        package: internal/daemon
+  - hash: 0f647b167b6ca67fd3ab1a70efce092f56ab33a1
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 258 commits)
+    provenance: rule
+    agent: true
+  - hash: 1bf93a41e2474fcddc6b4e8817a62d1d37d9377f
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 257 commits)
+    provenance: rule
+    agent: false
+  - hash: dbe3219c044f3bea43b0bf8f5164cc828b6878d4
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 256 commits)
+    provenance: rule
+    agent: true
+  - hash: a76628d92b901074b1a7383b2abfcbd4fc64aed1
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 255 commits)
+    provenance: rule
+    agent: true
+  - hash: c1366fa81f389ef70a8e16533382d799c322157b
+    verdict: block
+    reason: 'extract: added 2 duplicate blocks to cmd/roborev (11 to 13); 8c76033acf50 ("Add rollback for optimistic addressed toggle on error") 45 commits later removed 3 duplicate blocks from cmd/roborev while the SLOC there changed by +1.2% (lookahead 254 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 8c76033acf50645d92f15b9ded5b7682e83a084f
+        package: cmd/roborev
+  - hash: 9cdbdf9fd88388d30be7d2e994552e7e35400223
+    verdict: block
+    reason: 'extract: added 2 duplicate blocks to cmd/roborev (13 to 15); 8c76033acf50 ("Add rollback for optimistic addressed toggle on error") 44 commits later removed 3 duplicate blocks from cmd/roborev while the SLOC there changed by +1.2% (lookahead 253 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 8c76033acf50645d92f15b9ded5b7682e83a084f
+        package: cmd/roborev
+  - hash: ab200125c76bfabc614427c1181de2ee1af96d97
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/roborev (15 to 16); 24ddaa2a6cdd ("Fix pgup/pgdown panic on empty queue") 8 commits later removed 1 duplicate blocks from cmd/roborev while the SLOC there changed by +0.4% (lookahead 252 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 24ddaa2a6cdd9dca7183b9f51397ba56431ba0d9
+        package: cmd/roborev
+  - hash: 7c86bee9c965af13094750700bd53b8645344130
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 251 commits)
+    provenance: rule
+    agent: true
+  - hash: 0a6498ba5346dd539d5816b6b42d2083f5eacb85
+    verdict: block
+    reason: 'extract: added 2 duplicate blocks to cmd/roborev (16 to 18); 8c76033acf50 ("Add rollback for optimistic addressed toggle on error") 41 commits later removed 3 duplicate blocks from cmd/roborev while the SLOC there changed by +1.2% (lookahead 250 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 8c76033acf50645d92f15b9ded5b7682e83a084f
+        package: cmd/roborev
+  - hash: 7cb9575bea0f53e157dd3d87a52efa72dca3084b
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 249 commits)
+    provenance: rule
+    agent: true
+  - hash: 11e22ab030de38e41c4e4cc70419e6697aef35ec
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 248 commits)
+    provenance: rule
+    agent: true
+  - hash: ab4785b72d2fd0750e16c0b71bcb090ddc91ab5e
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/roborev (18 to 19); 24ddaa2a6cdd ("Fix pgup/pgdown panic on empty queue") 3 commits later removed 1 duplicate blocks from cmd/roborev while the SLOC there changed by +0.4% (lookahead 247 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 24ddaa2a6cdd9dca7183b9f51397ba56431ba0d9
+        package: cmd/roborev
+  - hash: c5a4ef2656dff0052bce9f6d7ce4f7bd47d9c915
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 246 commits)
+    provenance: rule
+    agent: true
+  - hash: 309f4876a78b852848e978796fe12fe9d48fc115
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/roborev (19 to 20); 24ddaa2a6cdd ("Fix pgup/pgdown panic on empty queue") 1 commits later removed 1 duplicate blocks from cmd/roborev while the SLOC there changed by +0.4% (lookahead 245 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 24ddaa2a6cdd9dca7183b9f51397ba56431ba0d9
+        package: cmd/roborev
+  - hash: 24ddaa2a6cdd9dca7183b9f51397ba56431ba0d9
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 244 commits)
+    provenance: rule
+    agent: true
+  - hash: ef024b1d1cb2b104e40899ed83d4fe3213df39e3
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 243 commits)
+    provenance: rule
+    agent: true
+  - hash: 5b3f8c9ca97d1b9bcdfc9b52f72e7e076e7d427a
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/roborev (18 to 19); 727bc6fac98f ("Maintain TUI selection position when jobs are added") 28 commits later removed 1 duplicate blocks from cmd/roborev while the SLOC there changed by +2.4% (lookahead 242 commits)'
+    provenance: rule
+    agent: false
+    fired:
+      - part: extract
+        by: 727bc6fac98f5ed760d6fcaf52b3acaaecf26ec2
+        package: cmd/roborev
+  - hash: 9d27e7b3d267eeaf46937556b599635eb44f0181
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 241 commits)
+    provenance: rule
+    agent: true
+  - hash: 2578e3ed9d99c6e52e0a78b23afb473717725bb3
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 240 commits)
+    provenance: rule
+    agent: false
+  - hash: 417e85c2450cc0c1daf0a505deca9ce4680c783a
+    verdict: allow
+    reason: took cmd/roborev over largest_file_sloc max 600 (561 to 602); added 4 duplicate blocks to cmd/roborev (19 to 23); added 2 duplicate blocks to internal/daemon (10 to 12); no later commit split or extracted it (lookahead 239 commits)
+    provenance: rule
+    agent: true
+  - hash: 62447f6effbd8f4f2ccfe28a7a6acf2645af3fd7
+    verdict: block
+    reason: 'extract: added 2 duplicate blocks to internal/storage (19 to 21); 5a5a9d493927 ("Agent improvements, Gemini refine support, and TUI rendering fixes (#64)") 132 commits later removed 2 duplicate blocks from internal/storage while the SLOC there changed by +0.8% (lookahead 238 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 5a5a9d4939272f5d0d36b1dcabf150d97a0642f0
+        package: internal/storage
+  - hash: badd9dade28324ef6403ac1e2691be2f1d9d4326
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 237 commits)
+    provenance: rule
+    agent: true
+  - hash: 82dc3a9b2b28f920847febdb90e71c0cf22ae7a9
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 236 commits)
+    provenance: rule
+    agent: true
+  - hash: a3ea805df4b03908aa9916b0f01580c73fc39f17
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 235 commits)
+    provenance: rule
+    agent: true
+  - hash: 8ab2a48f52ca65a4bf313fbf5c0fae1b4210d53d
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 234 commits)
+    provenance: rule
+    agent: true
+  - hash: 41e0f22f7701c91205282075cada1a621bcd23e3
+    verdict: block
+    reason: 'extract: added 3 duplicate blocks to cmd/roborev (23 to 26); 8c76033acf50 ("Add rollback for optimistic addressed toggle on error") 24 commits later removed 3 duplicate blocks from cmd/roborev while the SLOC there changed by +1.2% (lookahead 233 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 8c76033acf50645d92f15b9ded5b7682e83a084f
+        package: cmd/roborev
+  - hash: c502ef69aa81f415b509134af7fff9f2b47615f0
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 232 commits)
+    provenance: rule
+    agent: true
+  - hash: 51e0f1b10a66c8835e65ade2d2494699de0acf72
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 231 commits)
+    provenance: rule
+    agent: true
+  - hash: f057209da3abecc562e2d1e6967546f34675dda9
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 230 commits)
+    provenance: rule
+    agent: true
+  - hash: 3554d3a61df0bfb8328a50b1a0910559665f4534
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 229 commits)
+    provenance: rule
+    agent: true
+  - hash: 436de33da3e6808e30115dc8577f66088cbf3485
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 228 commits)
+    provenance: rule
+    agent: true
+  - hash: ffd2d29ac3d23fa08af0332b0cdda53dd5999b7a
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 227 commits)
+    provenance: rule
+    agent: true
+  - hash: ceef04c715f699df91a624658aad526e11c7ce3b
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 226 commits)
+    provenance: rule
+    agent: true
+  - hash: fda358c357f34315c3b4673e0cb228807fedc88d
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 225 commits)
+    provenance: rule
+    agent: true
+  - hash: 647dd9dae6e2470a3a7bf1d39e4e5ce659c7f34e
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 224 commits)
+    provenance: rule
+    agent: true
+  - hash: 10914d8094cbb5c4c6b224204413713047080df8
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 223 commits)
+    provenance: rule
+    agent: true
+  - hash: e64fd7df93d6ab41b600d429e4579e61481be5d6
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 222 commits)
+    provenance: rule
+    agent: true
+  - hash: 6bc1932d7d7e32e32353e09e80633f9301899d26
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 221 commits)
+    provenance: rule
+    agent: true
+  - hash: 4836a6c2ec35dc1a7bd983963713c43f63f00d8e
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to internal/storage (21 to 22); 5a5a9d493927 ("Agent improvements, Gemini refine support, and TUI rendering fixes (#64)") 114 commits later removed 2 duplicate blocks from internal/storage while the SLOC there changed by +0.8% (lookahead 220 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 5a5a9d4939272f5d0d36b1dcabf150d97a0642f0
+        package: internal/storage
+  - hash: 7bea6f644cb74eef5721113300e2ab41a3d56f15
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 219 commits)
+    provenance: rule
+    agent: true
+  - hash: b6b8deadd52d8796b45002ad24f830947ee55d5a
+    verdict: allow
+    reason: added 3 duplicate blocks to internal/agent (1 to 4); no later commit split or extracted it (lookahead 218 commits)
+    provenance: rule
+    agent: true
+  - hash: fc72df16fcb96d8364bc31b7b6bbb0a4f4d763de
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 217 commits)
+    provenance: rule
+    agent: true
+  - hash: 49b4f3e7ff0fa147f7761ec0fb8cb28f8c440e5f
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 216 commits)
+    provenance: rule
+    agent: true
+  - hash: feae3a18c7fd38c03a3a4dbb9ff2cb4ccda99ff0
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 215 commits)
+    provenance: rule
+    agent: true
+  - hash: 727bc6fac98f5ed760d6fcaf52b3acaaecf26ec2
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 214 commits)
+    provenance: rule
+    agent: true
+  - hash: 7fdac91531775efa6b0741c9094f80cda8588351
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 213 commits)
+    provenance: rule
+    agent: true
+  - hash: 9d1482de7ad7f17d5c3869ba921ed1623d2a19a1
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 212 commits)
+    provenance: rule
+    agent: true
+  - hash: b5c7a7fe64e2fa5c07b88edf1e8b9fdd394f5683
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 211 commits)
+    provenance: rule
+    agent: true
+  - hash: 243fd1479dd85198777941bbebbd5d6762ff3aa1
+    verdict: block
+    reason: 'extract: added 2 duplicate blocks to cmd/roborev (25 to 27); 8c76033acf50 ("Add rollback for optimistic addressed toggle on error") 1 commits later removed 3 duplicate blocks from cmd/roborev while the SLOC there changed by +1.2% (lookahead 210 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 8c76033acf50645d92f15b9ded5b7682e83a084f
+        package: cmd/roborev
+  - hash: 8c76033acf50645d92f15b9ded5b7682e83a084f
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 209 commits)
+    provenance: rule
+    agent: true
+  - hash: 4431d669961223997a9dca2df5be2a50f196c5af
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 208 commits)
+    provenance: rule
+    agent: true
+  - hash: b1bcc220f52536c4736f4583eac9f4d83f7b4c48
+    verdict: allow
+    reason: added 4 duplicate blocks to cmd/roborev (24 to 28); no later commit split or extracted it (lookahead 207 commits)
+    provenance: rule
+    agent: true
+  - hash: 83d5373d3800eabb9cc4ab8dea58f45f21cd8532
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/roborev (28 to 29); 5d8821e4cd1a ("Add setJobAddressed helper to handle nil pointers and reduce duplication") 2 commits later removed 1 duplicate blocks from cmd/roborev while the SLOC there changed by -0.4% (lookahead 206 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 5d8821e4cd1ad780ed76332c0e36354808985559
+        package: cmd/roborev
+  - hash: 380f6e178d3ff58b469f579370ddec9d247f5486
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 205 commits)
+    provenance: rule
+    agent: true
+  - hash: 5d8821e4cd1ad780ed76332c0e36354808985559
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 204 commits)
+    provenance: rule
+    agent: true
+  - hash: 2210653323cfaa1255e2dd9c956044236e3156df
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 203 commits)
+    provenance: rule
+    agent: true
+  - hash: 4003d6afed2fd7b8293165ce7752af035c2bd486
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 202 commits)
+    provenance: rule
+    agent: true
+  - hash: bda706976ee42a094d1c1db2924ab0b252724471
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 201 commits)
+    provenance: rule
+    agent: true
+  - hash: a175460d29dc06596dad3124a5ffd61c8991772f
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 200 commits)
+    provenance: rule
+    agent: true
+  - hash: 4fd5b10e46c86350eeff17b0ae1776aa4ca0680f
+    verdict: allow
+    reason: added 2 duplicate blocks to internal/agent (4 to 6); no later commit split or extracted it (lookahead 199 commits)
+    provenance: rule
+    agent: true
+  - hash: d024a3454d8c3e578f5cb8f33f8aed22fe5abb94
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to internal/storage (22 to 23); 5a5a9d493927 ("Agent improvements, Gemini refine support, and TUI rendering fixes (#64)") 92 commits later removed 2 duplicate blocks from internal/storage while the SLOC there changed by +0.8% (lookahead 198 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 5a5a9d4939272f5d0d36b1dcabf150d97a0642f0
+        package: internal/storage
+  - hash: 679c51d0bff9ca1b8336f8b679cf1b8926c1fafe
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to internal/storage (23 to 24); 5a5a9d493927 ("Agent improvements, Gemini refine support, and TUI rendering fixes (#64)") 91 commits later removed 2 duplicate blocks from internal/storage while the SLOC there changed by +0.8% (lookahead 197 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 5a5a9d4939272f5d0d36b1dcabf150d97a0642f0
+        package: internal/storage
+  - hash: 18e5b6fe0dabf610d0e3a2ab5490a08bd2c696e5
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 196 commits)
+    provenance: rule
+    agent: true
+  - hash: d065ea4c88f0381d3bbd32c93dc045e00b2fa46d
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to internal/storage (24 to 25); 5a5a9d493927 ("Agent improvements, Gemini refine support, and TUI rendering fixes (#64)") 89 commits later removed 2 duplicate blocks from internal/storage while the SLOC there changed by +0.8% (lookahead 195 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 5a5a9d4939272f5d0d36b1dcabf150d97a0642f0
+        package: internal/storage
+  - hash: a7d9c46bb7d8f01f2e74b65b97d8aef6d1a37ff6
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 194 commits)
+    provenance: rule
+    agent: true
+  - hash: a21c465cdbd99e10385051f7d31e1412a7c1e4dd
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 193 commits)
+    provenance: rule
+    agent: true
+  - hash: 12ef3993f2e26fc35884104a191f5a9b09a95389
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 192 commits)
+    provenance: rule
+    agent: true
+  - hash: 1b2d3a379f23cede54f51fea68b0b6d43cd52eb5
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 191 commits)
+    provenance: rule
+    agent: true
+  - hash: 2a7d4aa78c92c5c33474dde504f4ea19e25f011f
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 190 commits)
+    provenance: rule
+    agent: true
+  - hash: 65d243166ca20bcfcbe59672a5f8a298d228f745
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 189 commits)
+    provenance: rule
+    agent: true
+  - hash: fa46c89275cebf3527a8aa61d01d251b343ee380
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 188 commits)
+    provenance: rule
+    agent: true
+  - hash: 1dd5ed63403bba8d4b48013fa26daea2cb1212b4
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 187 commits)
+    provenance: rule
+    agent: true
+  - hash: 28c2b00b3ff475c8619b567c1431fb149924df8d
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/roborev (34 to 35); ae6ddaca3c80 ("Refactors post-commit hook generation to eliminate code duplication, improve security, and ensure truly silent operation. (#13)") 29 commits later removed 1 duplicate blocks from cmd/roborev while the SLOC there changed by -0.4% (lookahead 186 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: ae6ddaca3c806ecd6424b350bb3afdfc39a468df
+        package: cmd/roborev
+  - hash: 7f2e3969572282506ccffb098c3e4d143813fea5
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 185 commits)
+    provenance: rule
+    agent: true
+  - hash: f3da8a879d58ccbd42c3573a8b110b9b32cc49b7
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 184 commits)
+    provenance: rule
+    agent: true
+  - hash: de892ede29d6380b5071705ef1460bccff9916d1
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 183 commits)
+    provenance: rule
+    agent: true
+  - hash: ed5a7343e874769ff06a7098aac83735ccefa99a
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 182 commits)
+    provenance: rule
+    agent: true
+  - hash: 677096f95fa150f2b8bf4dbcb15d0925268b8e20
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/roborev (35 to 36); ae6ddaca3c80 ("Refactors post-commit hook generation to eliminate code duplication, improve security, and ensure truly silent operation. (#13)") 24 commits later removed 1 duplicate blocks from cmd/roborev while the SLOC there changed by -0.4% (lookahead 181 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: ae6ddaca3c806ecd6424b350bb3afdfc39a468df
+        package: cmd/roborev
+  - hash: a6ed8a1974d05d0df1a1d08900f919e0aff85aed
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 180 commits)
+    provenance: rule
+    agent: true
+  - hash: ecd1bb06852088a045a99905e30bc5c3aa59e3c3
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 179 commits)
+    provenance: rule
+    agent: true
+  - hash: 85ffda074a78453b6c5ccf11dcb47320c2e2621e
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 178 commits)
+    provenance: rule
+    agent: true
+  - hash: 552279a264fc1752cf97b3c2e7d4e000c160fd12
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 177 commits)
+    provenance: rule
+    agent: true
+  - hash: a71c1563ae67487e12b57cd9df9991da03035c4d
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to internal/daemon (14 to 15); 26cb8b8a1706 ("Implement pagination in TUI (#20)") 25 commits later removed 1 duplicate blocks from internal/daemon while the SLOC there changed by +3.3% (lookahead 176 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 26cb8b8a1706db4b5931d04f78642f728d012f0c
+        package: internal/daemon
+  - hash: 53895e91553426b02cd5297c03d21735ad62be6b
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to internal/daemon (15 to 16); 26cb8b8a1706 ("Implement pagination in TUI (#20)") 24 commits later removed 1 duplicate blocks from internal/daemon while the SLOC there changed by +3.3% (lookahead 175 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 26cb8b8a1706db4b5931d04f78642f728d012f0c
+        package: internal/daemon
+  - hash: f079ce21a7210a66c590098bc26abb73d8586a4a
+    verdict: block
+    reason: 'extract: added 2 duplicate blocks to cmd/roborev (36 to 38); 6047cd6292d9 ("Add ''h'' hotkey to hide addressed reviews, improve verdict parsing (#26)") 29 commits later removed 3 duplicate blocks from cmd/roborev while the SLOC there changed by +2.9% (lookahead 174 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 6047cd6292d9cdf6e49b911801e3dbdff8402525
+        package: cmd/roborev
+  - hash: 2681feb504b73e5b31e5ceb5cefcf5c5b6b85f40
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 173 commits)
+    provenance: rule
+    agent: true
+  - hash: 99f1e551d6e589d1acce726261dcceefa68bc018
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 172 commits)
+    provenance: rule
+    agent: true
+  - hash: d3732574c66829055d3f3dc8d48953b83fddbb1a
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 171 commits)
+    provenance: rule
+    agent: true
+  - hash: a28c5d9026ceacc90cd79be04cc290c9cf70f79a
+    verdict: block
+    reason: 'extract: added 2 duplicate blocks to cmd/roborev (38 to 40); 6047cd6292d9 ("Add ''h'' hotkey to hide addressed reviews, improve verdict parsing (#26)") 25 commits later removed 3 duplicate blocks from cmd/roborev while the SLOC there changed by +2.9% (lookahead 170 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 6047cd6292d9cdf6e49b911801e3dbdff8402525
+        package: cmd/roborev
+  - hash: 084844b1ae572c9735766f609d6e8bed730410b5
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 169 commits)
+    provenance: rule
+    agent: true
+  - hash: fd11462f6db75906659a5a63f862e76e02339e9f
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 168 commits)
+    provenance: rule
+    agent: true
+  - hash: c4301ada0eaad164ab1b6395bb2f1a568ef600f9
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 167 commits)
+    provenance: rule
+    agent: true
+  - hash: 88be0103a9fbfe44286197c0693fbedc5fe5b554
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 166 commits)
+    provenance: rule
+    agent: true
+  - hash: 663f80bb6d750b58dad6646df7df9e6b0cecae35
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 165 commits)
+    provenance: rule
+    agent: true
+  - hash: bca59408208d2ea15d2deffdb6f812b35341dd59
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 164 commits)
+    provenance: rule
+    agent: true
+  - hash: 4c3d8c68e7a0fc12fb38edab21e6c6c3a65501e4
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 163 commits)
+    provenance: rule
+    agent: true
+  - hash: 904bb518de919730ff9b04dc3d457c5bae7756e3
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 162 commits)
+    provenance: rule
+    agent: true
+  - hash: f09546600812fbcabd34fc3a3166ec1ae8d738f3
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 161 commits)
+    provenance: rule
+    agent: true
+  - hash: 1e4b2074c5a44ae7992236661538a524669f1b84
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/roborev (40 to 41); ae6ddaca3c80 ("Refactors post-commit hook generation to eliminate code duplication, improve security, and ensure truly silent operation. (#13)") 3 commits later removed 1 duplicate blocks from cmd/roborev while the SLOC there changed by -0.4% (lookahead 160 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: ae6ddaca3c806ecd6424b350bb3afdfc39a468df
+        package: cmd/roborev
+  - hash: 7daab0f86e54482c4b287d07217a5394b716904c
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/roborev (41 to 42); ae6ddaca3c80 ("Refactors post-commit hook generation to eliminate code duplication, improve security, and ensure truly silent operation. (#13)") 2 commits later removed 1 duplicate blocks from cmd/roborev while the SLOC there changed by -0.4% (lookahead 159 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: ae6ddaca3c806ecd6424b350bb3afdfc39a468df
+        package: cmd/roborev
+  - hash: 2015e36006aa6b8d14ba052a3b372be86a07344c
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 158 commits)
+    provenance: rule
+    agent: true
+  - hash: ae6ddaca3c806ecd6424b350bb3afdfc39a468df
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 157 commits)
+    provenance: rule
+    agent: true
+  - hash: 22ac34cf5117f46bbafd6299959b1d7c9faf5b85
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 156 commits)
+    provenance: rule
+    agent: true
+  - hash: 8dc67c84856162bfdb4b7c6f583f7ca7157abe2c
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to internal/daemon (16 to 17); 26cb8b8a1706 ("Implement pagination in TUI (#20)") 4 commits later removed 1 duplicate blocks from internal/daemon while the SLOC there changed by +3.3% (lookahead 155 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 26cb8b8a1706db4b5931d04f78642f728d012f0c
+        package: internal/daemon
+  - hash: fe4e106eae79bcd06c3d088699b89d2c564d966b
+    verdict: allow
+    reason: added 105 SLOC to cmd/roborev, already over tokens_est 16000, largest_file_sloc 600, sloc 1000; added 4 duplicate blocks to cmd/roborev (49 to 53); no later commit split or extracted it (lookahead 154 commits)
+    provenance: rule
+    agent: true
+  - hash: a7c182da97f0bcc733f9836c18369bb092d2eb9f
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/roborev (53 to 54); 6047cd6292d9 ("Add ''h'' hotkey to hide addressed reviews, improve verdict parsing (#26)") 8 commits later removed 3 duplicate blocks from cmd/roborev while the SLOC there changed by +2.9% (lookahead 153 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 6047cd6292d9cdf6e49b911801e3dbdff8402525
+        package: cmd/roborev
+  - hash: 9d0cc4428c481a8ce2faae81ea72cf4b9eb6781b
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 152 commits)
+    provenance: rule
+    agent: true
+  - hash: 26cb8b8a1706db4b5931d04f78642f728d012f0c
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/roborev (54 to 55); 6047cd6292d9 ("Add ''h'' hotkey to hide addressed reviews, improve verdict parsing (#26)") 6 commits later removed 3 duplicate blocks from cmd/roborev while the SLOC there changed by +2.9% (lookahead 151 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 6047cd6292d9cdf6e49b911801e3dbdff8402525
+        package: cmd/roborev
+  - hash: 9bd14ea93d1807ab7d1b4c118dc9c1bb76a1fe00
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 150 commits)
+    provenance: rule
+    agent: true
+  - hash: 6826bd7c7b9799acd03473e92da92ca16744a796
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 149 commits)
+    provenance: rule
+    agent: true
+  - hash: 9b27b485519ddfe12a0801d00749f2c58495218c
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 148 commits)
+    provenance: rule
+    agent: false
+  - hash: d63e2aa6b1d5f1f6d200903e8ce64d3c60c8a90b
+    verdict: allow
+    reason: took internal/storage over sloc max 1000 (974 to 1088); added 5 duplicate blocks to internal/storage (25 to 30); no later commit split or extracted it (lookahead 147 commits)
+    provenance: rule
+    agent: true
+  - hash: 6a9be7e9bdf20425f428a792d14985d4ccdfe1f9
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 146 commits)
+    provenance: rule
+    agent: true
+  - hash: 6047cd6292d9cdf6e49b911801e3dbdff8402525
+    verdict: allow
+    reason: took internal/storage over largest_file_sloc max 600 (449 to 653); added 12 duplicate blocks to internal/storage (30 to 42); no later commit split or extracted it (lookahead 145 commits)
+    provenance: rule
+    agent: true
+  - hash: f6e3211de20f14317a7666381bb6b980c35e26f3
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 144 commits)
+    provenance: rule
+    agent: true
+  - hash: 907ef2158d11908385527a39ec8f9ab83d17a88f
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 143 commits)
+    provenance: rule
+    agent: true
+  - hash: fd883816b302202d8c2cc7b545de8c2847bae885
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 142 commits)
+    provenance: rule
+    agent: true
+  - hash: e1d9e3dc38ddad07bc1ef28a7bf9d0a020992ba3
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 141 commits)
+    provenance: rule
+    agent: true
+  - hash: a51d87ebd8985b919d38845fc003a4bbffcde777
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to internal/daemon (16 to 17); 5a5a9d493927 ("Agent improvements, Gemini refine support, and TUI rendering fixes (#64)") 34 commits later removed 1 duplicate blocks from internal/daemon while the SLOC there changed by +0.1% (lookahead 140 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 5a5a9d4939272f5d0d36b1dcabf150d97a0642f0
+        package: internal/daemon
+  - hash: 4e947daefe94c69db502a7cfbb469ed45cda6866
+    verdict: allow
+    reason: added 4 duplicate blocks to cmd/roborev (51 to 55); added 4 duplicate blocks to internal/daemon (17 to 21); no later commit split or extracted it (lookahead 139 commits)
+    provenance: rule
+    agent: true
+  - hash: 5116abfbaf9375c09dbcf9e3b9835d0f5ac57698
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to internal/storage (42 to 43); 5a5a9d493927 ("Agent improvements, Gemini refine support, and TUI rendering fixes (#64)") 32 commits later removed 2 duplicate blocks from internal/storage while the SLOC there changed by +0.8% (lookahead 138 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 5a5a9d4939272f5d0d36b1dcabf150d97a0642f0
+        package: internal/storage
+  - hash: cf02afd3605b13e751b046e117bc03385ffdd772
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 137 commits)
+    provenance: rule
+    agent: false
+  - hash: 5c6a15234ac09abbc26467af82ab2c1321d058a9
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 136 commits)
+    provenance: rule
+    agent: false
+  - hash: 1db9be1feed9508dff08ab20fbb55c375bfc8caa
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 135 commits)
+    provenance: rule
+    agent: false
+  - hash: 8b44f8a7ddd9ddd1424f622ed541d7fe27e897a3
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 134 commits)
+    provenance: rule
+    agent: true
+  - hash: 73eb4ba2101fba734857c453cf2b82baa2dcefe4
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 133 commits)
+    provenance: rule
+    agent: true
+  - hash: 69b69ac319f1eb2ac738b94f62c85035c6be0726
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 132 commits)
+    provenance: rule
+    agent: true
+  - hash: 0a5b3949d1b07e7b88f455c405281fcb21097a1d
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 131 commits)
+    provenance: rule
+    agent: true
+  - hash: 35e43d95fbc8c51cd8529839ab7e272c3a655149
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 130 commits)
+    provenance: rule
+    agent: true
+  - hash: 760009ed69496b05f49832ffddd32d84fe3c6592
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 129 commits)
+    provenance: rule
+    agent: true
+  - hash: 864b770c58cde0b11afb150e104709525c833595
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 128 commits)
+    provenance: rule
+    agent: true
+  - hash: b06d570b1dd6ed177140781ce66cef70fd7a6c16
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 127 commits)
+    provenance: rule
+    agent: true
+  - hash: 075262ff2f35d85fc3096e3c260d9fcb3a588a3f
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 126 commits)
+    provenance: rule
+    agent: true
+  - hash: 581a9e6059cc7220b123a36f4eed366ba2e11f99
+    verdict: allow
+    reason: added 3 duplicate blocks to internal/storage (43 to 46); no later commit split or extracted it (lookahead 125 commits)
+    provenance: rule
+    agent: true
+  - hash: a3c6484a2deb0125199cc10d69c1f33fc20f71a9
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 124 commits)
+    provenance: rule
+    agent: false
+  - hash: 14430b99a3eaaad1b09f090a37f8abf5e33ba1ba
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/roborev (62 to 63); 14d6cb491e6a ("Improve robustness of `roborev refine`, get working with Claude Code (#61)") 14 commits later removed 1 duplicate blocks from cmd/roborev while the SLOC there changed by +0.1% (lookahead 123 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 14d6cb491e6a530651474284dcf06da811dd14a3
+        package: cmd/roborev
+  - hash: 6e58b69553f9e46e883a42b738f6a56279b37269
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 122 commits)
+    provenance: rule
+    agent: false
+  - hash: f0e6bab9cee3722eaf6016edf7ceff01e91282a8
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to internal/git (13 to 14); 980b749a2477 ("Add ''y'' hotkey to copy review content to clipboard (#90)") 33 commits later removed 1 duplicate blocks from internal/git while the SLOC there changed by +1.8% (lookahead 121 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 980b749a24771d9c5215d9e48db550df44ec877c
+        package: internal/git
+  - hash: 1e82407442c8f0a1c2f6d2e8a99c3d7f3379949d
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 120 commits)
+    provenance: rule
+    agent: true
+  - hash: aee0d2a85ec8046d7c5e96498938a73e08372b67
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 119 commits)
+    provenance: rule
+    agent: true
+  - hash: e7a7eb138cb0bc3231b84bda57b1cd134931b25a
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/roborev (76 to 77); 14d6cb491e6a ("Improve robustness of `roborev refine`, get working with Claude Code (#61)") 9 commits later removed 1 duplicate blocks from cmd/roborev while the SLOC there changed by +0.1% (lookahead 118 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 14d6cb491e6a530651474284dcf06da811dd14a3
+        package: cmd/roborev
+  - hash: 4ea2be208f5d4aa1c3c83603536b59fb9935b608
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/roborev (77 to 78); 14d6cb491e6a ("Improve robustness of `roborev refine`, get working with Claude Code (#61)") 8 commits later removed 1 duplicate blocks from cmd/roborev while the SLOC there changed by +0.1% (lookahead 117 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 14d6cb491e6a530651474284dcf06da811dd14a3
+        package: cmd/roborev
+  - hash: bb47dc124331ae6c8c1c827172136a5640e37857
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 116 commits)
+    provenance: rule
+    agent: false
+  - hash: dd0af180f8cf814096fafa5b1d2467be31064e97
+    verdict: block
+    reason: 'extract: added 2 duplicate blocks to cmd/roborev (78 to 80); e956d5955ff3 ("Use job_id instead of review_id in address command") 56 commits later removed 3 duplicate blocks from cmd/roborev while the SLOC there changed by -0.4% (lookahead 115 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: e956d5955ff378ab217626ad03ade3f70842b641
+        package: cmd/roborev
+  - hash: 27b5fc46f11852e9cad3a65e5f1af69cd1084791
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 114 commits)
+    provenance: rule
+    agent: false
+  - hash: adc4f3f6eb91d9278f27a773bf01920ca0ffb162
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 113 commits)
+    provenance: rule
+    agent: false
+  - hash: 562eb623a51743f127a4953eaac7beecbd7a2f75
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 112 commits)
+    provenance: rule
+    agent: true
+  - hash: b414b1e1ab0b87cb46f2821c6fc4195f05b6ebd8
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to internal/daemon (32 to 33); 5a5a9d493927 ("Agent improvements, Gemini refine support, and TUI rendering fixes (#64)") 5 commits later removed 1 duplicate blocks from internal/daemon while the SLOC there changed by +0.1% (lookahead 111 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 5a5a9d4939272f5d0d36b1dcabf150d97a0642f0
+        package: internal/daemon
+  - hash: 12bf9d66d18ef078d49986f980047dd99e19ea60
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 110 commits)
+    provenance: rule
+    agent: false
+  - hash: 14d6cb491e6a530651474284dcf06da811dd14a3
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 109 commits)
+    provenance: rule
+    agent: true
+  - hash: bf4900342eb3a68b8b711d67150aeb1c5333c9e5
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 108 commits)
+    provenance: rule
+    agent: false
+  - hash: a313789f93583559ec595856bd401ae26cb0335c
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/roborev (101 to 102); 65e2230e83ec ("Fix TUI rendering artifacts on page up/down scrolling (#80)") 15 commits later removed 1 duplicate blocks from cmd/roborev while the SLOC there changed by +0.6% (lookahead 107 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 65e2230e83ec7ab3725dc56b295f1eadc2de1a4f
+        package: cmd/roborev
+  - hash: 5a5a9d4939272f5d0d36b1dcabf150d97a0642f0
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/roborev (102 to 103); 65e2230e83ec ("Fix TUI rendering artifacts on page up/down scrolling (#80)") 14 commits later removed 1 duplicate blocks from cmd/roborev while the SLOC there changed by +0.6% (lookahead 106 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 65e2230e83ec7ab3725dc56b295f1eadc2de1a4f
+        package: cmd/roborev
+  - hash: 2064fa6d7f03c92c6cd52e2b51277c7fffa17fa6
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 105 commits)
+    provenance: rule
+    agent: false
+  - hash: 0391dbf8a5f729237548d96f8c3d00ce16f0ae77
+    verdict: allow
+    reason: added 359 SLOC to cmd/roborev, already over tokens_est 16000, largest_file_sloc 600, sloc 1000; took internal/daemon over tokens_est max 16000 (15397 to 18875), largest_file_sloc max 600 (556 to 764); took internal/storage over exported_symbols max 60 (59 to 133); added 4 cross-package duplicate blocks (15 to 19); added 11 duplicate blocks to cmd/roborev (103 to 114); added 5 duplicate blocks to internal/daemon (32 to 37); added 56 duplicate blocks to internal/storage (59 to 115); no later commit split or extracted it (lookahead 104 commits)
+    provenance: rule
+    agent: true
+  - hash: d776d322508ffb3de2ab7d84d0b65dada9c6a318
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 103 commits)
+    provenance: rule
+    agent: true
+  - hash: c77f6e81c4bd2d14510b36a6f90611c214d05544
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 102 commits)
+    provenance: rule
+    agent: false
+  - hash: 5b209307c0f6f4234e830d3a99387088f187c4e0
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to internal/daemon (37 to 38); fe6a0fbc03a4 ("Add analyze and fix commands for built-in code analysis (#156)") 61 commits later removed 1 duplicate blocks from internal/daemon while the SLOC there changed by +0.5% (lookahead 101 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: fe6a0fbc03a464c2551d4c9e9bb6e8b3bb07b805
+        package: internal/daemon
+  - hash: 57a1f6a399de504b390a9b28bfdda27ec7764311
+    verdict: allow
+    reason: took cmd/roborev over tokens_est max 16000 (0 to 60626), largest_file_sloc max 600 (0 to 1910), sloc max 1000 (0 to 4963); took internal/daemon over tokens_est max 16000 (0 to 19128), largest_file_sloc max 600 (0 to 786), sloc max 1000 (0 to 1662); took internal/storage over tokens_est max 16000 (0 to 51748), largest_file_sloc max 600 (0 to 881), exported_symbols max 60 (0 to 133), sloc max 1000 (0 to 4299); added 114 duplicate blocks to cmd/roborev (0 to 114); added 1 duplicate blocks to internal/config (0 to 1); added 38 duplicate blocks to internal/daemon (0 to 38); added 8 duplicate blocks to internal/prompt (0 to 8); added 115 duplicate blocks to internal/storage (0 to 115); added 1 duplicate blocks to internal/testutil (0 to 1); added 2 duplicate blocks to internal/update (0 to 2); no later commit split or extracted it (lookahead 100 commits)
+    provenance: rule
+    agent: true
+  - hash: 9e2320eebc886f993feddf46bb90f6869cf2bd98
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 99 commits)
+    provenance: rule
+    agent: true
+  - hash: d4ace49a7eea8e6acf5ad81be261394bf947ebc1
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 98 commits)
+    provenance: rule
+    agent: false
+  - hash: 8119116b09bf1d2dfffde0b415b7bab6b99a47f1
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 97 commits)
+    provenance: rule
+    agent: true
+  - hash: 5903f7c855f6bf613bcff7968f3a0d5c56b76857
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 96 commits)
+    provenance: rule
+    agent: true
+  - hash: b50c81bb1a4bd8df2dcb4bf5ca3ea6ad1bea5d00
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 95 commits)
+    provenance: rule
+    agent: false
+  - hash: 8f42b17409063a35e84169d7f40bf94eb4028a65
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 94 commits)
+    provenance: rule
+    agent: false
+  - hash: e7876b87b90866a6eebfad07efe3643dcee20ac6
+    verdict: block
+    reason: 'extract: added 2 duplicate blocks to cmd/roborev (114 to 116); e956d5955ff3 ("Use job_id instead of review_id in address command") 34 commits later removed 3 duplicate blocks from cmd/roborev while the SLOC there changed by -0.4% (lookahead 93 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: e956d5955ff378ab217626ad03ade3f70842b641
+        package: cmd/roborev
+  - hash: 65e2230e83ec7ab3725dc56b295f1eadc2de1a4f
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 92 commits)
+    provenance: rule
+    agent: true
+  - hash: 52ddc458436f84697d89e563f471c4919de0fab1
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 91 commits)
+    provenance: rule
+    agent: false
+  - hash: 1d6053c7743ea9ce0a59936471fa6cdc10729888
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 90 commits)
+    provenance: rule
+    agent: true
+  - hash: 1a220ce03367cecbe8c3471dcd6fce11c81ec000
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/roborev (115 to 116); e956d5955ff3 ("Use job_id instead of review_id in address command") 30 commits later removed 3 duplicate blocks from cmd/roborev while the SLOC there changed by -0.4% (lookahead 89 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: e956d5955ff378ab217626ad03ade3f70842b641
+        package: cmd/roborev
+  - hash: 980b749a24771d9c5215d9e48db550df44ec877c
+    verdict: allow
+    reason: added 4 duplicate blocks to cmd/roborev (116 to 120); no later commit split or extracted it (lookahead 88 commits)
+    provenance: rule
+    agent: true
+  - hash: 06b2ce3110c9731c6989462a767c52918a8278ca
+    verdict: allow
+    reason: took internal/agent over exported_symbols max 60 (58 to 65); added 4 duplicate blocks to internal/agent (16 to 20); no later commit split or extracted it (lookahead 87 commits)
+    provenance: rule
+    agent: true
+  - hash: 19584eec624e854c648ac3947283ddd821d8fc76
+    verdict: allow
+    reason: took internal/daemon over exported_symbols max 60 (59 to 70); added 1 cross-package duplicate blocks (19 to 20); added 2 duplicate blocks to internal/daemon (38 to 40); no later commit split or extracted it (lookahead 86 commits)
+    provenance: rule
+    agent: true
+  - hash: 2c96eae4b5653f9523f61607134850ff83a9fe5b
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 85 commits)
+    provenance: rule
+    agent: false
+  - hash: 6144fe758d9895e6e0a57cc82ee4ef7340009dd6
+    verdict: allow
+    reason: added 1 duplicate blocks to internal/agent (20 to 21); no later commit split or extracted it (lookahead 84 commits)
+    provenance: rule
+    agent: true
+  - hash: e6d752f65d240c34810c91bde43474b22b04e889
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 83 commits)
+    provenance: rule
+    agent: false
+  - hash: 62f092282f63d34275142ea2b2bdcd2d76f3d70e
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 82 commits)
+    provenance: rule
+    agent: true
+  - hash: 3098400b83630ee8041e28d979d09504bdb3d987
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/roborev (120 to 121); e956d5955ff3 ("Use job_id instead of review_id in address command") 22 commits later removed 3 duplicate blocks from cmd/roborev while the SLOC there changed by -0.4% (lookahead 81 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: e956d5955ff378ab217626ad03ade3f70842b641
+        package: cmd/roborev
+  - hash: d590a5d56e972379f9587e24c9db4a7e333f8a9d
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 80 commits)
+    provenance: rule
+    agent: true
+  - hash: 0526aadf05b5d1907a8515c884283c84d785d031
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 79 commits)
+    provenance: rule
+    agent: true
+  - hash: a395c7c1eb9c79c4e215b08bb0cad005c1464a66
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 78 commits)
+    provenance: rule
+    agent: false
+  - hash: 7b48a0d10c2376cfc2544602b99e048d82e9ad4d
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 77 commits)
+    provenance: rule
+    agent: false
+  - hash: c9769279f745f9933ea66aba3e2dcae32605912a
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 76 commits)
+    provenance: rule
+    agent: true
+  - hash: c5527308c0613b576f203d9b06d045461effc41b
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 75 commits)
+    provenance: rule
+    agent: true
+  - hash: e128d8f30360a71f4b7e54bb68f6f4a372e41871
+    verdict: block
+    reason: 'extract: added 2 duplicate blocks to cmd/roborev (121 to 123); e956d5955ff3 ("Use job_id instead of review_id in address command") 15 commits later removed 3 duplicate blocks from cmd/roborev while the SLOC there changed by -0.4% (lookahead 74 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: e956d5955ff378ab217626ad03ade3f70842b641
+        package: cmd/roborev
+  - hash: e1b144ca5a456f9136296eac0fe9b88bfcb3d012
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 73 commits)
+    provenance: rule
+    agent: false
+  - hash: c184862f026d938fefb9ae0353d3b1cc094f5a5a
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 72 commits)
+    provenance: rule
+    agent: true
+  - hash: f6b2b7eacfb101b182e20af4525ea26965b529a2
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 71 commits)
+    provenance: rule
+    agent: false
+  - hash: 653bd9c2d6e36c997e7f72bf499c2d59e898d5ef
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 70 commits)
+    provenance: rule
+    agent: true
+  - hash: d8ed4bb1786db85ccbb22963995cef5f04c0636c
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/roborev (123 to 124); e956d5955ff3 ("Use job_id instead of review_id in address command") 10 commits later removed 3 duplicate blocks from cmd/roborev while the SLOC there changed by -0.4% (lookahead 69 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: e956d5955ff378ab217626ad03ade3f70842b641
+        package: cmd/roborev
+  - hash: 6895ad5502757cf37bb405920c4a5afa2f974170
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 68 commits)
+    provenance: rule
+    agent: false
+  - hash: e21dca0268b9fadc024fab2b60478277e22f222a
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to internal/daemon (40 to 41); fe6a0fbc03a4 ("Add analyze and fix commands for built-in code analysis (#156)") 27 commits later removed 1 duplicate blocks from internal/daemon while the SLOC there changed by +0.5% (lookahead 67 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: fe6a0fbc03a464c2551d4c9e9bb6e8b3bb07b805
+        package: internal/daemon
+  - hash: 95dc32e434f5c44385086bb7b810cb390933c669
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 66 commits)
+    provenance: rule
+    agent: true
+  - hash: a748f416ae1bffc5b98745dcf01df8bd6bbca9d1
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 65 commits)
+    provenance: rule
+    agent: false
+  - hash: 5d34079c2bd0cb62a4a4d611ad1977271b4970b5
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 64 commits)
+    provenance: rule
+    agent: true
+  - hash: a12693f10c43501f899d6261e75f72790047617a
+    verdict: allow
+    reason: added 320 SLOC to cmd/roborev, already over tokens_est 16000, largest_file_sloc 600, sloc 1000; added 9 duplicate blocks to cmd/roborev (124 to 133); no later commit split or extracted it (lookahead 63 commits)
+    provenance: rule
+    agent: true
+  - hash: f8f665878676fc5567d5a29268f9c1c8afeb9ed4
+    verdict: allow
+    reason: took internal/agent over sloc max 1000 (903 to 1023); added 3 duplicate blocks to internal/agent (21 to 24); added 4 duplicate blocks to internal/storage (117 to 121); no later commit split or extracted it (lookahead 62 commits)
+    provenance: rule
+    agent: true
+  - hash: b9762075f72d1eb89b2fdd80e19858748e45a94a
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 61 commits)
+    provenance: rule
+    agent: false
+  - hash: 66010ec96c09d51022b892d2d3f312e01421b5c9
+    verdict: allow
+    reason: added 298 SLOC to cmd/roborev, already over tokens_est 16000, largest_file_sloc 600, sloc 1000; added 496 SLOC to internal/daemon, already over tokens_est 16000, largest_file_sloc 600, exported_symbols 60, sloc 1000; added 1 cross-package duplicate blocks (20 to 21); added 10 duplicate blocks to cmd/roborev (133 to 143); added 6 duplicate blocks to internal/daemon (41 to 47); no later commit split or extracted it (lookahead 60 commits)
+    provenance: rule
+    agent: true
+  - hash: e956d5955ff378ab217626ad03ade3f70842b641
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to internal/storage (121 to 122); fe6a0fbc03a4 ("Add analyze and fix commands for built-in code analysis (#156)") 19 commits later removed 1 duplicate blocks from internal/storage while the SLOC there changed by +1.8% (lookahead 59 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: fe6a0fbc03a464c2551d4c9e9bb6e8b3bb07b805
+        package: internal/storage
+  - hash: 12f0cb3b8bc44caaf0f1ec68a0889467b9396bcc
+    verdict: allow
+    reason: added 5 duplicate blocks to internal/storage (122 to 127); no later commit split or extracted it (lookahead 58 commits)
+    provenance: rule
+    agent: true
+  - hash: 0f6b97749e2880ac1dcd5c024096391cbcfe684c
+    verdict: allow
+    reason: added 2 duplicate blocks to internal/storage (127 to 129); no later commit split or extracted it (lookahead 57 commits)
+    provenance: rule
+    agent: true
+  - hash: e7bb760931f7eae67d1aca6f491948a470312393
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/roborev (140 to 141); 9a4a4358d10d ("Fix test isolation and version mismatch display (#143)") 4 commits later removed 1 duplicate blocks from cmd/roborev while the SLOC there changed by -0.1% (lookahead 56 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 9a4a4358d10d91fa399815a5890eaee1cabf5a71
+        package: cmd/roborev
+  - hash: 8c1774765f113fc6ce0b9d0250eb42823780a35c
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 55 commits)
+    provenance: rule
+    agent: true
+  - hash: b3f5b6b881225049778093dbfefc2bc6b69d5b18
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 54 commits)
+    provenance: rule
+    agent: false
+  - hash: 873ae553ae24d54fb207c3f8d6cb9fffeaac6a91
+    verdict: allow
+    reason: added 457 SLOC to cmd/roborev, already over tokens_est 16000, largest_file_sloc 600, sloc 1000; added 157 SLOC to internal/storage, already over tokens_est 16000, largest_file_sloc 600, exported_symbols 60, sloc 1000; added 9 duplicate blocks to cmd/roborev (141 to 150); added 7 duplicate blocks to internal/daemon (47 to 54); added 4 duplicate blocks to internal/storage (129 to 133); no later commit split or extracted it (lookahead 53 commits)
+    provenance: rule
+    agent: true
+  - hash: 9a4a4358d10d91fa399815a5890eaee1cabf5a71
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 52 commits)
+    provenance: rule
+    agent: true
+  - hash: 6961400a358f1abc92b4efba86ccb2ec24c8606e
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 51 commits)
+    provenance: rule
+    agent: true
+  - hash: 66637268bcdb80e1ad1fdc5bd04152428ce9f333
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 50 commits)
+    provenance: rule
+    agent: true
+  - hash: ced22657864f4510c9248e28a45cf76b188f9f8d
+    verdict: allow
+    reason: added 5 duplicate blocks to internal/config (1 to 6); no later commit split or extracted it (lookahead 49 commits)
+    provenance: rule
+    agent: true
+  - hash: b6591c9b5ccf5db8a3e323bc0f3f50ceef4e91f6
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 48 commits)
+    provenance: rule
+    agent: false
+  - hash: eb63183c780354981522ce29477df91559ed1756
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/roborev (147 to 148); dfe03b66a885 ("Fix zero Created date in repo show (#159)") 8 commits later removed 1 duplicate blocks from cmd/roborev while the SLOC there changed by +0.1% (lookahead 47 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: dfe03b66a8852008a3fe759d84eab923e2c366da
+        package: cmd/roborev
+  - hash: 956c3150c61981b39a6b5cb0bbdad1abb135c129
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 46 commits)
+    provenance: rule
+    agent: false
+  - hash: 45b0597049b9781cb064b8c15847b907eefdabaa
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 45 commits)
+    provenance: rule
+    agent: true
+  - hash: 5b845f6268791a321ea1ece069c5a6537c7a63db
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 44 commits)
+    provenance: rule
+    agent: true
+  - hash: afe4a1a6d615a75c2a4932d96350a626ffc52de1
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 43 commits)
+    provenance: rule
+    agent: true
+  - hash: e91ddf518098e620784e40d14883c028aabcec17
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 42 commits)
+    provenance: rule
+    agent: false
+  - hash: 02113596905717aee9c6119633bb41f744651c5b
+    verdict: allow
+    reason: added 2 duplicate blocks to internal/storage (133 to 135); no later commit split or extracted it (lookahead 41 commits)
+    provenance: rule
+    agent: true
+  - hash: fe6a0fbc03a464c2551d4c9e9bb6e8b3bb07b805
+    verdict: allow
+    reason: added 1290 SLOC to cmd/roborev, already over tokens_est 16000, largest_file_sloc 600, sloc 1000; added 13 cross-package duplicate blocks (21 to 34); added 36 duplicate blocks to cmd/roborev (148 to 184); added 1 duplicate blocks to internal/config (6 to 7); added 2 duplicate blocks to internal/prompt/analyze (0 to 2); no later commit split or extracted it (lookahead 40 commits)
+    provenance: rule
+    agent: true
+  - hash: dfe03b66a8852008a3fe759d84eab923e2c366da
+    verdict: allow
+    reason: added 1 cross-package duplicate blocks (34 to 35); no later commit split or extracted it (lookahead 39 commits)
+    provenance: rule
+    agent: true
+  - hash: cb4934ab66c56500455e5b184b1d94cc51dd7f00
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 38 commits)
+    provenance: rule
+    agent: true
+  - hash: 8e6c6b367de7b4fb703542caacf855653b0c0340
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 37 commits)
+    provenance: rule
+    agent: false
+  - hash: 4354ee9f96a65220a4b6ab1cdfce5648c8f1bbc1
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 36 commits)
+    provenance: rule
+    agent: true
+  - hash: 296ed6221d4157007e0f1ff706cd6e01b6e1f2a8
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 35 commits)
+    provenance: rule
+    agent: true
+  - hash: eb15f230691802977765bc1264498e2362b45934
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 34 commits)
+    provenance: rule
+    agent: true
+  - hash: 3bc9116bdcccbedd0b69ff6f1e18e25d2d50b79b
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to cmd/roborev (183 to 184); 623990a84fec ("Shared fix logic, workflow config, daemon resilience, and UX improvements (#173)") 6 commits later removed 1 duplicate blocks from cmd/roborev while the SLOC there changed by +0.9% (lookahead 33 commits)'
+    provenance: rule
+    agent: true
+    fired:
+      - part: extract
+        by: 623990a84fece12f948a35d1944c9afca04051eb
+        package: cmd/roborev
+  - hash: 6974ddcd742d5ae2187d5857c3dc3605e4116e68
+    verdict: allow
+    reason: added 1 cross-package duplicate blocks (35 to 36); added 7 duplicate blocks to cmd/roborev (184 to 191); added 1 duplicate blocks to internal/storage (134 to 135); no later commit split or extracted it (lookahead 32 commits)
+    provenance: rule
+    agent: true
+  - hash: 3a8f6b47537bb64d2834e606566d3d8f746c32c9
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 31 commits)
+    provenance: rule
+    agent: true
+  - hash: a957c932d87184a948c761514bd3a29dbe2e7022
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 30 commits)
+    provenance: rule
+    agent: true
+  - hash: 54a495b0f19820042825b752ea271c83faf1cca1
+    verdict: allow
+    reason: added 152 SLOC to internal/agent, already over exported_symbols 60, sloc 1000; added 1 duplicate blocks to internal/agent (24 to 25); no later commit split or extracted it (lookahead 29 commits)
+    provenance: rule
+    agent: true
+  - hash: e7988b93543ddb69c7db9a7133936a04d111ba5e
+    verdict: allow
+    reason: added 4 duplicate blocks to cmd/roborev (191 to 195); added 3 duplicate blocks to internal/agent (25 to 28); no later commit split or extracted it (lookahead 28 commits)
+    provenance: rule
+    agent: true
+  - hash: 623990a84fece12f948a35d1944c9afca04051eb
+    verdict: allow
+    reason: added 1 cross-package duplicate blocks (36 to 37); added 2 duplicate blocks to internal/git (14 to 16); no later commit split or extracted it (lookahead 27 commits)
+    provenance: rule
+    agent: true
+  - hash: e1612df70ce2a43842b96cb2fd33c0cd06706905
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 26 commits)
+    provenance: rule
+    agent: false
+  - hash: a5eea51136853fe0eb436f874f28c38fe642d861
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 25 commits)
+    provenance: rule
+    agent: true
+  - hash: 57eb475a66de177bbece05c7118187d050f28655
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 24 commits)
+    provenance: rule
+    agent: false
+  - hash: a51841b981fcc268f62ff289d55517f0067010f6
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 23 commits)
+    provenance: rule
+    agent: true
+  - hash: 950d823b7526b4f77c10a04b858dd3ba86e1bfd4
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 22 commits)
+    provenance: rule
+    agent: true
+  - hash: 53c983094defeb8079f161764f6ea3a373674f74
+    verdict: allow
+    reason: added 167 SLOC to internal/daemon, already over tokens_est 16000, largest_file_sloc 600, exported_symbols 60, sloc 1000; added 1 cross-package duplicate blocks (37 to 38); added 1 duplicate blocks to internal/daemon (53 to 54); no later commit split or extracted it (lookahead 21 commits)
+    provenance: rule
+    agent: true
+  - hash: 9eca728c5f46a618ef6c550af0c592bf611f1017
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 20 commits)
+    provenance: rule
+    agent: true
+  - hash: e429df25c583bf8f979e7cf31f89e379d7d73710
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 19 commits)
+    provenance: rule
+    agent: false
+  - hash: 18749461c67064523dab58715899f93bbcd3de92
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 18 commits)
+    provenance: rule
+    agent: true
+  - hash: 82e4a8c0af41d9c7e9cd5287d118b44e99079cec
+    verdict: allow
+    reason: added 225 SLOC to cmd/roborev, already over tokens_est 16000, largest_file_sloc 600, sloc 1000; added 9 duplicate blocks to cmd/roborev (194 to 203); no later commit split or extracted it (lookahead 17 commits)
+    provenance: rule
+    agent: true
+  - hash: 2bf86e1344b467c06c7dad451524891df3febfc1
+    verdict: allow
+    reason: added 157 SLOC to cmd/roborev, already over tokens_est 16000, largest_file_sloc 600, sloc 1000; added 8 duplicate blocks to cmd/roborev (203 to 211); no later commit split or extracted it (lookahead 16 commits)
+    provenance: rule
+    agent: true
+  - hash: 8138635bc3c3833b7fbc39f3e9a77a48cdda768d
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 15 commits)
+    provenance: rule
+    agent: false
+  - hash: 7e48a30ddf5d359e541d008902df791be7c341ef
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 14 commits)
+    provenance: rule
+    agent: false
+  - hash: 11b0925ef41b04393974bbfa2e72bbfaec56328a
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 13 commits)
+    provenance: rule
+    agent: false
+  - hash: a64ff492633cef56a4a0f4319e74d7990de23131
+    verdict: allow
+    reason: added 1 cross-package duplicate blocks (38 to 39); added 1 duplicate blocks to cmd/roborev (211 to 212); no later commit split or extracted it (lookahead 12 commits)
+    provenance: rule
+    agent: true
+  - hash: 62fb84fc60b33730a3500f19b77ff0b74b9e4cce
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 11 commits)
+    provenance: rule
+    agent: false
+  - hash: 4f47b8edfe5574b48db15a409338fde5e760109e
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 10 commits)
+    provenance: rule
+    agent: true
+  - hash: 8e2ab5eec189cd6a72641a70a0c0a3342973551a
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 9 commits)
+    provenance: rule
+    agent: false
+  - hash: ae473cd0f76d42fca75525e5a167b38cbcac7d69
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 8 commits)
+    provenance: rule
+    agent: true
+  - hash: 4b199602ae3d0448298001900e53af9982ff9918
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 7 commits)
+    provenance: rule
+    agent: true
+  - hash: e231d524c5ce09cbb9f11be16079e9c6faa1e5fe
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 6 commits)
+    provenance: rule
+    agent: false
+  - hash: 235a372cc0a1e838ede8c657f257d388974e8115
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 5 commits)
+    provenance: rule
+    agent: true
+  - hash: 444b09538ae67044c758d2b364aec9ebb6c20c80
+    verdict: allow
+    reason: added 106 SLOC to cmd/roborev, already over tokens_est 16000, largest_file_sloc 600, sloc 1000; added 1 cross-package duplicate blocks (39 to 40); added 10 duplicate blocks to cmd/roborev (212 to 222); no later commit split or extracted it (lookahead 4 commits)
+    provenance: rule
+    agent: true
+  - hash: c1dc5d89a2ad2fa0d7510eb06c7910a41d33535d
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 3 commits)
+    provenance: rule
+    agent: true
+  - hash: 2020137d1311f32254accfac24c142b740d20518
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 2 commits)
+    provenance: rule
+    agent: false
+  - hash: 93e5ec584741d94808ad619d2f0868256bbbe5b1
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 1 commits)
+    provenance: rule
+    agent: true
+  - hash: 21e05fe6758eed3f984f68821ab0466278562092
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 0 commits)
+    provenance: rule
+    agent: false

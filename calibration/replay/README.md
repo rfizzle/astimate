@@ -171,9 +171,10 @@ commits:                 # one entry per commit of commits.jsonl, in its order
     provenance: rule     # proposed | confirmed (hand labels) | rule
     agent: true          # optional: the corpus's agent rule matched
     fired:               # rule labels of block commits: which part fired
-      - part: fixup      # revert | fixup
-        by: <full hash of the reverting or fixing commit>
-        functions: [internal/x/y.go:Server.Handle]
+      - part: fixup      # revert | fixup | split | extract
+        by: <full hash of the reverting, fixing, splitting or extracting commit>
+        functions: [internal/x/y.go:Server.Handle]   # fixup only
+        package: internal/x                         # split and extract only
 ```
 
 `Validate` requires exactly one entry per replayed commit (none missing,
@@ -187,7 +188,8 @@ go run ./calibration/replay/label --repo <clone> --data <replay dir> --out <labe
     [--corpus calibration/corpus-commits.yaml --name <entry>] [--window 20]
 ```
 
-labels every commit of a replay data directory with `provenance: rule`:
+labels every commit of a replay data directory with `provenance: rule`,
+by the revert-and-fix-up rule (`--rule fixup`, the default):
 
 - `block`, part `revert`, when a later commit of the range, merged branches
   included, says `This reverts commit <hash>` (full or abbreviated) of it,
@@ -220,6 +222,43 @@ With `--corpus` and `--name`, each label's `agent` says whether the
 entry's agent rule matched the commit. The command prints the counts:
 commits, agent commits, `block` labels, and how many each part produced,
 alone and together.
+
+### Split-or-extraction labels
+
+```sh
+go run ./calibration/replay/label --rule split-extract --data <replay dir> --out <name>-split-extract.yaml \
+    [--config <file>] [--corpus calibration/corpus-commits.yaml --name <entry>] [--window N]
+```
+
+labels every commit by the definition the gate claims (SPEC.md 11.3),
+from the replay's `commits.jsonl` and `packages.jsonl` alone, no clone
+needed. The capacity rules are those of the configuration the replay
+gated with: the embedded default when its `config_version` matches the
+rows', else `calibration/thresholds/astimate-<config_version>.yaml`, or
+`--config`. Later commits are looked for in the rest of the range;
+`--window` caps that, for experiments.
+
+- `block`, part `split`, when the commit took a package over a capacity
+  `max` (at or under it at the parent, or new) or added 100 or more SLOC
+  to a package already over one, and a later commit lowers that package's
+  `sloc` by at least 25% (deleting the package counts) while the module's
+  total `sloc` falls by less than 5%;
+- `block`, part `extract`, when the commit raised a package's
+  `dup_blocks`, or the module row's `dup_blocks_cross_pkg`, and a later
+  commit that changes a file directly in that package's directory (for
+  the module row, in a package the commit changed) lowers that count by at
+  least what the commit added while the package's `sloc` (the module's
+  total, for the module row) falls by less than 25%;
+- `allow` otherwise, including every commit the replay did not load.
+
+The module's total is rebuilt from the rows: each package's `sloc` before
+a commit is its base there, else its value after its nearest earlier row
+(0 after `packages_deleted`), else its base at its nearest later row. A
+package no replayed commit changed has no row and is missing from the
+total, which makes the 5% and 25% tests stricter than they would be with
+the true total. Every reason ends with `(lookahead N commits)`, the later
+commits the label could see: the last commits of a range see few, so an
+`allow` there is censored rather than measured.
 
 ## This repository's history
 

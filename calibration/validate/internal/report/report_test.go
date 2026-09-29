@@ -72,6 +72,36 @@ func TestRender(t *testing.T) {
 	}
 }
 
+func TestRenderLabelSets(t *testing.T) {
+	in := input()
+	if strings.Contains(Render(in), "## Label sets") {
+		t.Error("label sets section without a second set")
+	}
+	in.Corpora[0].Source.Second = "s.yaml"
+	in.Corpora[0].SecondRule = "block when a later commit splits a package or extracts duplicate code"
+	in.Second = []View{{Name: "demo", Gate: measure.Rates{Block: 4, Allow: 26, BlockFailed: 3, AllowFailed: 2}}}
+	out := Render(in)
+	for _, want := range []string{
+		"- Corpus `demo`: rows `d`, labels `l`, second labels `s.yaml`",
+		"| demo | rule (fix-up or revert) | rule (split or extraction) | 4 | 26 |",
+		"| demo | first | 9 of 10 (90.0%) | met | 5 of 20 (25.0%) | not met |",
+		"| demo | second | 3 of 4 (75.0%) | not met | 2 of 26 (7.7%) | met |",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("report lacks %q", want)
+		}
+	}
+	for _, tc := range []struct {
+		rule bool
+		text string
+		want string
+	}{{false, "", "hand"}, {true, "", "rule (fix-up or revert)"}, {true, "... extracts duplicate code ...", "rule (split or extraction)"}} {
+		if got := labelKind(tc.rule, tc.text); got != tc.want {
+			t.Errorf("labelKind(%v, %q) = %q", tc.rule, tc.text, got)
+		}
+	}
+}
+
 func TestRenderSizeMet(t *testing.T) {
 	in := input()
 	in.SizeMet = true

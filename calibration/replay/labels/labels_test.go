@@ -188,3 +188,37 @@ func TestAstimateLabels(t *testing.T) {
 		}
 	}
 }
+
+// TestAstimateSplitExtractLabels checks the split-or-extraction rule's
+// labels of this repository's replay: one rule label per replayed commit,
+// each block label with split or extract evidence naming the package and
+// a later replayed commit.
+func TestAstimateSplitExtractLabels(t *testing.T) {
+	const repoRoot = "../../.."
+	f, err := Load("astimate-split-extract.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	replayed, err := Replayed(filepath.Join(repoRoot, f.Source.Data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Validate(replayed); err != nil {
+		t.Fatal(err)
+	}
+	pos := make(map[string]int, len(replayed))
+	for i, h := range replayed {
+		pos[h] = i
+	}
+	for i := range f.Commits {
+		l := &f.Commits[i]
+		if l.Provenance != Rule || (l.Verdict == Block) != (len(l.Fired) > 0) {
+			t.Errorf("label %s: provenance %s, verdict %s, %d evidence entries", l.Hash, l.Provenance, l.Verdict, len(l.Fired))
+		}
+		for _, e := range l.Fired {
+			if (e.Part != PartSplit && e.Part != PartExtract) || e.Package == "" || pos[e.By] <= pos[l.Hash] {
+				t.Errorf("label %s: evidence %+v is not a split or extraction by a later commit", l.Hash, e)
+			}
+		}
+	}
+}
