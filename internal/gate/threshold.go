@@ -21,6 +21,18 @@ const (
 	Requirement Kind = "requirement"
 )
 
+// Severity says what a breach of a rule does (SPEC.md 8.1).
+type Severity string
+
+// Severities. The zero Severity means SeverityFail.
+const (
+	// SeverityFail makes a breach a violation, which fails the gate.
+	SeverityFail Severity = "fail"
+	// SeverityWarn makes a breach a warning carrying the violation's
+	// fields, which never fails the gate.
+	SeverityWarn Severity = "warn"
+)
+
 // Condition is a guard of the form "<metric> > <value>".
 type Condition struct {
 	// Metric is the metric name on the left of the comparison.
@@ -60,7 +72,15 @@ type Threshold struct {
 	Require *bool
 	// When optionally guards the rule; the rule applies only when it holds.
 	When *Condition
+	// Severity is what a breach does: SeverityFail, or empty, makes it a
+	// violation; SeverityWarn reports it as a warning instead. It never
+	// changes how the rule is evaluated.
+	Severity Severity
 }
+
+// Warns reports whether a breach of t is a warning rather than a
+// violation: whether its Severity is SeverityWarn.
+func (t Threshold) Warns() bool { return t.Severity == SeverityWarn }
 
 // Validate checks the rule's shape for its kind and that every metric it
 // names satisfies known. Each error names the rule's metric; all are joined
@@ -134,6 +154,11 @@ func (t Threshold) Validate(known func(string) bool) error {
 		}
 	default:
 		add("unknown kind %q", t.Kind)
+	}
+	switch t.Severity {
+	case "", SeverityFail, SeverityWarn:
+	default:
+		add("unknown severity %q; want fail or warn", t.Severity)
 	}
 	if t.When != nil && !known(t.When.Metric) {
 		add("when: unknown metric %q", t.When.Metric)

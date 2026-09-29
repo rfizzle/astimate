@@ -128,7 +128,7 @@ func findings(vs []gate.Violation) []Finding {
 
 // finding converts one gate violation or warning to a report finding.
 func finding(v *gate.Violation) Finding {
-	f := Finding{Metric: v.Metric, Head: v.Head, Limit: v.Limit, Suggestion: v.Suggestion}
+	f := Finding{Metric: v.Metric, Head: v.Head, Limit: v.Limit, Suggestion: v.Suggestion, Severity: string(v.Severity)}
 	if v.HasBase {
 		b := v.Base
 		f.Base = &b

@@ -62,21 +62,21 @@ func share(n, d int) float64 {
 	return float64(n) / float64(d)
 }
 
-// Scored is a corpus with each commit's recorded violations resolved to
-// the rules that fired.
+// Scored is a corpus with each commit's recorded breaches resolved to the
+// rules that fired.
 type Scored struct {
 	// Corpus is the corpus scored.
 	Corpus *corpus.Corpus
 	// Rules are the gated rules the replay ran with.
 	Rules *Rules
-	// fired holds, per commit, whether each rule had a recorded violation
-	// on one of its rows.
+	// fired holds, per commit, whether each rule had a recorded breach, a
+	// violation or a warn rule's warning, on one of its rows.
 	fired [][]bool
 }
 
-// Score resolves c's recorded violations to rules. A violation of a
-// metric no rule of s gates on its row is an error: the rows were not
-// gated with this configuration.
+// Score resolves c's recorded breaches, violations and warn rules'
+// warnings alike, to rules. A breach of a metric no rule of s gates on its
+// row is an error: the rows were not gated with this configuration.
 func Score(c *corpus.Corpus, s *Rules) (*Scored, error) {
 	sc := &Scored{Corpus: c, Rules: s, fired: make([][]bool, len(c.Commits))}
 	for ci := range c.Commits {
@@ -84,7 +84,7 @@ func Score(c *corpus.Corpus, s *Rules) (*Scored, error) {
 		f := make([]bool, len(s.List))
 		for ri := range cm.Rows {
 			r := &cm.Rows[ri]
-			for _, m := range r.Violated {
+			for _, m := range slices.Concat(r.Violated, r.Warned) {
 				i, ok := s.For(r, m)
 				if !ok {
 					return nil, fmt.Errorf("commit %s row %s: violation of %s, which no rule gates there", cm.Hash, r.Package, m)
@@ -97,19 +97,15 @@ func Score(c *corpus.Corpus, s *Rules) (*Scored, error) {
 	return sc, nil
 }
 
-// Gate is how the gate as replayed did: a commit failed when any of its
-// rows has a recorded violation.
-func (s *Scored) Gate() Rates {
-	var r Rates
-	for i := range s.Corpus.Commits {
-		c := &s.Corpus.Commits[i]
-		r.add(c.Block(), c.Failed())
-	}
-	return r
-}
+// Gate is how the gate did: a commit failed when a rule that fails, not a
+// warn rule (gate.Threshold.Warns), fired on one of its rows as recorded.
+// A warn rule still has its own rates (Rule), but never fails a commit,
+// whatever severity the replay ran it at.
+func (s *Scored) Gate() Rates { return s.With(nil) }
 
 // Rule is how rule i did as replayed: a commit counts as failed by it
-// when one of its rows has a recorded violation of the rule.
+// when one of its rows has a recorded breach of the rule, whatever its
+// severity.
 func (s *Scored) Rule(i int) Rates {
 	var r Rates
 	for ci := range s.Corpus.Commits {
@@ -156,7 +152,8 @@ func (s *Scored) Size(t int) Rates {
 
 // Swap re-evaluates rule i as t on every row it judges, or drops it when
 // t is nil, and returns the rule's rates and the gate's, the other rules
-// firing as recorded.
+// firing as recorded. The gate's counts t only when it is not a warn
+// rule.
 func (s *Scored) Swap(i int, t *gate.Threshold) (rule, all Rates) {
 	for ci := range s.Corpus.Commits {
 		c := &s.Corpus.Commits[ci]
@@ -167,7 +164,8 @@ func (s *Scored) Swap(i int, t *gate.Threshold) (rule, all Rates) {
 
 // With returns the gate's rates with each rule of over, keyed by its index
 // in Rules.List, re-evaluated as its threshold, or dropped where that is
-// nil, and every other rule firing as recorded.
+// nil, and every other rule firing as recorded. As in Gate, a warn rule
+// never fails a commit.
 func (s *Scored) With(over map[int]*gate.Threshold) Rates {
 	var r Rates
 	for ci := range s.Corpus.Commits {
@@ -176,12 +174,18 @@ func (s *Scored) With(over map[int]*gate.Threshold) Rates {
 	return r
 }
 
-// fails reports whether commit ci fails with the rules of over replaced.
+// fails reports whether commit ci fails with the rules of over replaced:
+// whether a rule that is not a warn rule fires on one of its rows.
 func (s *Scored) fails(ci int, over map[int]*gate.Threshold) bool {
 	c := &s.Corpus.Commits[ci]
 	for j, f := range s.fired[ci] {
 		t, replaced := over[j]
-		if (!replaced && f) || (replaced && t != nil && s.firesOn(j, *t, c)) {
+		switch {
+		case !replaced:
+			if f && !s.Rules.List[j].Threshold.Warns() {
+				return true
+			}
+		case t != nil && !t.Warns() && s.firesOn(j, *t, c):
 			return true
 		}
 	}
@@ -202,7 +206,8 @@ func (s *Scored) firesOn(i int, t gate.Threshold, c *corpus.Commit) bool {
 
 // Recheck re-evaluates every rule at its shipped limits on every row it
 // judges and returns the number of (row, rule) pairs checked and how many
-// disagree with the violations the replay recorded.
+// disagree with the breaches the replay recorded, violations and warn
+// rules' warnings alike.
 func (s *Scored) Recheck() (checked, mismatched int) {
 	for ci := range s.Corpus.Commits {
 		c := &s.Corpus.Commits[ci]
@@ -213,11 +218,7 @@ func (s *Scored) Recheck() (checked, mismatched int) {
 					continue
 				}
 				checked++
-				recorded := false
-				for _, m := range r.Violated {
-					recorded = recorded || m == rule.Threshold.Metric
-				}
-				if recorded != fires(rule.Threshold, r) {
+				if r.Breached(rule.Threshold.Metric) != fires(rule.Threshold, r) {
 					mismatched++
 				}
 			}
@@ -226,11 +227,12 @@ func (s *Scored) Recheck() (checked, mismatched int) {
 	return checked, mismatched
 }
 
-// Missed returns the block commits the gate passed, in corpus order.
+// Missed returns the block commits the gate passed (Gate), in corpus
+// order.
 func (s *Scored) Missed() []*corpus.Commit {
 	var out []*corpus.Commit
 	for i := range s.Corpus.Commits {
-		if c := &s.Corpus.Commits[i]; c.Block() && !c.Failed() {
+		if c := &s.Corpus.Commits[i]; c.Block() && !s.fails(i, nil) {
 			out = append(out, c)
 		}
 	}
@@ -255,7 +257,7 @@ func (s *Scored) Legacy(i int) (fired, over Rates) {
 		all := true
 		for ri := range c.Rows {
 			r := &c.Rows[ri]
-			if !s.Rules.Judges(i, r) || !slices.Contains(r.Violated, t.Metric) {
+			if !s.Rules.Judges(i, r) || !r.Breached(t.Metric) {
 				continue
 			}
 			b, ok := 0.0, r.Base != nil

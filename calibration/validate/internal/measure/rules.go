@@ -27,12 +27,17 @@ type Rule struct {
 }
 
 // Name is the rule's metric, followed by its override's language in
-// parentheses for an override rule.
+// parentheses for an override rule and by "(warn)" for a warn rule, which
+// reports without failing.
 func (r Rule) Name() string {
-	if r.Language == "" {
-		return r.Threshold.Metric
+	name := r.Threshold.Metric
+	if r.Language != "" {
+		name += " (" + r.Language + ")"
 	}
-	return r.Threshold.Metric + " (" + r.Language + ")"
+	if r.Threshold.Warns() {
+		name += " (warn)"
+	}
+	return name
 }
 
 // Rules is a configuration's gated rules and which of them judges a row.
@@ -100,7 +105,8 @@ func same(a, b gate.Threshold) bool {
 	return a.Metric == b.Metric && a.Kind == b.Kind && eqPtr(a.Max, b.Max) &&
 		eqPtr(a.MaxDelta, b.MaxDelta) && eqPtr(a.OverMaxDelta, b.OverMaxDelta) &&
 		a.RatchetFromZero == b.RatchetFromZero &&
-		a.WarnAt == b.WarnAt && eqPtr(a.Require, b.Require) && eqPtr(a.When, b.When)
+		a.WarnAt == b.WarnAt && eqPtr(a.Require, b.Require) && eqPtr(a.When, b.When) &&
+		a.Warns() == b.Warns()
 }
 
 // eqPtr reports whether a and b are both nil or point to equal values.
@@ -111,8 +117,9 @@ func eqPtr[T comparable](a, b *T) bool {
 	return *a == *b
 }
 
-// fires reports whether t, evaluated alone by the gate, has a violation on
-// row r.
+// fires reports whether t, evaluated alone by the gate at severity fail,
+// has a violation on row r: whether it breaches, whatever its severity.
 func fires(t gate.Threshold, r *corpus.Row) bool {
+	t.Severity = gate.SeverityFail
 	return len(gate.Evaluate(r.Head, r.Base, []gate.Threshold{t}, nil).Violations) > 0
 }

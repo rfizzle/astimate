@@ -44,6 +44,9 @@ type finding struct {
 	Head     float64          `json:"head"`
 	Limit    string           `json:"limit"`
 	Location *report.Location `json:"location"`
+	// Severity is "warn" on the breach of a warn rule, which the check
+	// reports among the warnings; omitted on every other finding.
+	Severity string `json:"severity,omitempty"`
 }
 
 // exempted is a violation an exemption silenced, with its reason.
@@ -106,7 +109,7 @@ func findings(fs []report.Finding) []finding {
 
 // toFinding copies f without its suggestion.
 func toFinding(f *report.Finding) finding {
-	return finding{Metric: f.Metric, Base: f.Base, Head: f.Head, Limit: f.Limit, Location: f.Location}
+	return finding{Metric: f.Metric, Base: f.Base, Head: f.Head, Limit: f.Limit, Location: f.Location, Severity: f.Severity}
 }
 
 // newPackageRow returns the row of r, a report of a check of commit.

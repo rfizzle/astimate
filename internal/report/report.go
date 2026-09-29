@@ -120,6 +120,10 @@ type Finding struct {
 	// the finding has no location; a package finding is then located by
 	// its package path.
 	Location *Location `json:"location,omitempty"`
+	// Severity is "warn" on the breach of a rule whose severity is warn,
+	// reported among the warnings (or the exemptions) with the fields the
+	// violation would have had; empty (omitted) on every other finding.
+	Severity string `json:"severity,omitempty"`
 }
 
 // Exempted is a violation an exemption silenced: the finding it would

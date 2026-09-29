@@ -34,10 +34,16 @@ type Violation struct {
 	Limit string
 	// Suggestion is the fix sentence; empty when no Suggester was given.
 	Suggestion string
+	// Severity is SeverityWarn on the breach of a warn rule
+	// (Threshold.Warns), which Evaluate reports as a warning, and empty on
+	// every other finding.
+	Severity Severity
 }
 
-// Warning is a non-failing capacity finding with the same shape as a
-// Violation; its Suggestion leads with the remaining headroom.
+// Warning is a non-failing finding with the same shape as a Violation: a
+// capacity rule's warning, whose Suggestion leads with the remaining
+// headroom or the growth over the ceiling, or the breach of a warn rule,
+// which is the violation it would have been with Severity SeverityWarn.
 type Warning = Violation
 
 // Note records a rule that was not evaluated and why.
@@ -60,8 +66,9 @@ type Result struct {
 	// Notes are sorted by metric name.
 	Notes []Note
 	// Exempted are the violations an exemption silenced
-	// (Exemptions.Apply), in the order Violations had; Evaluate leaves it
-	// nil.
+	// (Exemptions.Apply), in the order Violations had, followed by the
+	// warn rules' breaches it silenced, in the order Warnings had;
+	// Evaluate leaves it nil.
 	Exempted []Exempted
 }
 
@@ -114,7 +121,10 @@ func ForRow(rules []Threshold, row Row) []Threshold {
 // whose metric is unknown or not computed at head is skipped, which also
 // covers rebuild outputs the config loader already rejects; a v1 metric
 // computed at head but null at base skips only its delta rule and adds a
-// Note. Suggestions come from s; a nil s leaves them empty. Evaluate does no
+// Note. A warn rule (Threshold.Warns) is evaluated the same way, and each
+// violation it would have is reported as a warning instead, with the same
+// fields and Severity SeverityWarn, so it never fails the result.
+// Suggestions come from s; a nil s leaves them empty. Evaluate does no
 // I/O. Evaluate applies every rule it is given, whatever the row; callers
 // select a row's rules with ForRow.
 func Evaluate(head metrics.RawMetrics, base *metrics.RawMetrics, rules []Threshold, s Suggester) Result {
@@ -142,6 +152,7 @@ func (e *evaluator) rule(r Threshold) {
 	if !ok {
 		return
 	}
+	n := len(e.res.Violations)
 	switch r.Kind {
 	case Density:
 		e.density(r, h)
@@ -150,6 +161,25 @@ func (e *evaluator) rule(r Threshold) {
 	case Requirement:
 		e.requirement(r, h)
 	}
+	if r.Warns() {
+		e.demote(n)
+	}
+}
+
+// demote reports the violations recorded from index n on, a warn rule's,
+// as warnings through warn, each unchanged but for Severity SeverityWarn,
+// and removes them from the violations, leaving them nil when none
+// remain, as they are for a result that never had one.
+func (e *evaluator) demote(n int) {
+	for _, v := range e.res.Violations[n:] {
+		v.Severity = SeverityWarn
+		e.warn(v, "")
+	}
+	if n == 0 {
+		e.res.Violations = nil
+		return
+	}
+	e.res.Violations = e.res.Violations[:n]
 }
 
 func (e *evaluator) density(r Threshold, h float64) {

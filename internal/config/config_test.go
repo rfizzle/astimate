@@ -106,6 +106,42 @@ func TestParseDefault(t *testing.T) {
 	if last.When == nil || *last.When != (gate.Condition{Metric: "sloc", Value: 100}) {
 		t.Errorf("has_tests when = %+v, want sloc > 100", last.When)
 	}
+	// The default sets no severity, so every rule it ships fails the gate.
+	for _, lang := range append([]string{""}, cfg.Languages()...) {
+		for _, th := range cfg.ForLanguage(lang).Thresholds {
+			if th.Severity != "" {
+				t.Errorf("%s %s: severity = %q, want none (fail)", lang, th.Metric, th.Severity)
+			}
+		}
+	}
+}
+
+// TestParseSeverity checks that a rule's severity is read as written, at
+// the top level and in a language override, and that an absent one is
+// empty, which the gate treats as fail.
+func TestParseSeverity(t *testing.T) {
+	t.Parallel()
+
+	data := replace(t, "  - metric: dup_blocks\n    kind: density\n", "  - metric: dup_blocks\n    kind: density\n    severity: warn\n")
+	data = strings.Replace(data, "  - metric: globals\n    kind: density\n", "  - metric: globals\n    kind: density\n    severity: fail\n", 1)
+	data = strings.Replace(data, "languages:\n  typescript:\n    thresholds:\n",
+		"languages:\n  typescript:\n    thresholds:\n      - metric: init_funcs\n        kind: density\n        max_delta: 0\n        severity: warn\n", 1)
+	cfg, err := Parse([]byte(data))
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	got := map[string]gate.Severity{}
+	for _, th := range cfg.Thresholds {
+		got[th.Metric] = th.Severity
+	}
+	if got["dup_blocks"] != gate.SeverityWarn || got["globals"] != gate.SeverityFail || got["init_funcs"] != "" {
+		t.Errorf("severities = %v, want dup_blocks warn, globals fail, init_funcs unset", got)
+	}
+	for _, th := range cfg.ForLanguage("typescript").Thresholds {
+		if th.Metric == "init_funcs" && !th.Warns() {
+			t.Errorf("typescript init_funcs severity = %q, want warn", th.Severity)
+		}
+	}
 }
 
 // TestDefaultVersionPrefix checks the embedded default ships calibrated
@@ -200,6 +236,8 @@ func TestParseErrors(t *testing.T) {
 		{name: "over_max_delta on density", old: "    kind: density\n    max_delta: 6\n", repl: "    kind: density\n    max_delta: 6\n    over_max_delta: 0\n", wantErr: `"duplication_pct": over_max_delta applies only to capacity rules`},
 		{name: "over_max_delta on requirement", old: "    require: true\n", repl: "    require: true\n    over_max_delta: 10\n", wantErr: `"has_tests": over_max_delta applies only to capacity rules`},
 		{name: "over_max_delta on a disabled rule", old: "languages:\n  typescript:\n    thresholds:\n", repl: "languages:\n  typescript:\n    thresholds:\n      - metric: sloc\n        disabled: true\n        over_max_delta: 10\n", wantErr: "a disabled rule sets only metric and disabled"},
+		{name: "unknown severity", old: capacityRule, repl: capacityRule + "    severity: error\n", wantErr: `"sloc": unknown severity "error"; want fail or warn`},
+		{name: "severity on a disabled rule", old: "languages:\n  typescript:\n    thresholds:\n", repl: "languages:\n  typescript:\n    thresholds:\n      - metric: sloc\n        disabled: true\n        severity: warn\n", wantErr: "a disabled rule sets only metric and disabled"},
 		{name: "ratchet_from_zero not a bool", old: "    ratchet_from_zero: true\n", repl: "    ratchet_from_zero: sometimes\n", wantErr: "`sometimes` into bool"},
 		{name: "warn_at out of range", old: capacityRule, repl: strings.Replace(capacityRule, "0.75", "1.5", 1), wantErr: "warn_at must be in (0, 1)"},
 		{name: "unknown metric", old: "metric: dup_blocks", repl: "metric: dupe_blocks", wantErr: `"dupe_blocks": unknown metric`},

@@ -115,8 +115,8 @@ func parseDate(s string) (time.Time, error) {
 	return d, nil
 }
 
-// Exempted is a violation an exemption silenced, with the exemption's
-// reason.
+// Exempted is a violation, or a warn rule's breach, that an exemption
+// silenced, with the exemption's reason.
 type Exempted struct {
 	Violation
 	// Reason is the matching exemption's reason.
@@ -145,28 +145,41 @@ func NewExemptions(list []Exemption, now time.Time) *Exemptions {
 
 // Apply moves each violation of res, the result of the row whose package
 // path is pkg, that an unexpired exemption matches from res.Violations to
-// res.Exempted, carrying the reason of the first matching exemption in list
-// order, marks every matching exemption as used, and sets res.Passed from
-// the violations that remain. Warnings are never exempted: they never fail
-// the gate, so an exemption on a capacity rule matches only its violation.
-// An exemption with a blank reason, which Validate rejects, never matches,
-// so no violation is silenced without a reason to show. A nil x exempts
-// nothing.
+// res.Exempted, then each breach of a warn rule (a warning whose Severity
+// is SeverityWarn) that one matches from res.Warnings, carrying the reason
+// of the first matching exemption in list order, marks every matching
+// exemption as used, and sets res.Passed from the violations that remain.
+// Other warnings are never exempted: they never fail the gate, so an
+// exemption on a capacity rule matches only its violation. An exemption
+// with a blank reason, which Validate rejects, never matches, so no
+// finding is silenced without a reason to show. A nil x exempts nothing.
 func (x *Exemptions) Apply(pkg string, res *Result) {
 	if x != nil && len(x.list) > 0 {
-		kept := make([]Violation, 0, len(res.Violations))
-		for i := range res.Violations {
-			v := &res.Violations[i]
-			reason, ok := x.match(pkg, v)
-			if !ok {
-				kept = append(kept, *v)
-				continue
-			}
-			res.Exempted = append(res.Exempted, Exempted{Violation: *v, Reason: reason})
-		}
-		res.Violations = kept
+		res.Violations = x.exempt(pkg, res, res.Violations, func(*Violation) bool { return true })
+		res.Warnings = x.exempt(pkg, res, res.Warnings, func(w *Violation) bool { return w.Severity == SeverityWarn })
 	}
 	res.Passed = len(res.Violations) == 0
+}
+
+// exempt moves each finding of fs for which eligible is true and that an
+// unexpired exemption matches on row pkg to res.Exempted, and returns the
+// findings left, in their order.
+func (x *Exemptions) exempt(pkg string, res *Result, fs []Violation, eligible func(*Violation) bool) []Violation {
+	kept := make([]Violation, 0, len(fs))
+	for i := range fs {
+		v := &fs[i]
+		if !eligible(v) {
+			kept = append(kept, *v)
+			continue
+		}
+		reason, ok := x.match(pkg, v)
+		if !ok {
+			kept = append(kept, *v)
+			continue
+		}
+		res.Exempted = append(res.Exempted, Exempted{Violation: *v, Reason: reason})
+	}
+	return kept
 }
 
 // match returns the reason of the first unexpired exemption matching v on

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -158,6 +159,16 @@ func TestGatesAs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// warned is fitted with one rule marked warn: severity decides only
+	// whether a breach fails, so it gates as the replays did.
+	warned, err := config.Parse([]byte(strings.Replace(strings.Join(kept, ""),
+		"  - metric: globals\n    kind: density\n", "  - metric: globals\n    kind: density\n    severity: warn\n", 1)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reflect.DeepEqual(warned.Thresholds, fitted.Thresholds) {
+		t.Fatal("marking globals warn changed no rule")
+	}
 	const dir = "../thresholds"
 	tests := []struct {
 		name    string
@@ -167,6 +178,7 @@ func TestGatesAs(t *testing.T) {
 	}{
 		{"same version", def, def.Version, true},
 		{"the thresholds the rebuild fit was made on", fitted, "thresholds-2026-09-28", true},
+		{"those thresholds with a warn rule", warned, "thresholds-2026-09-28", true},
 		{"those thresholds with an over_max_delta", def, "thresholds-2026-09-28", false},
 		{"those thresholds, a rule changed", changed, "thresholds-2026-09-28", false},
 		{"no committed candidate", def, "thresholds-1999-01-01", false},

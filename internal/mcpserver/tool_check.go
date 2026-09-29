@@ -28,7 +28,9 @@ const checkToolDescription = "Run the astimate quality gate on one Go package yo
 	"fix them and call it again until it passes. Violations of module-wide rules, such as code " +
 	"newly copied between this package and another, are in the module block and fail the check " +
 	"too; their suggestion names the packages sharing each copy. Copies between two other " +
-	"packages do not fail it. Warnings do not fail the gate. Findings under exemptions were silenced by " +
+	"packages do not fail it. Warnings do not fail the gate; a warning with severity warn is a breach of a " +
+	"rule the configuration reports without failing, worth fixing while you are in the code. " +
+	"Findings under exemptions were silenced by " +
 	"an exemption a person recorded in the configuration, with its reason; they do not fail the gate, " +
 	"and you must not add or widen exemptions to make a check pass. Do not call it on " +
 	"packages you did not touch. The baseline is the merge-base of HEAD and the default branch " +

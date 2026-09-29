@@ -122,7 +122,7 @@ checked.
 | `language` | The extractor's language id |
 | `new` | True when the baseline has no such row (a new package, or an `empty` baseline) |
 | `passed` | The row's verdict |
-| `violations`, `warnings` | `{metric, base, head, limit, location}`: `base` is null for a new row, `limit` names the rule (`max 1000`, `max_delta +0`, ...), `location` is `{file, line}` relative to the module root, or null |
+| `violations`, `warnings` | `{metric, base, head, limit, location}`: `base` is null for a new row, `limit` names the rule (`max 1000`, `max_delta +0`, ...), `location` is `{file, line}` relative to the module root, or null; a warning that is the breach of a rule with `severity: warn` also has `severity` `warn` |
 | `exemptions` | The violations an exemption silenced, as above with its `reason` |
 | `metrics` | Every metric at the commit (SPEC.md 10.2 field names), `changed_func_cognitive_max` included |
 | `base` | Every metric at the parent; null when `new` |

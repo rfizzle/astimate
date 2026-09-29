@@ -111,10 +111,21 @@ type Row struct {
 	// Violated holds the metric of every violation the replay recorded on
 	// the row, in the order recorded.
 	Violated []string
+	// Warned holds the metric of every breach of a warn rule the replay
+	// recorded on the row, a warning with severity warn, in the order
+	// recorded: what the rule would have failed at severity fail.
+	Warned []string
 }
 
 // Module reports whether r is the module row.
 func (r *Row) Module() bool { return r.Package == metrics.ModuleRowID }
+
+// Breached reports whether the replay recorded a breach of the rule on
+// metric on r, whatever its severity: a violation or a warn rule's
+// warning.
+func (r *Row) Breached(metric string) bool {
+	return slices.Contains(r.Violated, metric) || slices.Contains(r.Warned, metric)
+}
 
 // Commit is one labeled commit the replay loaded.
 type Commit struct {
@@ -314,6 +325,10 @@ type packageRow struct {
 	Violations []struct {
 		Metric string `json:"metric"`
 	} `json:"violations"`
+	Warnings []struct {
+		Metric   string `json:"metric"`
+		Severity string `json:"severity"`
+	} `json:"warnings"`
 }
 
 // readRows reads packages.jsonl at path, keyed by commit hash.
@@ -328,10 +343,23 @@ func readRows(path string) (map[string][]Row, error) {
 		for _, v := range pr.Violations {
 			r.Violated = append(r.Violated, v.Metric)
 		}
+		r.Warned = pr.warned()
 		out[pr.Commit] = append(out[pr.Commit], r)
 		return nil
 	})
 	return out, err
+}
+
+// warned returns the metric of each of pr's warnings that is a warn
+// rule's breach, one with severity warn, in the order recorded.
+func (pr *packageRow) warned() []string {
+	var out []string
+	for i := range pr.Warnings {
+		if pr.Warnings[i].Severity == "warn" {
+			out = append(out, pr.Warnings[i].Metric)
+		}
+	}
+	return out
 }
 
 // eachLine calls fn with every non-blank line of the file at path,

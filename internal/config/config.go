@@ -136,6 +136,8 @@ type fileThreshold struct {
 	OverMaxDelta    *float64 `yaml:"over_max_delta"`
 	Require         *bool    `yaml:"require"`
 	When            string   `yaml:"when"`
+	// Severity is fail or warn; absent means fail.
+	Severity string `yaml:"severity"`
 	// Disabled drops the top-level rule on Metric; only under languages.
 	Disabled bool `yaml:"disabled"`
 }
@@ -416,6 +418,7 @@ func (ft fileThreshold) build(prefix string) (gate.Threshold, error) {
 		Require:         ft.Require,
 		RatchetFromZero: ft.RatchetFromZero,
 	}
+	t.Severity = gate.Severity(ft.Severity)
 	switch {
 	case ft.WarnAt != nil:
 		t.WarnAt = *ft.WarnAt

@@ -152,6 +152,16 @@ func method(b *strings.Builder, in *Input) {
 	}
 	fmt.Fprintf(b, methodText, agent, pct(in.Targets.Recall), pct(in.Targets.FalseFailure), mismatched, checked,
 		pct(in.Targets.FalseFailure), in.basis().Name, ruleBlock, reverts)
+	if in.warnRules() {
+		b.WriteString(warnMethodText)
+	}
+	b.WriteString("\n")
+}
+
+// warnRules reports whether the configuration has a warn rule
+// (gate.Threshold.Warns).
+func (in *Input) warnRules() bool {
+	return slices.ContainsFunc(in.Rules, func(r measure.Rule) bool { return r.Threshold.Warns() })
 }
 
 // targetHead is the header of targetCells' columns.
@@ -222,9 +232,16 @@ func corpora(b *strings.Builder, in *Input) {
 }
 
 // perRule writes one table per view with every rule and the size-only
-// rule.
+// rule. A warn rule has its own row, but the gate's row counts only the
+// rules that fail.
 func perRule(b *strings.Builder, in *Input) {
-	fmt.Fprintf(b, "## Per rule\n\nOne table for each of the %d views. Fired counts commits, not rows. A rule that judged no row of a view shows no rates.\n\n", len(in.Views))
+	fmt.Fprintf(b, "## Per rule\n\nOne table for each of the %d views. Fired counts commits, not rows. A rule that judged no row of a view shows no rates.", len(in.Views))
+	gateRow := "gate (any rule)"
+	if in.warnRules() {
+		gateRow = "gate (any `fail` rule)"
+		b.WriteString(" A rule marked `(warn)` has `severity: warn`: it reports its breaches without failing the commit, so it has its own rates but is not part of the gate's row, which counts only the rules that fail.")
+	}
+	b.WriteString("\n\n")
 	for _, v := range in.Views {
 		fmt.Fprintf(b, "### %s\n\n", v.Name)
 		rows := make([][]string, 0, len(in.Rules)+2)
@@ -235,7 +252,7 @@ func perRule(b *strings.Builder, in *Input) {
 			}
 			rows = append(rows, rateRow(code(r.Name()), v.Rules[i]))
 		}
-		rows = append(rows, rateRow("gate (any rule)", v.Gate), rateRow("size-only, "+code("sloc_delta > "+strconv.Itoa(in.SizeT)), v.Size))
+		rows = append(rows, rateRow(gateRow, v.Gate), rateRow("size-only, "+code("sloc_delta > "+strconv.Itoa(in.SizeT)), v.Size))
 		table(b, []string{"Rule", "Fired on `block`", "Fired on `allow`", "Precision", "Recall", "False-failure share"}, rows)
 	}
 }

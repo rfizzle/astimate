@@ -28,6 +28,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 
@@ -156,6 +157,10 @@ func loadConfig(o *options) (*config.Config, string, error) {
 // version, the same rules as its candidate committed under dir. A rebuild
 // fit (rebuild-<date>-<agent>) changes the estimate's parameters and never
 // a rule, so replays made under the thresholds it was fitted on still hold.
+// The rules are compared without their severities: a severity decides only
+// whether a breach fails, and the scoring reads the recorded breaches of
+// either severity, so a rule the replay failed can be measured as a warn
+// rule and the other way round.
 func gatesAs(cfg *config.Config, version, dir string) bool {
 	if cfg.Version == version {
 		return true
@@ -164,7 +169,16 @@ func gatesAs(cfg *config.Config, version, dir string) bool {
 		return false
 	}
 	prev, err := config.Load(filepath.Join(dir, "astimate-"+version+".yaml"))
-	return err == nil && reflect.DeepEqual(prev.Thresholds, cfg.Thresholds)
+	return err == nil && reflect.DeepEqual(withoutSeverity(prev.Thresholds), withoutSeverity(cfg.Thresholds))
+}
+
+// withoutSeverity returns a copy of ts with every severity cleared.
+func withoutSeverity(ts []gate.Threshold) []gate.Threshold {
+	out := slices.Clone(ts)
+	for i := range out {
+		out[i].Severity = ""
+	}
+	return out
 }
 
 // measureAll loads every corpus and computes the report's input.

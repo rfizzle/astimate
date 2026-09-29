@@ -12,6 +12,17 @@ history.
 
 ### Added
 
+- Per-rule severity: every threshold takes `severity`, `fail` (the default)
+  or `warn`. A `warn` rule is evaluated as its kind requires, and what
+  would be a violation is reported as a warning with the violation's fields
+  and `"severity": "warn"` in every format (text, JSON, hook, GitHub
+  `::warning`, `check_package`); it never changes `passed` or the exit
+  code, and an exemption on it moves it to `exemptions` as it would the
+  violation. The field is additive to the report schema. Replay rows keep
+  the severity, and `calibration/validate` reports a `warn` rule as its own
+  row, marked `(warn)`, with its precision and recall while leaving it out
+  of the gate's verdict. The embedded default still ships every rule at
+  `fail`.
 - Capacity ratchet: a capacity rule takes `over_max_delta` (default 0), the
   most a package already at or over its `max` may grow in one change. Such
   growth is a warning whose `limit` reads `over max by N, allowed M` and

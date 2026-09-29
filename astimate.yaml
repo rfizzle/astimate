@@ -80,7 +80,9 @@ rebuild:
 # or over max may grow in one change, with a warning to split, before the
 # growth fails. Crossing max, or a new package over it, always fails.
 # Requirement rules demand a boolean, optionally guarded by
-# when: "<metric> > <number>".
+# when: "<metric> > <number>". Any rule may set severity: fail (the
+# default) or warn; a warn rule is evaluated the same way, but what would
+# be a violation is reported as a warning and never fails the gate.
 thresholds:
   # No new duplicate blocks; copy-paste is the primary target.
   - metric: dup_blocks

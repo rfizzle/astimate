@@ -1,0 +1,7 @@
+stdout:
+{}
+stderr:
+warnings:
+  internal/registry
+    globals: 0 -> 1, max_delta +0. Pass registry explicitly instead of a package variable.
+    tokens_est: 12500 -> 13000, max 16000. at 81% of the 16000 ceiling; plan a split before the next feature.
