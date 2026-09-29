@@ -142,6 +142,18 @@ func TestGatesAs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// fitted is the default without the over_max_delta the gate validation
+	// fitted after the replays: the rules they were replayed under.
+	var kept []string
+	for l := range strings.SplitAfterSeq(string(config.Default()), "\n") {
+		if !strings.HasPrefix(l, "    over_max_delta: ") {
+			kept = append(kept, l)
+		}
+	}
+	fitted, err := config.Parse([]byte(strings.Join(kept, "")))
+	if err != nil {
+		t.Fatal(err)
+	}
 	changed, err := config.Parse([]byte(strings.Replace(string(config.Default()), "    max: 16000\n", "    max: 17000\n", 1)))
 	if err != nil {
 		t.Fatal(err)
@@ -154,7 +166,8 @@ func TestGatesAs(t *testing.T) {
 		want    bool
 	}{
 		{"same version", def, def.Version, true},
-		{"the thresholds the rebuild fit was made on", def, "thresholds-2026-09-28", true},
+		{"the thresholds the rebuild fit was made on", fitted, "thresholds-2026-09-28", true},
+		{"those thresholds with an over_max_delta", def, "thresholds-2026-09-28", false},
 		{"those thresholds, a rule changed", changed, "thresholds-2026-09-28", false},
 		{"no committed candidate", def, "thresholds-1999-01-01", false},
 		{"another rebuild fit", def, "rebuild-1999-01-01-x", false},

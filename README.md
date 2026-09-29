@@ -226,12 +226,15 @@ Each finding reads `metric: baseline -> head, limit. suggestion`. [docs/reading-
 
 #### Gate semantics
 
-Density rules measure how the code is written (duplicate blocks, untested exports, globals, nesting, complexity), so adding features should never raise them: they ratchet on the change with `max_delta`, usually 0, against the baseline, and a `max` on one limits what a change may introduce, never a legacy value the change left alone. Capacity rules measure how much code there is (`tokens_est`, `sloc`, `largest_file_sloc`, `exported_symbols`, `internal_imports`), which features are supposed to grow, so they carry no delta: an absolute `max` says the package has outgrown one agent pass and needs a split, and a warning from `warn_at` (0.75 of the ceiling) gives notice before it lands. A package new at head faces every `max`, and the count-of-things-added rules (`dup_blocks`, `untested_exports`, `globals`, `init_funcs`) ratchet from zero. One requirement completes the defaults: a package over 100 `sloc` must have tests (`has_tests`), judged like a density `max`, so only when the package is new or grew. Warnings never fail the gate. `SPEC.md` section 8 has the full rules and the default thresholds.
+Density rules measure how the code is written (duplicate blocks, untested exports, globals, nesting, complexity), so adding features should never raise them: they ratchet on the change with `max_delta`, usually 0, against the baseline, and a `max` on one limits what a change may introduce, never a legacy value the change left alone. Capacity rules measure how much code there is (`tokens_est`, `sloc`, `largest_file_sloc`, `exported_symbols`, `internal_imports`), which features are supposed to grow, so they carry no delta: an absolute `max` says the package has outgrown one agent pass and needs a split, and a warning from `warn_at` (0.75 of the ceiling) gives notice before it lands. Crossing the `max` fails; a package already over it may grow by up to the rule's `over_max_delta` in one change (100 for `sloc`, 1,000 for `tokens_est`, 5 for `largest_file_sloc`, 0 for the others) with a warning to split, and more than that fails. A package new at head faces every `max`, and the count-of-things-added rules (`dup_blocks`, `untested_exports`, `globals`, `init_funcs`) ratchet from zero. One requirement completes the defaults: a package over 100 `sloc` must have tests (`has_tests`), judged like a density `max`, so only when the package is new or grew. Warnings never fail the gate. `SPEC.md` section 8 has the full rules and the default thresholds.
 
 | Rule | Kind | Baseline | Head | Verdict |
 | --- | --- | --- | --- | --- |
 | `dup_blocks` `max_delta: 0` | density | 0 | 1 | violation: one copied block fails however small the change |
 | `tokens_est` `max: 16000`, `warn_at: 0.75` | capacity | 6,000 | 12,800 | passes with a warning: at 80% of the ceiling, plan a split before the next feature |
+| `sloc` `max: 1000`, `over_max_delta: 100` | capacity | 1,050 | 1,100 | passes with a warning: already over the ceiling and grew 50, within the 100 allowed; split the package |
+| `sloc` `max: 1000`, `over_max_delta: 100` | capacity | 1,050 | 1,200 | violation: grew 150 while over the ceiling, more than the 100 allowed |
+| `sloc` `max: 1000` | capacity | 950 | 1,010 | violation: the change crossed the ceiling |
 
 ### serve
 

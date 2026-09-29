@@ -38,6 +38,25 @@ func TestExplainCoversEveryMetric(t *testing.T) {
 	}
 }
 
+// TestExplainCapacityOverCeiling checks each capacity metric's explanation
+// says what happens over the ceiling (SPEC.md 8.1): a crossing fails and
+// growth past it is held by over_max_delta.
+func TestExplainCapacityOverCeiling(t *testing.T) {
+	for _, name := range []string{"sloc", "largest_file_sloc", "tokens_est", "exported_symbols", "internal_imports"} {
+		t.Run(name, func(t *testing.T) {
+			e, ok := Explain(name)
+			if !ok {
+				t.Fatalf("Explain(%q) has no entry", name)
+			}
+			for _, want := range []string{"crossing the max", "over_max_delta", "split"} {
+				if !strings.Contains(e.Evidence, want) {
+					t.Errorf("Explain(%q).Evidence lacks %q: %s", name, want, e.Evidence)
+				}
+			}
+		})
+	}
+}
+
 func TestExplainCouplingReportedNotGated(t *testing.T) {
 	for _, name := range []string{"instability", "abstractness", "main_sequence_distance"} {
 		t.Run(name, func(t *testing.T) {

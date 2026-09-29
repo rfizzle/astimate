@@ -1,6 +1,7 @@
 package config
 
 import (
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -86,6 +87,17 @@ func TestParseDefault(t *testing.T) {
 		if th.Metric == "changed_func_cognitive_max" && (th.Max == nil || *th.Max != 50 || th.MaxDelta != nil) {
 			t.Errorf("changed_func_cognitive_max max = %v, max_delta = %v, want max 50 and no max_delta", th.Max, th.MaxDelta)
 		}
+	}
+	// over_max_delta is fitted for three capacity rules (SPEC.md 8.2); the
+	// other two keep the default of 0 and no rule of another kind has one.
+	overMax := map[string]float64{}
+	for _, th := range cfg.Thresholds {
+		if th.OverMaxDelta != nil {
+			overMax[th.Metric] = *th.OverMaxDelta
+		}
+	}
+	if w := map[string]float64{"tokens_est": 1000, "largest_file_sloc": 5, "sloc": 100}; !maps.Equal(overMax, w) {
+		t.Errorf("over_max_delta = %v, want %v", overMax, w)
 	}
 	if got, w := strings.Join(ratchet, " "), "dup_blocks untested_exports globals init_funcs"; got != w {
 		t.Errorf("ratchet_from_zero metrics = %q, want %q", got, w)
@@ -184,6 +196,10 @@ func TestParseErrors(t *testing.T) {
 		{name: "threshold with no limit", old: "    kind: density\n    max_delta: 6\n    max: 40\n", repl: "    kind: density\n", wantErr: `"duplication_pct": density rule needs max_delta or max`},
 		{name: "capacity with max_delta", old: capacityRule, repl: capacityRule + "    max_delta: 0\n", wantErr: `"sloc": capacity rule must not set max_delta`},
 		{name: "ratchet_from_zero on capacity", old: capacityRule, repl: capacityRule + "    ratchet_from_zero: true\n", wantErr: `"sloc": ratchet_from_zero applies only to density rules`},
+		{name: "negative over_max_delta", old: "    over_max_delta: 100\n", repl: "    over_max_delta: -1\n", wantErr: `"sloc": over_max_delta must be a finite number >= 0, got -1`},
+		{name: "over_max_delta on density", old: "    kind: density\n    max_delta: 6\n", repl: "    kind: density\n    max_delta: 6\n    over_max_delta: 0\n", wantErr: `"duplication_pct": over_max_delta applies only to capacity rules`},
+		{name: "over_max_delta on requirement", old: "    require: true\n", repl: "    require: true\n    over_max_delta: 10\n", wantErr: `"has_tests": over_max_delta applies only to capacity rules`},
+		{name: "over_max_delta on a disabled rule", old: "languages:\n  typescript:\n    thresholds:\n", repl: "languages:\n  typescript:\n    thresholds:\n      - metric: sloc\n        disabled: true\n        over_max_delta: 10\n", wantErr: "a disabled rule sets only metric and disabled"},
 		{name: "ratchet_from_zero not a bool", old: "    ratchet_from_zero: true\n", repl: "    ratchet_from_zero: sometimes\n", wantErr: "`sometimes` into bool"},
 		{name: "warn_at out of range", old: capacityRule, repl: strings.Replace(capacityRule, "0.75", "1.5", 1), wantErr: "warn_at must be in (0, 1)"},
 		{name: "unknown metric", old: "metric: dup_blocks", repl: "metric: dupe_blocks", wantErr: `"dupe_blocks": unknown metric`},
@@ -318,9 +334,10 @@ func TestDefaultGatesMatchExplanations(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Parse(Default()) error = %v", err)
 	}
-	gated := map[string]bool{}
+	gated, capacity := map[string]bool{}, map[string]bool{}
 	for _, th := range cfg.Thresholds {
 		gated[th.Metric] = true
+		capacity[th.Metric] = th.Kind == gate.Capacity
 	}
 	for _, name := range metrics.MetricNames() {
 		e, ok := metrics.Explain(name)
@@ -330,6 +347,11 @@ func TestDefaultGatesMatchExplanations(t *testing.T) {
 		}
 		if e.Gated != gated[name] {
 			t.Errorf("Explain(%q).Gated = %v, default thresholds gate it: %v", name, e.Gated, gated[name])
+		}
+		// A capacity metric's explanation says what happens over its
+		// ceiling, over_max_delta included (SPEC.md 8.1); no other does.
+		if got := strings.Contains(e.Evidence, "over_max_delta"); got != capacity[name] {
+			t.Errorf("Explain(%q) mentions over_max_delta: %v, default capacity rule: %v", name, got, capacity[name])
 		}
 	}
 	for _, name := range []string{"instability", "abstractness", "main_sequence_distance"} {

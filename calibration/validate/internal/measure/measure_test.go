@@ -139,7 +139,7 @@ func TestSweepCapacity(t *testing.T) {
 	c := &corpus.Corpus{Commits: []corpus.Commit{
 		commit("new", true, row(1200, -1)),     // new over max: fires
 		commit("cross", true, row(1100, 900)),  // crossed: fires
-		commit("grow", false, row(1300, 1200)), // grew over: fires
+		commit("grow", false, row(1400, 1200)), // grew over by 200: fires past over_max_delta 100
 		commit("fell", false, row(1200, 1300)), // fell, still over: passes
 	}}
 	sc, err := Score(c, s)
@@ -148,8 +148,22 @@ func TestSweepCapacity(t *testing.T) {
 	}
 	i := index(t, s, "sloc")
 	curves := sc.Sweep(i)
-	if len(curves) != 1 || curves[0].Param != Max {
+	if len(curves) != 2 || curves[0].Param != Max || curves[1].Param != OverMaxDelta {
 		t.Fatalf("curves %+v", curves)
+	}
+	// The ratchet: the grown package fails until over_max_delta covers its
+	// growth of 200; the new and the crossing package fail at every value.
+	overMax := map[float64][2]int{}
+	for _, p := range curves[1].Points {
+		overMax[p.Setting.Value] = [2]int{p.Rule.BlockFailed, p.Rule.AllowFailed}
+		if p.Shipped != (p.Setting.Value == 100) {
+			t.Errorf("shipped marks %v", p.Setting)
+		}
+	}
+	for v, w := range map[float64][2]int{0: {2, 1}, 100: {2, 1}, 150: {2, 1}, 200: {2, 0}, 500: {2, 0}} {
+		if overMax[v] != w {
+			t.Errorf("over_max_delta %v: got %v want %v", v, overMax[v], w)
+		}
 	}
 	got := map[float64][2]int{}
 	for _, p := range curves[0].Points {
@@ -274,6 +288,9 @@ func TestGridAndApply(t *testing.T) {
 		{"dup_blocks", MaxDelta, "max_delta 0,max_delta 1,max_delta 2,max_delta 3,max_delta 5,max_delta 10,max_delta 20"},
 		{"cognitive_p90", MaxDelta, "max_delta 0,max_delta 1,max_delta 2,max_delta 3,max_delta 5,max_delta 6,max_delta 10,max_delta 20,max_delta none"},
 		{"has_tests", When, "when > 0,when > 50,when > 100,when > 200,when > 500,when > 1000,no guard"},
+		{"sloc", OverMaxDelta, "over_max_delta 0,over_max_delta 1,over_max_delta 2,over_max_delta 3,over_max_delta 5,over_max_delta 10,over_max_delta 20,over_max_delta 25,over_max_delta 50,over_max_delta 100,over_max_delta 150,over_max_delta 200,over_max_delta 300,over_max_delta 500"},
+		{"tokens_est", OverMaxDelta, "over_max_delta 0,over_max_delta 20,over_max_delta 25,over_max_delta 50,over_max_delta 100,over_max_delta 150,over_max_delta 200,over_max_delta 300,over_max_delta 500,over_max_delta 1000,over_max_delta 1500,over_max_delta 2000,over_max_delta 3000,over_max_delta 5000"},
+		{"internal_imports", OverMaxDelta, "over_max_delta 0,over_max_delta 1,over_max_delta 2,over_max_delta 3,over_max_delta 5"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.rule, func(t *testing.T) {
@@ -339,6 +356,43 @@ func TestAdvise(t *testing.T) {
 				t.Errorf("got %+v", a)
 			}
 		})
+	}
+}
+
+// TestAdviseOverMax checks a capacity rule over the budget is retuned to
+// the over_max_delta FitOverMax picks, the best J within the budget and
+// the largest value on a tie, even when a max within the budget fails more
+// block commits; and dropped when that fit's J is under MinJ.
+func TestAdviseOverMax(t *testing.T) {
+	cr := Criteria{MinFired: 10, Budget: 0.1, MinJ: 0.02}
+	pt := func(p Param, v float64, shipped bool, b, a int) Point {
+		return Point{Setting: Setting{Param: p, Value: v}, Shipped: shipped, Rule: Rates{Block: 100, Allow: 100, BlockFailed: b, AllowFailed: a}}
+	}
+	shipped := Rates{Block: 100, Allow: 100, BlockFailed: 60, AllowFailed: 37}
+	curves := []Curve{
+		{Param: Max, Points: []Point{pt(Max, 1000, true, 60, 37), pt(Max, 2000, false, 40, 10)}},
+		{Param: OverMaxDelta, Points: []Point{
+			pt(OverMaxDelta, 0, true, 60, 37),
+			pt(OverMaxDelta, 50, false, 32, 11), // over the budget
+			pt(OverMaxDelta, 100, false, 25, 7), // J 18
+			pt(OverMaxDelta, 150, false, 22, 4), // J 18, larger: the fit
+			pt(OverMaxDelta, 200, false, 17, 4), // J 13
+		}},
+	}
+	fit, ok := FitOverMax(curves, cr.Budget)
+	if !ok || fit.Setting.Value != 150 {
+		t.Errorf("FitOverMax = %+v, %v; want over_max_delta 150", fit, ok)
+	}
+	a := Advise(shipped, 50, curves, cr)
+	if a.Action != Retune || a.To != (Setting{Param: OverMaxDelta, Value: 150}) || !strings.Contains(a.Why, "over_max_delta 150 fails 22.0% of block and 4.0% of allow") {
+		t.Errorf("Advise = %+v", a)
+	}
+	if _, ok := FitOverMax(curves[:1], cr.Budget); ok {
+		t.Error("FitOverMax found a point without an over_max_delta curve")
+	}
+	weak := []Curve{{Param: OverMaxDelta, Points: []Point{pt(OverMaxDelta, 0, true, 60, 37), pt(OverMaxDelta, 500, false, 5, 4)}}}
+	if a := Advise(shipped, 50, weak, cr); a.Action != Drop {
+		t.Errorf("Advise with a weak fit = %+v, want drop", a)
 	}
 }
 

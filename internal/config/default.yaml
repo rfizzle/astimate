@@ -70,8 +70,11 @@ rebuild:
 # Gate thresholds (SPEC.md section 8.2). Density rules ratchet on the change
 # via max_delta and may add a max; for a package new at head only their max
 # applies, plus max_delta against zero where ratchet_from_zero is true.
-# Capacity rules carry an absolute max with a warn_at band (default 0.75);
-# requirement rules demand a boolean, optionally guarded by
+# Capacity rules carry an absolute max with a warn_at band (default 0.75)
+# and an optional over_max_delta (default 0): the most a package already at
+# or over max may grow in one change, with a warning to split, before the
+# growth fails. Crossing max, or a new package over it, always fails.
+# Requirement rules demand a boolean, optionally guarded by
 # when: "<metric> > <number>".
 thresholds:
   # No new duplicate blocks; copy-paste is the primary target.
@@ -133,11 +136,17 @@ thresholds:
     kind: capacity
     max: 16000
     warn_at: 0.75
+    # Fitted on 2026-09-29 by calibration/validate on the replayed agent
+    # commits (calibration/reports/gate-validation-2026-09-29.md): the most
+    # a package already over max may grow and only warn, about 80 SLOC.
+    over_max_delta: 1000
   # Files past this rarely fit an edit in one view.
   - metric: largest_file_sloc
     kind: capacity
     max: 600
     warn_at: 0.75
+    # Fitted the same way: a file already over max may take a few-line fix.
+    over_max_delta: 5
   # Surface past this is a package boundary problem.
   - metric: exported_symbols
     kind: capacity
@@ -153,6 +162,8 @@ thresholds:
     kind: capacity
     max: 1000
     warn_at: 0.75
+    # Fitted the same way; the hand labels also drew the line at 100 SLOC.
+    over_max_delta: 100
   # Packages of meaningful size must have tests.
   - metric: has_tests
     kind: requirement

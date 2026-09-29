@@ -19,8 +19,10 @@ type field struct {
 	// Validate holds to non-negative and not at all.
 	upper float64
 	// flags holds "gated" when the embedded default configuration has a
-	// threshold on the metric and "module-wide" when the module row
-	// carries it (ModuleWide), space-separated.
+	// threshold on the metric, "capacity" when that threshold is a capacity
+	// rule, whose over-ceiling behavior Explain appends to the evidence, and
+	// "module-wide" when the module row carries it (ModuleWide),
+	// space-separated.
 	flags string
 	// definition and evidence are the Explain texts, before the
 	// placeholders explainText expands.
@@ -42,18 +44,18 @@ func (f field) has(flag string) bool {
 func fieldTable() [numFields]field {
 	return [numFields]field{
 		{"files", "v0", 0, "", "Non-test source files, generated files included.", "{context}"},
-		{"sloc", "v0", 0, "gated", "Non-blank, non-comment lines in non-test files.{generated}", "{bloat}"},
+		{"sloc", "v0", 0, "gated capacity", "Non-blank, non-comment lines in non-test files.{generated}", "{bloat}"},
 		{
-			"largest_file_sloc", "v0", 0, "gated", "SLOC of the largest non-test file.{generated}",
+			"largest_file_sloc", "v0", 0, "gated capacity", "SLOC of the largest non-test file.{generated}",
 			"{bloat} Files past the ceiling rarely fit an edit in one view.",
 		},
 		{
-			"tokens_est", "v0", 0, "gated",
+			"tokens_est", "v0", 0, "gated capacity",
 			"Estimated tokens of non-test source: bytes divided by chars_per_token.{generated}", "{bloat}",
 		},
 		{"tokens_est_with_tests", "v0", 0, "", "Estimated tokens of all source, test files included.{generated}", "{context}"},
 		{
-			"internal_imports", "v0", 0, "gated", "Fan-out: distinct module-internal packages imported by non-test files.",
+			"internal_imports", "v0", 0, "gated capacity", "Fan-out: distinct module-internal packages imported by non-test files.",
 			"Coupling growth: agent failures come from coupled facts absent from context. Moderate evidence.",
 		},
 		{"external_imports", "v0", 0, "", "Distinct imports that are neither standard library nor in the module.", "{context}"},
@@ -66,7 +68,7 @@ func fieldTable() [numFields]field {
 		},
 		{"fan_in_tests", "v0", 0, "", "Module packages importing this package from test files only.", "{context}"},
 		{
-			"exported_symbols", "v0", 0, "gated",
+			"exported_symbols", "v0", 0, "gated capacity",
 			"Exported funcs, methods, types, vars and consts in non-test files.{generated}",
 			"Exporting everything: no direct study; a wider API surface raises fan-in cost and the facts the " +
 				"next agent must hold. Indirect evidence.",

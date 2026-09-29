@@ -21,9 +21,10 @@ import (
 // Language writes the languages.<lang> override block of the fitted
 // choices: one rule per overridden choice, in the base's order, each a
 // whole rule (it replaces the top-level rule on its metric for lang) with
-// the fitted limits and the base rule's kind, ratchet_from_zero and
-// warn_at. No rebuild parameter is set. The block is validated merged
-// into the base configuration baseData, and must resolve to version.
+// the fitted limits and the base rule's kind, ratchet_from_zero, warn_at
+// and over_max_delta. No rebuild parameter is set. The block is validated
+// merged into the base configuration baseData, and must resolve to
+// version.
 func Language(baseData []byte, lang, version, source string, rows int, choices []pool.Choice) ([]byte, error) {
 	var b strings.Builder
 	b.WriteString(overrideHeader(lang, version, source, rows, choices))
@@ -51,6 +52,9 @@ func Language(baseData []byte, lang, version, source string, rows int, choices [
 		}
 		if c.Rule.Kind == gate.Capacity {
 			fmt.Fprintf(&b, "        warn_at: %s\n", report.Num(c.Rule.WarnAt))
+			if c.Rule.OverMaxDelta != nil {
+				fmt.Fprintf(&b, "        over_max_delta: %s\n", report.Num(*c.Rule.OverMaxDelta))
+			}
 		}
 	}
 	out := []byte(b.String())

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -230,7 +231,10 @@ const committedRebuild = "../rebuild/astimate-rebuild-2026-09-28-claude-code-opu
 // TestDefaultIsCommittedCandidate checks the embedded default carries
 // exactly the committed threshold candidate's rules and extraction
 // settings, so the shipped thresholds are the fitted ones, and the committed
-// rebuild fit's parameters and config_version, which it was built from.
+// rebuild fit's parameters and config_version, which it was built from. The
+// one exception is each capacity rule's over_max_delta, which this fit does
+// not produce: calibration/validate fits it from the replayed commits
+// (SPEC.md 11.4), so it is compared apart.
 func TestDefaultIsCommittedCandidate(t *testing.T) {
 	cand, err := config.Load(committedCandidate)
 	if err != nil {
@@ -243,6 +247,16 @@ func TestDefaultIsCommittedCandidate(t *testing.T) {
 	def, err := config.Parse(config.Default())
 	if err != nil {
 		t.Fatal(err)
+	}
+	overMax := map[string]float64{}
+	for i := range def.Thresholds {
+		if d := def.Thresholds[i].OverMaxDelta; d != nil {
+			overMax[def.Thresholds[i].Metric] = *d
+			def.Thresholds[i].OverMaxDelta = nil
+		}
+	}
+	if want := map[string]float64{"tokens_est": 1000, "largest_file_sloc": 5, "sloc": 100}; !maps.Equal(overMax, want) {
+		t.Errorf("default over_max_delta = %v, want the validation fit %v", overMax, want)
 	}
 	if def.Version != rebuild.Version {
 		t.Errorf("default config_version = %q, rebuild fit %q", def.Version, rebuild.Version)

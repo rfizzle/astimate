@@ -718,6 +718,37 @@ func TestEvaluateDefaultConfig(t *testing.T) {
 		}
 	})
 
+	t.Run("sloc over max ratchets by over_max_delta 100", func(t *testing.T) {
+		t.Parallel()
+
+		pkg := func(sloc int) *metrics.RawMetrics {
+			return &metrics.RawMetrics{SLOC: sloc, HasTests: true, TestFuncs: 5}
+		}
+		cases := []struct {
+			name       string
+			base       *metrics.RawMetrics
+			head       int
+			pass       bool
+			wantLimit  string
+			wantWarned bool
+		}{
+			{"1050 to 1100 warns", pkg(1050), 1100, true, "over max by 100, allowed 100", true},
+			{"1050 to 1200 fails", pkg(1050), 1200, false, "over max by 200, allowed 100", false},
+			{"950 to 1010 fails on the crossing", pkg(950), 1010, false, "max 1000", false},
+			{"new at 1010 fails", nil, 1010, false, "max 1000", false},
+		}
+		for _, c := range cases {
+			got := gate.Evaluate(*pkg(c.head), c.base, rules, nil)
+			findings := got.Violations
+			if c.wantWarned {
+				findings = got.Warnings
+			}
+			if got.Passed != c.pass || len(findings) != 1 || findings[0].Metric != "sloc" || findings[0].Limit != c.wantLimit {
+				t.Errorf("%s: Evaluate() = %+v, want passed %v with one sloc finding limited %q", c.name, got, c.pass, c.wantLimit)
+			}
+		}
+	})
+
 	t.Run("big feature grows capacity 3x and passes with warnings", func(t *testing.T) {
 		t.Parallel()
 
@@ -747,4 +778,157 @@ func TestEvaluateDefaultConfig(t *testing.T) {
 			t.Errorf("Evaluate() =\n%+v\nwant\n%+v", got, want)
 		}
 	})
+}
+
+// capacityField sets one capacity metric of a RawMetrics, so a table can
+// run the same cases over every capacity rule.
+type capacityField struct {
+	metric string
+	set    func(*metrics.RawMetrics, int)
+	// mul and div scale the sloc numbers of a case to the metric's range.
+	mul, div int
+}
+
+// capacityFields are the default configuration's capacity metrics.
+func capacityFields() []capacityField {
+	return []capacityField{
+		{"sloc", func(m *metrics.RawMetrics, v int) { m.SLOC = v }, 1, 1},
+		{"largest_file_sloc", func(m *metrics.RawMetrics, v int) { m.LargestFileSLOC = v }, 1, 1},
+		{"tokens_est", func(m *metrics.RawMetrics, v int) { m.TokensEst = v }, 16, 1},
+		{"exported_symbols", func(m *metrics.RawMetrics, v int) { m.ExportedSymbols = v }, 1, 10},
+		{"internal_imports", func(m *metrics.RawMetrics, v int) { m.InternalImports = v }, 1, 10},
+	}
+}
+
+func TestEvaluateOverMaxDelta(t *testing.T) {
+	t.Parallel()
+
+	// Every case is written for sloc at max 1000 and over_max_delta 100,
+	// the acceptance example, and scaled to each capacity metric's range.
+	const (
+		warn = "warn"
+		fail = "fail"
+		pass = "pass"
+	)
+	cases := []struct {
+		name string
+		base *int // nil: new at head
+		head int
+		omit bool // over_max_delta absent
+		want string
+		// ratchet says the finding's limit is the over-max form rather
+		// than the plain max.
+		ratchet bool
+	}{
+		{name: "grows within the allowance over max warns", base: ptr(1050), head: 1100, want: warn, ratchet: true},
+		{name: "grows by exactly the allowance warns", base: ptr(1050), head: 1150, want: warn, ratchet: true},
+		{name: "grows past the allowance over max fails", base: ptr(1050), head: 1200, want: fail, ratchet: true},
+		{name: "baseline at max grows within the allowance warns", base: ptr(1000), head: 1100, want: warn, ratchet: true},
+		{name: "crossing max fails", base: ptr(950), head: 1010, want: fail},
+		{name: "new package over max fails", head: 1010, want: fail},
+		{name: "unchanged over max warns", base: ptr(1100), head: 1100, want: warn},
+		{name: "shrinking over max warns", base: ptr(1200), head: 1100, want: warn},
+		{name: "absent field fails any rise over max", base: ptr(1050), head: 1100, omit: true, want: fail},
+		{name: "absent field still warns unchanged over max", base: ptr(1100), head: 1100, omit: true, want: warn},
+		{name: "below the warn band passes", base: ptr(500), head: 600, want: pass},
+	}
+	for _, f := range capacityFields() {
+		scale := func(v int) int { return v * f.mul / f.div }
+		for _, c := range cases {
+			t.Run(f.metric+"/"+c.name, func(t *testing.T) {
+				t.Parallel()
+
+				rule := capacity(f.metric, float64(scale(1000)), 0.75)
+				if !c.omit {
+					rule.OverMaxDelta = ptr(float64(scale(100)))
+				}
+				var head metrics.RawMetrics
+				f.set(&head, scale(c.head))
+				var base *metrics.RawMetrics
+				if c.base != nil {
+					base = &metrics.RawMetrics{}
+					f.set(base, scale(*c.base))
+				}
+				got := gate.Evaluate(head, base, []gate.Threshold{rule}, nil)
+				findings := got.Violations
+				switch c.want {
+				case pass:
+					if !reflect.DeepEqual(got, gate.Result{Passed: true}) {
+						t.Fatalf("Evaluate() = %+v, want passed with no findings", got)
+					}
+					return
+				case warn:
+					if !got.Passed || len(got.Violations) != 0 || len(got.Warnings) != 1 {
+						t.Fatalf("Evaluate() = %+v, want passed with one warning", got)
+					}
+					findings = got.Warnings
+				default:
+					if got.Passed || len(got.Violations) != 1 || len(got.Warnings) != 0 {
+						t.Fatalf("Evaluate() = %+v, want one violation", got)
+					}
+				}
+				want := "max " + strconv.Itoa(scale(1000))
+				if c.ratchet {
+					want = "over max by " + strconv.Itoa(scale(c.head)-scale(1000)) + ", allowed " + strconv.Itoa(scale(100))
+				}
+				if findings[0].Limit != want {
+					t.Errorf("limit = %q, want %q", findings[0].Limit, want)
+				}
+			})
+		}
+	}
+}
+
+func TestEvaluateOverMaxDeltaText(t *testing.T) {
+	t.Parallel()
+
+	suggest := func(metric string, _ float64, _ metrics.RawMetrics) string { return "Split " + metric + "." }
+	rule := capacity("sloc", 1000, 0.75)
+	rule.OverMaxDelta = ptr(100.0)
+	base := metrics.RawMetrics{SLOC: 1050}
+
+	got := gate.Evaluate(metrics.RawMetrics{SLOC: 1100}, &base, []gate.Threshold{rule}, suggest)
+	want := gate.Result{Passed: true, Warnings: []gate.Warning{{
+		Metric: "sloc", Base: 1050, Head: 1100, HasBase: true, Limit: "over max by 100, allowed 100",
+		Suggestion: "grew 50 while over the 1000 ceiling, within the 100 one change may add there; split the package before it grows further. Split sloc.",
+	}}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("within: Evaluate() =\n%+v\nwant\n%+v", got, want)
+	}
+
+	got = gate.Evaluate(metrics.RawMetrics{SLOC: 1200}, &base, []gate.Threshold{rule}, suggest)
+	want = gate.Result{Violations: []gate.Violation{{
+		Metric: "sloc", Base: 1050, Head: 1200, HasBase: true, Limit: "over max by 200, allowed 100",
+		Suggestion: "grew 150 while over the 1000 ceiling, more than the 100 one change may add there; split the package. Split sloc.",
+	}}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("past: Evaluate() =\n%+v\nwant\n%+v", got, want)
+	}
+}
+
+// TestEvaluateIdenticalTreesNeverFail checks the SPEC.md 8.1 invariant that
+// a head identical to its baseline passes whatever its values, under the
+// default rules and under every capacity rule with and without an
+// over_max_delta.
+func TestEvaluateIdenticalTreesNeverFail(t *testing.T) {
+	t.Parallel()
+
+	rules := defaultRules(t)
+	for _, f := range capacityFields() {
+		for _, d := range []*float64{nil, ptr(0.0), ptr(1.0), ptr(1000.0)} {
+			r := capacity(f.metric, 10, 0.75)
+			r.OverMaxDelta = d
+			rules = append(rules, r)
+		}
+	}
+	for _, v := range []int{0, 1, 9, 10, 11, 100, 1000, 1001, 16000, 16001, 50000} {
+		m := metrics.RawMetrics{UntestedExports: v, DupBlocks: v, Globals: v, InitFuncs: v, MaxNesting: v, CognitiveP90: v}
+		for _, f := range capacityFields() {
+			f.set(&m, v)
+		}
+		base := m
+		if got := gate.Evaluate(m, &base, rules, nil); !got.Passed {
+			t.Errorf("value %d: Evaluate(identical) violations = %+v, want passed", v, got.Violations)
+		}
+	}
 }

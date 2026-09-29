@@ -27,9 +27,13 @@ func Explain(name string) (Explanation, bool) {
 		return Explanation{}, false
 	}
 	f := fieldTable()[i]
+	evidence := explainText(f.evidence)
+	if f.has("capacity") {
+		evidence += " " + evidenceCapacity
+	}
 	return Explanation{
 		Definition: explainText(f.definition),
-		Evidence:   explainText(f.evidence),
+		Evidence:   evidence,
 		Release:    f.release,
 		Gated:      f.has("gated"),
 	}, true
@@ -41,6 +45,10 @@ const (
 		"repositories show rising duplicated blocks. The most specific LLM failure mode found; moderate evidence."
 	evidenceBloat = "Package bloat: successful agent trajectories typically stay under 20 to 30k tokens, " +
 		"resolve rates collapse at 64k tokens of context, and failed trajectories are longer. Strong evidence."
+	evidenceCapacity = "Gated as a capacity rule: crossing the max, or a new package over it, fails. " +
+		"A package already over the max warns while its value holds or falls, and may grow by at most the " +
+		"rule's over_max_delta in one change, with a warning to split, before growth fails. The fix is a split, " +
+		"not a smaller change."
 	evidenceTests = "Untested additions: agents self-correct through a run-and-check loop, and a " +
 		"package without tests denies the next agent that loop. Moderate, indirect evidence."
 	evidenceHiddenState = "Hidden state: no direct study; plausible and kept at low weight."

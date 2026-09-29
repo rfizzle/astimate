@@ -105,11 +105,12 @@ func ForRow(rules []Threshold, row Row) []Threshold {
 // for rules with RatchetFromZero set. Density rules fail when head minus base
 // exceeds MaxDelta, or when head exceeds Max and either there is no baseline
 // value or head rose above it, so an unchanged or improved legacy value over
-// Max passes. Capacity rules fail above Max under the same condition, warn
-// when an unchanged or improved legacy value is still above Max, and warn at
-// or above WarnAt of Max. Requirement rules fail when the metric's boolean
-// disagrees with Require while When holds and the package is new or its sloc
-// grew. A rule
+// Max passes. Capacity rules fail above Max under the same condition, except
+// that a value already at or over Max at baseline may rise by up to
+// OverMaxDelta with a warning to split; they warn when an unchanged or
+// improved legacy value is still above Max, and warn at or above WarnAt of
+// Max. Requirement rules fail when the metric's boolean disagrees with
+// Require while When holds and the package is new or its sloc grew. A rule
 // whose metric is unknown or not computed at head is skipped, which also
 // covers rebuild outputs the config loader already rejects; a v1 metric
 // computed at head but null at base skips only its delta rule and adds a
@@ -183,14 +184,7 @@ func (e *evaluator) capacity(r Threshold, h float64) {
 	limit := *r.Max
 	b, hasBase, _ := e.baseValue(r.Metric)
 	if h > limit+epsilon {
-		// As with a density max, the ceiling fails only what a change
-		// introduced; a legacy value already over it that did not rise is
-		// reported so the split still gets planned.
-		if !hasBase || h > b+epsilon {
-			e.res.Violations = append(e.res.Violations, e.finding(r.Metric, b, h, hasBase, "max "+num(limit)))
-			return
-		}
-		e.warn(r.Metric, b, h, hasBase, limit, "over the "+num(limit)+" ceiling (unchanged since baseline); plan a split.")
+		e.overMax(r, b, h, hasBase)
 		return
 	}
 	warnAt := r.WarnAt
@@ -201,18 +195,73 @@ func (e *evaluator) capacity(r Threshold, h float64) {
 		return
 	}
 	pct := strconv.Itoa(int(math.Floor(h / limit * 100)))
-	e.warn(r.Metric, b, h, hasBase, limit, "at "+pct+"% of the "+num(limit)+" ceiling; plan a split before the next feature.")
+	e.warn(e.finding(r.Metric, b, h, hasBase, "max "+num(limit)), "at "+pct+"% of the "+num(limit)+" ceiling; plan a split before the next feature.")
 }
 
-// warn records a capacity warning whose suggestion is text followed by the
-// Suggester's sentence, if any.
-func (e *evaluator) warn(metric string, b, h float64, hasBase bool, limit float64, text string) {
-	w := e.finding(metric, b, h, hasBase, "max "+num(limit))
-	if w.Suggestion != "" {
-		text += " " + w.Suggestion
+// overMax judges a capacity value h above the rule's max (SPEC.md 8.1); it
+// is the one place the over-ceiling ratchet lives. As with a density max,
+// the ceiling fails only what a change introduced: crossing the max, or a
+// new package over it, is a violation. A package already at or over the
+// max at baseline gets a warning when its value did not rise, so the split
+// still gets planned. When it rose by at most OverMaxDelta it gets a
+// warning that names the excess and says to split, and when it rose by
+// more it is a violation that says the same. Under the default
+// OverMaxDelta of 0 any rise is a violation with the plain max limit.
+func (e *evaluator) overMax(r Threshold, b, h float64, hasBase bool) {
+	limit := *r.Max
+	allowed := 0.0
+	if r.OverMaxDelta != nil {
+		allowed = *r.OverMaxDelta
 	}
-	w.Suggestion = text
+	switch {
+	case !hasBase || b < limit-epsilon:
+		e.res.Violations = append(e.res.Violations, e.finding(r.Metric, b, h, hasBase, "max "+num(limit)))
+	case h <= b+epsilon:
+		e.warn(e.finding(r.Metric, b, h, hasBase, "max "+num(limit)), "over the "+num(limit)+" ceiling (unchanged since baseline); plan a split.")
+	case allowed <= 0:
+		e.res.Violations = append(e.res.Violations, e.finding(r.Metric, b, h, hasBase, "max "+num(limit)))
+	case h-b <= allowed+epsilon:
+		e.warn(e.overMaxFinding(r.Metric, b, h, limit, allowed), "")
+	default:
+		e.res.Violations = append(e.res.Violations, e.overMaxFinding(r.Metric, b, h, limit, allowed))
+	}
+}
+
+// overMaxFinding is the finding for growth of a value already over the
+// ceiling limit, with allowed the growth one change may make there: its
+// limit reads "over max by N, allowed M", N being how far h is over the
+// ceiling, and its suggestion says how much it grew against the allowance
+// and to split the package, followed by the Suggester's sentence. A warning
+// and a violation share it.
+func (e *evaluator) overMaxFinding(metric string, b, h, limit, allowed float64) Violation {
+	f := e.finding(metric, b, h, true, "over max by "+num(h-limit)+", allowed "+num(allowed))
+	text := "grew " + num(h-b) + " while over the " + num(limit) + " ceiling, "
+	if h-b <= allowed+epsilon {
+		text += "within the " + num(allowed) + " one change may add there; split the package before it grows further."
+	} else {
+		text += "more than the " + num(allowed) + " one change may add there; split the package."
+	}
+	f.Suggestion = joinSentences(text, f.Suggestion)
+	return f
+}
+
+// warn records w as a warning, its suggestion led by text when text is
+// not empty.
+func (e *evaluator) warn(w Warning, text string) {
+	w.Suggestion = joinSentences(text, w.Suggestion)
 	e.res.Warnings = append(e.res.Warnings, w)
+}
+
+// joinSentences joins two fix sentences with a space, leaving out an
+// empty one.
+func joinSentences(a, b string) string {
+	switch {
+	case a == "":
+		return b
+	case b == "":
+		return a
+	}
+	return a + " " + b
 }
 
 func (e *evaluator) requirement(r Threshold, h float64) {

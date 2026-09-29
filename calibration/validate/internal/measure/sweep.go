@@ -17,11 +17,15 @@ const (
 	Max Param = "max"
 	// MaxDelta is a density rule's largest permitted increase.
 	MaxDelta Param = "max_delta"
+	// OverMaxDelta is a capacity rule's largest permitted increase of a
+	// value already at or over its max.
+	OverMaxDelta Param = "over_max_delta"
 	// When is the value of a requirement's "<metric> > <value>" guard.
 	When Param = "when"
 )
 
-// Params returns the limits of t a sweep can vary, in the order above.
+// Params returns the limits of t a sweep can vary, in the order above. A
+// capacity rule with a max always has an over_max_delta, 0 when unset.
 func Params(t gate.Threshold) []Param {
 	var out []Param
 	if t.Max != nil {
@@ -29,6 +33,9 @@ func Params(t gate.Threshold) []Param {
 	}
 	if t.MaxDelta != nil {
 		out = append(out, MaxDelta)
+	}
+	if t.Kind == gate.Capacity && t.Max != nil {
+		out = append(out, OverMaxDelta)
 	}
 	if t.When != nil {
 		out = append(out, When)
@@ -69,6 +76,12 @@ func shipped(t gate.Threshold, p Param) Setting {
 		return Setting{Param: p, Value: *t.Max}
 	case MaxDelta:
 		return Setting{Param: p, Value: *t.MaxDelta}
+	case OverMaxDelta:
+		v := 0.0
+		if t.OverMaxDelta != nil {
+			v = *t.OverMaxDelta
+		}
+		return Setting{Param: p, Value: v}
 	default:
 		return Setting{Param: p, Value: t.When.Value}
 	}
@@ -86,6 +99,8 @@ func Apply(t gate.Threshold, s Setting) gate.Threshold {
 		t.MaxDelta = nil
 	case s.Param == MaxDelta:
 		t.MaxDelta = &v
+	case s.Param == OverMaxDelta:
+		t.OverMaxDelta = &v
 	case s.None:
 		t.When = nil
 	default:
@@ -97,10 +112,13 @@ func Apply(t gate.Threshold, s Setting) gate.Threshold {
 // Grid returns the settings a sweep of t's p tries, ascending, the shipped
 // value included: for a max, the shipped value times 0.5, 0.75, 1, 1.25,
 // 1.5, 2, 3 and 5, rounded to a whole number; for a max_delta, 0, 1, 2, 3, 5,
-// 10 and 20 with the shipped value and twice it; for a guard, 0, 50, 100,
-// 200, 500 and 1000 with the shipped value. A density rule's max or
-// max_delta can also be removed when the rule keeps the other, and a guard
-// always can; that setting comes last.
+// 10 and 20 with the shipped value and twice it; for an over_max_delta, 0,
+// the shipped value and each of 1, 2, 3, 5, 10, 20, 25, 50, 100, 150, 200,
+// 300, 500, 1000, 1500, 2000, 3000 and 5000 from a thousandth to half of
+// the rule's max; for a guard, 0, 50, 100, 200, 500 and 1000 with the
+// shipped value. A density rule's max or max_delta can also be removed
+// when the rule keeps the other, and a guard always can; that setting
+// comes last.
 func Grid(t gate.Threshold, p Param) []Setting {
 	cur := shipped(t, p).Value
 	var vs []float64
@@ -112,6 +130,13 @@ func Grid(t gate.Threshold, p Param) []Setting {
 		vs = append(vs, cur)
 	case MaxDelta:
 		vs = []float64{0, 1, 2, 3, 5, 10, 20, cur, 2 * cur}
+	case OverMaxDelta:
+		vs = []float64{0, cur}
+		for _, v := range []float64{1, 2, 3, 5, 10, 20, 25, 50, 100, 150, 200, 300, 500, 1000, 1500, 2000, 3000, 5000} {
+			if v >= *t.Max/1000 && v <= *t.Max/2 {
+				vs = append(vs, v)
+			}
+		}
 	default:
 		vs = []float64{0, 50, 100, 200, 500, 1000, cur}
 	}

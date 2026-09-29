@@ -1,6 +1,6 @@
 # Gate validation 2026-09-29
 
-- Configuration: `rebuild-2026-09-28-claude-code-opus` (the embedded default)
+- Configuration: `thresholds-2026-09-28` (`calibration/thresholds/astimate-thresholds-2026-09-28.yaml`)
 - Corpus `astimate`: rows `calibration/data/replay-astimate-2026-09-28`, labels `calibration/replay/labels/astimate.yaml`, second labels `calibration/replay/labels/astimate-split-extract.yaml`
 - Corpus `roborev`: rows `calibration/data/replay-roborev-2026-09-28`, labels `calibration/replay/labels/roborev.yaml`, second labels `calibration/replay/labels/roborev-split-extract.yaml`
 - Corpus `github-mcp-server`: rows `calibration/data/replay-github-mcp-server-2026-09-28`, labels `calibration/replay/labels/github-mcp-server.yaml`, second labels `calibration/replay/labels/github-mcp-server-split-extract.yaml`
@@ -12,7 +12,7 @@
 - Replay rows join labels on the full commit hash. A commit the replay did not load has no verdict and is left out; a label with `agent: false` (a commit no coding agent took part in) is dropped, so the numbers describe agent-authored changes.
 - The gate fails a commit when any of its package rows or its module row has a violation, as the replay recorded it. Recall is the share of `block` commits failed; the false-failure rate is the share of `allow` commits failed. The targets (SPEC.md 14) are recall at least 80.0% and false failures at most 10.0%.
 - A rule fired on a commit when one of the commit's rows has a recorded violation of it. Its precision is the share of the commits it fired on that are `block`; its recall the share of `block` commits it fired on; its false-failure share the share of `allow` commits it fired on. A language override's rule is its own row and judges only that language's rows.
-- A sweep re-evaluates one rule at another limit with `gate.Evaluate` over each row's stored head and baseline metrics, the rule alone and only on the rows it judges (the module row for `dup_blocks_cross_pkg`, package rows otherwise), so a capacity or density `max` fires only for a new row or a rising value, and `max_delta` compares head with base and applies to a new row only under `ratchet_from_zero`; a module row judged against an empty baseline is compared with the zero row the replay gated it against. The gate columns keep every other rule as recorded. Re-evaluating every rule at its shipped limits reproduces the recorded violations: 0 of 15478 (row, rule) pairs disagree.
+- A sweep re-evaluates one rule at another limit with `gate.Evaluate` over each row's stored head and baseline metrics, the rule alone and only on the rows it judges (the module row for `dup_blocks_cross_pkg`, package rows otherwise), so a capacity or density `max` fires only for a new row or a rising value, a capacity rule's `over_max_delta` lets a row already at or over its `max` rise by that much with a warning, and `max_delta` compares head with base and applies to a new row only under `ratchet_from_zero`; a module row judged against an empty baseline is compared with the zero row the replay gated it against. The gate columns keep every other rule as recorded. Re-evaluating every rule at its shipped limits reproduces the recorded violations: 0 of 15478 (row, rule) pairs disagree.
 - The size-only rule fails a commit when one of its package rows has `sloc_delta` above t. Its threshold is the one with the highest recall whose false-failure rate is at most 10.0% on the all corpora pooled, capacity-only set aside view; with none, the one with the highest J (recall minus false-failure rate).
 - A `block` label is capacity-only when every rule it names is a capacity rule and it cites no fix-up or revert. Such a label rests on the sizes the capacity rules read, so the gate is bound to agree with it (`calibration/notes/astimate-labels-2026-09-28.md`); a corpus with any is also reported with them set aside, and that view is the honest one.
 - The rule-labeled corpora mark a commit `block` when a later commit reverted it or a later fix changed a function it changed (`calibration/notes/agent-commits-corpus-2026-09-28.md`); of their 123 scored `block` labels, 0 cite a revert and the rest a fix-up. A fix-up says the change had a defect, not that it made a package harder to maintain, and an unrelated fix in the same function marks it too. Their recall measures what share of later-fixed changes the gate would have stopped, which is not what the gate claims to catch.
@@ -23,18 +23,18 @@ The size-only rule is `sloc_delta > 150`.
 
 | View | Gate recall | ≥ 80.0% | Gate false failures | ≤ 10.0% | Size-only recall | Size-only false failures | Advised recall | Advised false failures |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| astimate | 29 of 30 (96.7%) | met | 60 of 184 (32.6%) | not met | 16 of 30 (53.3%) | 13 of 184 (7.1%) | 60.0% | 16.8% |
-| astimate, capacity-only set aside | 15 of 16 (93.8%) | met | 60 of 184 (32.6%) | not met | 8 of 16 (50.0%) | 13 of 184 (7.1%) | 62.5% | 16.8% |
+| astimate | 29 of 30 (96.7%) | met | 60 of 184 (32.6%) | not met | 16 of 30 (53.3%) | 13 of 184 (7.1%) | 83.3% | 21.2% |
+| astimate, capacity-only set aside | 15 of 16 (93.8%) | met | 60 of 184 (32.6%) | not met | 8 of 16 (50.0%) | 13 of 184 (7.1%) | 68.8% | 21.2% |
 | roborev | 68 of 76 (89.5%) | met | 76 of 151 (50.3%) | not met | 18 of 76 (23.7%) | 8 of 151 (5.3%) | 82.9% | 39.1% |
-| github-mcp-server | 19 of 24 (79.2%) | not met | 72 of 110 (65.5%) | not met | 7 of 24 (29.2%) | 16 of 110 (14.5%) | 75.0% | 45.5% |
-| beads | 20 of 23 (87.0%) | met | 75 of 104 (72.1%) | not met | 6 of 23 (26.1%) | 7 of 104 (6.7%) | 69.6% | 47.1% |
-| rule-labeled corpora pooled | 107 of 123 (87.0%) | met | 223 of 365 (61.1%) | not met | 31 of 123 (25.2%) | 31 of 365 (8.5%) | 78.9% | 43.3% |
-| all corpora pooled | 136 of 153 (88.9%) | met | 283 of 549 (51.5%) | not met | 47 of 153 (30.7%) | 44 of 549 (8.0%) | 75.2% | 34.4% |
-| all corpora pooled, capacity-only set aside | 122 of 139 (87.8%) | met | 283 of 549 (51.5%) | not met | 39 of 139 (28.1%) | 44 of 549 (8.0%) | 77.0% | 34.4% |
+| github-mcp-server | 19 of 24 (79.2%) | not met | 72 of 110 (65.5%) | not met | 7 of 24 (29.2%) | 16 of 110 (14.5%) | 75.0% | 43.6% |
+| beads | 20 of 23 (87.0%) | met | 75 of 104 (72.1%) | not met | 6 of 23 (26.1%) | 7 of 104 (6.7%) | 69.6% | 43.3% |
+| rule-labeled corpora pooled | 107 of 123 (87.0%) | met | 223 of 365 (61.1%) | not met | 31 of 123 (25.2%) | 31 of 365 (8.5%) | 78.9% | 41.6% |
+| all corpora pooled | 136 of 153 (88.9%) | met | 283 of 549 (51.5%) | not met | 47 of 153 (30.7%) | 44 of 549 (8.0%) | 79.7% | 34.8% |
+| all corpora pooled, capacity-only set aside | 122 of 139 (87.8%) | met | 283 of 549 (51.5%) | not met | 39 of 139 (28.1%) | 44 of 549 (8.0%) | 77.7% | 34.8% |
 
 Advised is the gate re-evaluated with every recommendation of this report applied (Recommendations), the other rules as recorded.
 
-On the all corpora pooled, capacity-only set aside view the gate fails 87.8% of `block` commits against a target of at least 80.0% (met) and 51.5% of `allow` commits against a target of at most 10.0% (not met). The size-only rule at 150 SLOC fails 28.1% and 8.0%. With every recommendation below applied, the gate would fail 77.0% and 34.4%.
+On the all corpora pooled, capacity-only set aside view the gate fails 87.8% of `block` commits against a target of at least 80.0% (met) and 51.5% of `allow` commits against a target of at most 10.0% (not met). The size-only rule at 150 SLOC fails 28.1% and 8.0%. With every recommendation below applied, the gate would fail 77.7% and 34.8%.
 
 What the metrics add over the size of the change: the gate's J (recall minus false-failure rate) is +36.2 pts; the size-only rule's best J is +35.5 pts, at `sloc_delta > 0` (90.6% and 55.2%).
 
@@ -55,22 +55,22 @@ Every view scored under both label sets. The first is each corpus's first labels
 
 | View | Labels | Gate recall | ≥ 80.0% | Gate false failures | ≤ 10.0% | Size-only recall | Size-only false failures | Advised recall | Advised false failures |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| astimate | first | 29 of 30 (96.7%) | met | 60 of 184 (32.6%) | not met | 16 of 30 (53.3%) | 13 of 184 (7.1%) | 60.0% | 16.8% |
-| astimate | second | 30 of 30 (100.0%) | met | 59 of 184 (32.1%) | not met | 14 of 30 (46.7%) | 15 of 184 (8.2%) | 60.0% | 16.8% |
-| astimate, capacity-only set aside | first | 15 of 16 (93.8%) | met | 60 of 184 (32.6%) | not met | 8 of 16 (50.0%) | 13 of 184 (7.1%) | 62.5% | 16.8% |
-| astimate, capacity-only set aside | second | 22 of 22 (100.0%) | met | 53 of 178 (29.8%) | not met | 9 of 22 (40.9%) | 12 of 178 (6.7%) | 59.1% | 15.7% |
+| astimate | first | 29 of 30 (96.7%) | met | 60 of 184 (32.6%) | not met | 16 of 30 (53.3%) | 13 of 184 (7.1%) | 83.3% | 21.2% |
+| astimate | second | 30 of 30 (100.0%) | met | 59 of 184 (32.1%) | not met | 14 of 30 (46.7%) | 15 of 184 (8.2%) | 76.7% | 22.3% |
+| astimate, capacity-only set aside | first | 15 of 16 (93.8%) | met | 60 of 184 (32.6%) | not met | 8 of 16 (50.0%) | 13 of 184 (7.1%) | 68.8% | 21.2% |
+| astimate, capacity-only set aside | second | 22 of 22 (100.0%) | met | 53 of 178 (29.8%) | not met | 9 of 22 (40.9%) | 12 of 178 (6.7%) | 68.2% | 19.7% |
 | roborev | first | 68 of 76 (89.5%) | met | 76 of 151 (50.3%) | not met | 18 of 76 (23.7%) | 8 of 151 (5.3%) | 82.9% | 39.1% |
 | roborev | second | 51 of 51 (100.0%) | met | 93 of 176 (52.8%) | not met | 10 of 51 (19.6%) | 16 of 176 (9.1%) | 86.3% | 44.3% |
-| github-mcp-server | first | 19 of 24 (79.2%) | not met | 72 of 110 (65.5%) | not met | 7 of 24 (29.2%) | 16 of 110 (14.5%) | 75.0% | 45.5% |
-| github-mcp-server | second | 30 of 30 (100.0%) | met | 61 of 104 (58.7%) | not met | 11 of 30 (36.7%) | 12 of 104 (11.5%) | 83.3% | 41.3% |
-| beads | first | 20 of 23 (87.0%) | met | 75 of 104 (72.1%) | not met | 6 of 23 (26.1%) | 7 of 104 (6.7%) | 69.6% | 47.1% |
-| beads | second | 43 of 43 (100.0%) | met | 52 of 84 (61.9%) | not met | 10 of 43 (23.3%) | 3 of 84 (3.6%) | 86.0% | 33.3% |
-| rule-labeled corpora pooled | first | 107 of 123 (87.0%) | met | 223 of 365 (61.1%) | not met | 31 of 123 (25.2%) | 31 of 365 (8.5%) | 78.9% | 43.3% |
-| rule-labeled corpora pooled | second | 124 of 124 (100.0%) | met | 206 of 364 (56.6%) | not met | 31 of 124 (25.0%) | 31 of 364 (8.5%) | 85.5% | 40.9% |
-| all corpora pooled | first | 136 of 153 (88.9%) | met | 283 of 549 (51.5%) | not met | 47 of 153 (30.7%) | 44 of 549 (8.0%) | 75.2% | 34.4% |
-| all corpora pooled | second | 154 of 154 (100.0%) | met | 265 of 548 (48.4%) | not met | 45 of 154 (29.2%) | 46 of 548 (8.4%) | 80.5% | 32.8% |
-| all corpora pooled, capacity-only set aside | first | 122 of 139 (87.8%) | met | 283 of 549 (51.5%) | not met | 39 of 139 (28.1%) | 44 of 549 (8.0%) | 77.0% | 34.4% |
-| all corpora pooled, capacity-only set aside | second | 146 of 146 (100.0%) | met | 259 of 542 (47.8%) | not met | 40 of 146 (27.4%) | 43 of 542 (7.9%) | 81.5% | 32.7% |
+| github-mcp-server | first | 19 of 24 (79.2%) | not met | 72 of 110 (65.5%) | not met | 7 of 24 (29.2%) | 16 of 110 (14.5%) | 75.0% | 43.6% |
+| github-mcp-server | second | 30 of 30 (100.0%) | met | 61 of 104 (58.7%) | not met | 11 of 30 (36.7%) | 12 of 104 (11.5%) | 83.3% | 39.4% |
+| beads | first | 20 of 23 (87.0%) | met | 75 of 104 (72.1%) | not met | 6 of 23 (26.1%) | 7 of 104 (6.7%) | 69.6% | 43.3% |
+| beads | second | 43 of 43 (100.0%) | met | 52 of 84 (61.9%) | not met | 10 of 43 (23.3%) | 3 of 84 (3.6%) | 86.0% | 28.6% |
+| rule-labeled corpora pooled | first | 107 of 123 (87.0%) | met | 223 of 365 (61.1%) | not met | 31 of 123 (25.2%) | 31 of 365 (8.5%) | 78.9% | 41.6% |
+| rule-labeled corpora pooled | second | 124 of 124 (100.0%) | met | 206 of 364 (56.6%) | not met | 31 of 124 (25.0%) | 31 of 364 (8.5%) | 85.5% | 39.3% |
+| all corpora pooled | first | 136 of 153 (88.9%) | met | 283 of 549 (51.5%) | not met | 47 of 153 (30.7%) | 44 of 549 (8.0%) | 79.7% | 34.8% |
+| all corpora pooled | second | 154 of 154 (100.0%) | met | 265 of 548 (48.4%) | not met | 45 of 154 (29.2%) | 46 of 548 (8.4%) | 83.8% | 33.6% |
+| all corpora pooled, capacity-only set aside | first | 122 of 139 (87.8%) | met | 283 of 549 (51.5%) | not met | 39 of 139 (28.1%) | 44 of 549 (8.0%) | 77.7% | 34.8% |
+| all corpora pooled, capacity-only set aside | second | 146 of 146 (100.0%) | met | 259 of 542 (47.8%) | not met | 40 of 146 (27.4%) | 43 of 542 (7.9%) | 82.9% | 32.8% |
 
 ## Corpora
 
@@ -104,15 +104,6 @@ One table for each of the 8 views. Fired counts commits, not rows. A rule that j
 | `internal_imports` | 0 | 0 | none fired | 0.0% | 0.0% |
 | `sloc` | 22 | 28 | 44.0% | 73.3% | 15.2% |
 | `has_tests` | 0 | 0 | none fired | 0.0% | 0.0% |
-| `duplication_pct (typescript)` | no rows |  |  |  |  |
-| `max_nesting (typescript)` | no rows |  |  |  |  |
-| `cognitive_p90 (typescript)` | no rows |  |  |  |  |
-| `changed_func_cognitive_max (typescript)` | no rows |  |  |  |  |
-| `tokens_est (typescript)` | no rows |  |  |  |  |
-| `largest_file_sloc (typescript)` | no rows |  |  |  |  |
-| `exported_symbols (typescript)` | no rows |  |  |  |  |
-| `internal_imports (typescript)` | no rows |  |  |  |  |
-| `sloc (typescript)` | no rows |  |  |  |  |
 | gate (any rule) | 29 | 60 | 32.6% | 96.7% | 32.6% |
 | size-only, `sloc_delta > 150` | 16 | 13 | 55.2% | 53.3% | 7.1% |
 
@@ -135,15 +126,6 @@ One table for each of the 8 views. Fired counts commits, not rows. A rule that j
 | `internal_imports` | 0 | 0 | none fired | 0.0% | 0.0% |
 | `sloc` | 8 | 28 | 22.2% | 50.0% | 15.2% |
 | `has_tests` | 0 | 0 | none fired | 0.0% | 0.0% |
-| `duplication_pct (typescript)` | no rows |  |  |  |  |
-| `max_nesting (typescript)` | no rows |  |  |  |  |
-| `cognitive_p90 (typescript)` | no rows |  |  |  |  |
-| `changed_func_cognitive_max (typescript)` | no rows |  |  |  |  |
-| `tokens_est (typescript)` | no rows |  |  |  |  |
-| `largest_file_sloc (typescript)` | no rows |  |  |  |  |
-| `exported_symbols (typescript)` | no rows |  |  |  |  |
-| `internal_imports (typescript)` | no rows |  |  |  |  |
-| `sloc (typescript)` | no rows |  |  |  |  |
 | gate (any rule) | 15 | 60 | 20.0% | 93.8% | 32.6% |
 | size-only, `sloc_delta > 150` | 8 | 13 | 38.1% | 50.0% | 7.1% |
 
@@ -166,15 +148,6 @@ One table for each of the 8 views. Fired counts commits, not rows. A rule that j
 | `internal_imports` | 0 | 0 | none fired | 0.0% | 0.0% |
 | `sloc` | 50 | 57 | 46.7% | 65.8% | 37.7% |
 | `has_tests` | 4 | 2 | 66.7% | 5.3% | 1.3% |
-| `duplication_pct (typescript)` | no rows |  |  |  |  |
-| `max_nesting (typescript)` | no rows |  |  |  |  |
-| `cognitive_p90 (typescript)` | no rows |  |  |  |  |
-| `changed_func_cognitive_max (typescript)` | no rows |  |  |  |  |
-| `tokens_est (typescript)` | no rows |  |  |  |  |
-| `largest_file_sloc (typescript)` | no rows |  |  |  |  |
-| `exported_symbols (typescript)` | no rows |  |  |  |  |
-| `internal_imports (typescript)` | no rows |  |  |  |  |
-| `sloc (typescript)` | no rows |  |  |  |  |
 | gate (any rule) | 68 | 76 | 47.2% | 89.5% | 50.3% |
 | size-only, `sloc_delta > 150` | 18 | 8 | 69.2% | 23.7% | 5.3% |
 
@@ -197,15 +170,6 @@ One table for each of the 8 views. Fired counts commits, not rows. A rule that j
 | `internal_imports` | 0 | 3 | 0.0% | 0.0% | 2.7% |
 | `sloc` | 14 | 54 | 20.6% | 58.3% | 49.1% |
 | `has_tests` | 2 | 7 | 22.2% | 8.3% | 6.4% |
-| `duplication_pct (typescript)` | no rows |  |  |  |  |
-| `max_nesting (typescript)` | no rows |  |  |  |  |
-| `cognitive_p90 (typescript)` | no rows |  |  |  |  |
-| `changed_func_cognitive_max (typescript)` | no rows |  |  |  |  |
-| `tokens_est (typescript)` | no rows |  |  |  |  |
-| `largest_file_sloc (typescript)` | no rows |  |  |  |  |
-| `exported_symbols (typescript)` | no rows |  |  |  |  |
-| `internal_imports (typescript)` | no rows |  |  |  |  |
-| `sloc (typescript)` | no rows |  |  |  |  |
 | gate (any rule) | 19 | 72 | 20.9% | 79.2% | 65.5% |
 | size-only, `sloc_delta > 150` | 7 | 16 | 30.4% | 29.2% | 14.5% |
 
@@ -228,15 +192,6 @@ One table for each of the 8 views. Fired counts commits, not rows. A rule that j
 | `internal_imports` | 1 | 2 | 33.3% | 4.3% | 1.9% |
 | `sloc` | 15 | 63 | 19.2% | 65.2% | 60.6% |
 | `has_tests` | 1 | 2 | 33.3% | 4.3% | 1.9% |
-| `duplication_pct (typescript)` | no rows |  |  |  |  |
-| `max_nesting (typescript)` | no rows |  |  |  |  |
-| `cognitive_p90 (typescript)` | no rows |  |  |  |  |
-| `changed_func_cognitive_max (typescript)` | no rows |  |  |  |  |
-| `tokens_est (typescript)` | no rows |  |  |  |  |
-| `largest_file_sloc (typescript)` | no rows |  |  |  |  |
-| `exported_symbols (typescript)` | no rows |  |  |  |  |
-| `internal_imports (typescript)` | no rows |  |  |  |  |
-| `sloc (typescript)` | no rows |  |  |  |  |
 | gate (any rule) | 20 | 75 | 21.1% | 87.0% | 72.1% |
 | size-only, `sloc_delta > 150` | 6 | 7 | 46.2% | 26.1% | 6.7% |
 
@@ -259,15 +214,6 @@ One table for each of the 8 views. Fired counts commits, not rows. A rule that j
 | `internal_imports` | 1 | 5 | 16.7% | 0.8% | 1.4% |
 | `sloc` | 79 | 174 | 31.2% | 64.2% | 47.7% |
 | `has_tests` | 7 | 11 | 38.9% | 5.7% | 3.0% |
-| `duplication_pct (typescript)` | no rows |  |  |  |  |
-| `max_nesting (typescript)` | no rows |  |  |  |  |
-| `cognitive_p90 (typescript)` | no rows |  |  |  |  |
-| `changed_func_cognitive_max (typescript)` | no rows |  |  |  |  |
-| `tokens_est (typescript)` | no rows |  |  |  |  |
-| `largest_file_sloc (typescript)` | no rows |  |  |  |  |
-| `exported_symbols (typescript)` | no rows |  |  |  |  |
-| `internal_imports (typescript)` | no rows |  |  |  |  |
-| `sloc (typescript)` | no rows |  |  |  |  |
 | gate (any rule) | 107 | 223 | 32.4% | 87.0% | 61.1% |
 | size-only, `sloc_delta > 150` | 31 | 31 | 50.0% | 25.2% | 8.5% |
 
@@ -290,15 +236,6 @@ One table for each of the 8 views. Fired counts commits, not rows. A rule that j
 | `internal_imports` | 1 | 5 | 16.7% | 0.7% | 0.9% |
 | `sloc` | 101 | 202 | 33.3% | 66.0% | 36.8% |
 | `has_tests` | 7 | 11 | 38.9% | 4.6% | 2.0% |
-| `duplication_pct (typescript)` | no rows |  |  |  |  |
-| `max_nesting (typescript)` | no rows |  |  |  |  |
-| `cognitive_p90 (typescript)` | no rows |  |  |  |  |
-| `changed_func_cognitive_max (typescript)` | no rows |  |  |  |  |
-| `tokens_est (typescript)` | no rows |  |  |  |  |
-| `largest_file_sloc (typescript)` | no rows |  |  |  |  |
-| `exported_symbols (typescript)` | no rows |  |  |  |  |
-| `internal_imports (typescript)` | no rows |  |  |  |  |
-| `sloc (typescript)` | no rows |  |  |  |  |
 | gate (any rule) | 136 | 283 | 32.5% | 88.9% | 51.5% |
 | size-only, `sloc_delta > 150` | 47 | 44 | 51.6% | 30.7% | 8.0% |
 
@@ -321,15 +258,6 @@ One table for each of the 8 views. Fired counts commits, not rows. A rule that j
 | `internal_imports` | 1 | 5 | 16.7% | 0.7% | 0.9% |
 | `sloc` | 87 | 202 | 30.1% | 62.6% | 36.8% |
 | `has_tests` | 7 | 11 | 38.9% | 5.0% | 2.0% |
-| `duplication_pct (typescript)` | no rows |  |  |  |  |
-| `max_nesting (typescript)` | no rows |  |  |  |  |
-| `cognitive_p90 (typescript)` | no rows |  |  |  |  |
-| `changed_func_cognitive_max (typescript)` | no rows |  |  |  |  |
-| `tokens_est (typescript)` | no rows |  |  |  |  |
-| `largest_file_sloc (typescript)` | no rows |  |  |  |  |
-| `exported_symbols (typescript)` | no rows |  |  |  |  |
-| `internal_imports (typescript)` | no rows |  |  |  |  |
-| `sloc (typescript)` | no rows |  |  |  |  |
 | gate (any rule) | 122 | 283 | 30.1% | 87.8% | 51.5% |
 | size-only, `sloc_delta > 150` | 39 | 44 | 47.0% | 28.1% | 8.0% |
 
@@ -532,6 +460,20 @@ On the all corpora pooled, capacity-only set aside view. Recall and false-failur
 | max 32000 | 46.0% | 30.6% | +15.4 pts | 87.8% | 50.8% |
 | max 48000 | 41.0% | 26.8% | +14.2 pts | 87.1% | 50.5% |
 | max 80000 | 25.9% | 22.6% | +3.3 pts | 86.3% | 50.3% |
+| over_max_delta 0 * | 58.3% | 37.7% | +20.6 pts | 87.8% | 51.5% |
+| over_max_delta 20 | 56.8% | 35.3% | +21.5 pts | 87.1% | 49.9% |
+| over_max_delta 25 | 56.8% | 35.0% | +21.9 pts | 87.1% | 49.9% |
+| over_max_delta 50 | 56.8% | 33.0% | +23.9 pts | 87.1% | 49.5% |
+| over_max_delta 100 | 51.8% | 29.1% | +22.7 pts | 87.1% | 49.4% |
+| over_max_delta 150 | 48.9% | 25.9% | +23.1 pts | 87.1% | 49.4% |
+| over_max_delta 200 | 46.8% | 24.0% | +22.7 pts | 87.1% | 49.4% |
+| over_max_delta 300 | 42.4% | 20.0% | +22.4 pts | 87.1% | 49.4% |
+| over_max_delta 500 | 36.7% | 14.8% | +21.9 pts | 86.3% | 49.4% |
+| over_max_delta 1000 | 24.5% | 9.3% | +15.2 pts | 86.3% | 49.4% |
+| over_max_delta 1500 | 21.6% | 6.6% | +15.0 pts | 86.3% | 49.4% |
+| over_max_delta 2000 | 19.4% | 4.6% | +14.9 pts | 86.3% | 49.4% |
+| over_max_delta 3000 | 14.4% | 3.1% | +11.3 pts | 86.3% | 49.4% |
+| over_max_delta 5000 | 8.6% | 1.6% | +7.0 pts | 86.3% | 49.4% |
 | rule dropped |  |  |  | 86.3% | 49.2% |
 
 ### `largest_file_sloc`
@@ -546,6 +488,19 @@ On the all corpora pooled, capacity-only set aside view. Recall and false-failur
 | max 1200 | 25.9% | 5.1% | +20.8 pts | 87.8% | 51.5% |
 | max 1800 | 18.0% | 3.5% | +14.5 pts | 87.8% | 51.5% |
 | max 3000 | 2.2% | 0.5% | +1.6 pts | 87.8% | 51.5% |
+| over_max_delta 0 * | 35.3% | 10.4% | +24.9 pts | 87.8% | 51.5% |
+| over_max_delta 1 | 33.8% | 9.8% | +24.0 pts | 87.8% | 51.5% |
+| over_max_delta 2 | 32.4% | 9.5% | +22.9 pts | 87.8% | 51.5% |
+| over_max_delta 3 | 31.7% | 9.1% | +22.5 pts | 87.8% | 51.5% |
+| over_max_delta 5 | 31.7% | 7.3% | +24.4 pts | 87.8% | 51.5% |
+| over_max_delta 10 | 28.8% | 5.1% | +23.7 pts | 87.8% | 51.5% |
+| over_max_delta 20 | 23.0% | 3.8% | +19.2 pts | 87.8% | 51.5% |
+| over_max_delta 25 | 21.6% | 2.9% | +18.7 pts | 87.8% | 51.5% |
+| over_max_delta 50 | 14.4% | 1.1% | +13.3 pts | 87.8% | 51.5% |
+| over_max_delta 100 | 7.9% | 0.4% | +7.5 pts | 87.8% | 51.5% |
+| over_max_delta 150 | 6.5% | 0.4% | +6.1 pts | 87.8% | 51.5% |
+| over_max_delta 200 | 5.8% | 0.2% | +5.6 pts | 87.8% | 51.5% |
+| over_max_delta 300 | 4.3% | 0.2% | +4.1 pts | 87.8% | 51.5% |
 | rule dropped |  |  |  | 87.8% | 51.5% |
 
 ### `exported_symbols`
@@ -560,6 +515,14 @@ On the all corpora pooled, capacity-only set aside view. Recall and false-failur
 | max 120 | 10.8% | 6.0% | +4.8 pts | 87.8% | 51.5% |
 | max 180 | 5.0% | 3.8% | +1.2 pts | 87.8% | 51.5% |
 | max 300 | 4.3% | 2.9% | +1.4 pts | 87.8% | 51.5% |
+| over_max_delta 0 * | 17.3% | 8.2% | +9.1 pts | 87.8% | 51.5% |
+| over_max_delta 1 | 14.4% | 4.7% | +9.7 pts | 87.8% | 51.5% |
+| over_max_delta 2 | 11.5% | 4.4% | +7.1 pts | 87.8% | 51.5% |
+| over_max_delta 3 | 7.2% | 3.6% | +3.6 pts | 87.8% | 51.5% |
+| over_max_delta 5 | 5.8% | 2.7% | +3.0 pts | 87.8% | 51.5% |
+| over_max_delta 10 | 2.9% | 0.7% | +2.1 pts | 87.8% | 51.5% |
+| over_max_delta 20 | 2.2% | 0.5% | +1.6 pts | 87.8% | 51.5% |
+| over_max_delta 25 | 1.4% | 0.5% | +0.9 pts | 87.8% | 51.5% |
 | rule dropped |  |  |  | 87.8% | 51.5% |
 
 ### `internal_imports`
@@ -574,6 +537,11 @@ On the all corpora pooled, capacity-only set aside view. Recall and false-failur
 | max 20 | 0.7% | 0.2% | +0.5 pts | 87.8% | 51.5% |
 | max 30 | 0.7% | 0.2% | +0.5 pts | 87.8% | 51.5% |
 | max 50 | 0.0% | 0.0% | +0.0 pts | 87.8% | 51.5% |
+| over_max_delta 0 * | 0.7% | 0.9% | -0.2 pts | 87.8% | 51.5% |
+| over_max_delta 1 | 0.7% | 0.2% | +0.5 pts | 87.8% | 51.5% |
+| over_max_delta 2 | 0.0% | 0.0% | +0.0 pts | 87.8% | 51.5% |
+| over_max_delta 3 | 0.0% | 0.0% | +0.0 pts | 87.8% | 51.5% |
+| over_max_delta 5 | 0.0% | 0.0% | +0.0 pts | 87.8% | 51.5% |
 | rule dropped |  |  |  | 87.8% | 51.5% |
 
 ### `sloc`
@@ -588,6 +556,20 @@ On the all corpora pooled, capacity-only set aside view. Recall and false-failur
 | max 2000 | 48.9% | 31.5% | +17.4 pts | 87.1% | 51.5% |
 | max 3000 | 41.0% | 26.6% | +14.4 pts | 87.1% | 51.5% |
 | max 5000 | 33.8% | 22.6% | +11.2 pts | 87.1% | 51.5% |
+| over_max_delta 0 * | 62.6% | 36.8% | +25.8 pts | 87.8% | 51.5% |
+| over_max_delta 1 | 61.9% | 35.3% | +26.5 pts | 87.8% | 51.5% |
+| over_max_delta 2 | 61.2% | 34.2% | +26.9 pts | 87.8% | 51.5% |
+| over_max_delta 3 | 59.7% | 31.9% | +27.8 pts | 87.8% | 51.5% |
+| over_max_delta 5 | 56.1% | 29.5% | +26.6 pts | 87.8% | 51.5% |
+| over_max_delta 10 | 49.6% | 25.1% | +24.5 pts | 87.1% | 51.4% |
+| over_max_delta 20 | 43.9% | 20.6% | +23.3 pts | 87.1% | 51.4% |
+| over_max_delta 25 | 41.7% | 18.6% | +23.1 pts | 87.1% | 51.4% |
+| over_max_delta 50 | 32.4% | 11.3% | +21.1 pts | 87.1% | 51.4% |
+| over_max_delta 100 | 25.2% | 7.3% | +17.9 pts | 87.1% | 51.4% |
+| over_max_delta 150 | 21.6% | 5.5% | +16.1 pts | 87.1% | 51.4% |
+| over_max_delta 200 | 17.3% | 3.8% | +13.4 pts | 87.1% | 51.4% |
+| over_max_delta 300 | 11.5% | 2.6% | +9.0 pts | 87.1% | 51.4% |
+| over_max_delta 500 | 7.2% | 1.1% | +6.1 pts | 87.1% | 51.4% |
 | rule dropped |  |  |  | 87.1% | 51.4% |
 
 ### `has_tests`
@@ -603,45 +585,9 @@ On the all corpora pooled, capacity-only set aside view. Recall and false-failur
 | no guard | 7.2% | 3.1% | +4.1 pts | 87.8% | 51.9% |
 | rule dropped |  |  |  | 87.8% | 51.4% |
 
-### `duplication_pct (typescript)`
-
-Nothing to sweep: no limit, or no row it judges.
-
-### `max_nesting (typescript)`
-
-Nothing to sweep: no limit, or no row it judges.
-
-### `cognitive_p90 (typescript)`
-
-Nothing to sweep: no limit, or no row it judges.
-
-### `changed_func_cognitive_max (typescript)`
-
-Nothing to sweep: no limit, or no row it judges.
-
-### `tokens_est (typescript)`
-
-Nothing to sweep: no limit, or no row it judges.
-
-### `largest_file_sloc (typescript)`
-
-Nothing to sweep: no limit, or no row it judges.
-
-### `exported_symbols (typescript)`
-
-Nothing to sweep: no limit, or no row it judges.
-
-### `internal_imports (typescript)`
-
-Nothing to sweep: no limit, or no row it judges.
-
-### `sloc (typescript)`
-
-Nothing to sweep: no limit, or no row it judges.
-
 ## Capacity rules on packages already over the ceiling
 
-On the all corpora pooled, capacity-only set aside view: the commits each capacity rule fired on, and those where every package it fired on was already over the `max` at the parent, so the violation was growth past a ceiling passed earlier rather than a crossing. A retuned `max` does not change how often such a package grows.
+On the all corpora pooled, capacity-only set aside view: the commits each capacity rule fired on, and those where every package it fired on was already over the `max` at the parent, so the violation was growth past a ceiling passed earlier rather than a crossing. A retuned `max` does not change how often such a package grows; the `over_max_delta` sweep (Sweeps) is the setting that does.
 
 | Rule | Fired on `block` | Fired on `allow` | Already over, `block` | Already over, `allow` | Already over, share |
 | --- | --- | --- | --- | --- | --- |
@@ -653,7 +599,7 @@ On the all corpora pooled, capacity-only set aside view: the commits each capaci
 
 ## Recommendations
 
-Judged on the all corpora pooled, capacity-only set aside view. A rule that fired on fewer than 10 commits is kept as too thin to judge. The budget is 10.0% of `allow` commits, the whole gate's false-failure target, which no one rule may use up alone; the best setting within it is the swept setting that fails the most `block` commits while failing at most that share of `allow` commits. A rule with no setting within the budget, or whose best setting there has J (its recall minus its false-failure share) under +2.0 pts, is dropped: it fails about as large a share of `allow` commits as of `block` commits. A rule over the budget as shipped is retuned to its best setting within it. Every other rule is kept: while the gate fails far more `allow` commits than its target, no rule is made stricter. Most `block` labels are fix-ups (Method), so a retune is a direction for the next calibration, not a fitted value.
+Judged on the all corpora pooled, capacity-only set aside view. A rule that fired on fewer than 10 commits is kept as too thin to judge. The budget is 10.0% of `allow` commits, the whole gate's false-failure target, which no one rule may use up alone; the best setting within it is the swept setting that fails the most `block` commits while failing at most that share of `allow` commits. A rule with no setting within the budget, or whose best setting there has J (its recall minus its false-failure share) under +2.0 pts, is dropped: it fails about as large a share of `allow` commits as of `block` commits. A rule over the budget as shipped is retuned to its best setting within it, except that a capacity rule with an `over_max_delta` setting within the budget is retuned to the one of those with the best J, the largest on a tie, since its firings are mostly growth past a ceiling passed earlier. Every other rule is kept: while the gate fails far more `allow` commits than its target, no rule is made stricter. Most `block` labels are fix-ups (Method), so a retune is a direction for the next calibration, not a fitted value.
 
 | Rule | Action | To | Why |
 | --- | --- | --- | --- |
@@ -666,21 +612,12 @@ Judged on the all corpora pooled, capacity-only set aside view. A rule that fire
 | `cognitive_p90` | keep |  | shipped fails 14.4% of block and 4.6% of allow (J +9.8 pts), within 10.0% of allow |
 | `changed_func_cognitive_max` | retune | max 63 | shipped fails 47.5% of block and 12.2% of allow (J +35.3 pts), over 10.0% of allow; max 63 fails 41.7% of block and 9.3% of allow (J +32.4 pts) |
 | `dup_blocks_cross_pkg` | keep |  | shipped fails 18.0% of block and 7.3% of allow (J +10.7 pts), within 10.0% of allow |
-| `tokens_est` | drop |  | shipped fails 58.3% of block and 37.7% of allow (J +20.6 pts); no swept setting fails at most 10.0% of allow (least: 22.6% at max 80000); 97.9% of the commits it fired on only grew a package already over its max, which no retuned max prevents |
-| `largest_file_sloc` | retune | max 750 | shipped fails 35.3% of block and 10.4% of allow (J +24.9 pts), over 10.0% of allow; max 750 fails 30.9% of block and 8.2% of allow (J +22.7 pts); 96.2% of the commits it fired on only grew a package already over its max, which no retuned max prevents |
+| `tokens_est` | retune | over_max_delta 1000 | shipped fails 58.3% of block and 37.7% of allow (J +20.6 pts), over 10.0% of allow; over_max_delta 1000 fails 24.5% of block and 9.3% of allow (J +15.2 pts); 97.9% of the commits it fired on only grew a package already over its max, which no retuned max prevents |
+| `largest_file_sloc` | retune | over_max_delta 5 | shipped fails 35.3% of block and 10.4% of allow (J +24.9 pts), over 10.0% of allow; over_max_delta 5 fails 31.7% of block and 7.3% of allow (J +24.4 pts); 96.2% of the commits it fired on only grew a package already over its max, which no retuned max prevents |
 | `exported_symbols` | keep |  | shipped fails 17.3% of block and 8.2% of allow (J +9.1 pts), within 10.0% of allow |
 | `internal_imports` | keep |  | fired on 6 labeled commits, fewer than 10, too thin to judge; shipped fails 0.7% of block and 0.9% of allow (J -0.2 pts) |
-| `sloc` | drop |  | shipped fails 62.6% of block and 36.8% of allow (J +25.8 pts); no swept setting fails at most 10.0% of allow (least: 22.6% at max 5000); 97.2% of the commits it fired on only grew a package already over its max, which no retuned max prevents |
+| `sloc` | retune | over_max_delta 100 | shipped fails 62.6% of block and 36.8% of allow (J +25.8 pts), over 10.0% of allow; over_max_delta 100 fails 25.2% of block and 7.3% of allow (J +17.9 pts); 97.2% of the commits it fired on only grew a package already over its max, which no retuned max prevents |
 | `has_tests` | keep |  | shipped fails 5.0% of block and 2.0% of allow (J +3.0 pts), within 10.0% of allow |
-| `duplication_pct (typescript)` | keep |  | no row it judges in these corpora; nothing measured |
-| `max_nesting (typescript)` | keep |  | no row it judges in these corpora; nothing measured |
-| `cognitive_p90 (typescript)` | keep |  | no row it judges in these corpora; nothing measured |
-| `changed_func_cognitive_max (typescript)` | keep |  | no row it judges in these corpora; nothing measured |
-| `tokens_est (typescript)` | keep |  | no row it judges in these corpora; nothing measured |
-| `largest_file_sloc (typescript)` | keep |  | no row it judges in these corpora; nothing measured |
-| `exported_symbols (typescript)` | keep |  | no row it judges in these corpora; nothing measured |
-| `internal_imports (typescript)` | keep |  | no row it judges in these corpora; nothing measured |
-| `sloc (typescript)` | keep |  | no row it judges in these corpora; nothing measured |
 
 ## Missed `block` commits
 

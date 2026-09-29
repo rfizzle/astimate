@@ -119,6 +119,26 @@ func TestExplainMetricThresholdsFollowConfig(t *testing.T) {
 	}
 }
 
+// TestExplainMetricOverMaxDelta checks a capacity rule's over_max_delta
+// reaches the structured and text output of explain_metric.
+func TestExplainMetricOverMaxDelta(t *testing.T) {
+	t.Parallel()
+
+	cs := newTestClient(t, Options{Config: defaultConfig(t)})
+	res := callExplain(t, cs, "sloc")
+	text := resultText(res)
+	r := decodeExplain(t, res)
+	if len(r.Thresholds) == 0 {
+		t.Fatalf("thresholds empty; text:\n%s", text)
+	}
+	if th := r.Thresholds[0]; th.Kind != "capacity" || th.OverMaxDelta == nil || *th.OverMaxDelta != 100 {
+		t.Errorf("thresholds[0] = %+v, want capacity with over_max_delta 100", th)
+	}
+	if want := "capacity max 1000 warn_at 0.75 over_max_delta 100"; !strings.Contains(text, want) {
+		t.Errorf("text = %q, want %q", text, want)
+	}
+}
+
 func TestExplainMetricNoConfig(t *testing.T) {
 	t.Parallel()
 

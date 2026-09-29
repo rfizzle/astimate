@@ -31,7 +31,7 @@ func TestFieldTableMatchesStruct(t *testing.T) {
 				t.Errorf("upper %v, but the slot is a float: %v", f.upper, got)
 			}
 			for w := range strings.FieldsSeq(f.flags) {
-				if !slices.Contains([]string{"gated", "module-wide"}, w) {
+				if !slices.Contains([]string{"gated", "capacity", "module-wide"}, w) {
 					t.Errorf("unknown flag %q", w)
 				}
 			}

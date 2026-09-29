@@ -10,7 +10,7 @@
 - Replay rows join labels on the full commit hash. A commit the replay did not load has no verdict and is left out; a label with `agent: false` (a commit no coding agent took part in) is dropped, so the numbers describe agent-authored changes.
 - The gate fails a commit when any of its package rows or its module row has a violation, as the replay recorded it. Recall is the share of `block` commits failed; the false-failure rate is the share of `allow` commits failed. The targets (SPEC.md 14) are recall at least 80.0% and false failures at most 10.0%.
 - A rule fired on a commit when one of the commit's rows has a recorded violation of it. Its precision is the share of the commits it fired on that are `block`; its recall the share of `block` commits it fired on; its false-failure share the share of `allow` commits it fired on. A language override's rule is its own row and judges only that language's rows.
-- A sweep re-evaluates one rule at another limit with `gate.Evaluate` over each row's stored head and baseline metrics, the rule alone and only on the rows it judges (the module row for `dup_blocks_cross_pkg`, package rows otherwise), so a capacity or density `max` fires only for a new row or a rising value, and `max_delta` compares head with base and applies to a new row only under `ratchet_from_zero`; a module row judged against an empty baseline is compared with the zero row the replay gated it against. The gate columns keep every other rule as recorded. Re-evaluating every rule at its shipped limits reproduces the recorded violations: 0 of 42 (row, rule) pairs disagree.
+- A sweep re-evaluates one rule at another limit with `gate.Evaluate` over each row's stored head and baseline metrics, the rule alone and only on the rows it judges (the module row for `dup_blocks_cross_pkg`, package rows otherwise), so a capacity or density `max` fires only for a new row or a rising value, a capacity rule's `over_max_delta` lets a row already at or over its `max` rise by that much with a warning, and `max_delta` compares head with base and applies to a new row only under `ratchet_from_zero`; a module row judged against an empty baseline is compared with the zero row the replay gated it against. The gate columns keep every other rule as recorded. Re-evaluating every rule at its shipped limits reproduces the recorded violations: 0 of 42 (row, rule) pairs disagree.
 - The size-only rule fails a commit when one of its package rows has `sloc_delta` above t. Its threshold is the one with the highest recall whose false-failure rate is at most 10.0% on the all corpora pooled, capacity-only set aside view; with none, the one with the highest J (recall minus false-failure rate).
 - A `block` label is capacity-only when every rule it names is a capacity rule and it cites no fix-up or revert. Such a label rests on the sizes the capacity rules read, so the gate is bound to agree with it (`calibration/notes/astimate-labels-2026-09-28.md`); a corpus with any is also reported with them set aside, and that view is the honest one.
 - The rule-labeled corpora mark a commit `block` when a later commit reverted it or a later fix changed a function it changed (`calibration/notes/agent-commits-corpus-2026-09-28.md`); of their 1 scored `block` labels, 0 cite a revert and the rest a fix-up. A fix-up says the change had a defect, not that it made a package harder to maintain, and an unrelated fix in the same function marks it too. Their recall measures what share of later-fixed changes the gate would have stopped, which is not what the gate claims to catch.
@@ -405,6 +405,20 @@ Nothing to sweep: no limit, or no row it judges.
 | max 32000 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | max 48000 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | max 80000 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 0 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 20 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 25 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 50 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 100 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 150 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 200 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 300 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 500 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 1000 * | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 1500 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 2000 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 3000 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 5000 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | rule dropped |  |  |  | 50.0% | 50.0% |
 
 ### `largest_file_sloc`
@@ -419,6 +433,19 @@ Nothing to sweep: no limit, or no row it judges.
 | max 1200 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | max 1800 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | max 3000 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 0 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 1 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 2 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 3 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 5 * | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 10 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 20 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 25 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 50 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 100 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 150 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 200 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 300 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | rule dropped |  |  |  | 50.0% | 50.0% |
 
 ### `exported_symbols`
@@ -433,6 +460,14 @@ Nothing to sweep: no limit, or no row it judges.
 | max 120 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | max 180 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | max 300 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 0 * | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 1 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 2 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 3 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 5 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 10 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 20 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 25 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | rule dropped |  |  |  | 50.0% | 50.0% |
 
 ### `internal_imports`
@@ -447,6 +482,11 @@ Nothing to sweep: no limit, or no row it judges.
 | max 20 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | max 30 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | max 50 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 0 * | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 1 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 2 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 3 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 5 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | rule dropped |  |  |  | 50.0% | 50.0% |
 
 ### `sloc`
@@ -461,6 +501,20 @@ Nothing to sweep: no limit, or no row it judges.
 | max 2000 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | max 3000 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | max 5000 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 0 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 1 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 2 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 3 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 5 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 10 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 20 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 25 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 50 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 100 * | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 150 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 200 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 300 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 500 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | rule dropped |  |  |  | 50.0% | 50.0% |
 
 ### `has_tests`
@@ -514,7 +568,7 @@ Nothing to sweep: no limit, or no row it judges.
 
 ## Capacity rules on packages already over the ceiling
 
-On the all corpora pooled, capacity-only set aside view: the commits each capacity rule fired on, and those where every package it fired on was already over the `max` at the parent, so the violation was growth past a ceiling passed earlier rather than a crossing. A retuned `max` does not change how often such a package grows.
+On the all corpora pooled, capacity-only set aside view: the commits each capacity rule fired on, and those where every package it fired on was already over the `max` at the parent, so the violation was growth past a ceiling passed earlier rather than a crossing. A retuned `max` does not change how often such a package grows; the `over_max_delta` sweep (Sweeps) is the setting that does.
 
 | Rule | Fired on `block` | Fired on `allow` | Already over, `block` | Already over, `allow` | Already over, share |
 | --- | --- | --- | --- | --- | --- |
@@ -526,7 +580,7 @@ On the all corpora pooled, capacity-only set aside view: the commits each capaci
 
 ## Recommendations
 
-Judged on the all corpora pooled, capacity-only set aside view. A rule that fired on fewer than 10 commits is kept as too thin to judge. The budget is 10.0% of `allow` commits, the whole gate's false-failure target, which no one rule may use up alone; the best setting within it is the swept setting that fails the most `block` commits while failing at most that share of `allow` commits. A rule with no setting within the budget, or whose best setting there has J (its recall minus its false-failure share) under +2.0 pts, is dropped: it fails about as large a share of `allow` commits as of `block` commits. A rule over the budget as shipped is retuned to its best setting within it. Every other rule is kept: while the gate fails far more `allow` commits than its target, no rule is made stricter. Most `block` labels are fix-ups (Method), so a retune is a direction for the next calibration, not a fitted value.
+Judged on the all corpora pooled, capacity-only set aside view. A rule that fired on fewer than 10 commits is kept as too thin to judge. The budget is 10.0% of `allow` commits, the whole gate's false-failure target, which no one rule may use up alone; the best setting within it is the swept setting that fails the most `block` commits while failing at most that share of `allow` commits. A rule with no setting within the budget, or whose best setting there has J (its recall minus its false-failure share) under +2.0 pts, is dropped: it fails about as large a share of `allow` commits as of `block` commits. A rule over the budget as shipped is retuned to its best setting within it, except that a capacity rule with an `over_max_delta` setting within the budget is retuned to the one of those with the best J, the largest on a tie, since its firings are mostly growth past a ceiling passed earlier. Every other rule is kept: while the gate fails far more `allow` commits than its target, no rule is made stricter. Most `block` labels are fix-ups (Method), so a retune is a direction for the next calibration, not a fitted value.
 
 | Rule | Action | To | Why |
 | --- | --- | --- | --- |

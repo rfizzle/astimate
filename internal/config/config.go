@@ -133,6 +133,7 @@ type fileThreshold struct {
 	MaxDelta        *float64 `yaml:"max_delta"`
 	RatchetFromZero bool     `yaml:"ratchet_from_zero"`
 	WarnAt          *float64 `yaml:"warn_at"`
+	OverMaxDelta    *float64 `yaml:"over_max_delta"`
 	Require         *bool    `yaml:"require"`
 	When            string   `yaml:"when"`
 	// Disabled drops the top-level rule on Metric; only under languages.
@@ -411,6 +412,7 @@ func (ft fileThreshold) build(prefix string) (gate.Threshold, error) {
 		Kind:            gate.Kind(ft.Kind),
 		Max:             ft.Max,
 		MaxDelta:        ft.MaxDelta,
+		OverMaxDelta:    ft.OverMaxDelta,
 		Require:         ft.Require,
 		RatchetFromZero: ft.RatchetFromZero,
 	}

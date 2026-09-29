@@ -12,6 +12,21 @@ history.
 
 ### Added
 
+- Capacity ratchet: a capacity rule takes `over_max_delta` (default 0), the
+  most a package already at or over its `max` may grow in one change. Such
+  growth is a warning whose `limit` reads `over max by N, allowed M` and
+  whose suggestion says to split; more is a violation that says the same.
+  Crossing the `max`, or a new package over it, still fails, and under 0
+  every rise over the ceiling fails as before. The embedded default ships
+  `over_max_delta` 100 for `sloc`, 1,000 for `tokens_est` and 5 for
+  `largest_file_sloc`, fitted by a new `over_max_delta` sweep in
+  `calibration/validate`, which now recommends retuning those rules to the
+  ratchet instead of dropping them
+  (`calibration/reports/gate-validation-2026-09-29.md`). `explain_metric`
+  shows the field, and each capacity metric's explanation says what
+  happens over the ceiling. The 2026-09-28 replays now validate only with
+  `--config calibration/thresholds/astimate-thresholds-2026-09-28.yaml`,
+  the rules they ran under.
 - Split-or-extraction labels: `go run ./calibration/replay/label --rule
   split-extract` labels a replayed history from its rows alone, `block`
   when a later commit of the range split a package the commit took over a

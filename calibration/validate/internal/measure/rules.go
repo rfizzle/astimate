@@ -98,7 +98,8 @@ func (s *Rules) Judges(i int, r *corpus.Row) bool {
 // same reports whether a and b are the same rule.
 func same(a, b gate.Threshold) bool {
 	return a.Metric == b.Metric && a.Kind == b.Kind && eqPtr(a.Max, b.Max) &&
-		eqPtr(a.MaxDelta, b.MaxDelta) && a.RatchetFromZero == b.RatchetFromZero &&
+		eqPtr(a.MaxDelta, b.MaxDelta) && eqPtr(a.OverMaxDelta, b.OverMaxDelta) &&
+		a.RatchetFromZero == b.RatchetFromZero &&
 		a.WarnAt == b.WarnAt && eqPtr(a.Require, b.Require) && eqPtr(a.When, b.When)
 }
 

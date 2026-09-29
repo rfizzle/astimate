@@ -1,6 +1,7 @@
 package gate
 
 import (
+	"math"
 	"strings"
 	"testing"
 )
@@ -85,6 +86,13 @@ func TestThresholdValidate(t *testing.T) {
 		{name: "capacity ratchet from zero", th: Threshold{Metric: "tokens_est", Kind: Capacity, Max: ptr(1.0), WarnAt: 0.75, RatchetFromZero: true}, wantErr: `"tokens_est": ratchet_from_zero applies only to density rules`},
 		{name: "requirement ratchet from zero", th: Threshold{Metric: "has_tests", Kind: Requirement, Require: ptr(true), RatchetFromZero: true}, wantErr: `"has_tests": ratchet_from_zero applies only to density rules`},
 		{name: "require on density", th: Threshold{Metric: "dup_blocks", Kind: Density, MaxDelta: ptr(0.0), Require: ptr(true)}, wantErr: "require applies only"},
+		{name: "capacity over_max_delta", th: Threshold{Metric: "sloc", Kind: Capacity, Max: ptr(1000.0), WarnAt: 0.75, OverMaxDelta: ptr(100.0)}},
+		{name: "capacity over_max_delta zero", th: Threshold{Metric: "sloc", Kind: Capacity, Max: ptr(1000.0), WarnAt: 0.75, OverMaxDelta: ptr(0.0)}},
+		{name: "capacity negative over_max_delta", th: Threshold{Metric: "sloc", Kind: Capacity, Max: ptr(1000.0), WarnAt: 0.75, OverMaxDelta: ptr(-1.0)}, wantErr: `"sloc": over_max_delta must be a finite number >= 0, got -1`},
+		{name: "capacity NaN over_max_delta", th: Threshold{Metric: "sloc", Kind: Capacity, Max: ptr(1000.0), WarnAt: 0.75, OverMaxDelta: ptr(math.NaN())}, wantErr: "over_max_delta must be a finite number >= 0"},
+		{name: "capacity infinite over_max_delta", th: Threshold{Metric: "sloc", Kind: Capacity, Max: ptr(1000.0), WarnAt: 0.75, OverMaxDelta: ptr(math.Inf(1))}, wantErr: "over_max_delta must be a finite number >= 0"},
+		{name: "density over_max_delta", th: Threshold{Metric: "dup_blocks", Kind: Density, MaxDelta: ptr(0.0), OverMaxDelta: ptr(0.0)}, wantErr: `"dup_blocks": over_max_delta applies only to capacity rules`},
+		{name: "requirement over_max_delta", th: Threshold{Metric: "has_tests", Kind: Requirement, Require: ptr(true), OverMaxDelta: ptr(10.0)}, wantErr: `"has_tests": over_max_delta applies only to capacity rules`},
 		{name: "when unknown metric", th: Threshold{Metric: "has_tests", Kind: Requirement, Require: ptr(true), When: &Condition{Metric: "nope"}}, wantErr: `when: unknown metric "nope"`},
 	}
 	for _, tt := range tests {

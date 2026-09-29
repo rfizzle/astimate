@@ -47,6 +47,12 @@ type Threshold struct {
 	// a package with no baseline; otherwise only Max applies to it. It
 	// requires MaxDelta.
 	RatchetFromZero bool
+	// OverMaxDelta is the largest increase a capacity rule lets a package
+	// already at or over Max make in one change: such growth is a warning to
+	// split, and a larger one a violation. Nil means 0, where any rise of a
+	// value over Max fails. Capacity only; it never relaxes a crossing or a
+	// new package over Max.
+	OverMaxDelta *float64
 	// WarnAt is the fraction of Max above which a capacity rule warns; zero
 	// for other kinds.
 	WarnAt float64
@@ -83,6 +89,9 @@ func (t Threshold) Validate(known func(string) bool) error {
 		if t.WarnAt != 0 {
 			add("warn_at applies only to capacity rules")
 		}
+		if t.OverMaxDelta != nil {
+			add("over_max_delta applies only to capacity rules")
+		}
 		if t.Require != nil {
 			add("require applies only to requirement rules")
 		}
@@ -101,6 +110,9 @@ func (t Threshold) Validate(known func(string) bool) error {
 		if t.Require != nil {
 			add("require applies only to requirement rules")
 		}
+		if v := t.OverMaxDelta; v != nil && !(*v >= 0 && !math.IsInf(*v, 1)) {
+			add("over_max_delta must be a finite number >= 0, got %v", *v)
+		}
 		if t.RatchetFromZero {
 			add("ratchet_from_zero applies only to density rules")
 		}
@@ -116,6 +128,9 @@ func (t Threshold) Validate(known func(string) bool) error {
 		}
 		if t.RatchetFromZero {
 			add("ratchet_from_zero applies only to density rules")
+		}
+		if t.OverMaxDelta != nil {
+			add("over_max_delta applies only to capacity rules")
 		}
 	default:
 		add("unknown kind %q", t.Kind)

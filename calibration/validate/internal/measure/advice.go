@@ -43,7 +43,10 @@ type Advice struct {
 // judge; so is a rule with no limit to sweep. Otherwise the settings within Budget are the swept settings that
 // fail at most Budget of allow commits, and the best of them the one that
 // fails the most block commits (the fewest allow commits, then the shipped
-// setting, on a tie). With no setting within Budget, or a best whose J is
+// setting, on a tie), except that a capacity rule with an over_max_delta
+// point within Budget takes FitOverMax's point: growth of a package already
+// over its max is what no retuned max prevents, and SPEC.md 11.4 fits the
+// ratchet by J. With no setting within Budget, or a best whose J is
 // below MinJ, the rule is dropped. A rule whose shipped setting exceeds
 // Budget is retuned to the best; any other rule is kept, since while the
 // gate fails far more allow commits than its target no rule is made
@@ -59,6 +62,9 @@ func Advise(shipped Rates, judged int, curves []Curve, cr Criteria) Advice {
 		return Advice{Action: Keep, Why: cur + "; it has no limit to sweep"}
 	}
 	best, ok := bestWithin(curves, cr.Budget)
+	if fit, fitted := FitOverMax(curves, cr.Budget); fitted {
+		best, ok = fit, true
+	}
 	switch {
 	case !ok:
 		least := leastFalse(curves)
@@ -94,6 +100,31 @@ func bestWithin(curves []Curve, budget float64) (Point, bool) {
 			better := !found || b > best.Rule.BlockFailed ||
 				(b == best.Rule.BlockFailed && (a < best.Rule.AllowFailed || (a == best.Rule.AllowFailed && p.Shipped)))
 			if better {
+				best, found = p, true
+			}
+		}
+	}
+	return best, found
+}
+
+// FitOverMax returns the over_max_delta a capacity rule is fitted to: of
+// the points of its over_max_delta curve failing at most budget of allow
+// commits, the one with the best J, the largest value on a tie. ok is
+// false when curves hold no over_max_delta curve or no point of it is
+// within budget.
+func FitOverMax(curves []Curve, budget float64) (Point, bool) {
+	var best Point
+	found := false
+	for _, c := range curves {
+		if c.Param != OverMaxDelta {
+			continue
+		}
+		for _, p := range c.Points {
+			if p.Rule.FalseFailure() > budget+eps {
+				continue
+			}
+			j := p.Rule.J()
+			if !found || j > best.Rule.J()+eps || (j > best.Rule.J()-eps && p.Setting.Value > best.Setting.Value) {
 				best, found = p, true
 			}
 		}

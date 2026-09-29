@@ -44,6 +44,7 @@ type explainThreshold struct {
 	Max             *float64 `json:"max,omitempty"`
 	MaxDelta        *float64 `json:"max_delta,omitempty"`
 	WarnAt          float64  `json:"warn_at,omitempty"`
+	OverMaxDelta    *float64 `json:"over_max_delta,omitempty"`
 	Require         *bool    `json:"require,omitempty"`
 	When            string   `json:"when,omitempty"`
 	RatchetFromZero bool     `json:"ratchet_from_zero"`
@@ -100,6 +101,7 @@ func (s *session) thresholdsFor(metric string) []explainThreshold {
 			Max:             t.Max,
 			MaxDelta:        t.MaxDelta,
 			WarnAt:          t.WarnAt,
+			OverMaxDelta:    t.OverMaxDelta,
 			Require:         t.Require,
 			RatchetFromZero: t.RatchetFromZero,
 		}
@@ -139,6 +141,9 @@ func (r explainResult) text() string {
 		}
 		if t.WarnAt != 0 {
 			b.WriteString(" warn_at " + formatFloat(t.WarnAt))
+		}
+		if t.OverMaxDelta != nil {
+			b.WriteString(" over_max_delta " + formatFloat(*t.OverMaxDelta))
 		}
 		if t.Require != nil {
 			b.WriteString(" require " + strconv.FormatBool(*t.Require))
