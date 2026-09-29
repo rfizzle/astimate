@@ -71,7 +71,15 @@ func fieldTable() [numFields]field {
 			"Exporting everything: no direct study; a wider API surface raises fan-in cost and the facts the " +
 				"next agent must hold. Indirect evidence.",
 		},
-		{"globals", "v0", 0, "gated", "Names declared by package-level var in non-test files, excluding _.{generated}", "{hidden}"},
+		{
+			"globals", "v0", 0, "gated",
+			"Names declared by package-level var in non-test files that hold mutable state, excluding _. " +
+				"In Go, sentinel errors (errors.New or fmt.Errorf of constants), //go:embed variables and " +
+				"boolean, numeric or string variables with a constant initializer or none that the package " +
+				"never assigns, increments or takes the address of (build information set by -ldflags) " +
+				"are left out.{generated}",
+			"{hidden}",
+		},
 		{"init_funcs", "v0", 0, "gated", "Number of init() functions.{generated}", "{hidden}"},
 		{
 			"max_nesting", "v0", 0, "gated",

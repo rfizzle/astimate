@@ -2,9 +2,10 @@
 // symbols, globals and init functions, control-flow complexity with each
 // function's fingerprint, the opacity flags, and token counts (SPEC.md
 // section 6). Each function body is walked by one ast.Inspect call that
-// measures its nesting and hashes it together (see fingerprint.go); the
-// other metrics read only the top-level declarations, import specs and file
-// bytes.
+// measures its nesting, hashes it and records the package-level variables
+// it writes together (see fingerprint.go and writes.go); package-level var
+// initializers are scanned for writes once, and the other metrics read only
+// the top-level declarations, import specs and file bytes.
 package inspect
 
 import (
@@ -32,6 +33,13 @@ type ComplexityCounts struct {
 	FuncCount int
 	// PerFunc holds each function's scores in declaration order.
 	PerFunc []Func
+	// Written holds the name of every package-level variable that a
+	// function body or package-level var initializer of the authored files
+	// assigns, increments, decrements or takes the address of; nil when
+	// none does. Globals reads it (SPEC.md 6.5). Where type information
+	// does not resolve an identifier, the name is recorded whatever it
+	// denotes.
+	Written map[string]bool
 }
 
 // Func is the complexity of one top-level function or method.
@@ -60,11 +68,16 @@ type Func struct {
 // changed_func_cognitive_max diffs holds no generated function either, and
 // fingerprints each body in the same walk that measures its nesting.
 // Function literals are scored as part of the function that contains them.
+// The same walk records the package-level variables each body writes, and
+// the package-level var initializers, which no other metric walks, are
+// scanned for writes too (ComplexityCounts.Written).
 func Complexity(m *load.Module, p *packages.Package) ComplexityCounts {
 	var c ComplexityCounts
+	w := newWrites(p)
 	for d := range decls(m, p) {
 		fn, ok := d.(*ast.FuncDecl)
 		if !ok {
+			w.noteInitializers(d)
 			continue
 		}
 		recv := funcReceiver(fn)
@@ -75,11 +88,12 @@ func Complexity(m *load.Module, p *packages.Package) ComplexityCounts {
 			Cognitive: gocognit.Complexity(fn),
 			Pos:       fn.Pos(),
 		}
-		fc.Nesting, fc.Fingerprint = inspectBody(fn.Name.Name, fn.Body)
+		fc.Nesting, fc.Fingerprint = inspectBody(fn.Name.Name, fn.Body, w)
 		c.PerFunc = append(c.PerFunc, fc)
 		c.CognitiveTotal += fc.Cognitive
 		c.MaxNesting = max(c.MaxNesting, fc.Nesting)
 	}
+	c.Written = w.names
 	c.FuncCount = len(c.PerFunc)
 	scores := make([]int, len(c.PerFunc))
 	for i, fc := range c.PerFunc {
@@ -117,7 +131,11 @@ func decls(m *load.Module, p *packages.Package) iter.Seq[ast.Decl] {
 // enclosing function, as recursion (see fingerprint.go). A nil body, a
 // function declared without one, has nesting 0 and the fingerprint of an
 // empty walk.
-func inspectBody(name string, body *ast.BlockStmt) (deepest int, hash uint64) {
+//
+// Each assignment, increment or decrement, address-of expression and range
+// statement is also passed to w, which records the package-level variables
+// the body writes; w may be nil.
+func inspectBody(name string, body *ast.BlockStmt, w *writes) (deepest int, hash uint64) {
 	hash = fpOffset
 	if body == nil {
 		return 0, hash
@@ -141,16 +159,22 @@ func inspectBody(name string, body *ast.BlockStmt) (deepest int, hash uint64) {
 			return false
 		}
 		hash = fpMix(hash, fpCode(n))
-		if call, ok := n.(*ast.CallExpr); ok {
-			if id, ok := call.Fun.(*ast.Ident); ok && id.Name == name {
+		nests := false
+		switch x := n.(type) {
+		case *ast.CallExpr:
+			if id, ok := x.Fun.(*ast.Ident); ok && id.Name == name {
 				hash = fpMix(hash, fpSelfCall)
 			}
-		}
-		nests := false
-		switch n.(type) {
-		case *ast.IfStmt, *ast.ForStmt, *ast.RangeStmt, *ast.SwitchStmt,
+		case *ast.RangeStmt:
+			nests = true
+			w.note(x)
+		case *ast.IfStmt, *ast.ForStmt, *ast.SwitchStmt,
 			*ast.TypeSwitchStmt, *ast.SelectStmt, *ast.FuncLit:
 			nests = true
+		case *ast.AssignStmt, *ast.IncDecStmt, *ast.UnaryExpr:
+			w.note(x)
+		}
+		if nests {
 			depth++
 			deepest = max(deepest, depth)
 		}

@@ -115,7 +115,8 @@ func assemble(ctx context.Context, l *loaded, p *packages.Package, opts assemble
 	}, nil
 }
 
-// measure runs every metric function on p in l. Size runs before
+// measure runs every metric function on p in l. Complexity runs before
+// Globals, which reads the variable writes its walk records. Size runs before
 // duplication, which weighs lines by it, and ctx is checked after each of
 // the expensive steps, duplication and cross-package duplication, before
 // the next. Size, duplication and tokens share one load.FileCache, so each
@@ -126,8 +127,8 @@ func measure(ctx context.Context, l *loaded, p *packages.Package, opts assembleO
 	m := l.Module
 	r.imp = imports.Count(m, p)
 	r.fanIn = l.graph.FanIn(m, p)
-	r.globals = inspect.Globals(m, p)
 	r.cx = inspect.Complexity(m, p)
+	r.globals = inspect.Globals(m, p, r.cx.Written)
 	r.tests = tests.Count(m, p)
 	r.untested = tests.Untested(m, p)
 	next := opts.files

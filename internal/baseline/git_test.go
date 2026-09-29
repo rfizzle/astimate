@@ -129,7 +129,7 @@ func TestFromGitReturnsBaseCommitMetrics(t *testing.T) {
 	r := newRepo(t, "master")
 	r.write("go.mod", "module example.com/m\n\ngo 1.27\n")
 	r.write("a/a.go", "package a\n\nfunc A() int { return 1 }\n")
-	r.write("b/b.go", "package b\n\nvar B = 1\n")
+	r.write("b/b.go", "package b\n\nvar B = []int{1}\n")
 	first := r.commit("first")
 	r.write("a/a.go", "package a\n\nvar x = 2\n\nfunc A() int { return x }\n")
 	r.commit("second")

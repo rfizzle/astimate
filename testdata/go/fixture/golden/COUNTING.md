@@ -79,10 +79,18 @@ generated file.
   No fixture test file imports another fixture package, so this is 0
   everywhere.
 - **exported_symbols**: exported top-level funcs, methods, types, and var and
-  const names in non-test, non-generated files. The fixture has no exported types, vars,
-  consts or methods, so this equals the exported func count.
+  const names in non-test, non-generated files. The fixture has no exported
+  types, consts or methods, and only `immut` exports vars (three sentinel
+  errors), so elsewhere this equals the exported func count.
 - **globals**: names declared by package-level `var` in non-test,
-  non-generated files, excluding `_`. See the `hidden` section for why specs and names agree here.
+  non-generated files, excluding `_`, that hold mutable state (`SPEC.md`
+  6.5): a spec none of whose names the package writes is left out when it
+  is a sentinel error (`errors.New` or `fmt.Errorf` with constant
+  arguments), carries `//go:embed`, or is build information (a boolean,
+  numeric or string var with a constant initializer or none). A write is an
+  assignment, increment, decrement or address-of in a function body or var
+  initializer. See the `hidden` section for why specs and names agree
+  there, and `immut` for each exclusion.
 - **init_funcs**: top-level `func init()` declarations in non-generated
   files.
 - **max_nesting**: deepest stack of `if`, `for`, `range`, `switch`, type
@@ -111,7 +119,8 @@ generated file.
 - **instability** (v1): `internal_imports / (fan_in + internal_imports)`,
   null when both are 0. Present in a golden only when non-null: `hub` is 0
   (fan-in 4, fan-out 0); `a`, `b`, `hidden` and `tested` are 1 (fan-in 0,
-  fan-out 1); `dupes` and `trivial` have no internal edges and are null.
+  fan-out 1); `dupes`, `immut` and `trivial` have no internal edges and
+  are null.
 - **abstractness** (v1): exported interface types over exported types of
   non-generated files, null with no exported types. A type counts as an interface when its underlying
   type is one, so `type R io.Reader` and `type R = io.Reader` count. No
@@ -284,6 +293,43 @@ for `unsafe.Sizeof`).
 - `func_count=3` (two `init` plus `Drain`).
 - `exported_symbols=1` (`Drain`; the vars are unexported). No test files, so
   `untested_exports=1`.
+
+## immut
+
+One non-test file, `immut.go` (1101 bytes, 31 SLOC), and `default.txt`,
+which it embeds and which no metric reads. Imports `embed`, `errors` and
+`fmt` (stdlib 3), each by name, so there is no blank import.
+
+- `sloc=31`: package 1, the import block 5, eight `var` lines, `Lookup`
+  10, `Describe` 4, `SetMode` 3. The package comment, the doc comments and
+  the `//go:embed` line are comments.
+- `tokens_est = 1101 / 3.2 = 344.1 -> 344`, the same with tests (no test
+  files).
+- `globals=4`. Eight `var` specs of one name each; four hold no state and
+  are left out, and four count:
+  - `ErrNotFound = errors.New("not found")`: a sentinel, left out.
+  - `ErrBad = fmt.Errorf("bad: %d", 3)`: a sentinel, every argument
+    constant, left out.
+  - `ErrWrapped = fmt.Errorf("wrapped: %w", ErrNotFound)`: `ErrNotFound`
+    is a variable, not a constant, so it **counts**.
+  - `defaults embed.FS` under `//go:embed default.txt`: left out.
+  - `version = "dev"`: a string with a constant initializer that nothing
+    assigns, build information, left out.
+  - `cfg = map[string]string{}`: a map **counts**.
+  - `count int`: an int with no initializer, but `Lookup` increments it,
+    so it **counts**.
+  - `mode = "fast"`: a string with a constant initializer, but `SetMode`
+    assigns it, so it **counts**.
+  Before the exclusions the count was 8.
+- `init_funcs=0`.
+- Functions: `Lookup` 2 (two top-level `if`, +1 each), `Describe` 0,
+  `SetMode` 0. Sorted `[0, 0, 2]`, rank 3 -> p90 2. Total 2.
+  `func_count=3`, `max_nesting=1`.
+- `exported_symbols=6`: the three `Err` vars and the three functions. No
+  test files, so `untested_exports=3` (the functions; vars are not
+  counted).
+- Nothing imports it and it imports no fixture package: `fan_in=0`,
+  `internal_imports=0`, `instability` null.
 
 ## dupes
 

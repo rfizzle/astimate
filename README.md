@@ -151,6 +151,7 @@ b           0.0   1.0  ONE_PASS       0     154   0.0
 dupes       0.0   0.7  ONE_PASS       0     506  80.6
 hidden      0.0   1.9  ONE_PASS       0     226   0.0
 hub         0.0   1.1  ONE_PASS       4     177   0.0
+immut       0.0   1.5  ONE_PASS       0     344   0.0
 tested      0.0   1.0  ONE_PASS       0     237   0.0
 trivial     0.0   0.2  ONE_PASS       0      47   0.0
 ```
@@ -179,7 +180,7 @@ trivial     0.0   1.0  ONE_PASS       1     214   0.0
 <!-- sample:baseline-write -->
 ```
 $ astimate baseline write testdata/go/fixture --out /tmp/fixture-baseline.json
-wrote /tmp/fixture-baseline.json (7 packages)
+wrote /tmp/fixture-baseline.json (8 packages)
 ```
 <!-- /sample:baseline-write -->
 
@@ -197,7 +198,7 @@ violations:
     changed_func_cognitive_max: 51 (changed since baseline), max 50. Changed function grade (grade.go:8) has cognitive complexity 51; split it into smaller functions or flatten its branching.
     dup_blocks: 0 -> 1, max_delta +0. 1 duplicate block covers 12.2% of lines; extract shared helpers, starting with degraded.go:15-20.
     duplication_pct: 0 -> 12.2, max_delta +6. 1 duplicate block covers 12.2% of lines; extract shared helpers, starting with degraded.go:15-20.
-    globals: 0 -> 1, max_delta +0. 1 package-level variable holds state no signature reveals (joins); pass it explicitly or move it into a struct.
+    globals: 0 -> 1, max_delta +0. 1 mutable package-level variable holds state no signature reveals (joins); pass it explicitly or move it into a struct.
     untested_exports: 0 -> 1, max_delta +0. 1 exported function has no test (JoinAgain); a rebuild would have to reverse-engineer its behavior.
 <module>: dup_blocks_cross_pkg 1, 0 violations, 0 warnings, 0 exempted
 a: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 0 exempted, +0.0 passes from baseline
@@ -205,6 +206,7 @@ b: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 0 exempted, +0.0 passes from
 dupes: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 0 exempted, +0.0 passes from baseline
 hidden: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 0 exempted, +0.0 passes from baseline
 hub: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 0 exempted, +0.0 passes from baseline
+immut: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 0 exempted, +0.0 passes from baseline
 tested: 0.0 passes (ONE_PASS), 5 violations, 0 warnings, 0 exempted, +0.0 passes from baseline
 trivial: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 0 exempted, +0.0 passes from baseline
 $ echo $?

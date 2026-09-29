@@ -7,12 +7,12 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/rfizzle/astimate/internal/lang/golang/internal/load"
 	"golang.org/x/tools/go/packages"
 )
 
 // parseForGlobals parses src as one file and wraps it in a package that
-// carries only syntax, which is all globals reads.
+// carries only syntax. Without type information or comments no var spec is
+// excluded, so every non-blank name counts.
 func parseForGlobals(t *testing.T, src string) *packages.Package {
 	t.Helper()
 	f, err := parser.ParseFile(token.NewFileSet(), "src.go", src, 0)
@@ -90,7 +90,7 @@ func TestGlobalsSnippets(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := Globals(nil, parseForGlobals(t, tt.src))
+			got := Globals(nil, parseForGlobals(t, tt.src), nil)
 			if got.Globals != tt.globals || got.InitFuncs != tt.initFuncs {
 				t.Errorf("globals=%d init_funcs=%d, want globals=%d init_funcs=%d",
 					got.Globals, got.InitFuncs, tt.globals, tt.initFuncs)
@@ -102,36 +102,5 @@ func TestGlobalsSnippets(t *testing.T) {
 				t.Errorf("unexported = %v, want %v", got.Unexported, tt.unexported)
 			}
 		})
-	}
-}
-
-func TestGlobalsHiddenBreakdown(t *testing.T) {
-	l := loadFixture(t)
-	got := Globals(l, l.Pkgs["example.com/fixture/hidden"])
-	if want := []string{"limit", "events", "done", "counter"}; !slices.Equal(got.Unexported, want) {
-		t.Errorf("unexported = %v, want %v", got.Unexported, want)
-	}
-	if len(got.Exported) != 0 {
-		t.Errorf("exported = %v, want none", got.Exported)
-	}
-}
-
-// TestGlobalsStdlibErrors loads the standard library errors package directly,
-// outside the module loader. runtime.GOROOT is deprecated, so a toolchain
-// without a usable GOROOT is detected by the load failing or returning no
-// syntax, and the test skips.
-func TestGlobalsStdlibErrors(t *testing.T) {
-	cfg := &packages.Config{
-		Mode: packages.NeedSyntax | packages.NeedFiles | packages.NeedName,
-		Fset: token.NewFileSet(),
-	}
-	pkgs, err := packages.Load(cfg, "errors")
-	if err != nil || len(pkgs) != 1 || len(pkgs[0].Errors) > 0 || len(pkgs[0].Syntax) == 0 {
-		t.Skipf("loading stdlib errors: err=%v pkgs=%d", err, len(pkgs))
-	}
-	got := Globals(&load.Module{Fset: cfg.Fset}, pkgs[0])
-	if got.Globals != 2 || got.InitFuncs != 0 {
-		t.Errorf("globals=%d init_funcs=%d (exported %v, unexported %v), want globals=2 init_funcs=0",
-			got.Globals, got.InitFuncs, got.Exported, got.Unexported)
 	}
 }

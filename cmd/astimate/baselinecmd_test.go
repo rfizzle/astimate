@@ -17,7 +17,7 @@ func writeModule(t *testing.T) string {
 	root := t.TempDir()
 	files := map[string]string{
 		"go.mod":  "module example.com/m\n\ngo 1.27\n",
-		"a/a.go":  "package a\n\nvar A = 1\n",
+		"a/a.go":  "package a\n\nvar A = []int{1}\n",
 		"b/b.go":  "package b\n\nfunc B() int { return 2 }\n",
 		"b/b2.go": "package b\n\nfunc C() int { return 3 }\n",
 	}

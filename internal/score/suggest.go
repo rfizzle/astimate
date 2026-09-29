@@ -206,10 +206,10 @@ func occurrenceText(o metrics.Occurrence) string {
 	return o.File + ":" + strconv.Itoa(o.StartLine) + "-" + strconv.Itoa(o.EndLine)
 }
 
-// globalsSentence renders the globals template for n package-level
+// globalsSentence renders the globals template for n mutable package-level
 // variables, naming up to five of names.
 func globalsSentence(n int, names []string) string {
-	s := count(n, "package-level variable holds", "package-level variables hold") + " state no signature reveals"
+	s := count(n, "mutable package-level variable holds", "mutable package-level variables hold") + " state no signature reveals"
 	if len(names) > 0 {
 		s += " (" + nameList(names, n) + ")"
 	}

@@ -390,21 +390,30 @@ func TestFingerprintOptionalChildren(t *testing.T) {
 	}
 }
 
+// BenchmarkInspectBody walks every fixture function body, recording its
+// package's variable writes through the package's type information. Each
+// package's record is made once, so its map is allocated once, not per
+// iteration; BenchmarkComplexityWalk counts that allocation.
 func BenchmarkInspectBody(b *testing.B) {
 	l := loadFixture(b)
-	var bodies []*ast.BlockStmt
+	type body struct {
+		block *ast.BlockStmt
+		w     *writes
+	}
+	var bodies []body
 	for _, path := range l.Paths {
+		w := newWrites(l.Pkgs[path])
 		for _, f := range l.SourceSyntax(l.Pkgs[path]) {
 			for _, d := range f.Decls {
 				if fn, ok := d.(*ast.FuncDecl); ok {
-					bodies = append(bodies, fn.Body)
+					bodies = append(bodies, body{fn.Body, w})
 				}
 			}
 		}
 	}
 	for b.Loop() {
-		for _, body := range bodies {
-			inspectBody("f", body)
+		for _, bd := range bodies {
+			inspectBody("f", bd.block, bd.w)
 		}
 	}
 }

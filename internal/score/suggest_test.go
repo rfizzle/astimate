@@ -61,7 +61,7 @@ func TestMetricSuggestionEveryTemplate(t *testing.T) {
 		"dup_blocks":                 {head: 4, want: "4 duplicate blocks cover 9.2% of lines"},
 		"duplication_pct":            {head: 9.2, want: "4 duplicate blocks cover 9.2% of lines"},
 		"untested_exports":           {head: 7, want: "7 exported functions have no test"},
-		"globals":                    {head: 3, want: "3 package-level variables"},
+		"globals":                    {head: 3, want: "3 mutable package-level variables"},
 		"init_funcs":                 {head: 2, want: "2 init functions"},
 		"max_nesting":                {head: 6, want: "depth 6"},
 		"cognitive_p90":              {head: 17, want: "complexity 17"},
@@ -172,19 +172,19 @@ func TestMetricSuggestionGlobalsNames(t *testing.T) {
 		{
 			name: "no names",
 			head: 3,
-			want: "3 package-level variables hold state no signature reveals; pass it explicitly or move it into a struct.",
+			want: "3 mutable package-level variables hold state no signature reveals; pass it explicitly or move it into a struct.",
 		},
 		{
 			name:  "one name",
 			head:  1,
 			names: []string{"joins"},
-			want:  "1 package-level variable holds state no signature reveals (joins); pass it explicitly or move it into a struct.",
+			want:  "1 mutable package-level variable holds state no signature reveals (joins); pass it explicitly or move it into a struct.",
 		},
 		{
 			name:  "seven names",
 			head:  7,
 			names: []string{"a", "b", "c", "d", "e", "f", "g"},
-			want:  "7 package-level variables hold state no signature reveals (a, b, c, d, e and 2 more); pass it explicitly or move it into a struct.",
+			want:  "7 mutable package-level variables hold state no signature reveals (a, b, c, d, e and 2 more); pass it explicitly or move it into a struct.",
 		},
 	}
 	for _, tt := range tests {

@@ -26,6 +26,7 @@ func fixturePackages() []string {
 		"example.com/fixture/dupes",
 		"example.com/fixture/hidden",
 		"example.com/fixture/hub",
+		"example.com/fixture/immut",
 		"example.com/fixture/tested",
 		"example.com/fixture/trivial",
 	}
@@ -439,8 +440,8 @@ func TestExtractStdlibErrors(t *testing.T) {
 	if err != nil {
 		t.Fatalf("assemble: %v", err)
 	}
-	if got.Globals != 2 || got.InternalImports != 0 || got.TestFuncs <= 0 {
-		t.Errorf("globals=%d internal_imports=%d test_funcs=%d, want 2, 0, >0",
+	if got.Globals != 1 || got.InternalImports != 0 || got.TestFuncs <= 0 {
+		t.Errorf("globals=%d internal_imports=%d test_funcs=%d, want 1 (errorType; ErrUnsupported is a sentinel), 0, >0",
 			got.Globals, got.InternalImports, got.TestFuncs)
 	}
 	if err := got.Validate(); err != nil {

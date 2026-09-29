@@ -83,7 +83,7 @@ func TestCheckModuleNamedModule(t *testing.T) {
 
 		// A new global in the root package fails it, not the module row.
 		// The target is reloaded, since a target extracts its load.
-		writeFiles(t, tg.Mod.Root, map[string]string{"state.go": "package root\n\nvar state int\n"})
+		writeFiles(t, tg.Mod.Root, map[string]string{"state.go": "package root\n\nvar state []int\n"})
 		tg, err = LoadTarget(tg.Mod.Root, TargetOptions{Logger: tg.Logger})
 		if err != nil {
 			t.Fatalf("LoadTarget: %v", err)

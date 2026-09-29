@@ -27,8 +27,8 @@ func TestExtractStdlib(t *testing.T) {
 	if err := got.Validate(); err != nil {
 		t.Errorf("Validate: %v", err)
 	}
-	if got.Globals != 2 || got.InternalImports != 0 || got.FanIn != 0 || !got.HasTests || got.TestFuncs <= 0 {
-		t.Errorf("globals=%d internal_imports=%d fan_in=%d has_tests=%v test_funcs=%d, want 2, 0, 0, true, >0",
+	if got.Globals != 1 || got.InternalImports != 0 || got.FanIn != 0 || !got.HasTests || got.TestFuncs <= 0 {
+		t.Errorf("globals=%d internal_imports=%d fan_in=%d has_tests=%v test_funcs=%d, want 1, 0, 0, true, >0",
 			got.Globals, got.InternalImports, got.FanIn, got.HasTests, got.TestFuncs)
 	}
 	if got.TokensEstWithTests <= got.TokensEst || got.ExportedSymbols == 0 {

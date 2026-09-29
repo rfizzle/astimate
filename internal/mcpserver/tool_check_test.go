@@ -581,7 +581,7 @@ func TestCheckPackageStaged(t *testing.T) {
 		t.Fatal(err)
 	}
 	gitIn(t, repo, "add", "fixture/tested/tested.go")
-	degraded := append(slices.Clip(good), "\nvar calls int\n"...)
+	degraded := append(slices.Clip(good), "\nvar calls []int\n"...)
 	if err := os.WriteFile(src, degraded, 0o600); err != nil {
 		t.Fatal(err)
 	}

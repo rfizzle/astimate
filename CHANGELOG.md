@@ -69,6 +69,19 @@ history.
 
 ### Changed
 
+- `globals` counts mutable state only (SPEC.md 6.5). A Go package-level var
+  spec that the package never assigns, increments or takes the address of
+  is left out when it is a sentinel error (`errors.New` or `fmt.Errorf`
+  with constant arguments), carries `//go:embed`, or is build information
+  (a boolean, numeric or string var with a constant initializer or none).
+  Maps, slices, `sync` values, pointers, `regexp.MustCompile` and `flag`
+  variables and anything written still count. The standard library loses
+  422 of 2304 globals and this repository all 23
+  (`calibration/notes/globals-mutable-state-2026-09-29.md`); stdlib
+  `errors` now reports 1. The suggestion says "mutable package-level
+  variable". TypeScript is unchanged; SPEC.md 13.1 records why a module-level
+  `const` object is not counted.
+
 - calibration: the rebuild stub now removes initialization code that calls the
   stubbed package, so every test binary starts, and select checks that it does
   (rebuild.yaml regenerated, 33 experiments, the 26 recorded stub hashes

@@ -19,7 +19,7 @@ const fixtureDir = "../../testdata/go/fixture"
 
 // fixturePackages are the package directories of the fixture module.
 func fixturePackages() []string {
-	return []string{"a", "b", "dupes", "hidden", "hub", "tested", "trivial"}
+	return []string{"a", "b", "dupes", "hidden", "hub", "immut", "tested", "trivial"}
 }
 
 // assertKeys decodes the JSON object data and checks that its keys are

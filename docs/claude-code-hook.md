@@ -73,7 +73,7 @@ violations:
     changed_func_cognitive_max: 51 (changed since baseline), max 50. Changed function grade (grade.go:8) has cognitive complexity 51; split it into smaller functions or flatten its branching.
     dup_blocks: 0 -> 1, max_delta +0. 1 duplicate block covers 12.2% of lines; extract shared helpers, starting with degraded.go:15-20.
     duplication_pct: 0 -> 12.2, max_delta +6. 1 duplicate block covers 12.2% of lines; extract shared helpers, starting with degraded.go:15-20.
-    globals: 0 -> 1, max_delta +0. 1 package-level variable holds state no signature reveals (joins); pass it explicitly or move it into a struct.
+    globals: 0 -> 1, max_delta +0. 1 mutable package-level variable holds state no signature reveals (joins); pass it explicitly or move it into a struct.
     untested_exports: 0 -> 1, max_delta +0. 1 exported function has no test (JoinAgain); a rebuild would have to reverse-engineer its behavior.
 ```
 
