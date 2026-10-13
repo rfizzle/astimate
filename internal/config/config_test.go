@@ -100,6 +100,24 @@ func TestParseDefault(t *testing.T) {
 	if w := map[string]float64{"tokens_est": 1000, "largest_file_sloc": 5, "sloc": 100, "changed_func_cognitive_max": 5}; !maps.Equal(overMax, w) {
 		t.Errorf("over_max_delta = %v, want %v", overMax, w)
 	}
+	// The density floors (SPEC.md 8.2), the same in the typescript
+	// override, whose rules replace the top-level ones whole.
+	wantFloor := map[string]float64{"duplication_pct": 10, "max_nesting": 4, "cognitive_p90": 10}
+	for _, lang := range []string{"", "typescript"} {
+		rules := cfg.Thresholds
+		if lang != "" {
+			rules = cfg.ForLanguage(lang).Thresholds
+		}
+		floors := map[string]float64{}
+		for _, th := range rules {
+			if th.Floor != nil {
+				floors[th.Metric] = *th.Floor
+			}
+		}
+		if !maps.Equal(floors, wantFloor) {
+			t.Errorf("floors for %q = %v, want %v", lang, floors, wantFloor)
+		}
+	}
 	if got, w := strings.Join(ratchet, " "), "dup_blocks untested_exports globals init_funcs"; got != w {
 		t.Errorf("ratchet_from_zero metrics = %q, want %q", got, w)
 	}
@@ -236,6 +254,9 @@ func TestParseErrors(t *testing.T) {
 		{name: "negative over_max_delta", old: "    over_max_delta: 100\n", repl: "    over_max_delta: -1\n", wantErr: `"sloc": over_max_delta must be a finite number >= 0, got -1`},
 		{name: "over_max_delta on density", old: "    kind: density\n    max_delta: 6\n", repl: "    kind: density\n    max_delta: 6\n    over_max_delta: 0\n", wantErr: `"duplication_pct": over_max_delta applies only to capacity rules`},
 		{name: "over_max_delta on requirement", old: "    require: true\n", repl: "    require: true\n    over_max_delta: 10\n", wantErr: `"has_tests": over_max_delta applies only to capacity rules`},
+		{name: "floor not a number", old: "    max: 5\n    # Nesting 4 or less is not failed for a rise.\n    floor: 4\n", repl: "    max: 5\n    floor: .nan\n", wantErr: `"max_nesting": floor must be a finite number`},
+		{name: "floor on capacity", old: "    over_max_delta: 100\n", repl: "    over_max_delta: 100\n    floor: 10\n", wantErr: `"sloc": floor applies only to density rules`},
+		{name: "floor on a disabled rule", old: "languages:\n  typescript:\n    thresholds:\n", repl: "languages:\n  typescript:\n    thresholds:\n      - metric: sloc\n        disabled: true\n        floor: 10\n", wantErr: "a disabled rule sets only metric and disabled"},
 		{name: "over_max_delta on a disabled rule", old: "languages:\n  typescript:\n    thresholds:\n", repl: "languages:\n  typescript:\n    thresholds:\n      - metric: sloc\n        disabled: true\n        over_max_delta: 10\n", wantErr: "a disabled rule sets only metric and disabled"},
 		{name: "unknown severity", old: capacityRule, repl: capacityRule + "    severity: error\n", wantErr: `"sloc": unknown severity "error"; want fail or warn`},
 		{name: "severity on a disabled rule", old: "languages:\n  typescript:\n    thresholds:\n", repl: "languages:\n  typescript:\n    thresholds:\n      - metric: sloc\n        disabled: true\n        severity: warn\n", wantErr: "a disabled rule sets only metric and disabled"},

@@ -140,7 +140,10 @@ func ForRow(rules []Threshold, row Row) []Threshold {
 // the findings are split into violations and warnings, findings of one
 // cause are merged into one (merge): a rule breaching both its max_delta
 // and its max, sloc with tokens_est, and dup_blocks with duplication_pct.
-// Suggestions come from s; a nil s leaves them empty. Evaluate does no
+// A density rule never fails a head value at or below its Floor, and,
+// against a baseline, duplication_pct and cognitive_p90 fail only when
+// the change raised what they measure (rose). Suggestions come from s; a
+// nil s leaves them empty. Evaluate does no
 // I/O. Evaluate applies every rule it is given, whatever the row; callers
 // select a row's rules with ForRow. opts are optional inputs: given the
 // row's changed functions (WithChangedFunctions), the max of
@@ -222,6 +225,11 @@ func (e *evaluator) breach(v Violation) {
 }
 
 func (e *evaluator) density(r Threshold, h float64) {
+	// At or below its floor, or not driven by the change (rose), a value
+	// is nowhere near what the rule guards: neither limit judges it.
+	if (r.Floor != nil && h <= *r.Floor+epsilon) || !e.rose(r.Metric) {
+		return
+	}
 	b, hasBase, ok := e.baseValue(r.Metric)
 	// Intensive metrics are not ratcheted from zero: every real package has
 	// some nesting, so a new package faces only their absolute max.

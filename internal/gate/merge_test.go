@@ -71,10 +71,10 @@ func TestEvaluateMerge(t *testing.T) {
 		},
 		{
 			name: "duplication_pct alone is reported when dup_blocks did not fire",
-			base: with(func(m *metrics.RawMetrics) { m.DuplicationPct = 2 }),
-			head: with(func(m *metrics.RawMetrics) { m.DuplicationPct = 9 }),
+			base: with(func(m *metrics.RawMetrics) { m.DuplicationPct = 4 }),
+			head: with(func(m *metrics.RawMetrics) { m.DuplicationPct = 11 }),
 			want: []gate.Violation{
-				{Metric: "duplication_pct", Base: 2, Head: 9, HasBase: true, Limit: "max_delta +6"},
+				{Metric: "duplication_pct", Base: 4, Head: 11, HasBase: true, Limit: "max_delta +6"},
 			},
 		},
 	}

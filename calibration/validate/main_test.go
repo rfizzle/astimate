@@ -144,10 +144,11 @@ func TestGatesAs(t *testing.T) {
 		t.Fatal(err)
 	}
 	// fitted is the default without the over_max_delta the gate validation
-	// fitted after the replays: the rules they were replayed under.
+	// fitted after the replays and without the density floors set later:
+	// the rules they were replayed under.
 	var kept []string
 	for l := range strings.SplitAfterSeq(string(config.Default()), "\n") {
-		if !strings.HasPrefix(l, "    over_max_delta: ") {
+		if !strings.HasPrefix(l, "    over_max_delta: ") && !strings.HasPrefix(l, "    floor: ") {
 			kept = append(kept, l)
 		}
 	}

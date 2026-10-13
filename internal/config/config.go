@@ -134,6 +134,7 @@ type fileThreshold struct {
 	RatchetFromZero bool     `yaml:"ratchet_from_zero"`
 	WarnAt          *float64 `yaml:"warn_at"`
 	OverMaxDelta    *float64 `yaml:"over_max_delta"`
+	Floor           *float64 `yaml:"floor"`
 	Require         *bool    `yaml:"require"`
 	When            string   `yaml:"when"`
 	// Severity is fail or warn; absent means fail.
@@ -418,7 +419,7 @@ func (ft fileThreshold) build(prefix string) (gate.Threshold, error) {
 		Require:         ft.Require,
 		RatchetFromZero: ft.RatchetFromZero,
 	}
-	t.Severity = gate.Severity(ft.Severity)
+	t.Severity, t.Floor = gate.Severity(ft.Severity), ft.Floor
 	switch {
 	case ft.WarnAt != nil:
 		t.WarnAt = *ft.WarnAt

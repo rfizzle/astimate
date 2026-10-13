@@ -89,7 +89,9 @@ are the same on every checkout.
   inside those are scored as part of them.
 - **max_nesting / cognitive_total / cognitive_p90**: see the comment in
   `internal/lang/typescript/complexity.go`; p90 is nearest-rank as for Go.
-- **dup_blocks / duplication_pct**: see `dupes` below.
+- **dup_blocks / duplication_pct / duplicated_lines**: see `dupes` below;
+  `duplicated_lines` is the covered SLOC, the percentage's numerator, 0 in
+  every package without a block.
 - **test_files**: files named `*.test.ts`, `*.spec.ts`, `*.test.tsx`,
   `*.spec.tsx`, the `.mts` and `.cts` forms of those, or under
   `__tests__/`.
@@ -341,8 +343,8 @@ names, identifiers and literals but the same normalized sequence, well over
 
 So the maximal repeat is exactly one function long, it occurs three times,
 and no other repeat of 40 or more tokens exists: `dup_blocks=1`. Covered
-lines are 3 x 18 = 54, all SLOC: `duplication_pct = 54 / 66 * 100 = 81.82
--> 81.8`. `TestDetails` checks the three locations.
+lines are 3 x 18 = 54, all SLOC: `duplicated_lines=54`, and
+`duplication_pct = 54 / 66 * 100 = 81.82 -> 81.8`. `TestDetails` checks the three locations.
 
 Had `type Tally` ended with `;`, the second and third copies would share the
 preceding `;` and form a second, one-token-longer block with two occurrences,

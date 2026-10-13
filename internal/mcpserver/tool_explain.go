@@ -41,6 +41,9 @@ type explainResult struct {
 	// when both fire on one row in the same direction (SPEC.md 8.1);
 	// omitted when the gate merges this metric into no other.
 	MergedInto string `json:"merged_into,omitempty"`
+	// RisesWhen is what must hold for a rule on this metric to fail a rise
+	// against a baseline (SPEC.md 8.1); omitted when any rise is judged.
+	RisesWhen string `json:"rises_when,omitempty"`
 }
 
 // explainThreshold is one loaded threshold rule on the explained metric.
@@ -50,6 +53,7 @@ type explainThreshold struct {
 	MaxDelta        *float64 `json:"max_delta,omitempty"`
 	WarnAt          float64  `json:"warn_at,omitempty"`
 	OverMaxDelta    *float64 `json:"over_max_delta,omitempty"`
+	Floor           *float64 `json:"floor,omitempty"`
 	Require         *bool    `json:"require,omitempty"`
 	When            string   `json:"when,omitempty"`
 	RatchetFromZero bool     `json:"ratchet_from_zero"`
@@ -90,6 +94,9 @@ func (s *session) explainMetric(_ context.Context, _ *mcp.CallToolRequest, in Ex
 	if into, ok := report.MergedInto(in.Metric); ok {
 		r.MergedInto = into
 	}
+	if cond, ok := report.RiseCondition(in.Metric); ok {
+		r.RisesWhen = cond
+	}
 	return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: r.text()}}}, r, nil
 }
 
@@ -113,6 +120,7 @@ func (s *session) thresholdsFor(metric string) []explainThreshold {
 			Require:         t.Require,
 			RatchetFromZero: t.RatchetFromZero,
 		}
+		et.Floor = t.Floor
 		if t.When != nil {
 			et.When = t.When.Metric + " > " + formatFloat(t.When.Value)
 		}
@@ -122,8 +130,9 @@ func (s *session) thresholdsFor(metric string) []explainThreshold {
 }
 
 // text renders r for the agent: the name and release, the definition and
-// evidence, one line per loaded threshold, and which rule a finding of the
-// metric is attributed to when the gate merges it into another's.
+// evidence, one line per loaded threshold, when a rise is judged if not
+// always, and which rule a finding of the metric is attributed to when the
+// gate merges it into another's.
 func (r explainResult) text() string {
 	var b strings.Builder
 	b.WriteString(r.Name + " (" + r.Release)
@@ -140,6 +149,10 @@ func (r explainResult) text() string {
 	} else {
 		b.WriteByte('\n')
 		r.thresholdLines(&b)
+	}
+	if r.RisesWhen != "" {
+		b.WriteString("Direction: against a baseline, a density rule on it fails a rise only when " + r.RisesWhen +
+			", so a value that rises because code was deleted passes.\n")
 	}
 	if r.MergedInto != "" {
 		b.WriteString("Merged: when " + r.MergedInto + " also fires on the row in the same direction, the two are one finding " +
@@ -173,7 +186,7 @@ func (r explainResult) thresholdLines(b *strings.Builder) {
 		if t.RatchetFromZero {
 			b.WriteString(", ratchet from zero")
 		}
-		b.WriteString(t.overMaxText())
+		b.WriteString(t.overMaxText() + t.floorText())
 		b.WriteByte('\n')
 	}
 }
@@ -195,6 +208,15 @@ func (t explainThreshold) overMaxText() string {
 	}
 	return "; max fails a new package over it and a crossing, and a package already at or over it is judged by max_delta alone" +
 		"; a change breaching both max_delta and max is one finding whose limit names both"
+}
+
+// floorText says what a density rule's floor does, as a clause led by
+// "; ", and is empty for a rule without one.
+func (t explainThreshold) floorText() string {
+	if t.Floor == nil {
+		return ""
+	}
+	return "; floor " + formatFloat(*t.Floor) + ": a value at or below it never fails, max included"
 }
 
 // formatFloat renders v in its shortest exact form.

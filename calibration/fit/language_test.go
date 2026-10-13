@@ -16,6 +16,26 @@ import (
 	"github.com/rfizzle/astimate/internal/gate"
 )
 
+// takeFloors clears the floor of every rule of ts and returns the floors
+// by metric. No fit produces a floor: the default's are set by hand
+// (SPEC.md 8.2), so the tests compare them apart from the fitted rules.
+func takeFloors(ts []gate.Threshold) map[string]float64 {
+	floors := map[string]float64{}
+	for i := range ts {
+		if f := ts[i].Floor; f != nil {
+			floors[ts[i].Metric] = *f
+			ts[i].Floor = nil
+		}
+	}
+	return floors
+}
+
+// wantFloors returns the default's density floors (SPEC.md 8.2), the same
+// at the top level and in the typescript override.
+func wantFloors() map[string]float64 {
+	return map[string]float64{"duplication_pct": 10, "max_nesting": 4, "cognitive_p90": 10}
+}
+
 // synthRows returns n rows with sloc, largest_file_sloc and
 // duplication_pct running 1..n and has_tests set.
 func synthRows(n int) []pool.Row {
@@ -237,7 +257,8 @@ func TestCommittedTypeScriptOverride(t *testing.T) {
 
 // TestDefaultCarriesTypeScriptOverride checks the embedded default's
 // languages.typescript section is exactly the committed override block: the
-// same rules, resolved against the top level.
+// same rules, resolved against the top level. The floors, which no fit
+// produces, are compared apart.
 func TestDefaultCarriesTypeScriptOverride(t *testing.T) {
 	block, err := os.ReadFile(tsCommittedOverride)
 	if err != nil {
@@ -256,6 +277,10 @@ func TestDefaultCarriesTypeScriptOverride(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, exp := def.ForLanguage("typescript"), want.ForLanguage("typescript")
+	if floors := takeFloors(got.Thresholds); !reflect.DeepEqual(floors, wantFloors()) {
+		t.Errorf("default typescript floors = %v, want %v", floors, wantFloors())
+	}
+	takeFloors(exp.Thresholds)
 	if got.Version != exp.Version || got.Rebuild != exp.Rebuild || !reflect.DeepEqual(got.Thresholds, exp.Thresholds) {
 		t.Errorf("default typescript override differs from %s:\n%+v\n%+v", tsCommittedOverride, got, exp)
 	}

@@ -235,7 +235,8 @@ const committedRebuild = "../rebuild/astimate-rebuild-2026-09-28-claude-code-opu
 // one exception is each over_max_delta, which this fit does not produce:
 // calibration/validate fits the capacity rules' from the replayed commits
 // (SPEC.md 11.4), and changed_func_cognitive_max's is set by hand until
-// replays record changed functions, so they are compared apart.
+// replays record changed functions, so they are compared apart, and so are
+// the density floors, set by hand (takeFloors).
 func TestDefaultIsCommittedCandidate(t *testing.T) {
 	cand, err := config.Load(committedCandidate)
 	if err != nil {
@@ -258,6 +259,9 @@ func TestDefaultIsCommittedCandidate(t *testing.T) {
 	}
 	if want := map[string]float64{"tokens_est": 1000, "largest_file_sloc": 5, "sloc": 100, "changed_func_cognitive_max": 5}; !maps.Equal(overMax, want) {
 		t.Errorf("default over_max_delta = %v, want the validation fit %v", overMax, want)
+	}
+	if floors := takeFloors(def.Thresholds); !maps.Equal(floors, wantFloors()) {
+		t.Errorf("default floors = %v, want %v", floors, wantFloors())
 	}
 	if def.Version != rebuild.Version {
 		t.Errorf("default config_version = %q, rebuild fit %q", def.Version, rebuild.Version)

@@ -16,7 +16,7 @@ func ptr[T any](v T) *T { return &v }
 // v1Names lists the v1 fields, the ones that are null until computed.
 func v1Names() []string {
 	return []string{
-		"dup_blocks_cross_pkg", "instability", "abstractness", "main_sequence_distance",
+		"duplicated_lines", "dup_blocks_cross_pkg", "instability", "abstractness", "main_sequence_distance",
 		"uses_cgo", "uses_reflect", "generated_files", "tokens_est_generated", "coverage_pct", "changed_func_cognitive_max",
 	}
 }
@@ -49,6 +49,7 @@ func fullMetrics() RawMetrics {
 		HasTests:                true,
 		UntestedExports:         22,
 		DupBlocksCrossPkg:       ptr(23),
+		DuplicatedLines:         ptr(27),
 		Instability:             ptr(0.25),
 		Abstractness:            ptr(0.625),
 		MainSequenceDistance:    ptr(0.125),

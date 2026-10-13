@@ -99,6 +99,7 @@ func assemble(ctx context.Context, l *loaded, p *packages.Package, opts assemble
 		FuncCount:          r.cx.FuncCount,
 		DupBlocks:          r.dup.Blocks,
 		DuplicationPct:     r.dup.Pct,
+		DuplicatedLines:    &r.dup.Lines,
 		TestFiles:          r.tests.TestFiles,
 		TestFuncs:          r.tests.TestFuncs,
 		HasTests:           r.tests.HasTests || r.untested.TestedAnywhere(),

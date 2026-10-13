@@ -68,6 +68,12 @@ type Threshold struct {
 	// (changedFunctionsOverMax); it never relaxes a crossing or a new
 	// package or function over Max.
 	OverMaxDelta *float64
+	// Floor is the value at or below which a density rule never fails: a
+	// rise to a head value at or below it is not a violation, since the
+	// package is nowhere near what the rule guards. Nil means no floor.
+	// Density rules only; it takes precedence over Max, so a useful floor
+	// is below it.
+	Floor *float64
 	// WarnAt is the fraction of Max above which a capacity rule warns; zero
 	// for other kinds.
 	WarnAt float64
@@ -124,6 +130,7 @@ func (t Threshold) Validate(known func(string) bool) error {
 		if t.Require != nil {
 			add("require applies only to requirement rules")
 		}
+		t.checkFloor(add)
 	case Capacity:
 		if t.Max == nil {
 			add("capacity rule needs max")
@@ -143,6 +150,9 @@ func (t Threshold) Validate(known func(string) bool) error {
 		if t.RatchetFromZero {
 			add("ratchet_from_zero applies only to density rules")
 		}
+		if t.Floor != nil {
+			add(floorScope)
+		}
 	case Requirement:
 		if t.Require == nil {
 			add("requirement rule needs require")
@@ -158,6 +168,9 @@ func (t Threshold) Validate(known func(string) bool) error {
 		}
 		if t.OverMaxDelta != nil {
 			add(overMaxDeltaScope)
+		}
+		if t.Floor != nil {
+			add(floorScope)
 		}
 	default:
 		add("unknown kind %q", t.Kind)
@@ -182,6 +195,16 @@ const overMaxDeltaScope = "over_max_delta applies only to capacity rules and " +
 func (t Threshold) checkOverMaxDelta(add func(string, ...any)) {
 	if v := t.OverMaxDelta; v != nil && !(*v >= 0 && !math.IsInf(*v, 1)) {
 		add("over_max_delta must be a finite number >= 0, got %v", *v)
+	}
+}
+
+// floorScope is the error for floor on a rule other than a density rule.
+const floorScope = "floor applies only to density rules"
+
+// checkFloor reports through add a Floor that is not a finite number.
+func (t Threshold) checkFloor(add func(string, ...any)) {
+	if v := t.Floor; v != nil && (math.IsNaN(*v) || math.IsInf(*v, 0)) {
+		add("floor must be a finite number, got %v", *v)
 	}
 }
 

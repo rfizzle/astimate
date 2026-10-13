@@ -12,6 +12,20 @@ history.
 
 ### Added
 
+- Density rules take a `floor`: a head value at or below it never fails
+  the rule, however much it rose. The embedded default sets `max_nesting`
+  4, `cognitive_p90` 10 and `duplication_pct` 10, at the top level and in
+  the TypeScript override, so a package going from nesting 1 to 2 passes
+  while 4 to 5 still fails. `explain_metric` reports the floor, and
+  `calibration/validate` sweeps it.
+- `duplication_pct` and `cognitive_p90` no longer fail a rise caused only
+  by deleting code. Against a baseline, `duplication_pct` is judged only
+  when the new `duplicated_lines` metric (the duplicated SLOC, reported
+  by both extractors) rose, and `cognitive_p90` only when a function
+  changed since the baseline is more complex than the baseline's p90.
+  A baseline file written before `duplicated_lines` existed, or a check
+  without a function-level diff, judges them as before. `explain_metric`
+  says when a rise is judged.
 - `check` now cites what the change added first. A `dup_blocks` or
   `duplication_pct` suggestion names the first duplicate block the change
   added, ahead of every legacy block, and says `added in this change`;

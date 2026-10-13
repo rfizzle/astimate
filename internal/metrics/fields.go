@@ -3,7 +3,7 @@ package metrics
 import "strings"
 
 // numFields is the number of RawMetrics fields, the rows of fieldTable.
-const numFields = 33
+const numFields = 34
 
 // field is one row of SPEC.md section 6's metric table: what MetricNames,
 // Value, Delta, Validate, ModuleWide and Explain know about a RawMetrics
@@ -106,6 +106,10 @@ func fieldTable() [numFields]field {
 			"duplication_pct", "v0", 100, "gated",
 			"Share of non-test SLOC covered by a duplicate block, as a percentage.{generated}", "{duplication}",
 		},
+		{
+			"duplicated_lines", "v1", 0, "", "Non-test SLOC covered by a duplicate block, duplication_pct's numerator.{generated}",
+			"{duplication}",
+		},
 		{"test_files", "v0", 0, "", "_test.go files.", "{context}"},
 		{"test_funcs", "v0", 0, "", "Test, Benchmark, Fuzz and Example functions.", "{context}"},
 		{"has_tests", "v0", 0, "gated", "Whether test_funcs is above 0 or, a test file anywhere in the module refers to an exported func or method of the package.", "{tests}"},
@@ -197,7 +201,7 @@ func (m *RawMetrics) slots() [numFields]any {
 		&m.Files, &m.SLOC, &m.LargestFileSLOC, &m.TokensEst, &m.TokensEstWithTests, &m.InternalImports,
 		&m.ExternalImports, &m.StdlibImports, &m.FanIn, &m.FanInTests, &m.ExportedSymbols, &m.Globals,
 		&m.InitFuncs, &m.MaxNesting, &m.CognitiveTotal, &m.CognitiveP90, &m.FuncCount, &m.DupBlocks,
-		&m.DuplicationPct, &m.TestFiles, &m.TestFuncs, &m.HasTests, &m.UntestedExports,
+		&m.DuplicationPct, &m.DuplicatedLines, &m.TestFiles, &m.TestFuncs, &m.HasTests, &m.UntestedExports,
 		&m.DupBlocksCrossPkg, &m.Instability, &m.Abstractness, &m.MainSequenceDistance, &m.UsesCgo,
 		&m.UsesReflect, &m.GeneratedFiles, &m.TokensEstGenerated, &m.CoveragePct, &m.ChangedFuncCognitiveMax,
 	}

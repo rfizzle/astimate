@@ -75,6 +75,9 @@ rebuild:
 # or over max may grow in one change, with a warning to split, before the
 # growth fails. Crossing max, or a new package over it, always fails.
 # changed_func_cognitive_max takes an over_max_delta too, per function.
+# A density rule may set a floor below its max: a value at or below the
+# floor never fails, however much it rose, since the package is nowhere
+# near what the rule guards.
 # Requirement rules demand a boolean, optionally guarded by
 # when: "<metric> > <number>". Any rule may set severity: fail (the
 # default) or warn; a warn rule is evaluated the same way, but what would
@@ -87,10 +90,14 @@ thresholds:
     # Counted from zero for a package with no baseline.
     ratchet_from_zero: true
   # Guards against a large duplicated feature that adds only one block.
+  # Judged only when the duplicated lines rose, so a share that rises
+  # because code was deleted passes.
   - metric: duplication_pct
     kind: density
     max_delta: 6
     max: 40
+    # A package at or under 10% duplicated is not failed for a rise.
+    floor: 10
   # New exported behavior needs a test; legacy gaps are reported, not failed.
   - metric: untested_exports
     kind: density
@@ -114,12 +121,18 @@ thresholds:
     kind: density
     max_delta: 0
     max: 5
-  # Small drift allowed since p90 moves with function count.
+    # Nesting 4 or less is not failed for a rise.
+    floor: 4
+  # Small drift allowed since p90 moves with function count. Judged only
+  # when a function changed since the baseline is more complex than the
+  # baseline's p90, so a p90 that rises because code was deleted passes.
   - metric: cognitive_p90
     kind: density
     max_delta: 3
     # What a new package, which has no baseline to drift from, is judged by.
     max: 20
+    # A p90 of 10 or less is not failed for a rise.
+    floor: 10
   # No added or modified function past this complexity, even when the
   # package's p90 stays low. The metric is already a diff against the
   # baseline, so it takes a max and no max_delta; it is null, and the rule
@@ -202,6 +215,8 @@ thresholds:
 # rule replaces the top-level rule on its metric for TypeScript; the rules
 # it does not name (the zero-tolerance ratchets, has_tests, and
 # dup_blocks_cross_pkg, which TypeScript leaves null) apply as they stand.
+# Its density rules repeat the top-level floors, since a rule replaces the
+# top-level rule whole.
 # It sets no rebuild parameter, so TypeScript packages use the top-level
 # rebuild parameters, which were fitted on Go packages only.
 languages:
@@ -212,16 +227,19 @@ languages:
         kind: density
         max_delta: 7
         max: 45
+        floor: 10
       # p90 7 over 1209 packages; the top level has max 5, max_delta 0.
       - metric: max_nesting
         kind: density
         max_delta: 0
         max: 7
+        floor: 4
       # p90 27 over 1209 packages; the top level has max 20, max_delta 3.
       - metric: cognitive_p90
         kind: density
         max_delta: 4
         max: 25
+        floor: 10
       # p99 56 over 39878 functions; the top level has max 50, max_delta none.
       - metric: changed_func_cognitive_max
         kind: density

@@ -291,6 +291,8 @@ func TestGridAndApply(t *testing.T) {
 		{"sloc", OverMaxDelta, "over_max_delta 0,over_max_delta 1,over_max_delta 2,over_max_delta 3,over_max_delta 5,over_max_delta 10,over_max_delta 20,over_max_delta 25,over_max_delta 50,over_max_delta 100,over_max_delta 150,over_max_delta 200,over_max_delta 300,over_max_delta 500"},
 		{"tokens_est", OverMaxDelta, "over_max_delta 0,over_max_delta 20,over_max_delta 25,over_max_delta 50,over_max_delta 100,over_max_delta 150,over_max_delta 200,over_max_delta 300,over_max_delta 500,over_max_delta 1000,over_max_delta 1500,over_max_delta 2000,over_max_delta 3000,over_max_delta 5000"},
 		{"internal_imports", OverMaxDelta, "over_max_delta 0,over_max_delta 1,over_max_delta 2,over_max_delta 3,over_max_delta 5"},
+		{"max_nesting", Floor, "floor 0,floor 1,floor 2,floor 3,floor 4,floor none"},
+		{"cognitive_p90", Floor, "floor 0,floor 1,floor 2,floor 3,floor 4,floor 5,floor 8,floor 10,floor 15,floor none"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.rule, func(t *testing.T) {
@@ -309,8 +311,11 @@ func TestGridAndApply(t *testing.T) {
 		})
 	}
 	nest := s.List[index(t, s, "max_nesting")].Threshold
-	if p := Params(nest); len(p) != 2 || p[0] != Max || p[1] != MaxDelta {
+	if p := Params(nest); len(p) != 3 || p[0] != Max || p[1] != MaxDelta || p[2] != Floor {
 		t.Errorf("params %v", p)
+	}
+	if noFloor := Apply(nest, Setting{Param: Floor, None: true}); noFloor.Floor != nil || *nest.Floor != 4 {
+		t.Error("apply floor none must clear the copy's floor only")
 	}
 	noMax := Apply(nest, Setting{Param: Max, None: true})
 	if noMax.Max != nil || *nest.Max != 5 {

@@ -50,8 +50,8 @@ the same change. Do not regenerate goldens from the extractor.
   pointers) are not in the source.
 - **func_count** 1 (`Add`), **max_nesting** 0, **cognitive_total** 0,
   **cognitive_p90** 0.
-- **dup_blocks** 0, **duplication_pct** 0: one short function holds no
-  repeated block.
+- **dup_blocks** 0, **duplication_pct** 0, **duplicated_lines** 0: one
+  short function holds no repeated block.
 - **test_files** 1 (`native_test.go`, package `native`), **test_funcs** 1
   (`TestAdd`), **has_tests** true, **untested_exports** 0: `TestAdd` calls
   `Add`. The test file's `testing` import is not counted in the imports.
@@ -84,7 +84,7 @@ blank.
 - **exported_symbols** 1 (`Sum`), **globals** 0, **init_funcs** 0.
 - **func_count** 1; the `for` loop gives **max_nesting** 1 and
   **cognitive_total** 1, so **cognitive_p90** is 1.
-- **dup_blocks** 0, **duplication_pct** 0.
+- **dup_blocks** 0, **duplication_pct** 0, **duplicated_lines** 0.
 - **test_files** 0, **test_funcs** 0, **has_tests** false,
   **untested_exports** 1 (`Sum`).
 - **instability** 1: fan-in 0, fan-out 1. No exported types, so

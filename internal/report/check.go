@@ -129,6 +129,12 @@ func tokenizerNote(c *Check) string {
 // the MCP server explain a merge without importing the gate.
 func MergedInto(metric string) (string, bool) { return gate.MergedInto(metric) }
 
+// RiseCondition returns what must hold for a rule on metric to fail a rise
+// against a baseline, and false when any rise is judged (SPEC.md 8.1); it
+// lets the MCP server explain the direction test without importing the
+// gate.
+func RiseCondition(metric string) (string, bool) { return gate.RiseCondition(metric) }
+
 // findings converts gate violations or warnings to report findings; the
 // result is never nil, so the JSON array is present when a gate ran.
 func findings(vs []gate.Violation) []Finding {

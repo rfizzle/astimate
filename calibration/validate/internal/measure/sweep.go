@@ -25,11 +25,11 @@ const (
 	When Param = "when"
 )
 
-// Params returns the limits of t a sweep can vary, in the order above. A
-// capacity rule with a max always has an over_max_delta, 0 when unset,
-// and so does the density rule on changed_func_cognitive_max with a max,
-// which only rows that record their changed functions can move
-// (corpus.Row.HasChanged).
+// Params returns the limits of t a sweep can vary, in the order above,
+// then its Floor when it has one. A capacity rule with a max always has an
+// over_max_delta, 0 when unset, and so does the density rule on
+// changed_func_cognitive_max with a max, which only rows that record their
+// changed functions can move (corpus.Row.HasChanged).
 func Params(t gate.Threshold) []Param {
 	var out []Param
 	if t.Max != nil {
@@ -43,6 +43,9 @@ func Params(t gate.Threshold) []Param {
 	}
 	if t.When != nil {
 		out = append(out, When)
+	}
+	if t.Floor != nil {
+		out = append(out, Floor)
 	}
 	return out
 }
@@ -86,6 +89,8 @@ func shipped(t gate.Threshold, p Param) Setting {
 			v = *t.OverMaxDelta
 		}
 		return Setting{Param: p, Value: v}
+	case Floor:
+		return Setting{Param: p, Value: *t.Floor}
 	default:
 		return Setting{Param: p, Value: t.When.Value}
 	}
@@ -105,6 +110,8 @@ func Apply(t gate.Threshold, s Setting) gate.Threshold {
 		t.MaxDelta = &v
 	case s.Param == OverMaxDelta:
 		t.OverMaxDelta = &v
+	case s.Param == Floor:
+		t.Floor = floorOf(s)
 	case s.None:
 		t.When = nil
 	default:
@@ -120,9 +127,9 @@ func Apply(t gate.Threshold, s Setting) gate.Threshold {
 // the shipped value and each of 1, 2, 3, 5, 10, 20, 25, 50, 100, 150, 200,
 // 300, 500, 1000, 1500, 2000, 3000 and 5000 from a thousandth to half of
 // the rule's max; for a guard, 0, 50, 100, 200, 500 and 1000 with the
-// shipped value. A density rule's max or max_delta can also be removed
-// when the rule keeps the other, and a guard always can; that setting
-// comes last.
+// shipped value; for a floor, floorGrid's. A density rule's max or
+// max_delta can also be removed when the rule keeps the other, and a guard
+// or a floor always can; that setting comes last.
 func Grid(t gate.Threshold, p Param) []Setting {
 	cur := shipped(t, p).Value
 	var vs []float64
@@ -141,6 +148,8 @@ func Grid(t gate.Threshold, p Param) []Setting {
 				vs = append(vs, v)
 			}
 		}
+	case Floor:
+		vs = floorGrid(t, cur)
 	default:
 		vs = []float64{0, 50, 100, 200, 500, 1000, cur}
 	}
@@ -151,7 +160,7 @@ func Grid(t gate.Threshold, p Param) []Setting {
 		out = append(out, Setting{Param: p, Value: v})
 	}
 	removable := (p == Max && t.Kind == gate.Density && t.MaxDelta != nil) ||
-		(p == MaxDelta && t.Max != nil) || p == When
+		(p == MaxDelta && t.Max != nil) || p == When || p == Floor
 	if removable {
 		out = append(out, Setting{Param: p, None: true})
 	}

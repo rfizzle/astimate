@@ -125,7 +125,7 @@ func assemble(m *module, p *pkg, opts assembleOptions) (metrics.RawMetrics, erro
 	if err != nil {
 		return metrics.RawMetrics{}, fmt.Errorf("extracting %s: %w", p.id, err)
 	}
-	r.DupBlocks, r.DuplicationPct = dup.Blocks, dup.Pct
+	r.DupBlocks, r.DuplicationPct, r.DuplicatedLines = dup.Blocks, dup.Pct, &dup.Lines
 	// Seam: further duplication row fields are set here, from dup.
 
 	// Martin's package metrics: Ca = fan_in and Ce = internal_imports;

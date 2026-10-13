@@ -60,8 +60,9 @@
 //
 // Coverage. A line is covered when a token of any occurrence of any block
 // starts or ends on it, or lies between, and counts only when the language
-// marked it as a source line. duplication_pct is covered lines over the
-// package SLOC, times 100, rounded to one decimal.
+// marked it as a source line. duplicated_lines is the covered lines, and
+// duplication_pct is covered lines over the package SLOC, times 100,
+// rounded to one decimal.
 //
 // Anchors. Each block carries two anchors, the FNV-1a hashes of its first
 // and of its last MinTokens normalized tokens, one key per token: the
@@ -148,6 +149,8 @@ type Result struct {
 	// Pct is duplication_pct: covered SLOC over package SLOC times 100,
 	// rounded to one decimal.
 	Pct float64
+	// Lines is duplicated_lines: the covered SLOC, Pct's numerator.
+	Lines int
 	// Locations lists every occurrence of every block, block by block in
 	// order of first occurrence, occurrences in stream order.
 	Locations []Location
@@ -545,7 +548,7 @@ func (s *Stream) count(sa []int32, reps []repeat, sloc, minTokens int) Result {
 			}
 		}
 	}
-	res.Pct = Percent(lines, sloc)
+	res.Lines, res.Pct = lines, Percent(lines, sloc)
 	res.Anchors = make([][2]uint64, 0, len(res.Locations))
 	for _, b := range blocks {
 		a := s.anchors(b.pos[0], b.n, int32(minTokens))

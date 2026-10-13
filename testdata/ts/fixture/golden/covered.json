@@ -18,6 +18,7 @@
   "func_count": 2,
   "dup_blocks": 0,
   "duplication_pct": 0,
+  "duplicated_lines": 0,
   "test_files": 0,
   "test_funcs": 0,
   "has_tests": true,

@@ -287,6 +287,18 @@ On the all corpora pooled, capacity-only set aside view. Recall and false-failur
 | max_delta 12 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | max_delta 20 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | max_delta none | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| floor 0 | 0.0% | 50.0% | -50.0 pts | 50.0% | 50.0% |
+| floor 1 | 0.0% | 50.0% | -50.0 pts | 50.0% | 50.0% |
+| floor 2 | 0.0% | 50.0% | -50.0 pts | 50.0% | 50.0% |
+| floor 3 | 0.0% | 50.0% | -50.0 pts | 50.0% | 50.0% |
+| floor 4 | 0.0% | 50.0% | -50.0 pts | 50.0% | 50.0% |
+| floor 5 | 0.0% | 50.0% | -50.0 pts | 50.0% | 50.0% |
+| floor 8 | 0.0% | 50.0% | -50.0 pts | 50.0% | 50.0% |
+| floor 10 * | 0.0% | 50.0% | -50.0 pts | 50.0% | 50.0% |
+| floor 15 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| floor 20 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| floor 30 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| floor none | 0.0% | 50.0% | -50.0 pts | 50.0% | 50.0% |
 | rule dropped |  |  |  | 50.0% | 50.0% |
 
 ### `untested_exports`
@@ -349,6 +361,12 @@ On the all corpora pooled, capacity-only set aside view. Recall and false-failur
 | max_delta 10 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | max_delta 20 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | max_delta none | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| floor 0 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| floor 1 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| floor 2 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| floor 3 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| floor 4 * | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| floor none | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | rule dropped |  |  |  | 50.0% | 50.0% |
 
 ### `cognitive_p90`
@@ -373,6 +391,16 @@ On the all corpora pooled, capacity-only set aside view. Recall and false-failur
 | max_delta 10 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | max_delta 20 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | max_delta none | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| floor 0 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| floor 1 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| floor 2 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| floor 3 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| floor 4 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| floor 5 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| floor 8 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| floor 10 * | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| floor 15 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| floor none | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | rule dropped |  |  |  | 50.0% | 50.0% |
 
 ### `changed_func_cognitive_max`

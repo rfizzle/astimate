@@ -52,6 +52,10 @@ type RawMetrics struct {
 	// DuplicationPct is the share of non-test SLOC covered by a duplicate
 	// block, as a percentage in [0, 100].
 	DuplicationPct float64 `json:"duplication_pct"`
+	// DuplicatedLines is the non-test SLOC a duplicate block covers, the
+	// numerator of duplication_pct. A pointer, nil when not computed (v1),
+	// though it sits beside its percentage.
+	DuplicatedLines *int `json:"duplicated_lines"`
 	// TestFiles is the number of _test.go files.
 	TestFiles int `json:"test_files"`
 	// TestFuncs counts Test*, Benchmark*, Fuzz* and Example* functions.

@@ -101,6 +101,12 @@ func TestThresholdValidate(t *testing.T) {
 		{name: "changed function over_max_delta without max", th: Threshold{Metric: "changed_func_cognitive_max", Kind: Density, MaxDelta: ptr(0.0), OverMaxDelta: ptr(5.0)}, wantErr: `"changed_func_cognitive_max": over_max_delta needs max`},
 		{name: "changed function negative over_max_delta", th: Threshold{Metric: "changed_func_cognitive_max", Kind: Density, Max: ptr(50.0), OverMaxDelta: ptr(-1.0)}, wantErr: "over_max_delta must be a finite number >= 0, got -1"},
 		{name: "requirement over_max_delta", th: Threshold{Metric: "has_tests", Kind: Requirement, Require: ptr(true), OverMaxDelta: ptr(10.0)}, wantErr: `"has_tests": over_max_delta applies only to capacity rules`},
+		{name: "density floor", th: Threshold{Metric: "dup_blocks", Kind: Density, MaxDelta: ptr(0.0), Max: ptr(5.0), Floor: ptr(4.0)}},
+		{name: "density floor without max", th: Threshold{Metric: "dup_blocks", Kind: Density, MaxDelta: ptr(0.0), Floor: ptr(4.0)}},
+		{name: "density NaN floor", th: Threshold{Metric: "dup_blocks", Kind: Density, MaxDelta: ptr(0.0), Floor: ptr(math.NaN())}, wantErr: "floor must be a finite number"},
+		{name: "density infinite floor", th: Threshold{Metric: "dup_blocks", Kind: Density, MaxDelta: ptr(0.0), Floor: ptr(math.Inf(-1))}, wantErr: "floor must be a finite number"},
+		{name: "capacity floor", th: Threshold{Metric: "sloc", Kind: Capacity, Max: ptr(1000.0), WarnAt: 0.75, Floor: ptr(10.0)}, wantErr: `"sloc": floor applies only to density rules`},
+		{name: "requirement floor", th: Threshold{Metric: "has_tests", Kind: Requirement, Require: ptr(true), Floor: ptr(0.0)}, wantErr: `"has_tests": floor applies only to density rules`},
 		{name: "when unknown metric", th: Threshold{Metric: "has_tests", Kind: Requirement, Require: ptr(true), When: &Condition{Metric: "nope"}}, wantErr: `when: unknown metric "nope"`},
 	}
 	for _, tt := range tests {

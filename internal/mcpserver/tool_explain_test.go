@@ -158,6 +158,49 @@ func TestExplainMetricDensityOverMax(t *testing.T) {
 	}
 }
 
+// TestExplainMetricFloorAndDirection checks explain_metric reports a
+// density rule's floor and, for the ratio and percentile metrics, when a
+// rise is judged (SPEC.md 8.1); a metric without either says neither.
+func TestExplainMetricFloorAndDirection(t *testing.T) {
+	t.Parallel()
+
+	cs := newTestClient(t, Options{Config: defaultConfig(t)})
+	for metric, want := range map[string]struct {
+		floor float64
+		rises string
+	}{
+		"max_nesting":     {floor: 4},
+		"cognitive_p90":   {floor: 10, rises: "a function changed since the baseline is more complex than the baseline's p90"},
+		"duplication_pct": {floor: 10, rises: "duplicated_lines rose"},
+		"dup_blocks":      {},
+	} {
+		res := callExplain(t, cs, metric)
+		text := resultText(res)
+		r := decodeExplain(t, res)
+		if len(r.Thresholds) == 0 {
+			t.Fatalf("%s: thresholds empty; text:\n%s", metric, text)
+		}
+		th := r.Thresholds[0]
+		switch {
+		case want.floor == 0 && th.Floor != nil:
+			t.Errorf("%s: floor = %v, want none", metric, *th.Floor)
+		case want.floor != 0 && (th.Floor == nil || *th.Floor != want.floor):
+			t.Errorf("%s: floor = %v, want %v", metric, th.Floor, want.floor)
+		}
+		hasFloorText := strings.Contains(text, "; floor "+formatFloat(want.floor)+": a value at or below it never fails, max included\n")
+		if hasFloorText != (want.floor != 0) {
+			t.Errorf("%s: text = %q, floor clause present %v, want %v", metric, text, hasFloorText, want.floor != 0)
+		}
+		if r.RisesWhen != want.rises {
+			t.Errorf("%s: rises_when = %q, want %q", metric, r.RisesWhen, want.rises)
+		}
+		line := "Direction: against a baseline, a density rule on it fails a rise only when " + want.rises
+		if got := strings.Contains(text, "Direction:"); got != (want.rises != "") || (got && !strings.Contains(text, line)) {
+			t.Errorf("%s: text = %q, want direction line %v", metric, text, want.rises != "")
+		}
+	}
+}
+
 // TestExplainMetricMerged checks explain_metric says which rule a merged
 // finding is attributed to (SPEC.md 8.1): tokens_est to sloc and
 // duplication_pct to dup_blocks, and nothing for a metric merged into no
