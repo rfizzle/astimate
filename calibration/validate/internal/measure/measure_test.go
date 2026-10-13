@@ -415,3 +415,53 @@ func TestBestSize(t *testing.T) {
 		t.Errorf("size curve %+v", got)
 	}
 }
+
+// TestSweepChangedFunctions checks changed_func_cognitive_max is swept
+// over its max and its over_max_delta per changed function on rows that
+// record their changed functions, and on its one stored value on a row
+// replayed without them, whose curve stays flat.
+func TestSweepChangedFunctions(t *testing.T) {
+	s := defaultRules(t)
+	i := index(t, s, "changed_func_cognitive_max")
+	if ps := Params(s.List[i].Threshold); len(ps) != 2 || ps[0] != Max || ps[1] != OverMaxDelta {
+		t.Fatalf("Params = %v, want max and over_max_delta", ps)
+	}
+	fn := func(name string, head, base int) metrics.ChangedFunction {
+		return metrics.ChangedFunction{FunctionInfo: metrics.FunctionInfo{Name: name, Cognitive: head},
+			BaseCognitive: base, HasBase: true}
+	}
+	cfRow := func(head int, changed []metrics.ChangedFunction, violated bool) corpus.Row {
+		h := head
+		r := corpus.Row{Package: "p", Language: "go", Head: metrics.RawMetrics{ChangedFuncCognitiveMax: &h, HasTests: true},
+			Base: &metrics.RawMetrics{HasTests: true}, Changed: changed}
+		if violated {
+			r.Violated = []string{"changed_func_cognitive_max"}
+		}
+		return r
+	}
+	c := &corpus.Corpus{Commits: []corpus.Commit{
+		commit("a", true, cfRow(385, []metrics.ChangedFunction{fn("Update", 385, 369)}, true)), // +16 over max
+		commit("b", false, cfRow(57, []metrics.ChangedFunction{fn("Parse", 57, 57)}, false)),   // held over max
+		commit("c", false, cfRow(57, nil, true)),                                               // no functions recorded
+	}}
+	sc, err := Score(c, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		set        Setting
+		block, all int
+	}{
+		{Setting{Param: OverMaxDelta, Value: 5}, 1, 1},
+		{Setting{Param: OverMaxDelta, Value: 20}, 0, 1},
+		{Setting{Param: OverMaxDelta, Value: 0}, 1, 1},
+		{Setting{Param: Max, Value: 400}, 0, 0},
+	} {
+		t.Run(tc.set.String(), func(t *testing.T) {
+			th := Apply(s.List[i].Threshold, tc.set)
+			if r, _ := sc.Swap(i, &th); r.BlockFailed != tc.block || r.AllowFailed != tc.all {
+				t.Errorf("got %d block, %d allow; want %d, %d", r.BlockFailed, r.AllowFailed, tc.block, tc.all)
+			}
+		})
+	}
+}

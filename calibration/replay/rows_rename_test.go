@@ -15,9 +15,9 @@ import (
 func TestPackageRowBaselineFrom(t *testing.T) {
 	t.Parallel()
 
-	seeded := newPackageRow("c", &report.Report{
+	seeded := newPackageRow("c", &report.CheckedPackage{Report: report.Report{
 		PackagePath: "agent/sidejobs", Baseline: &report.Baseline{}, BaselineFrom: []string{"agent"},
-	})
+	}})
 	if seeded.New || !slices.Equal(seeded.BaselineFrom, []string{"agent"}) {
 		t.Errorf("seeded row new %v, baseline_from %q, want not new and [agent]", seeded.New, seeded.BaselineFrom)
 	}
@@ -29,7 +29,7 @@ func TestPackageRowBaselineFrom(t *testing.T) {
 		t.Errorf("seeded row JSON lacks baseline_from: %s", data)
 	}
 
-	plain := newPackageRow("c", &report.Report{PackagePath: "a"})
+	plain := newPackageRow("c", &report.CheckedPackage{Report: report.Report{PackagePath: "a"}})
 	if data, err = json.Marshal(plain); err != nil {
 		t.Fatal(err)
 	}

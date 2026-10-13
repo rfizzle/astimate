@@ -62,8 +62,11 @@ type Threshold struct {
 	// OverMaxDelta is the largest increase a capacity rule lets a package
 	// already at or over Max make in one change: such growth is a warning to
 	// split, and a larger one a violation. Nil means 0, where any rise of a
-	// value over Max fails. Capacity only; it never relaxes a crossing or a
-	// new package over Max.
+	// value over Max fails. Capacity rules, and the density rule on
+	// changed_func_cognitive_max (ChangedFuncMetric), where it is the most a
+	// changed function already at or over Max may rise
+	// (changedFunctionsOverMax); it never relaxes a crossing or a new
+	// package or function over Max.
 	OverMaxDelta *float64
 	// WarnAt is the fraction of Max above which a capacity rule warns; zero
 	// for other kinds.
@@ -109,8 +112,14 @@ func (t Threshold) Validate(known func(string) bool) error {
 		if t.WarnAt != 0 {
 			add("warn_at applies only to capacity rules")
 		}
-		if t.OverMaxDelta != nil {
-			add("over_max_delta applies only to capacity rules")
+		switch {
+		case t.OverMaxDelta == nil:
+		case t.Metric != ChangedFuncMetric:
+			add(overMaxDeltaScope)
+		case t.Max == nil:
+			add("over_max_delta needs max")
+		default:
+			t.checkOverMaxDelta(add)
 		}
 		if t.Require != nil {
 			add("require applies only to requirement rules")
@@ -130,9 +139,7 @@ func (t Threshold) Validate(known func(string) bool) error {
 		if t.Require != nil {
 			add("require applies only to requirement rules")
 		}
-		if v := t.OverMaxDelta; v != nil && !(*v >= 0 && !math.IsInf(*v, 1)) {
-			add("over_max_delta must be a finite number >= 0, got %v", *v)
-		}
+		t.checkOverMaxDelta(add)
 		if t.RatchetFromZero {
 			add("ratchet_from_zero applies only to density rules")
 		}
@@ -150,7 +157,7 @@ func (t Threshold) Validate(known func(string) bool) error {
 			add("ratchet_from_zero applies only to density rules")
 		}
 		if t.OverMaxDelta != nil {
-			add("over_max_delta applies only to capacity rules")
+			add(overMaxDeltaScope)
 		}
 	default:
 		add("unknown kind %q", t.Kind)
@@ -164,6 +171,18 @@ func (t Threshold) Validate(known func(string) bool) error {
 		add("when: unknown metric %q", t.When.Metric)
 	}
 	return errors.Join(errs...)
+}
+
+// overMaxDeltaScope is the error for over_max_delta on a rule that cannot
+// carry it.
+const overMaxDeltaScope = "over_max_delta applies only to capacity rules and " + ChangedFuncMetric
+
+// checkOverMaxDelta reports through add an OverMaxDelta that is not a
+// finite number at least 0.
+func (t Threshold) checkOverMaxDelta(add func(string, ...any)) {
+	if v := t.OverMaxDelta; v != nil && !(*v >= 0 && !math.IsInf(*v, 1)) {
+		add("over_max_delta must be a finite number >= 0, got %v", *v)
+	}
 }
 
 // ParseCondition parses the fixed guard form "<metric> > <number>".

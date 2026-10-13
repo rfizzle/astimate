@@ -43,6 +43,12 @@ type Violation struct {
 	// merged; nil when nothing was. Limit names each merged rule's values
 	// and limit, so the finding reads as one cause.
 	Also []string
+	// Function is the changed function a changed_func_cognitive_max
+	// finding judged when Evaluate was given the changed functions
+	// (WithChangedFunctions); Base and Head are then its values. Nil on
+	// every other finding. Renderers do not show it; a caller names and
+	// locates the finding by it.
+	Function *metrics.FunctionInfo
 }
 
 // Warning is a non-failing finding with the same shape as a Violation: a
@@ -136,9 +142,16 @@ func ForRow(rules []Threshold, row Row) []Threshold {
 // and its max, sloc with tokens_est, and dup_blocks with duplication_pct.
 // Suggestions come from s; a nil s leaves them empty. Evaluate does no
 // I/O. Evaluate applies every rule it is given, whatever the row; callers
-// select a row's rules with ForRow.
-func Evaluate(head metrics.RawMetrics, base *metrics.RawMetrics, rules []Threshold, s Suggester) Result {
+// select a row's rules with ForRow. opts are optional inputs: given the
+// row's changed functions (WithChangedFunctions), the max of
+// changed_func_cognitive_max judges each function against its own
+// baseline complexity (changedFunctionsOverMax) instead of the row's one
+// value.
+func Evaluate(head metrics.RawMetrics, base *metrics.RawMetrics, rules []Threshold, s Suggester, opts ...Option) Result {
 	e := evaluator{head: head, base: base, suggest: s}
+	for _, o := range opts {
+		o(&e.opts)
+	}
 	for i, r := range rules {
 		e.rule(i, r)
 	}
@@ -173,6 +186,7 @@ type evaluator struct {
 	head    metrics.RawMetrics
 	base    *metrics.RawMetrics
 	suggest Suggester
+	opts    options
 	res     Result
 	found   []found
 	// cur and warns are the index and the severity of the rule being
@@ -222,7 +236,11 @@ func (e *evaluator) density(r Threshold, h float64) {
 			e.breach(e.finding(r.Metric, b, h, hasBase, "max_delta "+signed(*r.MaxDelta)))
 		}
 	}
-	if r.Max != nil && e.densityMaxApplies(r, b, h, hasBase) {
+	switch {
+	case r.Max == nil:
+	case r.Metric == ChangedFuncMetric && e.opts.hasChanged:
+		e.changedFunctionsOverMax(r)
+	case e.densityMaxApplies(r, b, h, hasBase):
 		e.breach(e.finding(r.Metric, b, h, hasBase, "max "+num(*r.Max)))
 	}
 }
@@ -237,7 +255,8 @@ func (e *evaluator) density(r Threshold, h float64) {
 // unchanged, improved or slightly risen legacy value passes it. A rule
 // with max alone, whose metric is itself a change against the baseline
 // (changed_func_cognitive_max), has no delta to fall back on: its max
-// judges any rise.
+// judges any rise. Given the changed functions, changed_func_cognitive_max
+// is judged per function by changedFunctionsOverMax instead.
 func (e *evaluator) densityMaxApplies(r Threshold, b, h float64, hasBase bool) bool {
 	switch {
 	case h <= *r.Max+epsilon:

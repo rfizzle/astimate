@@ -10,8 +10,8 @@ import (
 	"github.com/rfizzle/astimate/internal/report"
 )
 
-// changedFunction is the most complex function added or modified since the
-// baseline: its cognitive complexity, its display name and its location,
+// changedFunction is a function added or modified since the baseline, the
+// most complex one or the one a finding judged: its cognitive complexity, its display name and its location,
 // with the files every changed function lies in.
 type changedFunction struct {
 	// cognitive is the function's cognitive complexity; 0 when no function
@@ -29,23 +29,21 @@ type changedFunction struct {
 	files map[string]bool
 }
 
-// worstChanged diffs a package's functions at head against those before it
-// (metrics.ChangedFunctions) and returns the most complex changed one, or
-// a zero changedFunction when none changed.
-func worstChanged(before, head []metrics.FunctionInfo) *changedFunction {
-	changed := metrics.ChangedFunctions(before, head)
-	i := metrics.MostComplex(changed)
+// worstChanged returns the most complex of a package's changed functions
+// (metrics.ChangedFunctionsWithBase), or a zero changedFunction when none
+// changed.
+func worstChanged(changed []metrics.ChangedFunction) *changedFunction {
+	fns := make([]metrics.FunctionInfo, len(changed))
+	for i := range changed {
+		fns[i] = changed[i].FunctionInfo
+	}
+	i := metrics.MostComplex(fns)
 	if i < 0 {
 		return &changedFunction{}
 	}
-	f := &changed[i]
-	name := f.QualifiedName()
-	if f.File != "" {
-		name += " (" + f.File + ":" + strconv.Itoa(f.Line) + ")"
-	}
-	w := &changedFunction{cognitive: f.Cognitive, name: name, file: f.File, line: f.Line}
-	for j := range changed {
-		if file := changed[j].File; file != "" {
+	w := describeChanged(&fns[i])
+	for j := range fns {
+		if file := fns[j].File; file != "" {
 			if w.files == nil {
 				w.files = make(map[string]bool)
 			}
@@ -53,6 +51,16 @@ func worstChanged(before, head []metrics.FunctionInfo) *changedFunction {
 		}
 	}
 	return w
+}
+
+// describeChanged returns f as a changedFunction, its name qualified and
+// followed by "(file:line)" when its location is known, with no files.
+func describeChanged(f *metrics.FunctionInfo) *changedFunction {
+	name := f.QualifiedName()
+	if f.File != "" {
+		name += " (" + f.File + ":" + strconv.Itoa(f.Line) + ")"
+	}
+	return &changedFunction{cognitive: f.Cognitive, name: name, file: f.File, line: f.Line}
 }
 
 // locateFindings locates each of r's findings, exempted ones included, on

@@ -18,14 +18,18 @@ const (
 	// MaxDelta is a density rule's largest permitted increase.
 	MaxDelta Param = "max_delta"
 	// OverMaxDelta is a capacity rule's largest permitted increase of a
-	// value already at or over its max.
+	// value already at or over its max, or changed_func_cognitive_max's of
+	// a changed function already at or over it.
 	OverMaxDelta Param = "over_max_delta"
 	// When is the value of a requirement's "<metric> > <value>" guard.
 	When Param = "when"
 )
 
 // Params returns the limits of t a sweep can vary, in the order above. A
-// capacity rule with a max always has an over_max_delta, 0 when unset.
+// capacity rule with a max always has an over_max_delta, 0 when unset,
+// and so does the density rule on changed_func_cognitive_max with a max,
+// which only rows that record their changed functions can move
+// (corpus.Row.HasChanged).
 func Params(t gate.Threshold) []Param {
 	var out []Param
 	if t.Max != nil {
@@ -34,7 +38,7 @@ func Params(t gate.Threshold) []Param {
 	if t.MaxDelta != nil {
 		out = append(out, MaxDelta)
 	}
-	if t.Kind == gate.Capacity && t.Max != nil {
+	if t.Max != nil && (t.Kind == gate.Capacity || t.Metric == gate.ChangedFuncMetric) {
 		out = append(out, OverMaxDelta)
 	}
 	if t.When != nil {

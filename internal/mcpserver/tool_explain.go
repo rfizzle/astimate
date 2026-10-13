@@ -180,9 +180,15 @@ func (r explainResult) thresholdLines(b *strings.Builder) {
 
 // overMaxText says how a density rule's max judges a value over it
 // (SPEC.md 8.1), as a clause led by "; ", and is empty for any other rule.
+// A density rule with over_max_delta, which config accepts only on
+// changed_func_cognitive_max, judges each changed function.
 func (t explainThreshold) overMaxText() string {
 	if t.Kind != "density" || t.Max == nil {
 		return ""
+	}
+	if t.OverMaxDelta != nil {
+		return "; max judges each changed function against its own baseline: a new function over it or one that " +
+			"crossed it fails, and one already at or over it fails when it rose by more than over_max_delta"
 	}
 	if t.MaxDelta == nil {
 		return "; max fails a new value over it and any rise over it"

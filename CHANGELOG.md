@@ -12,6 +12,15 @@ history.
 
 ### Added
 
+- `changed_func_cognitive_max` now judges each changed function against
+  its own baseline complexity. A function over `max` fails when it is new,
+  crossed `max`, or rose by more than the rule's new `over_max_delta`
+  (5 in the embedded default) from a value already over it; a legacy
+  function that holds passes, and no longer hides a new function that
+  fails. The finding names and locates that function, with its own base
+  and head values. Gate replay rows record the changed functions over
+  complexity 20 and each finding's `also` list, and `calibration/validate`
+  sweeps the rule's `over_max_delta` on rows that carry them.
 - TypeScript test files in a directory with no non-test source file, such
   as a top-level `test/` or `tests/`, now count as test references: the
   exports they name read as tested. Such a directory is still no package and

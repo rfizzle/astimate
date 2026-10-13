@@ -172,7 +172,8 @@ func fieldTable() [numFields]field {
 				"does not count; 0 when none changed. Null without a function-level baseline to diff against, " +
 				"as in assess.",
 			"Closes the gap where one very complex new function leaves the package's p90 low. {nesting} Gated " +
-				"with an absolute max only, since the value is already a diff.",
+				"per function against its own baseline: over the max, a new function or a crossing fails, and one " +
+				"already over it fails only on growth past over_max_delta.",
 		},
 	}
 }

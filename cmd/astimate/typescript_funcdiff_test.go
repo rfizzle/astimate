@@ -88,14 +88,15 @@ func tsGradeLine(t *testing.T) string {
 		t.Fatal(err)
 	}
 	line := bytes.Count(src, []byte{'\n'}) + 3
-	return "Changed function grade (tested.ts:" + strconv.Itoa(line) + ") has cognitive complexity 60"
+	return "Changed function grade (tested.ts:" + strconv.Itoa(line) + ") has cognitive complexity "
 }
 
 // TestTypeScriptChangedFunction runs check without --all on a TypeScript
 // repository against master: a complex function added to a package fails
 // changed_func_cognitive_max and is named in the suggestion, a comment and
 // layout edit to a complex function already on master changes no function,
-// and an operator edit to it marks it changed again.
+// and an operator edit to it marks it changed again but passes while its
+// complexity holds at its baseline value; a branch added to it fails.
 func TestTypeScriptChangedFunction(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not installed")
@@ -149,13 +150,26 @@ func TestTypeScriptChangedFunction(t *testing.T) {
 			wantMax:  0,
 		},
 		{
+			// The edit marks grade changed, but it stays at its own baseline
+			// complexity, so its max passes it (SPEC.md 8.1).
 			name: "operator edit",
 			change: func(t *testing.T, repo string) {
 				commitGrade(t, repo)
 				rewrite(t, repo, "score -= 3;", "score += 3;")
 			},
-			wantExit: exitGateFailed,
+			wantExit: exitOK,
 			wantMax:  60,
+		},
+		{
+			// The TypeScript override sets no over_max_delta, so any rise of a
+			// function already over its max fails.
+			name: "branch added to a function over max",
+			change: func(t *testing.T, repo string) {
+				commitGrade(t, repo)
+				rewrite(t, repo, "  let score = 0;\n", "  let score = 0;\n  if (strict) { score = 1; }\n")
+			},
+			wantExit: exitGateFailed,
+			wantMax:  61,
 		},
 	}
 	for _, tt := range tests {

@@ -184,6 +184,13 @@ func TestReplayRows(t *testing.T) {
 	if v := dup.Violations[0]; v.Location == nil || !strings.HasPrefix(v.Location.File, "a/dup.go") {
 		t.Errorf("dup_blocks location %+v, want a/dup.go", v.Location)
 	}
+	// duplication_pct's finding of the same paste is merged into it.
+	if v := dup.Violations[0]; !slices.Equal(v.Also, []string{"duplication_pct"}) {
+		t.Errorf("dup_blocks also %q, want [duplication_pct]", v.Also)
+	}
+	if dup.ChangedFunctions == nil {
+		t.Errorf("duplicate commit row has no changed_functions, want a list from the function diff")
+	}
 	if root := packageRowOf(t, pkgs, hashes[0], "a"); !root.New || root.Base != nil || root.SLOCDelta != root.Metrics.SLOC {
 		t.Errorf("root commit row: new %v, sloc delta %d", root.New, root.SLOCDelta)
 	}

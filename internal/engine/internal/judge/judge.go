@@ -65,9 +65,14 @@ func New(o Options) *Checker {
 // Package takes m, pkg's metrics extracted at head, fills
 // changed_func_cognitive_max from the function-level diff against the
 // baseline (changedFunctions), evaluates it against its baseline metrics,
-// if the baseline has any, and the rules that apply to a package row, and
-// builds its report, its findings located where the extractor's details
-// say (locateFindings). The exemptions are applied to the result
+// if the baseline has any, and the rules that apply to a package row, the
+// changed functions given to the gate so changed_func_cognitive_max judges
+// each against its own baseline complexity (gate.WithChangedFunctions),
+// and builds its report, its findings located where the extractor's
+// details say (locateFindings) and a changed_func_cognitive_max finding
+// named and located on the function it judged (nameJudged). The result
+// carries the changed functions (report.CheckedPackage.ChangedFunctions).
+// The exemptions are applied to the result
 // (gate.Exemptions.Apply) before the report is built. unrecorded reports
 // that the diff was skipped because the baseline has pkg but no functions
 // for it.
@@ -83,22 +88,26 @@ func (c *Checker) Package(ctx context.Context, pkg string, m metrics.RawMetrics)
 	if inBase {
 		bm = &row.Metrics
 	}
-	worst, unrecorded, err := c.changedFunctions(ctx, pkg, row, inBase)
+	changed, listed, unrecorded, err := c.changedFunctions(ctx, pkg, row, inBase)
 	if err != nil {
 		return report.CheckedPackage{}, false, err
 	}
-	if worst != nil {
+	var worst *changedFunction
+	var opts []gate.Option
+	if listed {
+		worst = worstChanged(changed)
 		m.ChangedFuncCognitiveMax = &worst.cognitive
 		names.ChangedFunction = worst.name
+		opts = append(opts, gate.WithChangedFunctions(changed))
 	}
 	suggest := func(metric string, h float64, hm metrics.RawMetrics) string {
 		return score.MetricSuggestion(metric, h, hm, names)
 	}
-	r := c.row(path, m, m, bm, c.pkgRules, suggest, names)
+	r, res := c.row(path, m, m, bm, c.pkgRules, suggest, names, opts...)
 	r.BaselineFrom = row.From
-	locateFindings(&r, &det, worst)
+	locateFindings(&r, &det, nameJudged(&r, &res, worst, m, names))
 	r.Details = c.details(&det)
-	p = report.CheckedPackage{Report: r}
+	p = report.CheckedPackage{Report: r, ChangedFunctions: changed}
 	if bm != nil {
 		// Baselines never measure coverage. When head did, the base is
 		// estimated with head's coverage so that the two agent_passes
@@ -175,7 +184,7 @@ func (c *Checker) Module(ctx context.Context, mm metrics.ModuleMetrics, fromFile
 		}
 		return score.MetricSuggestion(metric, h, hm, names)
 	}
-	r := c.row(metrics.ModuleRowID, m, gm, bm, rules, suggest, score.Names{})
+	r, _ := c.row(metrics.ModuleRowID, m, gm, bm, rules, suggest, score.Names{})
 	located := names.CrossBlocks
 	if blame != nil && len(blame.blocks) > 0 {
 		located = blame.blocks
@@ -186,15 +195,16 @@ func (c *Checker) Module(ctx context.Context, mm metrics.ModuleMetrics, fromFile
 }
 
 // row evaluates gm, the metrics the rules judge, against bm, the row's
-// baseline metrics (nil when it has none), and rules, applies the
-// exemptions to the result under package path path, logs each rule
-// skipped, and returns the report of the row with metrics m and names,
-// with the verdict and the baseline's tokenizer applied.
+// baseline metrics (nil when it has none), and rules, with opts
+// (gate.Evaluate), applies the exemptions to the result under package path
+// path, logs each rule skipped, and returns the report of the row with
+// metrics m and names, with the verdict and the baseline's tokenizer
+// applied, and the result it was built from.
 func (c *Checker) row(path string, m, gm metrics.RawMetrics, bm *metrics.RawMetrics, rules []gate.Threshold,
-	suggest gate.Suggester, names score.Names,
-) report.Report {
+	suggest gate.Suggester, names score.Names, opts ...gate.Option,
+) (report.Report, gate.Result) {
 	o := &c.o
-	res := gate.Evaluate(gm, bm, rules, suggest)
+	res := gate.Evaluate(gm, bm, rules, suggest, opts...)
 	c.ex.Apply(path, &res)
 	for _, n := range res.Notes {
 		o.Logger.Info("rule skipped", "path", path, "metric", n.Metric, "reason", n.Text)
@@ -211,7 +221,7 @@ func (c *Checker) row(path string, m, gm metrics.RawMetrics, bm *metrics.RawMetr
 	})
 	report.ApplyGate(&r, o.Base.Ref(), bm, &res)
 	report.MarkTokenizer(&r, o.Base.Tokenizer(), o.Tokenizer)
-	return r
+	return r, res
 }
 
 // details returns d as the report's details block, with package
@@ -221,31 +231,31 @@ func (c *Checker) details(d *metrics.Details) *report.Details {
 }
 
 // changedFunctions diffs pkg's functions at head against those of row, its
-// baseline row (worstChanged), and returns the most complex changed one,
-// or a zero changedFunction when none changed. inBase reports whether the
-// baseline has a row for pkg; a package new at head diffs against no
-// functions, so all of its functions are changed. It returns nil when
-// there is nothing to diff: the extractor does not implement
-// metrics.FunctionLister, or the row recorded no functions, which
-// unrecorded reports so the caller can say why the metric is null.
+// baseline row, and returns the changed ones, each with its baseline
+// complexity (metrics.ChangedFunctionsWithBase), with listed set. inBase
+// reports whether the baseline has a row for pkg; a package new at head
+// diffs against no functions, so all of its functions are changed. listed
+// is false when there is nothing to diff: the extractor does not
+// implement metrics.FunctionLister, or the row recorded no functions,
+// which unrecorded reports so the caller can say why the metric is null.
 func (c *Checker) changedFunctions(ctx context.Context, pkg string, row baseline.Row, inBase bool,
-) (worst *changedFunction, unrecorded bool, err error) {
+) (changed []metrics.ChangedFunction, listed, unrecorded bool, err error) {
 	fl, ok := c.o.Ext.(metrics.FunctionLister)
 	if !ok {
-		return nil, false, nil
+		return nil, false, false, nil
 	}
 	var before []metrics.FunctionInfo
 	if inBase {
 		if !row.HasFunctions {
-			return nil, true, nil
+			return nil, false, true, nil
 		}
 		before = row.Functions
 	}
 	head, err := fl.Functions(ctx, c.o.Mod, pkg)
 	if err != nil {
-		return nil, false, err
+		return nil, false, false, err
 	}
-	return worstChanged(before, head), false, nil
+	return metrics.ChangedFunctionsWithBase(before, head), true, false, nil
 }
 
 // Details returns the details of pkg when ext implements metrics.Detailer,

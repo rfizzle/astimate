@@ -42,6 +42,59 @@ type packageRow struct {
 	// SLOCDelta is sloc at the commit minus sloc at the parent, the parent
 	// counting 0 when New: the size of the change for a size-only baseline.
 	SLOCDelta int `json:"sloc_delta"`
+	// ChangedFunctions are the row's functions added or modified since the
+	// parent with cognitive complexity over changedFuncFloor, each with
+	// its complexity at the parent, in head order, so
+	// changed_func_cognitive_max can be re-evaluated per function at any
+	// max above the floor and any over_max_delta (SPEC.md 8.1). Empty when
+	// none is over the floor; null when the row had no function-level diff
+	// (changed_func_cognitive_max is null), as on the module row, and on
+	// rows replayed before the field existed.
+	ChangedFunctions []changedFunc `json:"changed_functions"`
+}
+
+// changedFuncFloor is the cognitive complexity a changed function must
+// exceed to be recorded in a row's ChangedFunctions. It is under every
+// max a sweep of changed_func_cognitive_max tries (half of the shipped 50
+// at the least), and a function at or under a max is never judged, so the
+// rows re-evaluate the rule exactly.
+const changedFuncFloor = 20
+
+// changedFunc is one changed function of a row.
+type changedFunc struct {
+	// Receiver is the method's receiver base type; omitted for a function.
+	Receiver string `json:"receiver,omitempty"`
+	Name     string `json:"name"`
+	// File is relative to the package directory and Line its declaration.
+	File string `json:"file,omitempty"`
+	Line int    `json:"line,omitempty"`
+	// Cognitive is the complexity at the commit, Base at the parent: that
+	// of the parent's function with the same receiver and name; null for
+	// a new or renamed function.
+	Cognitive int  `json:"cognitive"`
+	Base      *int `json:"base"`
+}
+
+// changedFuncs returns the functions of fns over changedFuncFloor as row
+// entries, an empty list when none is; nil when listed is false.
+func changedFuncs(fns []metrics.ChangedFunction, listed bool) []changedFunc {
+	if !listed {
+		return nil
+	}
+	out := []changedFunc{}
+	for i := range fns {
+		f := &fns[i]
+		if f.Cognitive <= changedFuncFloor {
+			continue
+		}
+		c := changedFunc{Receiver: f.Receiver, Name: f.Name, File: f.File, Line: f.Line, Cognitive: f.Cognitive}
+		if f.HasBase {
+			b := f.BaseCognitive
+			c.Base = &b
+		}
+		out = append(out, c)
+	}
+	return out
 }
 
 // finding is a gate finding without its suggestion text.
@@ -54,6 +107,10 @@ type finding struct {
 	// Severity is "warn" on the breach of a warn rule, which the check
 	// reports among the warnings; omitted on every other finding.
 	Severity string `json:"severity,omitempty"`
+	// Also lists the metrics of the rules whose findings of the same cause
+	// the gate merged into this one (SPEC.md 8.1), so a merged rule's
+	// firing can still be counted; omitted when nothing was merged.
+	Also []string `json:"also,omitempty"`
 }
 
 // exempted is a violation an exemption silenced, with its reason.
@@ -116,11 +173,19 @@ func findings(fs []report.Finding) []finding {
 
 // toFinding copies f without its suggestion.
 func toFinding(f *report.Finding) finding {
-	return finding{Metric: f.Metric, Base: f.Base, Head: f.Head, Limit: f.Limit, Location: f.Location, Severity: f.Severity}
+	return withAlso(finding{Metric: f.Metric, Base: f.Base, Head: f.Head, Limit: f.Limit, Location: f.Location, Severity: f.Severity}, f.Also)
 }
 
-// newPackageRow returns the row of r, a report of a check of commit.
-func newPackageRow(commit string, r *report.Report) packageRow {
+// withAlso returns g with also as its merged rules.
+func withAlso(g finding, also []string) finding {
+	g.Also = also
+	return g
+}
+
+// newPackageRow returns the row of p, a row of a check of commit, with
+// its changed functions over changedFuncFloor.
+func newPackageRow(commit string, p *report.CheckedPackage) packageRow {
+	r := &p.Report
 	row := packageRow{
 		Commit:       commit,
 		Package:      r.PackagePath,
@@ -133,6 +198,9 @@ func newPackageRow(commit string, r *report.Report) packageRow {
 		Exemptions:   make([]exempted, 0, len(r.Exemptions)),
 		Metrics:      r.Metrics,
 		SLOCDelta:    r.Metrics.SLOC,
+		// The metric is non-null exactly when the check diffed the row's
+		// functions.
+		ChangedFunctions: changedFuncs(p.ChangedFunctions, r.Metrics.ChangedFuncCognitiveMax != nil),
 	}
 	for _, e := range r.Exemptions {
 		row.Exemptions = append(row.Exemptions, exempted{finding: toFinding(&e.Finding), Reason: e.Reason})
@@ -150,7 +218,7 @@ func newPackageRow(commit string, r *report.Report) packageRow {
 func checkRows(commit string, c *report.Check, failed []error, cr *commitRow) []packageRow {
 	rows := make([]packageRow, 0, len(c.Packages)+1)
 	if c.Module != nil {
-		row := newPackageRow(commit, &c.Module.Report)
+		row := newPackageRow(commit, c.Module)
 		if cr.Baseline == baselineEmpty {
 			// The empty baseline's zero module row only lets the module-wide
 			// rules run against zero; the row is as new as every package.
@@ -160,7 +228,7 @@ func checkRows(commit string, c *report.Check, failed []error, cr *commitRow) []
 	}
 	for i := range c.Packages {
 		cr.PackagesChanged = append(cr.PackagesChanged, c.Packages[i].Report.PackagePath)
-		rows = append(rows, newPackageRow(commit, &c.Packages[i].Report))
+		rows = append(rows, newPackageRow(commit, &c.Packages[i]))
 	}
 	cr.PackagesDeleted = append(cr.PackagesDeleted, c.Deleted...)
 	for _, err := range failed {

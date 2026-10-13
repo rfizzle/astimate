@@ -89,14 +89,15 @@ func TestParseDefault(t *testing.T) {
 		}
 	}
 	// over_max_delta is fitted for three capacity rules (SPEC.md 8.2); the
-	// other two keep the default of 0 and no rule of another kind has one.
+	// other two keep the default of 0. changed_func_cognitive_max carries 5,
+	// per function (SPEC.md 8.1); no other rule has one.
 	overMax := map[string]float64{}
 	for _, th := range cfg.Thresholds {
 		if th.OverMaxDelta != nil {
 			overMax[th.Metric] = *th.OverMaxDelta
 		}
 	}
-	if w := map[string]float64{"tokens_est": 1000, "largest_file_sloc": 5, "sloc": 100}; !maps.Equal(overMax, w) {
+	if w := map[string]float64{"tokens_est": 1000, "largest_file_sloc": 5, "sloc": 100, "changed_func_cognitive_max": 5}; !maps.Equal(overMax, w) {
 		t.Errorf("over_max_delta = %v, want %v", overMax, w)
 	}
 	if got, w := strings.Join(ratchet, " "), "dup_blocks untested_exports globals init_funcs"; got != w {
@@ -387,9 +388,11 @@ func TestDefaultGatesMatchExplanations(t *testing.T) {
 			t.Errorf("Explain(%q).Gated = %v, default thresholds gate it: %v", name, e.Gated, gated[name])
 		}
 		// A capacity metric's explanation says what happens over its
-		// ceiling, over_max_delta included (SPEC.md 8.1); no other does.
-		if got := strings.Contains(e.Evidence, "over_max_delta"); got != capacity[name] {
-			t.Errorf("Explain(%q) mentions over_max_delta: %v, default capacity rule: %v", name, got, capacity[name])
+		// ceiling, over_max_delta included (SPEC.md 8.1), and so does
+		// changed_func_cognitive_max's, per function; no other does.
+		want := capacity[name] || name == "changed_func_cognitive_max"
+		if got := strings.Contains(e.Evidence, "over_max_delta"); got != want {
+			t.Errorf("Explain(%q) mentions over_max_delta: %v, want %v", name, got, want)
 		}
 	}
 	for _, name := range []string{"instability", "abstractness", "main_sequence_distance"} {

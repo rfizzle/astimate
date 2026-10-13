@@ -5,6 +5,7 @@ import (
 	"context"
 	"log/slog"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -37,6 +38,10 @@ func TestCheckChangedFunctions(t *testing.T) {
 	edited := parse
 	edited.Fingerprint = 9
 	edited.Cognitive = 31
+	legacy := metrics.FunctionInfo{Receiver: "UI", Name: "Update", Fingerprint: 4, Cognitive: 369, File: "ui.go", Line: 20}
+	legacyEdited := legacy
+	legacyEdited.Fingerprint = 5
+	fresh := metrics.FunctionInfo{Name: "fresh", Fingerprint: 6, Cognitive: 60, File: "f.go", Line: 4}
 
 	baseFuncs := map[string][]metrics.FunctionInfo{modPath + "/old": {parse}}
 	tests := []struct {
@@ -46,6 +51,7 @@ func TestCheckChangedFunctions(t *testing.T) {
 		pkg       string
 		want      *int
 		violation string // the suggestion's text, when the rule should fail
+		location  string // the violation's file:line, when checked
 		skipLog   bool
 	}{
 		{
@@ -64,6 +70,22 @@ func TestCheckChangedFunctions(t *testing.T) {
 			head:      map[string][]metrics.FunctionInfo{modPath + "/old": {edited, small}},
 			want:      ptr(31),
 			violation: "Changed function Parse (p.go:3) has cognitive complexity 31",
+		},
+		{
+			// The legacy function stays over the max at its own baseline
+			// value and passes; the new one fails and is the one named.
+			name: "legacy function over max does not hide a new one", pkg: modPath + "/old",
+			baseFuncs: map[string][]metrics.FunctionInfo{modPath + "/old": {legacy}},
+			head:      map[string][]metrics.FunctionInfo{modPath + "/old": {legacyEdited, fresh}},
+			want:      ptr(369),
+			violation: "Changed function fresh (f.go:4) has cognitive complexity 60",
+			location:  "old/f.go:4",
+		},
+		{
+			name: "legacy function holding over max passes", pkg: modPath + "/old",
+			baseFuncs: map[string][]metrics.FunctionInfo{modPath + "/old": {legacy}},
+			head:      map[string][]metrics.FunctionInfo{modPath + "/old": {legacyEdited}},
+			want:      ptr(369),
 		},
 		{
 			name: "every function of a new package is changed", baseFuncs: baseFuncs, pkg: modPath + "/new",
@@ -120,6 +142,8 @@ func TestCheckChangedFunctions(t *testing.T) {
 				}
 			} else if len(r.Violations) != 1 || !strings.HasPrefix(r.Violations[0].Suggestion, tt.violation) {
 				t.Errorf("violations = %+v, want one whose suggestion starts %q", r.Violations, tt.violation)
+			} else if loc := r.Violations[0].Location; tt.location != "" && (loc == nil || loc.File+":"+strconv.Itoa(loc.Line) != tt.location) {
+				t.Errorf("violation location = %+v, want %s", loc, tt.location)
 			}
 			logged := strings.Contains(logs.String(), "metric=changed_func_cognitive_max")
 			if logged != tt.skipLog {

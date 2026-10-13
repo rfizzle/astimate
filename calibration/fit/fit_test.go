@@ -232,9 +232,10 @@ const committedRebuild = "../rebuild/astimate-rebuild-2026-09-28-claude-code-opu
 // exactly the committed threshold candidate's rules and extraction
 // settings, so the shipped thresholds are the fitted ones, and the committed
 // rebuild fit's parameters and config_version, which it was built from. The
-// one exception is each capacity rule's over_max_delta, which this fit does
-// not produce: calibration/validate fits it from the replayed commits
-// (SPEC.md 11.4), so it is compared apart.
+// one exception is each over_max_delta, which this fit does not produce:
+// calibration/validate fits the capacity rules' from the replayed commits
+// (SPEC.md 11.4), and changed_func_cognitive_max's is set by hand until
+// replays record changed functions, so they are compared apart.
 func TestDefaultIsCommittedCandidate(t *testing.T) {
 	cand, err := config.Load(committedCandidate)
 	if err != nil {
@@ -255,7 +256,7 @@ func TestDefaultIsCommittedCandidate(t *testing.T) {
 			def.Thresholds[i].OverMaxDelta = nil
 		}
 	}
-	if want := map[string]float64{"tokens_est": 1000, "largest_file_sloc": 5, "sloc": 100}; !maps.Equal(overMax, want) {
+	if want := map[string]float64{"tokens_est": 1000, "largest_file_sloc": 5, "sloc": 100, "changed_func_cognitive_max": 5}; !maps.Equal(overMax, want) {
 		t.Errorf("default over_max_delta = %v, want the validation fit %v", overMax, want)
 	}
 	if def.Version != rebuild.Version {

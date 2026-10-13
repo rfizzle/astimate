@@ -89,12 +89,15 @@ func merge(fs []found) []found {
 }
 
 // absorb merges d into k. For the same rule, k's limit gains " and " and
-// d's ("max_delta +6 and max 40"); for another rule (other), it gains "; "
-// and d's metric, values and limit, and k's Also gains d's metric and d's
-// own Also.
+// d's ("max_delta +6 and max 40") and k takes d's Function when it has
+// none; for another rule (other), it gains "; " and d's metric, values and
+// limit, and k's Also gains d's metric and d's own Also.
 func absorb(k, d *Violation, other bool) {
 	if !other {
 		k.Limit += " and " + d.Limit
+		if k.Function == nil {
+			k.Function = d.Function
+		}
 		return
 	}
 	k.Limit += "; " + d.Metric + " " + values(d) + ", " + d.Limit

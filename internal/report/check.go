@@ -49,6 +49,12 @@ type CheckedPackage struct {
 	// BaseAgentPasses is agent_passes at the baseline, rounded as the
 	// report's is; nil when the package has no baseline.
 	BaseAgentPasses *float64
+	// ChangedFunctions are the package's functions added or modified since
+	// the baseline, each with its baseline complexity, which
+	// changed_func_cognitive_max was judged on (SPEC.md 8.1); nil when
+	// none changed or there was no function-level diff. No renderer shows
+	// them; the gate replay records them.
+	ChangedFunctions []metrics.ChangedFunction
 }
 
 // Failed reports whether the module row or any package has a violation.
@@ -304,8 +310,10 @@ func isV0(name string) bool {
 
 // findingText renders one finding as "<metric>: <base> -> <head>, <limit>.
 // <suggestion>", with "<head> (no baseline)" when there is no base value.
-// changed_func_cognitive_max is itself a diff against the baseline and
-// never has a base value, so it shows "<head> (changed since baseline)".
+// changed_func_cognitive_max is itself a diff against the baseline; it
+// has a base value only when the gate judged one changed function that
+// existed at the baseline (SPEC.md 8.1), and otherwise shows "<head>
+// (changed since baseline)".
 func findingText(f *Finding) string {
 	var b strings.Builder
 	b.WriteString(f.Metric)

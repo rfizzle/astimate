@@ -54,24 +54,72 @@ type FunctionLister interface {
 // A renamed function, or a method moved to another receiver, is therefore
 // new. Functions only in base were deleted and are not reported.
 func ChangedFunctions(base, head []FunctionInfo) []FunctionInfo {
-	type key struct {
-		receiver, name string
-		fingerprint    uint64
+	withBase := ChangedFunctionsWithBase(base, head)
+	if len(withBase) == 0 {
+		return nil
 	}
-	left := make(map[key]int, len(base))
-	for i := range base {
-		left[key{base[i].Receiver, base[i].Name, base[i].Fingerprint}]++
-	}
-	var changed []FunctionInfo
-	for i := range head {
-		k := key{head[i].Receiver, head[i].Name, head[i].Fingerprint}
-		if left[k] > 0 {
-			left[k]--
-			continue
-		}
-		changed = append(changed, head[i])
+	changed := make([]FunctionInfo, len(withBase))
+	for i := range withBase {
+		changed[i] = withBase[i].FunctionInfo
 	}
 	return changed
+}
+
+// ChangedFunction is a changed function with the complexity of the
+// baseline function of its Receiver and Name (SPEC.md 8.1).
+type ChangedFunction struct {
+	FunctionInfo
+	// BaseCognitive is meaningful when HasBase, false for a new or renamed
+	// function.
+	BaseCognitive int
+	HasBase       bool
+}
+
+// ChangedFunctionsWithBase returns what ChangedFunctions does, each with
+// the complexity of the first baseline function of its Receiver and Name
+// that no unchanged or earlier changed head function matched (a multiset).
+func ChangedFunctionsWithBase(base, head []FunctionInfo) []ChangedFunction {
+	type name struct{ receiver, name string }
+	type key struct {
+		name
+		fingerprint uint64
+	}
+	same := make(map[key][]int, len(base))
+	for i := range base {
+		k := key{name{base[i].Receiver, base[i].Name}, base[i].Fingerprint}
+		same[k] = append(same[k], i)
+	}
+	matched := make([]bool, len(base))
+	var changed []int
+	for i := range head {
+		k := key{name{head[i].Receiver, head[i].Name}, head[i].Fingerprint}
+		if q := same[k]; len(q) > 0 {
+			matched[q[0]] = true
+			same[k] = q[1:]
+			continue
+		}
+		changed = append(changed, i)
+	}
+	if len(changed) == 0 {
+		return nil
+	}
+	left := make(map[name][]int, len(base))
+	for i := range base {
+		if !matched[i] {
+			n := name{base[i].Receiver, base[i].Name}
+			left[n] = append(left[n], i)
+		}
+	}
+	out := make([]ChangedFunction, len(changed))
+	for j, i := range changed {
+		out[j].FunctionInfo = head[i]
+		n := name{head[i].Receiver, head[i].Name}
+		if q := left[n]; len(q) > 0 {
+			out[j].BaseCognitive, out[j].HasBase = base[q[0]].Cognitive, true
+			left[n] = q[1:]
+		}
+	}
+	return out
 }
 
 // MostComplex returns the index in fns of the function with the highest

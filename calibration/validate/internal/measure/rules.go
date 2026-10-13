@@ -119,7 +119,14 @@ func eqPtr[T comparable](a, b *T) bool {
 
 // fires reports whether t, evaluated alone by the gate at severity fail,
 // has a violation on row r: whether it breaches, whatever its severity.
+// A row that records its changed functions gives them to the gate, so
+// changed_func_cognitive_max is judged per function (SPEC.md 8.1); on any
+// other row it is judged on the row's one stored value.
 func fires(t gate.Threshold, r *corpus.Row) bool {
 	t.Severity = gate.SeverityFail
-	return len(gate.Evaluate(r.Head, r.Base, []gate.Threshold{t}, nil).Violations) > 0
+	var opts []gate.Option
+	if r.HasChanged() {
+		opts = append(opts, gate.WithChangedFunctions(r.Changed))
+	}
+	return len(gate.Evaluate(r.Head, r.Base, []gate.Threshold{t}, nil, opts...).Violations) > 0
 }

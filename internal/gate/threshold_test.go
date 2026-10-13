@@ -57,7 +57,9 @@ func TestParseCondition(t *testing.T) {
 func TestThresholdValidate(t *testing.T) {
 	t.Parallel()
 
-	known := func(n string) bool { return n == "sloc" || n == "dup_blocks" || n == "has_tests" || n == "tokens_est" }
+	known := func(n string) bool {
+		return n == "sloc" || n == "dup_blocks" || n == "has_tests" || n == "tokens_est" || n == ChangedFuncMetric
+	}
 	tests := []struct {
 		name    string
 		th      Threshold
@@ -95,6 +97,9 @@ func TestThresholdValidate(t *testing.T) {
 		{name: "capacity NaN over_max_delta", th: Threshold{Metric: "sloc", Kind: Capacity, Max: ptr(1000.0), WarnAt: 0.75, OverMaxDelta: ptr(math.NaN())}, wantErr: "over_max_delta must be a finite number >= 0"},
 		{name: "capacity infinite over_max_delta", th: Threshold{Metric: "sloc", Kind: Capacity, Max: ptr(1000.0), WarnAt: 0.75, OverMaxDelta: ptr(math.Inf(1))}, wantErr: "over_max_delta must be a finite number >= 0"},
 		{name: "density over_max_delta", th: Threshold{Metric: "dup_blocks", Kind: Density, MaxDelta: ptr(0.0), OverMaxDelta: ptr(0.0)}, wantErr: `"dup_blocks": over_max_delta applies only to capacity rules`},
+		{name: "changed function over_max_delta", th: Threshold{Metric: "changed_func_cognitive_max", Kind: Density, Max: ptr(50.0), OverMaxDelta: ptr(5.0)}},
+		{name: "changed function over_max_delta without max", th: Threshold{Metric: "changed_func_cognitive_max", Kind: Density, MaxDelta: ptr(0.0), OverMaxDelta: ptr(5.0)}, wantErr: `"changed_func_cognitive_max": over_max_delta needs max`},
+		{name: "changed function negative over_max_delta", th: Threshold{Metric: "changed_func_cognitive_max", Kind: Density, Max: ptr(50.0), OverMaxDelta: ptr(-1.0)}, wantErr: "over_max_delta must be a finite number >= 0, got -1"},
 		{name: "requirement over_max_delta", th: Threshold{Metric: "has_tests", Kind: Requirement, Require: ptr(true), OverMaxDelta: ptr(10.0)}, wantErr: `"has_tests": over_max_delta applies only to capacity rules`},
 		{name: "when unknown metric", th: Threshold{Metric: "has_tests", Kind: Requirement, Require: ptr(true), When: &Condition{Metric: "nope"}}, wantErr: `when: unknown metric "nope"`},
 	}

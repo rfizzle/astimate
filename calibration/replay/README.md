@@ -123,11 +123,12 @@ checked.
 | `new` | True when the baseline has no such row (a new package, or an `empty` baseline) |
 | `baseline_from` | Present only when the row's baseline was seeded from the parent's packages its files were renamed from (SPEC.md 8.4): their directories. Such a row is not `new`, so counting the rows that carry it counts the rows a rename kept from reading as new |
 | `passed` | The row's verdict |
-| `violations`, `warnings` | `{metric, base, head, limit, location}`: `base` is null for a new row, `limit` names the rule (`max 1000`, `max_delta +0`, ...), `location` is `{file, line}` relative to the module root, or null; a warning that is the breach of a rule with `severity: warn` also has `severity` `warn` |
+| `violations`, `warnings` | `{metric, base, head, limit, location}`: `base` is null for a new row, `limit` names the rule (`max 1000`, `max_delta +0`, ...), `location` is `{file, line}` relative to the module root, or null; a warning that is the breach of a rule with `severity: warn` also has `severity` `warn`, and a finding the gate merged another rule's finding of the same cause into (SPEC.md 8.1) has `also`, the merged rules' metrics |
 | `exemptions` | The violations an exemption silenced, as above with its `reason` |
 | `metrics` | Every metric at the commit (SPEC.md 10.2 field names), `changed_func_cognitive_max` included |
 | `base` | Every metric at the parent; null when `new` |
 | `sloc_delta` | `sloc` at the commit minus at the parent, the parent counting 0 when `new`: the size of the change, for a size-only baseline |
+| `changed_functions` | The functions added or modified since the parent with cognitive complexity over 20, in head order: `{receiver, name, file, line, cognitive, base}`, `receiver` omitted for a plain function, `file` relative to the package directory, `base` the complexity of the parent's function with the same receiver and name, or null for a new or renamed function. Empty when none is over 20; null when the row had no function-level diff (`changed_func_cognitive_max` is null), as on the module row. `calibration/validate` re-evaluates `changed_func_cognitive_max` per function from it (SPEC.md 8.1, 11.4), exactly at any `max` above 20; rows replayed before 2026-10-13 lack it and cannot be swept that way |
 
 With `metrics` and `base` a rule can be re-evaluated at any `max` or
 `max_delta` without replaying; `new` says whether a delta rule without

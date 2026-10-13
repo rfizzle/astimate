@@ -117,7 +117,18 @@ type Row struct {
 	// metrics, in the order recorded: what the rule would have failed at
 	// severity fail.
 	Warned []string
+	// Changed are the row's changed functions over the replay's floor of
+	// complexity 20, with their parent complexity, which the gate judges
+	// changed_func_cognitive_max on per function (SPEC.md 8.1); nil when
+	// the row records none (HasChanged).
+	Changed []metrics.ChangedFunction
 }
+
+// HasChanged reports whether r records its changed functions, an empty
+// list included. Rows replayed before 2026-10-13 never do, so their
+// changed_func_cognitive_max is judged on its one stored value and its
+// over_max_delta cannot be swept on them.
+func (r *Row) HasChanged() bool { return r.Changed != nil }
 
 // Module reports whether r is the module row.
 func (r *Row) Module() bool { return r.Package == metrics.ModuleRowID }
@@ -326,6 +337,36 @@ type packageRow struct {
 	SLOCDelta  int                 `json:"sloc_delta"`
 	Violations []rowFinding        `json:"violations"`
 	Warnings   []rowFinding        `json:"warnings"`
+	// ChangedFunctions are the row's changed functions over the replay's
+	// floor; null on a row without a function diff and on rows replayed
+	// before the field existed.
+	ChangedFunctions []rowFunction `json:"changed_functions"`
+}
+
+// rowFunction is a recorded changed function: its complexity at the
+// commit and at the parent, null for a new or renamed function.
+type rowFunction struct {
+	Receiver  string `json:"receiver"`
+	Name      string `json:"name"`
+	Cognitive int    `json:"cognitive"`
+	Base      *int   `json:"base"`
+}
+
+// changed returns pr's changed functions for the gate, and nil when the
+// row records none: a row without a function diff, or one replayed before
+// the field existed.
+func (pr *packageRow) changed() []metrics.ChangedFunction {
+	if pr.ChangedFunctions == nil {
+		return nil
+	}
+	out := make([]metrics.ChangedFunction, len(pr.ChangedFunctions))
+	for i, f := range pr.ChangedFunctions {
+		out[i].FunctionInfo = metrics.FunctionInfo{Receiver: f.Receiver, Name: f.Name, Cognitive: f.Cognitive}
+		if f.Base != nil {
+			out[i].BaseCognitive, out[i].HasBase = *f.Base, true
+		}
+	}
+	return out
 }
 
 // rowFinding is the part of a recorded finding the join reads: its metric,
@@ -352,6 +393,7 @@ func readRows(path string) (map[string][]Row, error) {
 			return err
 		}
 		r := Row{Package: pr.Package, Language: pr.Language, Head: pr.Metrics, Base: pr.Base, SLOCDelta: pr.SLOCDelta}
+		r.Changed = pr.changed()
 		for i := range pr.Violations {
 			r.Violated = append(r.Violated, pr.Violations[i].metrics()...)
 		}

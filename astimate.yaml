@@ -79,6 +79,7 @@ rebuild:
 # and an optional over_max_delta (default 0): the most a package already at
 # or over max may grow in one change, with a warning to split, before the
 # growth fails. Crossing max, or a new package over it, always fails.
+# changed_func_cognitive_max takes an over_max_delta too, per function.
 # Requirement rules demand a boolean, optionally guarded by
 # when: "<metric> > <number>". Any rule may set severity: fail (the
 # default) or warn; a warn rule is evaluated the same way, but what would
@@ -128,9 +129,14 @@ thresholds:
   # package's p90 stays low. The metric is already a diff against the
   # baseline, so it takes a max and no max_delta; it is null, and the rule
   # skipped, when there is no function-level baseline to diff against.
+  # The max judges each changed function against its own baseline
+  # complexity: a new function over it, or one that crossed it, fails.
   - metric: changed_func_cognitive_max
     kind: density
     max: 50
+    # The most a function already over max may grow in one change before
+    # the growth fails; a fix inside a legacy function adds a branch or two.
+    over_max_delta: 5
   # No new code copied between packages: evaluated on the module row
   # (<module>) only, so one copy is one finding. The max judges a module with
   # no baseline, which is not counted from zero.

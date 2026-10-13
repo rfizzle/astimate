@@ -118,7 +118,7 @@ func TestWorstChanged(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if got := worstChanged(before, tt.head); !reflect.DeepEqual(got, tt.want) {
+			if got := worstChanged(metrics.ChangedFunctionsWithBase(before, tt.head)); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("worstChanged = %+v, want %+v", got, tt.want)
 			}
 		})
