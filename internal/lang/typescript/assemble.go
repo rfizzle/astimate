@@ -136,7 +136,7 @@ func assemble(m *module, p *pkg, opts assembleOptions) (metrics.RawMetrics, erro
 	r.Abstractness = metrics.RoundRatio(abstractness)
 
 	locs := make([]string, 0, len(dup.Locations))
-	for _, l := range dup.Locations {
+	for _, l := range dup.LargestFirst() {
 		locs = append(locs, relLocation(p.dir, l))
 	}
 	slices.Sort(files)

@@ -155,6 +155,7 @@ func (r *Recorder) Count(blocks []Block, sloc int) (duptok.Result, map[string]in
 			diff[p]++
 			diff[p+b.N]--
 			res.Locations = append(res.Locations, r.Location(p, b.N))
+			res.Tokens = append(res.Tokens, int(b.N))
 		}
 	}
 	covered := make([][]bool, len(r.Files))

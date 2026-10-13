@@ -136,6 +136,34 @@ type Result struct {
 	// Locations lists every occurrence of every block, block by block in
 	// order of first occurrence, occurrences in stream order.
 	Locations []Location
+	// Tokens holds, for each entry of Locations, the length in tokens of
+	// the block that occurrence belongs to.
+	Tokens []int
+}
+
+// LargestFirst returns r.Locations ordered by the length in tokens of
+// their block, longest first, ties in the order of r.Locations (block by
+// block in order of first occurrence, occurrences in stream order). The
+// longest block is the copy worth extracting, so the first location is
+// the one to cite. r is not modified.
+func (r Result) LargestFirst() []Location {
+	idx := make([]int, len(r.Locations))
+	for i := range idx {
+		idx[i] = i
+	}
+	slices.SortStableFunc(idx, r.compareLength)
+	out := make([]Location, len(idx))
+	for i, j := range idx {
+		out[i] = r.Locations[j]
+	}
+	return out
+}
+
+// compareLength orders the occurrences i and j of r by block length in
+// tokens, longer first. It is the comparator LargestFirst sorts with and
+// the one a caller ranking blocks by another key first can wrap.
+func (r Result) compareLength(i, j int) int {
+	return cmp.Compare(r.Tokens[j], r.Tokens[i])
 }
 
 // file is one scanned file of the stream.
@@ -383,6 +411,7 @@ func (s *Stream) count(sa []int32, reps []repeat, sloc int) Result {
 			diff[p]++
 			diff[p+b.n]--
 			res.Locations = append(res.Locations, s.location(p, b.n))
+			res.Tokens = append(res.Tokens, int(b.n))
 		}
 	}
 

@@ -13,8 +13,9 @@ type Details struct {
 	// implementation left out of untested_exports on request, sorted.
 	UntestedExcluded []string
 	// DupLocations lists every occurrence of every duplicate block counted
-	// by dup_blocks, block by block in order of first occurrence, each
-	// rendered "file:start-end" with file relative to the package directory
+	// by dup_blocks, ordered by the length in tokens of the block, longest
+	// first, ties in file order, so the first names the copy worth
+	// extracting, each rendered "file:start-end" with file relative to the package directory
 	// and start and end the first and last lines of the occurrence.
 	DupLocations []string
 	// CrossBlocks lists the cross-package duplicate blocks behind

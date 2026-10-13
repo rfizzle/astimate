@@ -2,6 +2,7 @@ package dup
 
 import (
 	"cmp"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -674,5 +675,68 @@ func TestDupSigns(t *testing.T) {
 				t.Errorf("signs = %q, want %q", g, tc.want)
 			}
 		})
+	}
+}
+
+func TestDupLargestFirstCitesTheLongerBlock(t *testing.T) {
+	short := `func short%[1]s(xs []int) int {
+	total := 0
+	for _, x := range xs {
+		if x < 3 {
+			continue
+		}
+		total += x * 3
+	}
+	return total
+}
+`
+	long := `func long%[1]s(xs []int, m map[string]int) (int, error) {
+	total, seen := 0, 0
+	for i, x := range xs {
+		switch {
+		case x < 0:
+			return 0, fmt.Errorf("negative at %%d", i)
+		case x == 0:
+			continue
+		case x > 100:
+			total += x / 2
+		default:
+			total += x * 3
+		}
+		seen++
+		if seen > len(xs) {
+			break
+		}
+	}
+	for k, v := range m {
+		if v > total {
+			delete(m, k)
+			continue
+		}
+		m[k] = v + total
+	}
+	if total > 1000 {
+		return 1000, nil
+	}
+	return total, nil
+}
+`
+	midA, midB := "\ntype sepA struct{ n int }\n\n", "\ntype sepB interface{ N() int }\n\n"
+	a := "package p\n\nimport \"fmt\"\n\n" + fmt.Sprintf(short, "A") + midA + fmt.Sprintf(long, "A")
+	b := "package p\n\nimport \"fmt\"\n\n" + fmt.Sprintf(short, "B") + midB + fmt.Sprintf(long, "B")
+	got := dupOfSources(t, DefaultOptions(), a, b)
+	if got.Blocks != 2 {
+		t.Fatalf("blocks = %d, want 2 (locations %v, tokens %v)", got.Blocks, got.Locations, got.Tokens)
+	}
+	first := got.LargestFirst()
+	if len(first) != len(got.Locations) {
+		t.Fatalf("LargestFirst has %d locations, want %d", len(first), len(got.Locations))
+	}
+	// The short block comes first in file order; the long one is cited first.
+	if got.Locations[0].StartLine >= first[0].StartLine {
+		t.Errorf("LargestFirst()[0] = %v, want the later, longer block than %v", first[0], got.Locations[0])
+	}
+	if first[0].EndLine-first[0].StartLine < 20 {
+		t.Errorf("LargestFirst()[0] = %v spans too few lines to be the long block", first[0])
 	}
 }

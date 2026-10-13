@@ -598,3 +598,34 @@ func TestBlocks(t *testing.T) {
 		t.Error("Blocks with MinTokens 0 returned no error")
 	}
 }
+
+func TestResultLargestFirst(t *testing.T) {
+	r := Result{
+		Locations: []Location{{"a", 1, 5}, {"b", 1, 5}, {"a", 10, 40}, {"b", 10, 40}, {"c", 1, 5}},
+		Tokens:    []int{40, 40, 120, 120, 40},
+	}
+	want := []Location{{"a", 10, 40}, {"b", 10, 40}, {"a", 1, 5}, {"b", 1, 5}, {"c", 1, 5}}
+	if got := r.LargestFirst(); !slices.Equal(got, want) {
+		t.Errorf("LargestFirst = %v, want %v", got, want)
+	}
+	if r.Locations[0] != (Location{"a", 1, 5}) {
+		t.Errorf("LargestFirst modified Locations: %v", r.Locations)
+	}
+}
+
+func TestCountReportsBlockTokens(t *testing.T) {
+	// A 10-token block repeated in two files, and a 30-token block
+	// repeated in two other files, listed shortest first.
+	s := streamOf(t, seq(10, 1, 2, Code, 3), seq(10, 1, 2, Code, 4), seq(30, 5, 6, Code, 7), seq(30, 5, 6, Code, 8))
+	got, err := s.Count(Options{MinTokens: 5}, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []int{10, 10, 30, 30}; !slices.Equal(got.Tokens, want) {
+		t.Fatalf("Tokens = %v, want %v for %v", got.Tokens, want, got.Locations)
+	}
+	first := got.LargestFirst()
+	if want := (Location{"f2", 1, 30}); first[0] != want {
+		t.Errorf("LargestFirst()[0] = %v, want %v", first[0], want)
+	}
+}

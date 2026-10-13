@@ -111,6 +111,12 @@ history.
 
 ### Changed
 
+- The duplicate locations an extractor's `Details` lists, and so the one a
+  duplication suggestion cites and `details.duplicates` leads with, are
+  ordered by the block's length in tokens, longest first, ties in file
+  order, instead of by first occurrence, so the suggestion names the copy
+  worth extracting rather than the first short run of setters. Every
+  occurrence is still listed.
 - A density rule's `max` no longer judges a package already at or over it
   at baseline: such a package is judged by the rule's `max_delta` alone,
   so `cognitive_p90` 43 -> 45 passes under the default `max` 20 and
