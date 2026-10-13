@@ -41,6 +41,7 @@ func (e *Extractor) Details(ctx context.Context, mod *metrics.ModuleContext, pkg
 	return metrics.Details{
 		UntestedExports:  slices.Clone(d.untested.Names),
 		UntestedExcluded: slices.Clone(d.untested.Excluded),
+		UntestedCovered:  slices.Clone(d.covered),
 
 		UntestedRules: metrics.UntestedRules{
 			OptionFuncs:      d.untested.OptionFuncs,

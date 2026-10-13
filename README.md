@@ -26,7 +26,7 @@ Per package, from non-test files unless noted:
 
 The full list, definitions and counting rules are in `SPEC.md` section 6.
 
-`assess`, `rank` and `check` take `--coverage` (bounded by `--coverage-timeout`, default 2m) to run the tests with `go test -cover`, report `coverage_pct` and scale the rebuild estimate's untested-behavior term by it; it is off by default because it runs code, and it is reported, never gated.
+`assess`, `rank` and `check` take `--coverage` (bounded by `--coverage-timeout`, default 2m) to run the tests with `go test -cover`, report `coverage_pct` and scale the rebuild estimate's untested-behavior term by it; it is off by default because it runs code, and `coverage_pct` is reported, never gated. The same run reports `untested_exports_covered`: `untested_exports` less the exports whose body a test executed, through an HTTP handler, a pipeline or an interface no test names. An `untested_exports` rule with `source: coverage` judges it when the run has it and the static count otherwise, so a hook without `--coverage` behaves as before; the default rule stays static.
 
 ## Requirements
 

@@ -74,14 +74,20 @@ func TestAssessCoverage(t *testing.T) {
 // returns the root.
 func writeCoverModule(t *testing.T) string {
 	t.Helper()
-	root := t.TempDir()
-	files := map[string]string{
+	return writeTree(t, map[string]string{
 		"go.mod":            "module example.com/cov\n\ngo 1.27\n",
 		"zero/zero.go":      "package zero\n\n// F returns 1.\nfunc F() int { return 1 }\n",
 		"zero/zero_test.go": "package zero\n\nimport \"testing\"\n\nfunc TestNothing(t *testing.T) {}\n",
 		"bad/bad.go":        "package bad\n\n// F returns 1.\nfunc F() int { return 1 }\n",
 		"bad/bad_test.go":   "package bad\n\nimport (\n\t\"testing\"\n\t_ \"unsafe\"\n)\n\n//go:linkname nope example.com/cov/bad.doesNotExist\nfunc nope()\n\nfunc TestF(t *testing.T) { nope() }\n",
-	}
+	})
+}
+
+// writeTree writes files, keyed by slash path, under a new temporary
+// directory and returns it.
+func writeTree(t *testing.T, files map[string]string) string {
+	t.Helper()
+	root := t.TempDir()
 	for rel, content := range files {
 		path := filepath.Join(root, filepath.FromSlash(rel))
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

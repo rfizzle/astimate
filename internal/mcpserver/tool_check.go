@@ -51,8 +51,9 @@ type CheckInput struct {
 	// tree (engine.CheckOptions.Staged). The server is not a git hook, so
 	// it reads the repository's own index.
 	Staged bool `json:"staged,omitempty" jsonschema:"Check what the git index holds instead of the working tree, so a partial commit is judged on what it commits and unstaged changes are ignored. Needs a git repository. Defaults to false."`
-	// Coverage measures coverage_pct at head (engine.CheckOptions.Coverage).
-	Coverage bool `json:"coverage,omitempty" jsonschema:"Run the package's tests with go test -cover to report coverage_pct and scale the estimate's unspecified term by it. Slower; reported only, never gated. Defaults to false."`
+	// Coverage measures coverage_pct and untested_exports_covered at head
+	// (engine.CheckOptions.Coverage).
+	Coverage bool `json:"coverage,omitempty" jsonschema:"Run the package's tests with go test -cover to report coverage_pct and untested_exports_covered and scale the estimate's unspecified term by coverage_pct. Slower. coverage_pct is never gated; an untested_exports rule with source: coverage judges untested_exports_covered. Defaults to false."`
 }
 
 // CheckResult is the structured content of a successful check_package

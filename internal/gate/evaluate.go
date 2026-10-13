@@ -133,7 +133,10 @@ func ForRow(rules []Threshold, row Row) []Threshold {
 // Require while When holds and the package is new or its sloc grew. A rule
 // whose metric is unknown or not computed at head is skipped, which also
 // covers rebuild outputs the config loader already rejects, and so is a
-// rule whose roles leave out head's role (Threshold.Judges); a v1 metric
+// rule whose roles leave out head's role (Threshold.Judges). A rule with
+// Source coverage reads untested_exports_covered in place of its metric
+// when head and the baseline, if any, both have it, and names it in its
+// findings' limit (source); a v1 metric
 // computed at head but null at base skips only its delta rule and adds a
 // Note. A warn rule (Threshold.Warns) is evaluated the same way, and each
 // violation it would have is reported as a warning instead, with the same
@@ -197,10 +200,14 @@ type evaluator struct {
 	// evaluated, which breach and warn record with each finding.
 	cur   int
 	warns bool
+	// read is the field the rule being evaluated reads its values from:
+	// its metric, or the coverage count its Source selects (source).
+	read string
 }
 
 func (e *evaluator) rule(i int, r Threshold) {
-	h, ok := e.head.Value(r.Metric)
+	e.read = e.source(r)
+	h, ok := e.head.Value(e.read)
 	if !ok || !r.Judges(e.head.Role) {
 		return
 	}
@@ -231,7 +238,7 @@ func (e *evaluator) density(r Threshold, h float64) {
 	if (r.Floor != nil && h <= *r.Floor+epsilon) || !e.rose(r.Metric) {
 		return
 	}
-	b, hasBase, ok := e.baseValue(r.Metric)
+	b, hasBase, ok := e.baseValue(e.read)
 	// Intensive metrics are not ratcheted from zero: every real package has
 	// some nesting, so a new package faces only their absolute max.
 	if r.MaxDelta != nil && (e.base != nil || r.RatchetFromZero) {
@@ -287,7 +294,7 @@ func (e *evaluator) capacity(r Threshold, h float64) {
 		return
 	}
 	limit := *r.Max
-	b, hasBase, _ := e.baseValue(r.Metric)
+	b, hasBase, _ := e.baseValue(e.read)
 	if h > limit+epsilon {
 		e.overMax(r, b, h, hasBase)
 		return
@@ -383,7 +390,7 @@ func (e *evaluator) requirement(r Threshold, h float64) {
 	if (h != 0) == *r.Require || !e.grew() {
 		return
 	}
-	b, hasBase, _ := e.baseValue(r.Metric)
+	b, hasBase, _ := e.baseValue(e.read)
 	e.breach(e.finding(r.Metric, b, h, hasBase, "require "+strconv.FormatBool(*r.Require)))
 }
 
@@ -406,7 +413,32 @@ func (e *evaluator) baseValue(metric string) (v float64, hasBase, ok bool) {
 	return v, ok, ok
 }
 
+// source returns the field r reads its values from: for a rule with
+// Source coverage, the coverage count of its metric (coveredMetrics) when
+// head has it and the baseline, if there is one, has it too, so both
+// sides are counted alike; otherwise, as for every other rule, its metric.
+func (e *evaluator) source(r Threshold) string {
+	covered, ok := coveredMetrics()[r.Metric]
+	if r.Source != sourceCoverage || !ok {
+		return r.Metric
+	}
+	if _, ok := e.head.Value(covered); !ok {
+		return r.Metric
+	}
+	if e.base != nil {
+		if _, ok := e.base.Value(covered); !ok {
+			return r.Metric
+		}
+	}
+	return covered
+}
+
+// finding returns the finding of the current rule on metric, its limit
+// naming the coverage count it read when that is not metric (source).
 func (e *evaluator) finding(metric string, b, h float64, hasBase bool, limit string) Violation {
+	if e.read != "" && e.read != metric {
+		limit += " on " + e.read
+	}
 	v := Violation{Metric: metric, Base: b, Head: h, HasBase: hasBase, Limit: limit}
 	if e.suggest != nil {
 		v.Suggestion = e.suggest(metric, h, e.head)

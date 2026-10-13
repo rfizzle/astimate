@@ -12,6 +12,22 @@ history.
 
 ### Added
 
+- `--coverage` (and `coverage: true` on the MCP tools) now also reports
+  `untested_exports_covered`: `untested_exports` less the exports whose
+  body a test ran, read from `go test -coverpkg=./... -coverprofile`
+  profiles merged across the invocation's runs. For a package with
+  untested exports, the tests of every module package whose test binary
+  links it run too, a test-only directory included, so behaviour reached
+  through an HTTP handler, a connect client, a pipeline golden or an
+  interface counts as tested. An `untested_exports` rule may set
+  `source: coverage` to judge that count when the run has it and the
+  static one otherwise; in `check` the baseline's count is its untested
+  exports less those head's run executed. The default rule stays static
+  and `config init` shows the option commented out. `coverage_pct` is
+  unchanged in meaning, now read from each package's own profile. On
+  goKMS `internal/kms` the count drops from 45 to 8, `internal/auth` from
+  6 to 0, and mark's `confluence` from 27 to 20
+  (`calibration/notes/coverage-untested-2026-10-14.md`).
 - Every package row carries a `role`: `main` for a composition root (a Go
   `package main`, or a TypeScript package a `bin` entry names or that
   exports nothing), `test-support` for a package only tests use,

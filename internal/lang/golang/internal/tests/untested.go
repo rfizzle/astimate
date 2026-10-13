@@ -28,6 +28,11 @@ type UntestedCounts struct {
 	// Pos holds the declaring identifier of each of Names, index for
 	// index, for annotations.
 	Pos []token.Pos
+	// Body holds the opening and closing braces of the body of each of
+	// Names, index for index, NoPos for a function declared without one;
+	// a coverage run marks an export tested when a statement between them
+	// ran (SPEC.md 6.4).
+	Body [][2]token.Pos
 	// Excluded are the exported funcs and methods carrying the
 	// //astimate:untested directive, in the same form, sorted. They are a
 	// debug record of what the directive removed from the count.
@@ -138,6 +143,8 @@ func untested(m *load.Module, refs *Refs, p *packages.Package, on rules) Unteste
 	methods := make(map[string]countedMethod)
 	// declared holds the position of each counted key's identifier.
 	declared := make(map[string]token.Pos)
+	// body holds the braces of each counted key's body.
+	body := make(map[string][2]token.Pos)
 	// options holds the counted keys shaped like functional options.
 	options := make(map[string]bool)
 	generated := m.GeneratedNames(p)
@@ -156,6 +163,9 @@ func untested(m *load.Module, refs *Refs, p *packages.Package, on rules) Unteste
 			case exportCounted:
 				marked[key] = false
 				declared[key] = fd.Name.Pos()
+				if fd.Body != nil {
+					body[key] = [2]token.Pos{fd.Body.Lbrace, fd.Body.Rbrace}
+				}
 				options[key] = isOptionFunc(fd)
 				if recv != "" {
 					fn, _ := p.TypesInfo.Defs[fd.Name].(*types.Func)
@@ -222,8 +232,9 @@ func untested(m *load.Module, refs *Refs, p *packages.Package, on rules) Unteste
 	slices.Sort(c.InterfaceMethods)
 	slices.Sort(c.TestSupport)
 	c.Pos = make([]token.Pos, len(c.Names))
+	c.Body = make([][2]token.Pos, len(c.Names))
 	for i, key := range c.Names {
-		c.Pos[i] = declared[key]
+		c.Pos[i], c.Body[i] = declared[key], body[key]
 	}
 	c.Untested = len(c.Names)
 	return c

@@ -68,10 +68,11 @@ type RankOptions struct {
 	Coverage CoverageOptions
 }
 
-// measureCoverage sets CoveragePct in ms, the extracted metrics keyed by
-// package identifier, when opts.Enabled, from one metrics.CoverageMeasurer
-// run over the packages with test files, bounded by opts.Timeout. The
-// others keep a null coverage_pct: the packages without test files, and
+// measureCoverage sets CoveragePct and UntestedExportsCovered in ms, the
+// extracted metrics keyed by package identifier, when opts.Enabled, from
+// one metrics.CoverageMeasurer call over the packages with test files or
+// untested exports, whose tests other packages' tests may run, bounded by
+// opts.Timeout. The others keep both null: the packages with neither, and
 // every package when t's extractor cannot measure coverage, which is
 // logged once. A package whose tests fail to build or run, or that the run
 // did not reach, is logged with the reason, once per package; its other
@@ -87,12 +88,7 @@ func measureCoverage(ctx context.Context, t *Target, opts CoverageOptions, ms ma
 			"reason", "the extractor cannot run tests; coverage_pct stays null")
 		return
 	}
-	pkgs := make([]string, 0, len(order))
-	for _, pkg := range order {
-		if m, ok := ms[pkg]; ok && m.TestFiles > 0 {
-			pkgs = append(pkgs, pkg)
-		}
-	}
+	pkgs := coverageCandidates(ms, order)
 	if len(pkgs) == 0 {
 		return
 	}
@@ -109,20 +105,45 @@ func measureCoverage(ctx context.Context, t *Target, opts CoverageOptions, ms ma
 		if err != nil {
 			c = metrics.Coverage{Reason: err.Error()}
 		}
-		if c.Pct != nil {
-			v := *c.Pct
-			ms[pkg].CoveragePct = &v
+		reason := applyCoverage(ms[pkg], c)
+		if reason == "" {
 			continue
 		}
-		if c.Reason == "" {
-			continue
-		}
-		attrs := []any{"path", judge.Rel(t.Mod.ModulePath, pkg), "reason", c.Reason}
+		attrs := []any{"path", judge.Rel(t.Mod.ModulePath, pkg), "reason", reason}
 		if timedOut {
 			attrs = append(attrs, "timeout", timeout.String())
 		}
 		logger.Warn("coverage not measured", attrs...)
 	}
+}
+
+// coverageCandidates returns, in the order of order, the packages of ms
+// a coverage run can say something about: those with test files, and
+// those with untested exports, which other packages' tests may run.
+func coverageCandidates(ms map[string]*metrics.RawMetrics, order []string) []string {
+	pkgs := make([]string, 0, len(order))
+	for _, pkg := range order {
+		if m, ok := ms[pkg]; ok && (m.TestFiles > 0 || m.UntestedExports > 0) {
+			pkgs = append(pkgs, pkg)
+		}
+	}
+	return pkgs
+}
+
+// applyCoverage sets m's coverage_pct and untested_exports_covered from c,
+// copying each value it has, and returns the reason coverage_pct stays
+// null when c gives one; empty when it was measured or nothing failed.
+func applyCoverage(m *metrics.RawMetrics, c metrics.Coverage) string {
+	if c.UntestedExports != nil {
+		n := *c.UntestedExports
+		m.UntestedExportsCovered = &n
+	}
+	if c.Pct != nil {
+		v := *c.Pct
+		m.CoveragePct = &v
+		return ""
+	}
+	return c.Reason
 }
 
 // langConfig returns the configuration t's language is evaluated with. A

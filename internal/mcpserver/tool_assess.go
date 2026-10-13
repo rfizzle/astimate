@@ -31,7 +31,7 @@ type AssessInput struct {
 	// Tokenizer selects the token counter: est (default) or o200k.
 	Tokenizer string `json:"tokenizer,omitempty" jsonschema:"Token counter: est (the default, a character-based estimate) or o200k (an exact count with the o200k encoding, slower)."`
 	// Coverage measures coverage_pct (engine.AssessOptions.Coverage).
-	Coverage bool `json:"coverage,omitempty" jsonschema:"Run the package's tests with go test -cover to report coverage_pct and scale the estimate's unspecified term by it. Slower. Defaults to false."`
+	Coverage bool `json:"coverage,omitempty" jsonschema:"Run the package's tests with go test -cover to report coverage_pct and untested_exports_covered and scale the estimate's unspecified term by coverage_pct. Slower. Defaults to false."`
 }
 
 // addAssessTool registers assess_package on srv, backed by s.

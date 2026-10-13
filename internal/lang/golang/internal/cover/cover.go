@@ -1,5 +1,6 @@
-// Package cover measures coverage_pct of a Go module's packages with one
-// go test -cover run.
+// Package cover measures coverage_pct of a Go module's packages, and the
+// statements their tests run for untested_exports_covered, with go test
+// -cover runs whose profiles it reads (SPEC.md 6, 6.4).
 package cover
 
 import (
@@ -8,9 +9,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
+	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/rfizzle/astimate/internal/metrics"
@@ -22,21 +28,74 @@ import (
 const coverWaitDelay = 5 * time.Second
 
 // Measure measures coverage_pct for the packages pkgs, import paths of the
-// module at root, with one `go test -cover -count=1 -run .` run over all of
-// them in the module root. The environment, GOFLAGS and CGO_ENABLED
-// included, is passed through unchanged; -coverpkg is not used, so each
-// package's figure counts only its own statements. When ctx has a deadline,
-// go test's -timeout is set to the time left, so a hung test binary exits
-// with it. A package without test files or statements gets a nil Pct and no
-// Reason; one whose tests fail to build or run a nil Pct and a Reason. When
-// ctx ends the run, the packages it had not reported get a Reason saying
-// so. The error reports a go command that could not start.
-func Measure(ctx context.Context, root string, pkgs []string) (map[string]metrics.Coverage, error) {
-	if len(pkgs) == 0 {
-		return map[string]metrics.Coverage{}, nil
+// module at root, with one `go test -cover -coverpkg=./... -coverprofile
+// -count=1 -run .` run per package in the module root, and runs the tests
+// of the packages also the same way, up to GOMAXPROCS runs at a time. It
+// returns an entry for each of pkgs and the merged profile of the runs
+// that passed, of pkgs and also alike, which covers every package of the
+// module a passing test binary linked. A package's coverage_pct is read
+// from its own run's profile, restricted to its own files, so it counts
+// only what its own tests ran, as plain go test -cover reports it. The
+// environment, GOFLAGS and CGO_ENABLED included, is passed through
+// unchanged. When ctx has a deadline, go test's -timeout is set to the
+// time left, so a hung test binary exits with it. A package without test
+// files or statements gets a nil Pct and no Reason; one whose tests fail
+// to build or run a nil Pct and a Reason, and its profile is left out of
+// the merge, as is that of a run of also that fails. When ctx ends a run,
+// its package gets a Reason saying so. The error reports a go command that
+// could not start or a temporary directory that could not be made.
+func Measure(ctx context.Context, root string, pkgs, also []string) (map[string]metrics.Coverage, Profile, error) {
+	out := make(map[string]metrics.Coverage, len(pkgs))
+	all := slices.Concat(pkgs, also)
+	if len(all) == 0 {
+		return out, Profile{}, nil
 	}
-	args := make([]string, 0, len(pkgs)+6)
-	args = append(args, "test", "-cover", "-count=1", "-run", ".")
+	dir, err := os.MkdirTemp("", "astimate-cover-")
+	if err != nil {
+		return nil, Profile{}, fmt.Errorf("measuring coverage in %s: %w", root, err)
+	}
+	defer func() { _ = os.RemoveAll(dir) }()
+	runs := make([]run, len(all))
+	sem := make(chan struct{}, max(runtime.GOMAXPROCS(0), 1))
+	var wg sync.WaitGroup
+	for i, pkg := range all {
+		wg.Go(func() {
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			runs[i] = measureOne(ctx, root, pkg, filepath.Join(dir, strconv.Itoa(i)+".out"))
+		})
+	}
+	wg.Wait()
+	var merged Profile
+	for i, pkg := range all {
+		r := runs[i]
+		if r.err != nil {
+			return nil, Profile{}, r.err
+		}
+		if i < len(pkgs) {
+			out[pkg] = r.c
+		}
+		if r.c.Reason == "" {
+			merged.Merge(r.profile)
+		}
+	}
+	return out, merged, nil
+}
+
+// run is the outcome of one package's go test run: its coverage, the
+// profile it wrote, and an error when the go command could not start.
+type run struct {
+	c       metrics.Coverage
+	profile Profile
+	err     error
+}
+
+// measureOne runs go test with coverage over pkg in root, writing its
+// profile to file, and reads the outcome (parseCoverage) and the profile.
+// A passing run's Pct is the coverage of pkg's own statements in its
+// profile; a profile that cannot be read leaves Pct nil with a Reason.
+func measureOne(ctx context.Context, root, pkg, file string) run {
+	args := []string{"test", "-cover", "-coverpkg=./...", "-coverprofile=" + file, "-count=1", "-run", "."}
 	if deadline, ok := ctx.Deadline(); ok {
 		// Stopping the go command does not stop the test binary it runs,
 		// so the binary gets the same deadline and exits on its own.
@@ -44,7 +103,7 @@ func Measure(ctx context.Context, root string, pkgs []string) (map[string]metric
 		left := max(time.Until(deadline).Round(time.Second), time.Second)
 		args = append(args, "-timeout="+left.String())
 	}
-	args = append(args, pkgs...)
+	args = append(args, pkg)
 	cmd := exec.CommandContext(ctx, "go", args...)
 	cmd.Dir = root
 	cmd.WaitDelay = coverWaitDelay
@@ -53,13 +112,25 @@ func Measure(ctx context.Context, root string, pkgs []string) (map[string]metric
 	err := cmd.Run()
 	var exitErr *exec.ExitError
 	if err != nil && !errors.As(err, &exitErr) && ctx.Err() == nil {
-		return nil, fmt.Errorf("running go test in %s: %w", root, err)
+		return run{err: fmt.Errorf("running go test in %s: %w", root, err)}
 	}
 	stopped := ""
 	if ctx.Err() != nil {
 		stopped = "go test did not finish: " + ctx.Err().Error()
 	}
-	return parseCoverage(stdout.Bytes(), stderr.Bytes(), pkgs, stopped), nil
+	c := parseCoverage(stdout.Bytes(), stderr.Bytes(), []string{pkg}, stopped)[pkg]
+	if c.Pct == nil {
+		// No test files, no statements or a failure: nothing to read.
+		return run{c: c}
+	}
+	data, err := os.ReadFile(file)
+	if err == nil {
+		var p Profile
+		if p, err = ParseProfile(data); err == nil {
+			return run{c: metrics.Coverage{Pct: p.Pct(pkg)}, profile: p}
+		}
+	}
+	return run{c: metrics.Coverage{Reason: "reading the coverage profile: " + err.Error()}}
 }
 
 // parseCoverage reads the per-package summary lines of `go test -cover`

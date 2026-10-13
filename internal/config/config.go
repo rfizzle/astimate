@@ -139,6 +139,9 @@ type fileThreshold struct {
 	// Roles limits the rule to rows of these roles; absent means every
 	// role.
 	Roles []string `yaml:"roles"`
+	// Source is coverage to judge a coverage run's count; absent means
+	// the metric itself.
+	Source string `yaml:"source"`
 	// Disabled drops the top-level rule on Metric; only under languages.
 	Disabled bool `yaml:"disabled"`
 }
@@ -423,6 +426,7 @@ func (ft fileThreshold) build(prefix string) (gate.Threshold, error) {
 		RatchetFromZero: ft.RatchetFromZero,
 	}
 	t.Severity, t.Floor, t.Roles = gate.Severity(ft.Severity), ft.Floor, ft.Roles
+	t.Source = ft.Source
 	switch {
 	case ft.WarnAt != nil:
 		t.WarnAt = *ft.WarnAt

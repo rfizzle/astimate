@@ -15,6 +15,10 @@ type Details struct {
 	// UntestedExcluded names the exported functions and methods an
 	// implementation left out of untested_exports on request, sorted.
 	UntestedExcluded []string
+	// UntestedCovered names the exports of UntestedExports whose body a
+	// coverage run (CoverageMeasurer) executed, sorted; nil without one
+	// or when it executed none of them.
+	UntestedCovered []string
 	// UntestedRules lists what the refinement rules of untested_exports
 	// (SPEC.md 6.4) took out of the count or counted as tested.
 	UntestedRules UntestedRules

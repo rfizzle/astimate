@@ -123,7 +123,7 @@ func TestCoverageBuildFailure(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	got, err := Measure(t.Context(), root, []string{"example.com/cov/good", "example.com/cov/zero", "example.com/cov/bad"})
+	got, prof, err := Measure(t.Context(), root, []string{"example.com/cov/good", "example.com/cov/zero", "example.com/cov/bad"}, nil)
 	if err != nil {
 		t.Fatalf("Measure: %v", err)
 	}
@@ -132,6 +132,12 @@ func TestCoverageBuildFailure(t *testing.T) {
 	}
 	if c := got["example.com/cov/zero"]; c.Pct == nil || *c.Pct != 0 {
 		t.Errorf("zero, whose tests pass and cover nothing, = %+v, want 0", c)
+	}
+	// -coverpkg=./... instruments every package of the module in each
+	// run, so good's run reaches zero's statements too; only good's F ran.
+	if !prof.Has("example.com/cov/zero") || !prof.Ran("example.com/cov/good/good.go", Pos{4, 15}, Pos{4, 26}) ||
+		prof.Ran("example.com/cov/zero/zero.go", Pos{4, 15}, Pos{4, 26}) {
+		t.Errorf("merged profile = %+v, want good's F run and zero's F instrumented but not run", prof)
 	}
 	bad := got["example.com/cov/bad"]
 	if bad.Pct != nil || !strings.Contains(bad.Reason, "test build failed") || !strings.Contains(bad.Reason, "undefined: nope") {
@@ -148,7 +154,7 @@ func TestCoverageTimeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), time.Nanosecond)
 	defer cancel()
 	<-ctx.Done()
-	got, err := Measure(ctx, fixtureRoot(t), []string{"example.com/fixture/tested"})
+	got, _, err := Measure(ctx, fixtureRoot(t), []string{"example.com/fixture/tested"}, nil)
 	if err != nil {
 		t.Fatalf("Measure: %v", err)
 	}

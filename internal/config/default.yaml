@@ -118,6 +118,12 @@ thresholds:
     # Not main, whose exports nothing can import, nor test-support, whose
     # exports are the tests' own helpers.
     roles: [library, generated-only]
+    # Uncomment to judge, when a run has --coverage (coverage: true on an
+    # MCP tool), untested_exports_covered instead: an export whose body a
+    # test ran, through an HTTP handler, a pipeline or an interface, is
+    # tested. It runs the tests. Without --coverage the rule reads
+    # untested_exports as before.
+    # source: coverage
   # No new package-level state.
   - metric: globals
     kind: density

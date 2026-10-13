@@ -48,7 +48,8 @@ type checkOptions struct {
 	indexFile string
 	// format is the --format value, one of checkFormats.
 	format string
-	// coverage measures coverage_pct at head (--coverage).
+	// coverage measures coverage_pct and untested_exports_covered at
+	// head (--coverage).
 	coverage engine.CoverageOptions
 	// hookStdin returns the Claude Code hook input read in the hook format,
 	// or nil when there is none; nil hookStdin means no input.

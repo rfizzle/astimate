@@ -76,9 +76,12 @@ type CheckOptions struct {
 	// inside a git hook; empty means the repository's own index. Ignored
 	// unless Staged.
 	IndexFile string
-	// Coverage opts into measuring coverage_pct at head for the selected
-	// packages, in one run after extraction. The baseline is never
-	// measured, so coverage_pct is reported, never compared.
+	// Coverage opts into measuring coverage_pct and
+	// untested_exports_covered at head for the selected packages, in one
+	// call after extraction. The baseline is never measured, so
+	// coverage_pct is reported, never compared; a source: coverage rule
+	// judges untested_exports_covered against the baseline's count
+	// estimated from head's run.
 	Coverage CoverageOptions
 	// Now is the time an exemption's expiry is judged at
 	// (gate.Exemption.Expired); the zero time means time.Now().
@@ -186,7 +189,10 @@ func (c *BaselineCache) get(key string, load func() (baseline.Baseline, error)) 
 // with opts.Coverage their coverage is measured at head in one run
 // (measureCoverage). coverage_pct is then reported only: the baseline is
 // never measured, and the baseline's agent_passes in the summary borrows
-// head's coverage so it moves with the change, not with the opt-in.
+// head's coverage so it moves with the change, not with the opt-in. A
+// source: coverage rule on untested_exports judges untested_exports_covered
+// against the baseline's untested exports less those head's run executed
+// (judge).
 //
 // With opts.Staged the head packages are listed and extracted from a
 // temporary copy of the index (stagedTarget), removed before Check

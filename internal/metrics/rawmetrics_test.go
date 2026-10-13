@@ -17,7 +17,8 @@ func ptr[T any](v T) *T { return &v }
 func v1Names() []string {
 	return []string{
 		"dup_blocks_code", "duplicated_lines", "dup_blocks_cross_pkg", "instability", "abstractness", "main_sequence_distance",
-		"uses_cgo", "uses_reflect", "generated_files", "tokens_est_generated", "coverage_pct", "changed_func_cognitive_max",
+		"uses_cgo", "uses_reflect", "generated_files", "tokens_est_generated", "coverage_pct", "untested_exports_covered",
+		"changed_func_cognitive_max",
 	}
 }
 
@@ -59,6 +60,7 @@ func fullMetrics() RawMetrics {
 		GeneratedFiles:          ptr(24),
 		TokensEstGenerated:      ptr(26),
 		CoveragePct:             ptr(87.5),
+		UntestedExportsCovered:  ptr(2),
 		ChangedFuncCognitiveMax: ptr(25),
 	}
 }

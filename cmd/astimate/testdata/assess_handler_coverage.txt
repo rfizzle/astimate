@@ -1,0 +1,29 @@
+package: api (example.com/handler)
+rebuild: 0.0 agent passes, 0.6 human days (estimate from calibrated parameters)
+tier: ONE_PASS
+
+drivers:
+  unspecified  120 tokens  untested_exports=2 coverage_pct=80
+  volume       112 tokens  tokens_est=112 duplication_pct=0
+
+suggestions:
+  - 2 exported functions have no test (Hello, Unused); a rebuild would have to reverse-engineer their behavior. Tests cover 80% of statements, which scales this term to 120 tokens.
+  - The package is 112 tokens of non-test source; its volume is 112 tokens of the rebuild; split the package to shrink it.
+
+metrics:
+  files                     1      sloc              13
+  largest_file_sloc         13     tokens_est        112
+  tokens_est_with_tests     203    internal_imports  0
+  external_imports          0      stdlib_imports    1
+  fan_in                    0      fan_in_tests      0
+  exported_symbols          3      globals           0
+  init_funcs                0      max_nesting       0
+  cognitive_total           0      cognitive_p90     0
+  func_count                3      dup_blocks        0
+  dup_blocks_code           0      duplication_pct   0
+  duplicated_lines          0      test_files        1
+  test_funcs                1      has_tests         true
+  untested_exports_covered  1      untested_exports  2
+  dup_blocks_cross_pkg      0      uses_cgo          false
+  uses_reflect              false  generated_files   0
+  tokens_est_generated      0      coverage_pct      80

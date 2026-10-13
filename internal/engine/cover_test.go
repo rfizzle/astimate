@@ -39,6 +39,8 @@ func coverageTarget(logs *bytes.Buffer, wrap func(metrics.Extractor) metrics.Ext
 		modPath + "/good":   {TokensEst: 1000, ExportedSymbols: 4, UntestedExports: 4, TestFiles: 1, TestFuncs: 1, HasTests: true},
 		modPath + "/broken": {TokensEst: 1000, ExportedSymbols: 4, UntestedExports: 4, TestFiles: 1, TestFuncs: 1, HasTests: true},
 		modPath + "/none":   {TokensEst: 1000, ExportedSymbols: 4, UntestedExports: 4},
+		// Neither test files nor untested exports: nothing to measure.
+		modPath + "/bare": {TokensEst: 1000, ExportedSymbols: 4},
 	}
 	return &Target{
 		Mod:    &metrics.ModuleContext{Root: root, ModulePath: modPath},
@@ -71,9 +73,9 @@ func TestRankCoverage(t *testing.T) {
 			noLogs:   []string{"coverage"},
 		},
 		{
-			name:      "measures packages with test files in one run",
+			name:      "measures packages with test files or untested exports in one call",
 			opts:      CoverageOptions{Enabled: true},
-			wantCalls: [][]string{{"example.com/m/broken", "example.com/m/good"}},
+			wantCalls: [][]string{{"example.com/m/broken", "example.com/m/good", "example.com/m/none"}},
 			wantGood:  0.1, // (1000 + 160 + 3200*0.5) / 25000 = 0.104
 			wantLogs:  []string{"coverage not measured", "path=broken", "undefined: y"},
 			noLogs:    []string{"path=none", "path=good"},
@@ -82,7 +84,7 @@ func TestRankCoverage(t *testing.T) {
 			name:      "a run that cannot start warns per package",
 			opts:      CoverageOptions{Enabled: true},
 			err:       errors.New("go: not found"),
-			wantCalls: [][]string{{"example.com/m/broken", "example.com/m/good"}},
+			wantCalls: [][]string{{"example.com/m/broken", "example.com/m/good", "example.com/m/none"}},
 			wantGood:  0.2,
 			wantLogs:  []string{"path=good", "path=broken", "go: not found"},
 		},

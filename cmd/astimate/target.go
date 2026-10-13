@@ -32,7 +32,7 @@ type coverageFlags struct {
 // register adds the coverage flags to fs.
 func (c *coverageFlags) register(fs *flag.FlagSet) {
 	fs.BoolVar(&c.enabled, "coverage", false,
-		"run the tests with go test -cover to report coverage_pct and scale the estimate by it")
+		"run the tests with go test -cover to report coverage_pct and untested_exports_covered and scale the estimate by coverage_pct")
 	fs.DurationVar(&c.timeout, "coverage-timeout", engine.DefaultCoverageTimeout,
 		"bound on the one go test run --coverage makes")
 }

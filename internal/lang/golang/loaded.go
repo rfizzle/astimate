@@ -62,6 +62,9 @@ type details struct {
 	largestFile string
 	// files are the absolute filenames of the non-test files.
 	files []string
+	// covered names the exports of untested whose body the last coverage
+	// run executed (Extractor.Coverage); nil before one.
+	covered []string
 }
 
 // loadModule loads the module at cfg.Dir, which must be an absolute module
@@ -96,4 +99,16 @@ func (l *loaded) detailsOf(importPath string) (details, bool) {
 	defer l.detailsMu.Unlock()
 	d, ok := l.details[importPath]
 	return d, ok
+}
+
+// setCovered records covered, the untested exports a coverage run
+// executed, with the details of the package at importPath; it does
+// nothing when no details are recorded for it.
+func (l *loaded) setCovered(importPath string, covered []string) {
+	l.detailsMu.Lock()
+	defer l.detailsMu.Unlock()
+	if d, ok := l.details[importPath]; ok {
+		d.covered = covered
+		l.details[importPath] = d
+	}
 }

@@ -161,6 +161,11 @@ func texts() []entry {
 			"{tests}",
 		},
 		{
+			"untested_exports_covered", "",
+			"untested_exports less the exports whose body has a statement the --coverage run executed, from any test of the run (coverage: true on an MCP tool), so an export a test reaches only through an HTTP handler, a pipeline or an interface counts as tested. Measured only when opted in, because it runs the tests; null without the opt-in and for a package the run reported nothing for, such as one without test files. Reported; a threshold on untested_exports with source: coverage judges it when the run has it and falls back to untested_exports otherwise.",
+			"{tests} Opt-in and judged only through such a rule. Baselines do not run tests, so a check counts the baseline's untested exports less those head's run executed, and the rule judges what the change added; against a baseline that recorded no export names it judges untested_exports on both sides.",
+		},
+		{
 			"untested_exports", "gated",
 			"Exported funcs and methods not referenced from any test file in the package.{generated}",
 			"{tests}",
@@ -207,7 +212,7 @@ func texts() []entry {
 		},
 		{
 			"coverage_pct", "",
-			"Statement coverage of the package's own statements from go test -cover -count=1 -run ., measured only when opted in (--coverage, or coverage: true on an MCP tool) because it runs the tests. Null without the opt-in, for a package without test files, and when its tests fail to build or run. When present it scales the rebuild estimate's unspecified term by 1 - coverage_pct/100.",
+			"Statement coverage of the package's own statements by its own tests, from the profile of go test -cover -coverpkg=./... -count=1 -run ., measured only when opted in (--coverage, or coverage: true on an MCP tool) because it runs the tests. Null without the opt-in, for a package without test files, and when its tests fail to build or run. When present it scales the rebuild estimate's unspecified term by 1 - coverage_pct/100.",
 			"{tests} {coverage}",
 		},
 		{

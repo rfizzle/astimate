@@ -72,7 +72,10 @@ func New(o Options) *Checker {
 // details say (locateFindings) and a changed_func_cognitive_max finding
 // named and located on the function it judged (nameJudged). The duplicate
 // blocks and untested exports the change added lead the details, the
-// suggestions and the locations (rankNew). The result
+// suggestions and the locations (rankNew); when head's coverage run
+// counted untested_exports_covered, the exports it executed follow the
+// others (coveredLast), and the rules judge it against the baseline's
+// count estimated from the same run (coveredBase). The result
 // carries the changed functions (report.CheckedPackage.ChangedFunctions).
 // The exemptions are applied to the result
 // (gate.Exemptions.Apply) before the report is built. unrecorded reports
@@ -91,6 +94,9 @@ func (c *Checker) Package(ctx context.Context, pkg string, m metrics.RawMetrics)
 		bm = &row.Metrics
 	}
 	lead := rankNew(&det, &names, &row, inBase)
+	if m.UntestedExportsCovered != nil {
+		coveredLast(&det, &names, &lead, row.Named.UntestedExports, inBase)
+	}
 	changed, listed, unrecorded, err := c.changedFunctions(ctx, pkg, row, inBase)
 	if err != nil {
 		return report.CheckedPackage{}, false, err
@@ -106,7 +112,7 @@ func (c *Checker) Package(ctx context.Context, pkg string, m metrics.RawMetrics)
 	suggest := func(metric string, h float64, hm metrics.RawMetrics) string {
 		return score.MetricSuggestion(metric, h, hm, names)
 	}
-	r, res := c.row(path, m, m, bm, c.pkgRules, suggest, names, opts...)
+	r, res := c.row(path, m, m, bm, coveredBase(m, bm, &row, det.UntestedCovered), c.pkgRules, suggest, names, opts...)
 	r.BaselineFrom = row.From
 	locateFindings(&r, &det, nameJudged(&r, &res, worst, m, names), lead)
 	r.Details = c.details(&det)
@@ -206,7 +212,7 @@ func (c *Checker) Module(ctx context.Context, mm metrics.ModuleMetrics, fromFile
 		}
 		return cj.suggestion(blame, hm, o.Mod.ModulePath, score.MetricSuggestion(metric, h, hm, names))
 	}
-	r, _ := c.row(metrics.ModuleRowID, m, gm, bm, rules, suggest, score.Names{})
+	r, _ := c.row(metrics.ModuleRowID, m, gm, bm, bm, rules, suggest, score.Names{})
 	located := names.CrossBlocks
 	if len(cited) > 0 {
 		located = cited
@@ -216,17 +222,17 @@ func (c *Checker) Module(ctx context.Context, mm metrics.ModuleMetrics, fromFile
 	return report.CheckedPackage{Report: r}, len(rules) > 0, nil
 }
 
-// row evaluates gm, the metrics the rules judge, against bm, the row's
-// baseline metrics (nil when it has none), and rules, with opts
-// (gate.Evaluate), applies the exemptions to the result under package path
-// path, logs each rule skipped, and returns the report of the row with
-// metrics m and names, with the verdict and the baseline's tokenizer
-// applied, and the result it was built from.
-func (c *Checker) row(path string, m, gm metrics.RawMetrics, bm *metrics.RawMetrics, rules []gate.Threshold,
+// row evaluates gm, the metrics the rules judge, against gb, the baseline
+// metrics they judge it against (nil when the row has none), and rules,
+// with opts (gate.Evaluate), applies the exemptions to the result under
+// package path path, logs each rule skipped, and returns the report of the
+// row with metrics m, baseline metrics bm and names, with the verdict and
+// the baseline's tokenizer applied, and the result it was built from.
+func (c *Checker) row(path string, m, gm metrics.RawMetrics, bm, gb *metrics.RawMetrics, rules []gate.Threshold,
 	suggest gate.Suggester, names score.Names, opts ...gate.Option,
 ) (report.Report, gate.Result) {
 	o := &c.o
-	res := gate.Evaluate(gm, bm, rules, suggest, opts...)
+	res := gate.Evaluate(gm, gb, rules, suggest, opts...)
 	c.ex.Apply(path, &res)
 	for _, n := range res.Notes {
 		o.Logger.Info("rule skipped", "path", path, "metric", n.Metric, "reason", n.Text)

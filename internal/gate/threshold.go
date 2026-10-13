@@ -93,6 +93,22 @@ type Threshold struct {
 	// means every role. A row with no role is judged as a library
 	// (role.Of). Any kind may carry it.
 	Roles []string
+	// Source is where the rule reads its metric from: empty for the
+	// metric itself, or "coverage" on untested_exports, which then judges
+	// untested_exports_covered (SPEC.md 6.4, 8.1) when head has it and so
+	// does the baseline, if any, and untested_exports otherwise. Any kind
+	// may carry it.
+	Source string
+}
+
+// sourceCoverage is the Source that reads a coverage run's count
+// (coveredMetrics).
+const sourceCoverage = "coverage"
+
+// coveredMetrics returns the metrics a rule with Source coverage may
+// judge, each mapped to the field it then reads.
+func coveredMetrics() map[string]string {
+	return map[string]string{"untested_exports": "untested_exports_covered"}
 }
 
 // Judges reports whether t applies to a row of role r: t lists no roles,
@@ -198,7 +214,20 @@ func (t Threshold) Validate(known func(string) bool) error {
 		add("when: unknown metric %q", t.When.Metric)
 	}
 	t.checkRoles(add)
+	t.checkSource(add)
 	return errors.Join(errs...)
+}
+
+// checkSource reports through add a Source other than empty or coverage,
+// or coverage on a metric no coverage run counts.
+func (t Threshold) checkSource(add func(string, ...any)) {
+	switch _, ok := coveredMetrics()[t.Metric]; {
+	case t.Source == "":
+	case t.Source != sourceCoverage:
+		add("source: unknown source %q; want coverage", t.Source)
+	case !ok:
+		add("source: coverage applies only to untested_exports")
+	}
 }
 
 // checkRoles reports through add a role of Roles that metrics/role does

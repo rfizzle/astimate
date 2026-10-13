@@ -3,7 +3,7 @@ package metrics
 import "strings"
 
 // numFields is the number of RawMetrics fields, the rows of fieldTable.
-const numFields = 35
+const numFields = 36
 
 // field is one row of SPEC.md section 6's metric table: what MetricNames,
 // Value, Delta, Validate and ModuleWide know about a RawMetrics field. Its
@@ -63,6 +63,7 @@ func fieldTable() [numFields]field {
 		{"test_files", "v0", 0, ""},
 		{"test_funcs", "v0", 0, ""},
 		{"has_tests", "v0", 0, ""},
+		{"untested_exports_covered", "v1", 0, ""},
 		{"untested_exports", "v0", 0, ""},
 		{"dup_blocks_cross_pkg", "v1", 0, "module-wide"},
 		{"instability", "v1", 1, ""},
@@ -96,8 +97,8 @@ func (m *RawMetrics) slots() [numFields]any {
 		&m.Files, &m.SLOC, &m.LargestFileSLOC, &m.TokensEst, &m.TokensEstWithTests, &m.InternalImports,
 		&m.ExternalImports, &m.StdlibImports, &m.FanIn, &m.FanInTests, &m.ExportedSymbols, &m.Globals,
 		&m.InitFuncs, &m.MaxNesting, &m.CognitiveTotal, &m.CognitiveP90, &m.FuncCount, &m.DupBlocks,
-		&m.DupBlocksCode, &m.DuplicationPct, &m.DuplicatedLines, &m.TestFiles, &m.TestFuncs, &m.HasTests, &m.UntestedExports,
-		&m.DupBlocksCrossPkg, &m.Instability, &m.Abstractness, &m.MainSequenceDistance, &m.UsesCgo,
+		&m.DupBlocksCode, &m.DuplicationPct, &m.DuplicatedLines, &m.TestFiles, &m.TestFuncs, &m.HasTests,
+		&m.UntestedExportsCovered, &m.UntestedExports, &m.DupBlocksCrossPkg, &m.Instability, &m.Abstractness, &m.MainSequenceDistance, &m.UsesCgo,
 		&m.UsesReflect, &m.GeneratedFiles, &m.TokensEstGenerated, &m.CoveragePct, &m.ChangedFuncCognitiveMax,
 	}
 }

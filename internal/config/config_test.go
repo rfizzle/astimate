@@ -227,6 +227,36 @@ func TestParseRoles(t *testing.T) {
 	}
 }
 
+// TestParseSource checks that the default keeps untested_exports static
+// and that uncommenting the source line its comment shows makes the rule
+// judge a coverage run's count.
+func TestParseSource(t *testing.T) {
+	t.Parallel()
+
+	source := func(rules []gate.Threshold) string {
+		for _, th := range rules {
+			if th.Metric == "untested_exports" {
+				return th.Source
+			}
+		}
+		return "missing"
+	}
+	cfg, err := Parse(Default())
+	if err != nil {
+		t.Fatalf("Parse(Default()) error = %v", err)
+	}
+	if got := source(cfg.Thresholds); got != "" {
+		t.Errorf("default untested_exports source = %q, want none", got)
+	}
+	cfg, err = Parse([]byte(replace(t, "    # source: coverage\n", "    source: coverage\n")))
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if got := source(cfg.Thresholds); got != "coverage" {
+		t.Errorf("untested_exports source = %q, want coverage", got)
+	}
+}
+
 // TestDefaultVersionPrefix checks the embedded default ships calibrated
 // rebuild parameters: SPEC.md 11.2 names a rebuild fit rebuild-<date>-<agent>,
 // which score.Calibrated reads. The thresholds it carries are thresholds-<date>'s.
@@ -329,6 +359,9 @@ func TestParseErrors(t *testing.T) {
 		{name: "role listed twice", old: capacityRule, repl: capacityRule + "    roles: [main, main]\n", wantErr: `"sloc": roles: "main" listed twice`},
 		{name: "unknown role in a language override", old: "languages:\n  typescript:\n    thresholds:\n", repl: "languages:\n  typescript:\n    thresholds:\n      - metric: globals\n        kind: density\n        max_delta: 0\n        roles: [bin]\n", wantErr: `languages.typescript.thresholds[0]: threshold "globals": roles: unknown role "bin"`},
 		{name: "roles on a disabled rule", old: "languages:\n  typescript:\n    thresholds:\n", repl: "languages:\n  typescript:\n    thresholds:\n      - metric: sloc\n        disabled: true\n        roles: [main]\n", wantErr: "a disabled rule sets only metric and disabled"},
+		{name: "unknown source", old: capacityRule, repl: capacityRule + "    source: profile\n", wantErr: `"sloc": source: unknown source "profile"; want coverage`},
+		{name: "source coverage on another metric", old: capacityRule, repl: capacityRule + "    source: coverage\n", wantErr: `"sloc": source: coverage applies only to untested_exports`},
+		{name: "source on a disabled rule", old: "languages:\n  typescript:\n    thresholds:\n", repl: "languages:\n  typescript:\n    thresholds:\n      - metric: untested_exports\n        disabled: true\n        source: coverage\n", wantErr: "a disabled rule sets only metric and disabled"},
 		{name: "ratchet_from_zero not a bool", old: "    ratchet_from_zero: true\n", repl: "    ratchet_from_zero: sometimes\n", wantErr: "`sometimes` into bool"},
 		{name: "warn_at out of range", old: capacityRule, repl: strings.Replace(capacityRule, "0.75", "1.5", 1), wantErr: "warn_at must be in (0, 1)"},
 		{name: "unknown metric", old: "metric: dup_blocks", repl: "metric: dupe_blocks", wantErr: `"dupe_blocks": unknown metric`},

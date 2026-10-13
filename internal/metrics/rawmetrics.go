@@ -68,6 +68,10 @@ type RawMetrics struct {
 	// in the module refers to an exported func or method of the package
 	// (SPEC.md 6.5).
 	HasTests bool `json:"has_tests"`
+	// UntestedExportsCovered is untested_exports less the exports whose
+	// body the --coverage run executed; see SPEC.md 6.4. A pointer, nil
+	// when not measured (v1), though it sits beside untested_exports.
+	UntestedExportsCovered *int `json:"untested_exports_covered"`
 	// UntestedExports counts exported funcs and methods not referenced from
 	// any test file in the package; see SPEC.md 6.4.
 	UntestedExports int `json:"untested_exports"`

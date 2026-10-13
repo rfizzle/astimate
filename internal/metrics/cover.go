@@ -13,6 +13,11 @@ type Coverage struct {
 	// TestParse"; empty when Pct is set or nothing failed (no test files,
 	// no statements).
 	Reason string
+	// UntestedExports is untested_exports less the counted exports with a
+	// statement the run executed, from any test binary of the run (SPEC.md
+	// 6.4). Nil when the run said nothing about the package's statements
+	// or the implementation does not trace exports to statements.
+	UntestedExports *int
 }
 
 // CoverageMeasurer is implemented by an Extractor that can measure

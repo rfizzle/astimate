@@ -196,7 +196,7 @@ func disabledShape(ft fileThreshold) error {
 	}
 	if ft.Kind != "" || ft.Max != nil || ft.MaxDelta != nil || ft.RatchetFromZero ||
 		ft.WarnAt != nil || ft.OverMaxDelta != nil || ft.Floor != nil || ft.Require != nil || ft.When != "" || ft.Severity != "" ||
-		ft.Roles != nil {
+		ft.Roles != nil || ft.Source != "" {
 		return errors.New("a disabled rule sets only metric and disabled")
 	}
 	return nil
