@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -57,5 +58,39 @@ func TestSkippedPackages(t *testing.T) {
 	if !strings.Contains(text, "package=example.com/skipped/remote") || !strings.Contains(text, filepath.Join("remote", "remote.go")) ||
 		strings.Contains(text, root) {
 		t.Errorf("log does not name remote with a module-relative error:\n%s", text)
+	}
+}
+
+// TestRepeatLoadLogsOnce checks that the load of a copy of a module marked
+// Repeat logs a skipped package once between the two loads, and that Forget
+// of the copy ends the mark.
+func TestRepeatLoadLogsOnce(t *testing.T) {
+	t.Parallel()
+
+	root := filepath.Join(filepath.Dir(fixtureRoot(t)), "skipped")
+	copyRoot := t.TempDir()
+	if err := os.CopyFS(copyRoot, os.DirFS(root)); err != nil {
+		t.Fatal(err)
+	}
+	var logs bytes.Buffer
+	e := New(WithLogger(slog.New(slog.NewTextHandler(&logs, nil))))
+
+	const line = "skipped package; it does not load"
+	if _, err := e.Packages(root); err != nil {
+		t.Fatal(err)
+	}
+	e.Repeat(copyRoot)
+	if _, err := e.Packages(copyRoot); err != nil {
+		t.Fatal(err)
+	}
+	if n := strings.Count(logs.String(), line); n != 1 {
+		t.Errorf("two loads logged the skipped package %d times, want once:\n%s", n, logs.String())
+	}
+	e.Forget(copyRoot)
+	if _, err := e.Packages(copyRoot); err != nil {
+		t.Fatal(err)
+	}
+	if n := strings.Count(logs.String(), line); n != 2 {
+		t.Errorf("a load after Forget logged %d times in all, want 2:\n%s", n, logs.String())
 	}
 }

@@ -92,3 +92,26 @@ func (s Skips) Report(modPath string, selected []string) []report.Skipped {
 	}
 	return out
 }
+
+// Unchanged returns selected, the identifiers of an every-package
+// selection, without the skipped packages that changed holds no entry for:
+// a skipped package is selected only when its own files changed since the
+// baseline (SPEC.md 8.5), so a selection that covers every package leaves
+// out the ones that cannot be judged and did not change. It returns
+// selected itself when nothing is skipped.
+func (s Skips) Unchanged(selected []string, changed map[string]bool) []string {
+	if len(s.list) == 0 {
+		return selected
+	}
+	out := make([]string, 0, len(selected))
+	for _, pkg := range selected {
+		if _, skipped := s.byPkg[pkg]; skipped && !changed[pkg] {
+			continue
+		}
+		out = append(out, pkg)
+	}
+	return out
+}
+
+// Any reports whether the tree has a skipped package.
+func (s Skips) Any() bool { return len(s.list) > 0 }

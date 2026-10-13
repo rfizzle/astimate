@@ -21,9 +21,17 @@ func overrides() []string {
 	return []string{"GIT_DIR=", "GIT_WORK_TREE=", "GIT_INDEX_FILE="}
 }
 
+// noHooks are the arguments every git child process gets: hooks are off, so
+// a baseline checkout or a staged copy, which is read-only scaffolding, runs
+// none of the repository's hooks (a post-checkout hook that needs git-lfs,
+// say).
+func noHooks() []string {
+	return []string{"-c", "core.hooksPath=" + os.DevNull}
+}
+
 // Git runs git with args as separate arguments (never through a shell) in
-// dir and returns its trimmed standard output. The error includes git's
-// standard error and wraps the *exec.ExitError.
+// dir and returns its trimmed standard output. It runs no hooks. The error
+// includes git's standard error and wraps the *exec.ExitError.
 func Git(ctx context.Context, dir string, args ...string) (string, error) {
 	return GitEnv(ctx, dir, nil, args...)
 }
@@ -32,7 +40,7 @@ func Git(ctx context.Context, dir string, args ...string) (string, error) {
 // variables a git hook sets to redirect git are dropped (WithoutOverrides),
 // such as a GIT_INDEX_FILE that selects the index to read.
 func GitEnv(ctx context.Context, dir string, env []string, args ...string) (string, error) {
-	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd := exec.CommandContext(ctx, "git", append(noHooks(), args...)...)
 	cmd.Dir = dir
 	cmd.Env = append(WithoutOverrides(os.Environ()), env...)
 	var stderr bytes.Buffer

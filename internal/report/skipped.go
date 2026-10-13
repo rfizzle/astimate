@@ -18,7 +18,7 @@ type Skipped struct {
 	// Error is the package's first load error.
 	Error string `json:"error"`
 	// Selected reports that the check would have judged the package: it
-	// changed, or the check covered every package. Its verdict is then
+	// changed since the baseline. Its verdict is then
 	// incomplete, and check exits 2 unless a violation decides it.
 	Selected bool `json:"selected,omitempty"`
 }

@@ -61,7 +61,9 @@ func TestCheckSkipped(t *testing.T) {
 	}{
 		{name: "another package changed", edit: "app/extra.go", wantPackages: []string{"app"}},
 		{name: "skipped package changed", edit: "remote/extra.go", wantSelected: true},
-		{name: "all packages", all: true, wantPackages: []string{"app", "base"}, wantSelected: true},
+		{name: "all packages", all: true, wantPackages: []string{"app", "base"}},
+		{name: "all packages, another changed", edit: "app/extra.go", all: true, wantPackages: []string{"app", "base"}},
+		{name: "all packages, skipped changed", edit: "remote/extra.go", all: true, wantPackages: []string{"app", "base"}, wantSelected: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

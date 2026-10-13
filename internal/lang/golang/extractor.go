@@ -43,6 +43,10 @@ type Extractor struct {
 
 	mu      sync.Mutex
 	modules map[string]*moduleLoad
+	// repeat holds the module roots whose load repeats an earlier one
+	// (Repeat); seen holds the skips the last other load logged.
+	repeat map[string]bool
+	seen   map[string]bool
 }
 
 // moduleLoad is one module root's load, shared by concurrent callers. done is
@@ -121,6 +125,8 @@ func New(opts ...Option) *Extractor {
 		tokenizer:     inspect.MethodEst,
 		dup:           dup.DefaultOptions(),
 		modules:       make(map[string]*moduleLoad),
+		repeat:        make(map[string]bool),
+		seen:          make(map[string]bool),
 	}
 	for _, opt := range opts {
 		opt(e)
@@ -258,19 +264,37 @@ func (e *Extractor) cached(ctx context.Context, mod *metrics.ModuleContext) (*lo
 	return l, nil
 }
 
+// Repeat marks the load of the module at root, spelled in any form that
+// resolves to the same absolute path, as a repeat of an earlier load's, until
+// Forget of root: it logs only the skips the last other load did not log. A
+// check loads head and then the baseline, which skip mostly the same
+// packages, and marks the baseline's load so each skip is logged once while
+// one only the baseline has is still logged. Call it before the load.
+func (e *Extractor) Repeat(root string) {
+	abs, err := filepath.Abs(root)
+	if err != nil {
+		return
+	}
+	e.mu.Lock()
+	e.repeat[abs] = true
+	e.mu.Unlock()
+}
+
 // Forget drops the cached load of the module at root, spelled in any form
 // that resolves to the same absolute path, together with the per-package
 // debug details that load recorded, so the memory can be reclaimed once no
 // ModuleContext still holds it. A later Packages or Extract for root, through
 // a ModuleContext whose Cache is empty, loads the module again. Forget does
 // not wait for or disturb a load of root still in flight: it leaves that
-// entry and returns. Forget of a root never loaded does nothing.
+// entry and returns. Forget of a root never loaded does nothing. It also
+// ends Repeat for root.
 func (e *Extractor) Forget(root string) {
 	abs, err := filepath.Abs(root)
 	if err != nil {
 		return
 	}
 	e.mu.Lock()
+	delete(e.repeat, abs)
 	m, ok := e.modules[abs]
 	if ok {
 		select {
@@ -289,21 +313,52 @@ func (e *Extractor) Forget(root string) {
 	m.l.detailsMu.Unlock()
 }
 
+// beginLog reports whether the load of root is a repeat (Repeat); any other
+// load starts the record of what was logged afresh.
+func (e *Extractor) beginLog(root string) bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.repeat[root] {
+		return true
+	}
+	clear(e.seen)
+	return false
+}
+
+// fresh reports whether the record keyed by key is to be logged: always for
+// a load that is not a repeat, which records it, and for a repeat unless an
+// earlier load logged it.
+func (e *Extractor) fresh(repeat bool, key string) bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if repeat {
+		return !e.seen[key]
+	}
+	e.seen[key] = true
+	return true
+}
+
 // logSkipped logs each module directory l skipped at info level, each
 // package skipped because it fails to load and each embed pattern that
 // matched no file at warn level, when e has a logger. A skipped package's
 // error names files relative to l's module root, which may be a temporary
-// copy whose name means nothing to the user.
+// copy whose name means nothing to the user. A load marked Repeat logs only the
+// skipped-package warnings
+// the last other load did not log; any other load starts the record afresh.
 func (e *Extractor) logSkipped(l *loaded) {
 	if e.logger == nil {
 		return
 	}
+	repeat := e.beginLog(l.root)
 	for _, s := range l.Skipped {
 		e.logger.Info("skipped package", "package", s.ImportPath, "dir", s.Dir, "reason", s.Reason)
 	}
 	for _, s := range l.SkippedPackages {
-		e.logger.Warn("skipped package; it does not load and is not measured",
-			"package", s.Package, "reason", s.Reason, "err", relativeTo(s.Err.Error(), l.root))
+		err := relativeTo(s.Err.Error(), l.root)
+		if e.fresh(repeat, s.Package) {
+			e.logger.Warn("skipped package; it does not load and is not measured",
+				"package", s.Package, "reason", s.Reason, "err", err)
+		}
 	}
 	for _, w := range l.Warnings {
 		e.logger.Warn("embed pattern matches no files; metrics do not read embedded files",

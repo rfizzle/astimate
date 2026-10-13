@@ -59,7 +59,9 @@ type ModulePathFunc func(root string) (string, error)
 // (TreeRelative), not the temporary worktree.
 // When ext implements metrics.Forgetter, FromGit calls Forget on the
 // worktree's module root before removing it, so ext keeps nothing loaded
-// from the baseline.
+// from the baseline. When it implements Repeat(root string), FromGit calls
+// that on the worktree's module root first, so the packages the baseline
+// skips, the ones head skipped and logged already, are not logged again.
 func FromGit(ctx context.Context, root, ref string, ext metrics.Extractor, modulePath ModulePathFunc, tokenizer string) (Baseline, error) {
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -94,6 +96,11 @@ func FromGit(ctx context.Context, root, ref string, ext metrics.Extractor, modul
 		}
 	}
 	mod := &metrics.ModuleContext{Root: modRoot, ModulePath: baseModPath}
+	// Head skipped the same packages and logged them; the baseline's load
+	// need not say it again.
+	if q, ok := ext.(repeater); ok {
+		q.Repeat(modRoot)
+	}
 	pkgs, err := Collect(ctx, ext, mod)
 	var funcs map[string][]metrics.FunctionInfo
 	if err == nil {
@@ -227,4 +234,13 @@ func addWorktree(ctx context.Context, root, sha string) (dir string, cleanup fun
 		return "", nil, fmt.Errorf("checking out baseline %s: %w", sha, err)
 	}
 	return dir, cleanup, nil
+}
+
+// repeater is implemented by an extractor that can load a module root
+// without logging again what an earlier load skipped (the Go extractor's
+// Repeat).
+type repeater interface {
+	// Repeat marks the next load of root as a repeat, which logs only the
+	// skips the earlier load did not, until Forget of root.
+	Repeat(root string)
 }

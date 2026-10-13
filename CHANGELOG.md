@@ -385,6 +385,15 @@ history.
 
 ### Fixed
 
+- `check --base` no longer runs the repository's git hooks: every git
+  command astimate starts gets `-c core.hooksPath=/dev/null`, so a
+  `post-checkout` hook that needs `git-lfs`, absent on the host, no longer
+  makes the baseline worktree fail and the check exit 2.
+- `check --all`, and any check that selects every package, no longer exits
+  2 because one package does not load: a skipped package is selected only
+  when its own files changed since the baseline, and is otherwise listed
+  without `selected`. The skipped-package line on stderr is logged once per
+  check, not once for head and again for the baseline.
 - Go: a package whose `//go:embed` pattern matches no file, such as a
   gitignored frontend build absent from the temporary merge-base checkout,
   no longer fails the load, so `check` no longer exits 2 for a module that

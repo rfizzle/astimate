@@ -54,6 +54,8 @@ func TestCheckSkippedPackage(t *testing.T) {
 		file     string
 		format   string
 		wantCode int
+		// args are flags added to the check.
+		args []string
 		// wantOut and wantErr must each appear in stdout and stderr.
 		wantOut, wantErr []string
 	}{
@@ -71,13 +73,26 @@ func TestCheckSkippedPackage(t *testing.T) {
 			wantOut: []string{"remote skipped", "verdict is incomplete"},
 			wantErr: []string{"checking package failed", "path=remote", "skipped, it does not load"},
 		},
+		{
+			// remote is listed, not selected (no "selected" key), and does not fail the run.
+			name: "all packages, another changed", file: "app/app.go", format: formatJSON, args: []string{"--all"},
+			wantCode: exitOK,
+			wantOut:  []string{`"package_path": "app"`, `"package_path": "base"`, `"package": "remote"`},
+			wantErr:  []string{"skipped package"},
+		},
+		{
+			name: "all packages, skipped changed", file: "remote/remote.go", format: formatText, args: []string{"--all"},
+			wantCode: exitAnalysis,
+			wantOut:  []string{"remote skipped", "verdict is incomplete"},
+			wantErr:  []string{"checking package failed", "path=remote"},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
 			root := skippedRepo(t, tc.file)
 			var stdout, stderr bytes.Buffer
-			got := runCheck([]string{root, "--base", "master", "--format", tc.format}, &stdout, &stderr)
+			got := runCheck(append([]string{root, "--base", "master", "--format", tc.format}, tc.args...), &stdout, &stderr)
 			if got != tc.wantCode {
 				t.Fatalf("exit code = %d, want %d\nstdout:\n%s\nstderr:\n%s", got, tc.wantCode, stdout.String(), stderr.String())
 			}
@@ -93,6 +108,13 @@ func TestCheckSkippedPackage(t *testing.T) {
 			}
 			if tc.format == formatJSON && !json.Valid(stdout.Bytes()) {
 				t.Errorf("stdout is not JSON:\n%s", stdout.String())
+			}
+			// Head and the baseline both skip remote; one log line says so.
+			if n := strings.Count(stderr.String(), "skipped package; it does not load"); n != 1 {
+				t.Errorf("stderr names the skipped package %d times, want once:\n%s", n, stderr.String())
+			}
+			if strings.Contains(tc.name, "all packages, another") && strings.Contains(stdout.String(), `"selected"`) {
+				t.Errorf("remote is reported selected under --all, though it did not change:\n%s", stdout.String())
 			}
 		})
 	}

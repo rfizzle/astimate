@@ -52,6 +52,19 @@ func TestSkips(t *testing.T) {
 	if len(got) != 2 || got[0].Package != "b" || got[0].Selected || got[1].Package != "d" || !got[1].Selected {
 		t.Errorf("Report = %+v, want b unselected and d selected", got)
 	}
+
+	// An every-package selection keeps a skipped package only when it changed.
+	every := s.With(head)
+	if got := s.Unchanged(every, nil); !slices.Equal(got, head) {
+		t.Errorf("Unchanged with no change = %v, want %v", got, head)
+	}
+	changed := map[string]bool{"example.com/m/d": true, "example.com/m/c": true}
+	if got, want := s.Unchanged(every, changed), []string{"example.com/m/a", "example.com/m/c", "example.com/m/d"}; !slices.Equal(got, want) {
+		t.Errorf("Unchanged with d changed = %v, want %v", got, want)
+	}
+	if !s.Any() {
+		t.Error("Any = false, want true")
+	}
 }
 
 func TestSkipsWithoutSkipper(t *testing.T) {
