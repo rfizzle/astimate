@@ -201,8 +201,10 @@ func (f *fake) detailsOf(ctx context.Context, _ *metrics.ModuleContext, pkg stri
 // cloneDetails returns a deep copy of d.
 func cloneDetails(d metrics.Details) metrics.Details {
 	return metrics.Details{
-		UntestedExports:   slices.Clone(d.UntestedExports),
-		UntestedExcluded:  slices.Clone(d.UntestedExcluded),
+		UntestedExports:  slices.Clone(d.UntestedExports),
+		UntestedExcluded: slices.Clone(d.UntestedExcluded),
+
+		UntestedRules:     d.UntestedRules.Clone(),
 		DupLocations:      slices.Clone(d.DupLocations),
 		CrossBlocks:       cloneCrossBlocks(d.CrossBlocks),
 		UntestedPositions: slices.Clone(d.UntestedPositions),

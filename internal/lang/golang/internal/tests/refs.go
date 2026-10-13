@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/rfizzle/astimate/internal/lang/golang/internal/load"
+	"github.com/rfizzle/astimate/internal/lang/golang/internal/stdiface"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -34,7 +35,16 @@ type Refs struct {
 	testFiles map[*packages.Package]map[*token.File]bool
 	// std holds the standard-library interfaces and errors conventions of
 	// the closed list, built with the index.
-	std stdInterfaces
+	std stdiface.Set
+	// under maps each test package in the index to the import path of the
+	// package it tests, and support marks the packages whose non-test files
+	// the index holds as a test-support package's own code.
+	under   map[*packages.Package]string
+	support map[*packages.Package]bool
+	// held maps a method name to the interfaces a test holds a value of
+	// (see heldBy), built on first need.
+	heldOnce sync.Once
+	held     map[string][]dispatchRef
 	// builds counts completed builds; it is 1 after the first use.
 	builds int
 
@@ -57,6 +67,9 @@ const (
 	fromOwn origin = 1 << iota
 	// fromOther is a reference from another package's test files.
 	fromOther
+	// fromSupport is a reference from the non-test files of a test-support
+	// package to its own funcs and methods (SPEC.md 6.4, rule d).
+	fromSupport
 )
 
 // dispatchRef is one interface a test file calls a method through.
@@ -66,6 +79,9 @@ type dispatchRef struct {
 	tp    *packages.Package
 	under string
 	iface *types.Interface
+	// support is set when the call is in a test-support package's own
+	// non-test code, which only counts for that package's own methods.
+	support bool
 }
 
 // Referenced reports whether a _test.go file of any package of m refers,
@@ -86,12 +102,15 @@ func (r *Refs) build(m *load.Module) {
 		r.direct = make(map[string]map[string]origin, len(m.Pkgs))
 		r.dispatch = make(map[string][]dispatchRef)
 		r.testFiles = make(map[*packages.Package]map[*token.File]bool, len(m.Tests)+len(m.XTests))
-		r.std = newStdInterfaces()
+		r.under = make(map[*packages.Package]string)
+		r.support = make(map[*packages.Package]bool)
+		r.std = stdiface.New()
 		for _, path := range m.Paths {
 			for _, tp := range m.TestPackages(m.Pkgs[path]) {
 				r.index(m, path, tp)
 			}
 		}
+		r.indexSupport(m)
 		r.builds++
 	})
 }
@@ -99,21 +118,26 @@ func (r *Refs) build(m *load.Module) {
 // index adds the references of tp's _test.go files to the index. under is
 // the import path of the package tp tests.
 func (r *Refs) index(m *load.Module, under string, tp *packages.Package) {
-	files := make(map[*token.File]bool, len(tp.Syntax))
-	for _, f := range tp.Syntax {
-		if tf := m.Fset.File(f.Pos()); tf != nil && strings.HasSuffix(tf.Name(), "_test.go") {
-			files[tf] = true
-		}
-	}
+	files := syntaxFiles(m, tp, func(name string) bool { return strings.HasSuffix(name, "_test.go") })
+	r.indexFiles(m, under, tp, files, false)
+}
+
+// indexFiles adds the references of files, those of tp that count as test
+// code, to the index. support says files are the non-test files of the
+// test-support package under, whose references to other packages are left
+// out.
+func (r *Refs) indexFiles(m *load.Module, under string, tp *packages.Package, files map[*token.File]bool, support bool) {
 	if len(files) == 0 || tp.TypesInfo == nil {
 		return
 	}
 	r.testFiles[tp] = files
+	r.under[tp] = under
+	r.support[tp] = support
 	inTest := func(pos token.Pos) bool { return files[m.Fset.File(pos)] }
 
 	for id, obj := range tp.TypesInfo.Uses {
 		if fn, ok := obj.(*types.Func); ok && inTest(id.Pos()) {
-			r.addDirect(m, under, fn)
+			r.addDirect(m, under, fn, support)
 		}
 	}
 
@@ -126,7 +150,7 @@ func (r *Refs) index(m *load.Module, under string, tp *packages.Package) {
 	addDispatch := func(name string, iface *types.Interface) {
 		if k := (ifaceUse{name, iface}); !seen[k] {
 			seen[k] = true
-			r.dispatch[name] = append(r.dispatch[name], dispatchRef{tp: tp, under: under, iface: iface})
+			r.dispatch[name] = append(r.dispatch[name], dispatchRef{tp: tp, under: under, iface: iface, support: support})
 		}
 	}
 	// helpers holds tp's generic test funcs, built on the first selection
@@ -155,7 +179,7 @@ func (r *Refs) index(m *load.Module, under string, tp *packages.Package) {
 			}
 			obj, _, _ := types.LookupFieldOrMethod(recv, true, nil, name)
 			if fn, ok := obj.(*types.Func); ok {
-				r.addDirect(m, under, fn)
+				r.addDirect(m, under, fn, support)
 			}
 		}
 	}
@@ -163,7 +187,7 @@ func (r *Refs) index(m *load.Module, under string, tp *packages.Package) {
 
 // addDirect records a reference to fn from a test file of the package at
 // under, when fn belongs to a package of m.
-func (r *Refs) addDirect(m *load.Module, under string, fn *types.Func) {
+func (r *Refs) addDirect(m *load.Module, under string, fn *types.Func, support bool) {
 	if fn.Pkg() == nil {
 		return
 	}
@@ -176,7 +200,12 @@ func (r *Refs) addDirect(m *load.Module, under string, fn *types.Func) {
 		return
 	}
 	o := fromOther
-	if path == under {
+	switch {
+	case support && path != under:
+		return
+	case support:
+		o = fromSupport
+	case path == under:
 		o = fromOwn
 	}
 	keys := r.direct[path]
@@ -254,4 +283,15 @@ func reachable(m *load.Module, tp *packages.Package) map[string]*types.Package {
 	}
 	walk(tp)
 	return seen
+}
+
+// syntaxFiles returns the files of tp's syntax whose name satisfies keep.
+func syntaxFiles(m *load.Module, tp *packages.Package, keep func(name string) bool) map[*token.File]bool {
+	files := make(map[*token.File]bool, len(tp.Syntax))
+	for _, f := range tp.Syntax {
+		if tf := m.Fset.File(f.Pos()); tf != nil && keep(tf.Name()) {
+			files[tf] = true
+		}
+	}
+	return files
 }

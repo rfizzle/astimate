@@ -12,6 +12,13 @@ history.
 
 ### Added
 
+- Go `untested_exports` leaves out three more shapes no test needs to name,
+  and lists each separately in the details: functional-option constructors
+  whose body only sets fields of the options value; exported methods of
+  unexported types that implement an in-module interface a test holds; and,
+  in a test-support package (used only by other packages' tests), the
+  exports its own non-test code refers to, which now read as tested.
+  `pflag.Value` and `pflag.SliceValue` join the closed interface list.
 - Go `has_tests` is true when a test file anywhere in the module references
   an exported func or method of the package, the references
   `untested_exports` already reads, so a package exercised only by another

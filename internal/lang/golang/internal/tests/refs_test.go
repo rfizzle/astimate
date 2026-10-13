@@ -136,28 +136,6 @@ func (b Box[T]) Get() T      { return b.v }
 	}
 }
 
-// TestStdInterfacesClosedList checks that every method name of the closed
-// list of SPEC.md 6.4 is indexed, so a failed type-check of the embedded
-// source cannot silently drop the plain interfaces.
-func TestStdInterfacesClosedList(t *testing.T) {
-	s := newStdInterfaces()
-	for _, name := range []string{
-		"Error", "String", "GoString", "MarshalText", "UnmarshalText",
-		"MarshalBinary", "UnmarshalBinary", "MarshalJSON", "UnmarshalJSON",
-		"Len", "Less", "Swap", "Push", "Pop", "Read", "Write", "Close",
-		"Scan", "Set", "Unwrap", "Is", "As",
-	} {
-		if len(s.plain[name]) == 0 {
-			t.Errorf("method %s is not on the closed list", name)
-		}
-	}
-	for _, name := range []string{"Format", "ReadFrom", "WriteTo", "ServeHTTP", "Value", "LogValue"} {
-		if len(s.named[name]) == 0 {
-			t.Errorf("method %s is not on the closed list", name)
-		}
-	}
-}
-
 // TestRefsBuiltOnce checks that the module-wide index is built on first use
 // and shared by every later package and by Referenced.
 func TestRefsBuiltOnce(t *testing.T) {

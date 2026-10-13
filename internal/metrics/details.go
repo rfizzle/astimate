@@ -1,6 +1,9 @@
 package metrics
 
-import "context"
+import (
+	"context"
+	"slices"
+)
 
 // Details carries the identifiers behind some RawMetrics counts, for
 // suggestions that name what to fix and for the report's details block.
@@ -12,6 +15,9 @@ type Details struct {
 	// UntestedExcluded names the exported functions and methods an
 	// implementation left out of untested_exports on request, sorted.
 	UntestedExcluded []string
+	// UntestedRules lists what the refinement rules of untested_exports
+	// (SPEC.md 6.4) took out of the count or counted as tested.
+	UntestedRules UntestedRules
 	// DupLocations lists every occurrence of every duplicate block counted
 	// by dup_blocks, ordered by the length in tokens of the block, longest
 	// first, ties in file order, so the first names the copy worth
@@ -46,6 +52,32 @@ type Details struct {
 	// SourceFiles are the package's non-test source files relative to the
 	// package directory in slash form, sorted. Nil when unknown.
 	SourceFiles []string
+}
+
+// UntestedRules lists the exports that rules a through d of SPEC.md 6.4
+// settled, each sorted, nil when there are none or the implementation has
+// no such rule.
+type UntestedRules struct {
+	// OptionFuncs are the functional-option constructors left out of
+	// untested_exports because their body only sets fields of the options
+	// value.
+	OptionFuncs []string
+	// InterfaceMethods are the exported methods of unexported types left
+	// out because the type implements an interface of the module that a
+	// test holds.
+	InterfaceMethods []string
+	// TestSupport are the exports of a test-support package counted as
+	// tested only because the package's own non-test code refers to them.
+	TestSupport []string
+}
+
+// Clone returns a deep copy of r.
+func (r UntestedRules) Clone() UntestedRules {
+	return UntestedRules{
+		OptionFuncs:      slices.Clone(r.OptionFuncs),
+		InterfaceMethods: slices.Clone(r.InterfaceMethods),
+		TestSupport:      slices.Clone(r.TestSupport),
+	}
 }
 
 // Position is a place in a package's source, for renderers that annotate

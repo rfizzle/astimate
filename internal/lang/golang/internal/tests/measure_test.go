@@ -12,11 +12,16 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+// prevRules are the refinements of the 2026-09-29 note, before the
+// option-func, held-interface and test-support rules.
+const prevRules = ruleOtherTests | ruleStdInterfaces
+
 // TestMeasureUntestedRefinements counts, for the note in calibration/notes,
 // the exported funcs and methods of every package of one module and how
 // many of them untested_exports counts under each set of the SPEC.md 6.4
 // refinements: none (the package's own tests only), references from other
-// packages' tests, the closed interface list, and both. ASTIMATE_MEASURE_UNTESTED
+// packages' tests, the closed interface list, both (prev), each rule added
+// since to prev alone, and all. ASTIMATE_MEASURE_UNTESTED
 // names the module directory, or "std" for the standard library. It logs
 // one line per package whose count changes and the module totals. It loads
 // a whole module, so it runs only when the variable is set and make check
@@ -42,7 +47,11 @@ func TestMeasureUntestedRefinements(t *testing.T) {
 		{"own", 0},
 		{"other", ruleOtherTests},
 		{"iface", ruleStdInterfaces},
-		{"both", allRules},
+		{"prev", prevRules},
+		{"+option", prevRules | ruleOptionFuncs},
+		{"+held", prevRules | ruleHeldInterfaces},
+		{"+support", prevRules | ruleTestSupport},
+		{"all", allRules},
 	}
 	totals := make([]int, len(variants))
 	exports, changed := 0, 0
@@ -57,11 +66,15 @@ func TestMeasureUntestedRefinements(t *testing.T) {
 		exports += countedExports(m, p)
 		counts := make([]int, len(variants))
 		var left []string
+		var removed string
 		for i, v := range variants {
 			c := untested(m, &refs, p, v.on)
 			counts[i] = c.Untested
 			totals[i] += counts[i]
 			left = c.Names
+			if v.on == allRules {
+				removed = "option=" + strings.Join(c.OptionFuncs, ",") + " held=" + strings.Join(c.InterfaceMethods, ",") + " support=" + strings.Join(c.TestSupport, ",")
+			}
 		}
 		if counts[0] == counts[len(counts)-1] {
 			continue
@@ -72,7 +85,7 @@ func TestMeasureUntestedRefinements(t *testing.T) {
 		for i, v := range variants {
 			b.WriteString(" " + v.name + "=" + strconv.Itoa(counts[i]))
 		}
-		b.WriteString(" left=[" + strings.Join(left, " ") + "]")
+		b.WriteString(" left=[" + strings.Join(left, " ") + "] " + removed)
 		t.Log(b.String())
 	}
 	b.Reset()

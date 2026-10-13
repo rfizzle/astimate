@@ -39,8 +39,14 @@ func (e *Extractor) Details(ctx context.Context, mod *metrics.ModuleContext, pkg
 	files := relFiles(dir, d.files)
 	slices.Sort(files)
 	return metrics.Details{
-		UntestedExports:   slices.Clone(d.untested.Names),
-		UntestedExcluded:  slices.Clone(d.untested.Excluded),
+		UntestedExports:  slices.Clone(d.untested.Names),
+		UntestedExcluded: slices.Clone(d.untested.Excluded),
+
+		UntestedRules: metrics.UntestedRules{
+			OptionFuncs:      d.untested.OptionFuncs,
+			InterfaceMethods: d.untested.InterfaceMethods,
+			TestSupport:      d.untested.TestSupport,
+		}.Clone(),
 		DupLocations:      relLocations(dir, d.dupLocations),
 		CrossBlocks:       cross,
 		UntestedPositions: positions(l.Fset, dir, d.untested.Pos),

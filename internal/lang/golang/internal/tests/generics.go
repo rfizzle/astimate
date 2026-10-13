@@ -7,6 +7,7 @@ import (
 	"iter"
 	"slices"
 
+	"github.com/rfizzle/astimate/internal/lang/golang/internal/stdiface"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -197,14 +198,7 @@ func typeParamMap(tparams *types.TypeParamList, args []types.Type) map[*types.Ty
 
 // namedOf returns t, or the element of t when t is a pointer, as a named
 // type, or nil when it is not one.
-func namedOf(t types.Type) *types.Named {
-	t = types.Unalias(t)
-	if ptr, ok := t.(*types.Pointer); ok {
-		t = types.Unalias(ptr.Elem())
-	}
-	n, _ := t.(*types.Named)
-	return n
-}
+func namedOf(t types.Type) *types.Named { return stdiface.NamedOf(t) }
 
 // helperReceivers returns recv with the type arguments of each
 // instantiation of the helper whose body holds pos substituted for the

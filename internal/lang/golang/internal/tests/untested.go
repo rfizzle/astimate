@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/rfizzle/astimate/internal/lang/golang/internal/load"
+	"github.com/rfizzle/astimate/internal/lang/golang/internal/stdiface"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -36,6 +37,16 @@ type UntestedCounts struct {
 	// call. A method counted only because it implements an interface of
 	// the closed list does not count. TestedAnywhere reads it.
 	Referenced int
+	// OptionFuncs are the functional-option constructors left out of the
+	// count (SPEC.md 6.4, rule a), in the same form, sorted.
+	OptionFuncs []string
+	// InterfaceMethods are the exported methods of unexported types left
+	// out because the type implements an interface of the module that a
+	// test holds (rule b), sorted.
+	InterfaceMethods []string
+	// TestSupport are the exports of a test-support package that only its
+	// own non-test code refers to, counted as tested (rule d), sorted.
+	TestSupport []string
 }
 
 // TestedAnywhere reports whether a test file anywhere in the module refers
@@ -104,8 +115,16 @@ const (
 	// ruleStdInterfaces counts a method implementing an interface of the
 	// closed list as referenced.
 	ruleStdInterfaces
+	// ruleOptionFuncs leaves functional-option constructors out.
+	ruleOptionFuncs
+	// ruleHeldInterfaces leaves out an exported method of an unexported
+	// type that implements an interface of the module a test holds.
+	ruleHeldInterfaces
+	// ruleTestSupport counts a reference from a test-support package's own
+	// non-test code.
+	ruleTestSupport
 	// allRules is every refinement, the metric as SPEC.md 6.4 defines it.
-	allRules = ruleOtherTests | ruleStdInterfaces
+	allRules = ruleOtherTests | ruleStdInterfaces | ruleOptionFuncs | ruleHeldInterfaces | ruleTestSupport
 )
 
 // untested is Untested under the refinements in on.
@@ -119,6 +138,8 @@ func untested(m *load.Module, refs *Refs, p *packages.Package, on rules) Unteste
 	methods := make(map[string]countedMethod)
 	// declared holds the position of each counted key's identifier.
 	declared := make(map[string]token.Pos)
+	// options holds the counted keys shaped like functional options.
+	options := make(map[string]bool)
 	generated := m.GeneratedNames(p)
 	for _, f := range p.Syntax {
 		if isGeneratedTree(m, p, f, generated) {
@@ -135,6 +156,7 @@ func untested(m *load.Module, refs *Refs, p *packages.Package, on rules) Unteste
 			case exportCounted:
 				marked[key] = false
 				declared[key] = fd.Name.Pos()
+				options[key] = isOptionFunc(fd)
 				if recv != "" {
 					fn, _ := p.TypesInfo.Defs[fd.Name].(*types.Func)
 					methods[key] = countedMethod{recv: recv, fn: fn}
@@ -146,6 +168,9 @@ func untested(m *load.Module, refs *Refs, p *packages.Package, on rules) Unteste
 	if on&ruleOtherTests != 0 {
 		want |= fromOther
 	}
+	if on&ruleTestSupport != 0 {
+		want |= fromSupport
+	}
 	// byTest holds the counted keys a test refers to, std-interface
 	// coverage excluded.
 	byTest := make(map[string]bool)
@@ -153,21 +178,39 @@ func untested(m *load.Module, refs *Refs, p *packages.Package, on rules) Unteste
 		if _, counted := marked[key]; counted && o&want != 0 {
 			marked[key] = true
 			byTest[key] = true
+			if o&want&^fromSupport == 0 {
+				c.TestSupport = append(c.TestSupport, key)
+			}
 		}
 	}
 	for key, cm := range methods {
 		switch {
 		case marked[key]:
-		case on&ruleStdInterfaces != 0 && refs.std.covers(cm.fn):
+		case on&ruleStdInterfaces != 0 && refs.std.Covers(cm.fn):
 			marked[key] = true
-		default:
-			marked[key] = refs.dispatched(m, p.PkgPath, cm, on)
-			if marked[key] {
-				byTest[key] = true
-			}
+		case refs.dispatched(m, p.PkgPath, cm, on&^ruleTestSupport):
+			marked[key] = true
+			byTest[key] = true
+		case on&ruleTestSupport != 0 && refs.dispatched(m, p.PkgPath, cm, on):
+			marked[key] = true
+			byTest[key] = true
+			c.TestSupport = append(c.TestSupport, key)
 		}
 	}
 	c.Referenced = len(byTest)
+	// What no test refers to may still be left out: a functional option,
+	// or a method of an unexported type behind an interface a test holds.
+	for key, ok := range marked {
+		switch cm, isMethod := methods[key]; {
+		case ok:
+		case on&ruleOptionFuncs != 0 && options[key]:
+			c.OptionFuncs = append(c.OptionFuncs, key)
+			delete(marked, key)
+		case on&ruleHeldInterfaces != 0 && isMethod && refs.heldInterface(m, p.PkgPath, cm, on):
+			c.InterfaceMethods = append(c.InterfaceMethods, key)
+			delete(marked, key)
+		}
+	}
 	for key, ok := range marked {
 		if !ok {
 			c.Names = append(c.Names, key)
@@ -175,6 +218,9 @@ func untested(m *load.Module, refs *Refs, p *packages.Package, on rules) Unteste
 	}
 	slices.Sort(c.Names)
 	slices.Sort(c.Excluded)
+	slices.Sort(c.OptionFuncs)
+	slices.Sort(c.InterfaceMethods)
+	slices.Sort(c.TestSupport)
 	c.Pos = make([]token.Pos, len(c.Names))
 	for i, key := range c.Names {
 		c.Pos[i] = declared[key]
@@ -200,8 +246,28 @@ func (r *Refs) dispatched(m *load.Module, pkgPath string, cm countedMethod, on r
 	if cm.fn == nil {
 		return false
 	}
-	for _, d := range r.dispatch[cm.fn.Name()] {
-		if d.under != pkgPath && on&ruleOtherTests == 0 {
+	return r.reaches(m, r.dispatch[cm.fn.Name()], pkgPath, cm, on)
+}
+
+// heldInterface reports whether cm, an exported method of an unexported
+// type of the package at pkgPath, is declared by an interface of the module
+// that a test holds a value of, which the type or a pointer to it
+// implements (SPEC.md 6.4, rule b).
+func (r *Refs) heldInterface(m *load.Module, pkgPath string, cm countedMethod, on rules) bool {
+	if cm.fn == nil || ast.IsExported(cm.recv) {
+		return false
+	}
+	return r.reaches(m, r.heldBy(m, cm.fn.Name()), pkgPath, cm, on)
+}
+
+// reaches reports whether the receiver type of cm implements the interface
+// of one of refs, as dispatched describes.
+func (r *Refs) reaches(m *load.Module, refs []dispatchRef, pkgPath string, cm countedMethod, on rules) bool {
+	for _, d := range refs {
+		if d.under != pkgPath && (on&ruleOtherTests == 0 || d.support) {
+			continue
+		}
+		if d.support && on&ruleTestSupport == 0 {
 			continue
 		}
 		scope := r.scopeIn(m, d.tp, pkgPath)
@@ -320,9 +386,7 @@ func instantiations(info *types.Info, inTest func(token.Pos) bool) map[*types.Ty
 }
 
 // implements reports whether t or *t implements iface.
-func implements(t types.Type, iface *types.Interface) bool {
-	return types.Implements(t, iface) || types.Implements(types.NewPointer(t), iface)
-}
+func implements(t types.Type, iface *types.Interface) bool { return stdiface.Implements(t, iface) }
 
 // funcKey returns the key of fn, its name for a func and
 // <receiver type>.<name> for a method, and the receiver type name, "" for a

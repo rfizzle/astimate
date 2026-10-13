@@ -1,4 +1,7 @@
-package tests
+// Package stdiface knows the closed list of interfaces of SPEC.md 6.4 that
+// the runtime or the standard library calls a method through, and whether
+// a method implements one of them.
+package stdiface
 
 import (
 	"go/token"
@@ -27,6 +30,7 @@ func plainStdInterfaces() [][]stdMethod {
 		errT   = types.Universe.Lookup("error").Type()
 		anyT   = types.Universe.Lookup("any").Type()
 		errs   = types.NewSlice(errT)
+		strs   = types.NewSlice(str)
 		none   = []types.Type(nil)
 		one    = func(t ...types.Type) []types.Type { return t }
 		sortIf = []stdMethod{
@@ -34,6 +38,7 @@ func plainStdInterfaces() [][]stdMethod {
 			{"Less", one(num, num), one(boolT)},
 			{"Swap", one(num, num), none},
 		}
+		flagIf = []stdMethod{{"String", none, one(str)}, {"Set", one(str), one(errT)}}
 		heapIf = append(slices.Clip(sortIf),
 			stdMethod{"Push", one(anyT), none},
 			stdMethod{"Pop", none, one(anyT)})
@@ -47,11 +52,13 @@ func plainStdInterfaces() [][]stdMethod {
 		{{"Write", one(bytes), one(num, errT)}}, // io.Writer
 		{{"Close", none, one(errT)}},            // io.Closer
 		{{"Scan", one(anyT), one(errT)}},        // sql.Scanner
-		{{"String", none, one(str)}, {"Set", one(str), one(errT)}}, // flag.Value
-		{{"Unwrap", none, one(errT)}},                              // errors: Unwrap() error
-		{{"Unwrap", none, one(errs)}},                              // errors: Unwrap() []error
-		{{"Is", one(errT), one(boolT)}},                            // errors: Is(error) bool
-		{{"As", one(anyT), one(boolT)}},                            // errors: As(any) bool
+		flagIf,                                  // flag.Value
+		append(slices.Clip(flagIf), stdMethod{"Type", none, one(str)}),                                      // pflag.Value
+		{{"Append", one(str), one(errT)}, {"Replace", one(strs), one(errT)}, {"GetSlice", none, one(strs)}}, // pflag.SliceValue
+		{{"Unwrap", none, one(errT)}},   // errors: Unwrap() error
+		{{"Unwrap", none, one(errs)}},   // errors: Unwrap() []error
+		{{"Is", one(errT), one(boolT)}}, // errors: Is(error) bool
+		{{"As", one(anyT), one(boolT)}}, // errors: As(any) bool
 	}
 	// encoding.TextMarshaler and TextUnmarshaler, encoding.BinaryMarshaler
 	// and BinaryUnmarshaler, json.Marshaler and Unmarshaler.
@@ -84,8 +91,8 @@ func namedStdInterfaces() []namedStdInterface {
 	}
 }
 
-// stdInterfaces indexes the closed list of SPEC.md 6.4 by method name.
-type stdInterfaces struct {
+// Set indexes the closed list of SPEC.md 6.4 by method name.
+type Set struct {
 	// plain maps a method name to the predeclared-only interfaces
 	// declaring it, error among them.
 	plain map[string][]*types.Interface
@@ -94,10 +101,10 @@ type stdInterfaces struct {
 	named map[string][]namedStdInterface
 }
 
-// newStdInterfaces builds the plain interfaces of the closed list and
+// New builds the plain interfaces of the closed list and
 // indexes the whole list by method name.
-func newStdInterfaces() stdInterfaces {
-	s := stdInterfaces{
+func New() Set {
+	s := Set{
 		plain: make(map[string][]*types.Interface),
 		named: make(map[string][]namedStdInterface),
 	}
@@ -128,11 +135,11 @@ func newStdInterfaces() stdInterfaces {
 	return s
 }
 
-// covers reports whether fn, a method, is a method of an interface of the
+// Covers reports whether fn, a method, is a method of an interface of the
 // closed list that its receiver type, or a pointer to it, implements. The
 // receiver is taken as the method declares it, so a generic type is
 // checked with its own type parameters.
-func (s stdInterfaces) covers(fn *types.Func) bool {
+func (s Set) Covers(fn *types.Func) bool {
 	if fn == nil {
 		return false
 	}
@@ -140,12 +147,12 @@ func (s stdInterfaces) covers(fn *types.Func) bool {
 	if !ok || sig.Recv() == nil {
 		return false
 	}
-	recv := namedOf(sig.Recv().Type())
+	recv := NamedOf(sig.Recv().Type())
 	if recv == nil {
 		return false
 	}
 	for _, iface := range s.plain[fn.Name()] {
-		if implements(recv, iface) {
+		if Implements(recv, iface) {
 			return true
 		}
 	}
@@ -158,7 +165,7 @@ func (s stdInterfaces) covers(fn *types.Func) bool {
 		if !ok {
 			continue
 		}
-		if iface, ok := obj.Type().Underlying().(*types.Interface); ok && implements(recv, iface) {
+		if iface, ok := obj.Type().Underlying().(*types.Interface); ok && Implements(recv, iface) {
 			return true
 		}
 	}
@@ -173,10 +180,25 @@ func (s stdInterfaces) covers(fn *types.Func) bool {
 func signaturePackage(sig *types.Signature, path string) *types.Package {
 	for _, tup := range [...]*types.Tuple{sig.Params(), sig.Results()} {
 		for v := range tup.Variables() {
-			if n := namedOf(v.Type()); n != nil && n.Obj().Pkg() != nil && n.Obj().Pkg().Path() == path {
+			if n := NamedOf(v.Type()); n != nil && n.Obj().Pkg() != nil && n.Obj().Pkg().Path() == path {
 				return n.Obj().Pkg()
 			}
 		}
 	}
 	return nil
+}
+
+// NamedOf returns the named type of t after dereferencing a pointer, or nil.
+func NamedOf(t types.Type) *types.Named {
+	t = types.Unalias(t)
+	if ptr, ok := t.(*types.Pointer); ok {
+		t = types.Unalias(ptr.Elem())
+	}
+	n, _ := t.(*types.Named)
+	return n
+}
+
+// Implements reports whether t or *t implements iface.
+func Implements(t types.Type, iface *types.Interface) bool {
+	return types.Implements(t, iface) || types.Implements(types.NewPointer(t), iface)
 }
