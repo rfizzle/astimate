@@ -9,6 +9,7 @@ import (
 
 	"github.com/rfizzle/astimate/internal/gate"
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/explain"
 )
 
 func TestDefault(t *testing.T) {
@@ -385,7 +386,7 @@ func TestParseEmpty(t *testing.T) {
 	}
 }
 
-// TestDefaultGatesMatchExplanations checks that metrics.Explain's Gated flag
+// TestDefaultGatesMatchExplanations checks that explain.Explain's Gated flag
 // names exactly the metrics the embedded default thresholds, so the reported
 // but ungated coupling metrics stay out of the default.
 func TestDefaultGatesMatchExplanations(t *testing.T) {
@@ -401,7 +402,7 @@ func TestDefaultGatesMatchExplanations(t *testing.T) {
 		capacity[th.Metric] = th.Kind == gate.Capacity
 	}
 	for _, name := range metrics.MetricNames() {
-		e, ok := metrics.Explain(name)
+		e, ok := explain.Explain(name)
 		if !ok {
 			t.Errorf("Explain(%q) has no entry", name)
 			continue

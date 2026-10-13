@@ -85,6 +85,7 @@ astimate/
 ├── cmd/astimate/main.go        # CLI entrypoint; `astimate serve` starts MCP
 ├── internal/
 │   ├── metrics/                 # RawMetrics struct and Extractor interface (language-agnostic)
+│   │   ├── explain/             # Per-metric definitions and evidence texts for explain_metric
 │   │   └── metricstest/         # Conformance suite every extractor runs, plus a fake extractor
 │   ├── config/                  # Embedded default config and the unified loader
 │   ├── engine/                  # Operations: resolve a target, assess, rank, check, baseline write

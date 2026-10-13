@@ -1,6 +1,14 @@
-package metrics
+// Package explain holds the per-metric definitions and evidence texts that
+// the explain_metric MCP tool reports, and their lookup. It imports metrics
+// and nothing else; the strict field table and RawMetrics stay in metrics.
+package explain
 
-import "strings"
+import (
+	"slices"
+	"strings"
+
+	"github.com/rfizzle/astimate/internal/metrics"
+)
 
 // Explanation describes one RawMetrics field for a reader deciding what a
 // value means and whether it can fail the gate.
@@ -20,22 +28,27 @@ type Explanation struct {
 
 // Explain returns the explanation of the metric named by its JSON field
 // name, and false when the name is not a RawMetrics field. Every name in
-// MetricNames has an entry.
+// metrics.MetricNames has an entry.
 func Explain(name string) (Explanation, bool) {
-	i := fieldIndex(name)
-	if i < 0 {
+	e, ok := lookup(name)
+	if !ok || !slices.Contains(metrics.MetricNames(), name) {
 		return Explanation{}, false
 	}
-	f := fieldTable()[i]
-	evidence := explainText(f.evidence)
-	if f.has("capacity") {
+	// A v0 field reads as computed even on the zero record (SPEC.md 6).
+	var zero metrics.RawMetrics
+	release := "v1"
+	if _, v0 := zero.Value(name); v0 {
+		release = "v0"
+	}
+	evidence := explainText(e.evidence)
+	if e.has("capacity") {
 		evidence += " " + evidenceCapacity
 	}
 	return Explanation{
-		Definition: explainText(f.definition),
+		Definition: explainText(e.definition),
 		Evidence:   evidence,
-		Release:    f.release,
-		Gated:      f.has("gated"),
+		Release:    release,
+		Gated:      e.has("gated"),
 	}, true
 }
 
@@ -72,7 +85,7 @@ const (
 const generatedExcluded = " Generated files, those with a \"Code generated ... DO NOT EDIT.\" header, " +
 	"are left out: a rebuild regenerates them; see tokens_est_generated."
 
-// explainText expands the placeholders of a fieldTable text: {generated}
+// explainText expands the placeholders of a texts entry: {generated}
 // to generatedExcluded and each {<name>} of the evidence texts above to
 // its text.
 func explainText(s string) string {

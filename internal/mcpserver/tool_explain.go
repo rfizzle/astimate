@@ -8,6 +8,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/explain"
 	"github.com/rfizzle/astimate/internal/report"
 )
 
@@ -73,7 +74,7 @@ func addExplainTool(srv *mcp.Server, s *session) {
 // result carries text content and structured content: the explanation, or
 // {"error": ...}.
 func (s *session) explainMetric(_ context.Context, _ *mcp.CallToolRequest, in ExplainInput) (*mcp.CallToolResult, any, error) {
-	e, ok := metrics.Explain(in.Metric)
+	e, ok := explain.Explain(in.Metric)
 	if !ok {
 		msg := explainToolName + ": unknown metric " + strconv.Quote(in.Metric) +
 			"; valid names: " + strings.Join(metrics.MetricNames(), ", ")

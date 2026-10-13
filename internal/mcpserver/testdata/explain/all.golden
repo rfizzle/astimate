@@ -1,0 +1,518 @@
+== files ==
+files (v0, not gated by default)
+Definition: Non-test source files, generated files included.
+Evidence: Context only: an input to the rebuild estimate or to other metrics, not a failure mode the gate targets.
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "Non-test source files, generated files included.",
+  "evidence": "Context only: an input to the rebuild estimate or to other metrics, not a failure mode the gate targets.",
+  "gated": false,
+  "name": "files",
+  "release": "v0",
+  "thresholds": []
+}
+
+== sloc ==
+sloc (v0, gated by default)
+Definition: Non-blank, non-comment lines in non-test files. Generated files, those with a "Code generated ... DO NOT EDIT." header, are left out: a rebuild regenerates them; see tokens_est_generated.
+Evidence: Package bloat: successful agent trajectories typically stay under 20 to 30k tokens, resolve rates collapse at 64k tokens of context, and failed trajectories are longer. Strong evidence. Gated as a capacity rule: crossing the max, or a new package over it, fails. A package already over the max warns while its value holds or falls, and may grow by at most the rule's over_max_delta in one change, with a warning to split, before growth fails. The fix is a split, not a smaller change.
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "Non-blank, non-comment lines in non-test files. Generated files, those with a \"Code generated ... DO NOT EDIT.\" header, are left out: a rebuild regenerates them; see tokens_est_generated.",
+  "evidence": "Package bloat: successful agent trajectories typically stay under 20 to 30k tokens, resolve rates collapse at 64k tokens of context, and failed trajectories are longer. Strong evidence. Gated as a capacity rule: crossing the max, or a new package over it, fails. A package already over the max warns while its value holds or falls, and may grow by at most the rule's over_max_delta in one change, with a warning to split, before growth fails. The fix is a split, not a smaller change.",
+  "gated": true,
+  "name": "sloc",
+  "release": "v0",
+  "thresholds": []
+}
+
+== largest_file_sloc ==
+largest_file_sloc (v0, gated by default)
+Definition: SLOC of the largest non-test file. Generated files, those with a "Code generated ... DO NOT EDIT." header, are left out: a rebuild regenerates them; see tokens_est_generated.
+Evidence: Package bloat: successful agent trajectories typically stay under 20 to 30k tokens, resolve rates collapse at 64k tokens of context, and failed trajectories are longer. Strong evidence. Files past the ceiling rarely fit an edit in one view. Gated as a capacity rule: crossing the max, or a new package over it, fails. A package already over the max warns while its value holds or falls, and may grow by at most the rule's over_max_delta in one change, with a warning to split, before growth fails. The fix is a split, not a smaller change.
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "SLOC of the largest non-test file. Generated files, those with a \"Code generated ... DO NOT EDIT.\" header, are left out: a rebuild regenerates them; see tokens_est_generated.",
+  "evidence": "Package bloat: successful agent trajectories typically stay under 20 to 30k tokens, resolve rates collapse at 64k tokens of context, and failed trajectories are longer. Strong evidence. Files past the ceiling rarely fit an edit in one view. Gated as a capacity rule: crossing the max, or a new package over it, fails. A package already over the max warns while its value holds or falls, and may grow by at most the rule's over_max_delta in one change, with a warning to split, before growth fails. The fix is a split, not a smaller change.",
+  "gated": true,
+  "name": "largest_file_sloc",
+  "release": "v0",
+  "thresholds": []
+}
+
+== tokens_est ==
+tokens_est (v0, gated by default)
+Definition: Estimated tokens of non-test source: bytes divided by chars_per_token. Generated files, those with a "Code generated ... DO NOT EDIT." header, are left out: a rebuild regenerates them; see tokens_est_generated.
+Evidence: Package bloat: successful agent trajectories typically stay under 20 to 30k tokens, resolve rates collapse at 64k tokens of context, and failed trajectories are longer. Strong evidence. Gated as a capacity rule: crossing the max, or a new package over it, fails. A package already over the max warns while its value holds or falls, and may grow by at most the rule's over_max_delta in one change, with a warning to split, before growth fails. The fix is a split, not a smaller change.
+Thresholds in the loaded config: none
+Merged: when sloc also fires on the row in the same direction, the two are one finding attributed to sloc, whose limit names both and whose also list names tokens_est.
+-- structured --
+{
+  "definition": "Estimated tokens of non-test source: bytes divided by chars_per_token. Generated files, those with a \"Code generated ... DO NOT EDIT.\" header, are left out: a rebuild regenerates them; see tokens_est_generated.",
+  "evidence": "Package bloat: successful agent trajectories typically stay under 20 to 30k tokens, resolve rates collapse at 64k tokens of context, and failed trajectories are longer. Strong evidence. Gated as a capacity rule: crossing the max, or a new package over it, fails. A package already over the max warns while its value holds or falls, and may grow by at most the rule's over_max_delta in one change, with a warning to split, before growth fails. The fix is a split, not a smaller change.",
+  "gated": true,
+  "merged_into": "sloc",
+  "name": "tokens_est",
+  "release": "v0",
+  "thresholds": []
+}
+
+== tokens_est_with_tests ==
+tokens_est_with_tests (v0, not gated by default)
+Definition: Estimated tokens of all source, test files included. Generated files, those with a "Code generated ... DO NOT EDIT." header, are left out: a rebuild regenerates them; see tokens_est_generated.
+Evidence: Context only: an input to the rebuild estimate or to other metrics, not a failure mode the gate targets.
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "Estimated tokens of all source, test files included. Generated files, those with a \"Code generated ... DO NOT EDIT.\" header, are left out: a rebuild regenerates them; see tokens_est_generated.",
+  "evidence": "Context only: an input to the rebuild estimate or to other metrics, not a failure mode the gate targets.",
+  "gated": false,
+  "name": "tokens_est_with_tests",
+  "release": "v0",
+  "thresholds": []
+}
+
+== internal_imports ==
+internal_imports (v0, gated by default)
+Definition: Fan-out: distinct module-internal packages imported by non-test files.
+Evidence: Coupling growth: agent failures come from coupled facts absent from context. Moderate evidence. Gated as a capacity rule: crossing the max, or a new package over it, fails. A package already over the max warns while its value holds or falls, and may grow by at most the rule's over_max_delta in one change, with a warning to split, before growth fails. The fix is a split, not a smaller change.
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "Fan-out: distinct module-internal packages imported by non-test files.",
+  "evidence": "Coupling growth: agent failures come from coupled facts absent from context. Moderate evidence. Gated as a capacity rule: crossing the max, or a new package over it, fails. A package already over the max warns while its value holds or falls, and may grow by at most the rule's over_max_delta in one change, with a warning to split, before growth fails. The fix is a split, not a smaller change.",
+  "gated": true,
+  "name": "internal_imports",
+  "release": "v0",
+  "thresholds": []
+}
+
+== external_imports ==
+external_imports (v0, not gated by default)
+Definition: Distinct imports that are neither standard library nor in the module.
+Evidence: Context only: an input to the rebuild estimate or to other metrics, not a failure mode the gate targets.
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "Distinct imports that are neither standard library nor in the module.",
+  "evidence": "Context only: an input to the rebuild estimate or to other metrics, not a failure mode the gate targets.",
+  "gated": false,
+  "name": "external_imports",
+  "release": "v0",
+  "thresholds": []
+}
+
+== stdlib_imports ==
+stdlib_imports (v0, not gated by default)
+Definition: Distinct standard-library imports.
+Evidence: Context only: an input to the rebuild estimate or to other metrics, not a failure mode the gate targets.
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "Distinct standard-library imports.",
+  "evidence": "Context only: an input to the rebuild estimate or to other metrics, not a failure mode the gate targets.",
+  "gated": false,
+  "name": "stdlib_imports",
+  "release": "v0",
+  "thresholds": []
+}
+
+== fan_in ==
+fan_in (v0, not gated by default)
+Definition: Distinct module-internal packages importing this package from non-test files.
+Evidence: Blast radius: no direct study; the reasoning is that a change to a package with many importers can break each of them. Unproven; reported for ranking. Recorded in the rebuild estimate's contract detail, not in its formula, and not gated.
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "Distinct module-internal packages importing this package from non-test files.",
+  "evidence": "Blast radius: no direct study; the reasoning is that a change to a package with many importers can break each of them. Unproven; reported for ranking. Recorded in the rebuild estimate's contract detail, not in its formula, and not gated.",
+  "gated": false,
+  "name": "fan_in",
+  "release": "v0",
+  "thresholds": []
+}
+
+== fan_in_tests ==
+fan_in_tests (v0, not gated by default)
+Definition: Module packages importing this package from test files only.
+Evidence: Context only: an input to the rebuild estimate or to other metrics, not a failure mode the gate targets.
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "Module packages importing this package from test files only.",
+  "evidence": "Context only: an input to the rebuild estimate or to other metrics, not a failure mode the gate targets.",
+  "gated": false,
+  "name": "fan_in_tests",
+  "release": "v0",
+  "thresholds": []
+}
+
+== exported_symbols ==
+exported_symbols (v0, gated by default)
+Definition: Exported funcs, methods, types, vars and consts in non-test files. Generated files, those with a "Code generated ... DO NOT EDIT." header, are left out: a rebuild regenerates them; see tokens_est_generated.
+Evidence: Exporting everything: no direct study; a wider API surface raises fan-in cost and the facts the next agent must hold. Indirect evidence. Gated as a capacity rule: crossing the max, or a new package over it, fails. A package already over the max warns while its value holds or falls, and may grow by at most the rule's over_max_delta in one change, with a warning to split, before growth fails. The fix is a split, not a smaller change.
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "Exported funcs, methods, types, vars and consts in non-test files. Generated files, those with a \"Code generated ... DO NOT EDIT.\" header, are left out: a rebuild regenerates them; see tokens_est_generated.",
+  "evidence": "Exporting everything: no direct study; a wider API surface raises fan-in cost and the facts the next agent must hold. Indirect evidence. Gated as a capacity rule: crossing the max, or a new package over it, fails. A package already over the max warns while its value holds or falls, and may grow by at most the rule's over_max_delta in one change, with a warning to split, before growth fails. The fix is a split, not a smaller change.",
+  "gated": true,
+  "name": "exported_symbols",
+  "release": "v0",
+  "thresholds": []
+}
+
+== globals ==
+globals (v0, gated by default)
+Definition: Names declared by package-level var in non-test files that hold mutable state, excluding _. In Go, sentinel errors (errors.New or fmt.Errorf of constants), //go:embed variables and boolean, numeric or string variables with a constant initializer or none that the package never assigns, increments or takes the address of (build information set by -ldflags), compiled regexps of constants, and read-only literal tables of constants that nothing writes an element of or passes to a call that could mutate them are left out. Generated files, those with a "Code generated ... DO NOT EDIT." header, are left out: a rebuild regenerates them; see tokens_est_generated.
+Evidence: Hidden state: no direct study; plausible and kept at low weight.
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "Names declared by package-level var in non-test files that hold mutable state, excluding _. In Go, sentinel errors (errors.New or fmt.Errorf of constants), //go:embed variables and boolean, numeric or string variables with a constant initializer or none that the package never assigns, increments or takes the address of (build information set by -ldflags), compiled regexps of constants, and read-only literal tables of constants that nothing writes an element of or passes to a call that could mutate them are left out. Generated files, those with a \"Code generated ... DO NOT EDIT.\" header, are left out: a rebuild regenerates them; see tokens_est_generated.",
+  "evidence": "Hidden state: no direct study; plausible and kept at low weight.",
+  "gated": true,
+  "name": "globals",
+  "release": "v0",
+  "thresholds": []
+}
+
+== init_funcs ==
+init_funcs (v0, gated by default)
+Definition: Number of init() functions. Generated files, those with a "Code generated ... DO NOT EDIT." header, are left out: a rebuild regenerates them; see tokens_est_generated.
+Evidence: Hidden state: no direct study; plausible and kept at low weight.
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "Number of init() functions. Generated files, those with a \"Code generated ... DO NOT EDIT.\" header, are left out: a rebuild regenerates them; see tokens_est_generated.",
+  "evidence": "Hidden state: no direct study; plausible and kept at low weight.",
+  "gated": true,
+  "name": "init_funcs",
+  "release": "v0",
+  "thresholds": []
+}
+
+== max_nesting ==
+max_nesting (v0, gated by default)
+Definition: Deepest nesting of if, for, range, switch, select and func literal. Generated files, those with a "Code generated ... DO NOT EDIT." header, are left out: a rebuild regenerates them; see tokens_est_generated.
+Evidence: Deep nesting: classical complexity metrics show no consistent correlation with LLM performance. Gated on regressions only; weak evidence.
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "Deepest nesting of if, for, range, switch, select and func literal. Generated files, those with a \"Code generated ... DO NOT EDIT.\" header, are left out: a rebuild regenerates them; see tokens_est_generated.",
+  "evidence": "Deep nesting: classical complexity metrics show no consistent correlation with LLM performance. Gated on regressions only; weak evidence.",
+  "gated": true,
+  "name": "max_nesting",
+  "release": "v0",
+  "thresholds": []
+}
+
+== cognitive_total ==
+cognitive_total (v0, not gated by default)
+Definition: Sum of cognitive complexity over all functions (gocognit rules). Generated files, those with a "Code generated ... DO NOT EDIT." header, are left out: a rebuild regenerates them; see tokens_est_generated.
+Evidence: Context only: an input to the rebuild estimate or to other metrics, not a failure mode the gate targets.
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "Sum of cognitive complexity over all functions (gocognit rules). Generated files, those with a \"Code generated ... DO NOT EDIT.\" header, are left out: a rebuild regenerates them; see tokens_est_generated.",
+  "evidence": "Context only: an input to the rebuild estimate or to other metrics, not a failure mode the gate targets.",
+  "gated": false,
+  "name": "cognitive_total",
+  "release": "v0",
+  "thresholds": []
+}
+
+== cognitive_p90 ==
+cognitive_p90 (v0, gated by default)
+Definition: Nearest-rank 90th percentile of per-function cognitive complexity. Generated files, those with a "Code generated ... DO NOT EDIT." header, are left out: a rebuild regenerates them; see tokens_est_generated.
+Evidence: Deep nesting: classical complexity metrics show no consistent correlation with LLM performance. Gated on regressions only; weak evidence.
+Thresholds in the loaded config: none
+Direction: against a baseline, a density rule on it fails a rise only when a function changed since the baseline is more complex than the baseline's p90, so a value that rises because code was deleted passes.
+-- structured --
+{
+  "definition": "Nearest-rank 90th percentile of per-function cognitive complexity. Generated files, those with a \"Code generated ... DO NOT EDIT.\" header, are left out: a rebuild regenerates them; see tokens_est_generated.",
+  "evidence": "Deep nesting: classical complexity metrics show no consistent correlation with LLM performance. Gated on regressions only; weak evidence.",
+  "gated": true,
+  "name": "cognitive_p90",
+  "release": "v0",
+  "rises_when": "a function changed since the baseline is more complex than the baseline's p90",
+  "thresholds": []
+}
+
+== func_count ==
+func_count (v0, not gated by default)
+Definition: Functions and methods in non-test files. Generated files, those with a "Code generated ... DO NOT EDIT." header, are left out: a rebuild regenerates them; see tokens_est_generated.
+Evidence: Context only: an input to the rebuild estimate or to other metrics, not a failure mode the gate targets.
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "Functions and methods in non-test files. Generated files, those with a \"Code generated ... DO NOT EDIT.\" header, are left out: a rebuild regenerates them; see tokens_est_generated.",
+  "evidence": "Context only: an input to the rebuild estimate or to other metrics, not a failure mode the gate targets.",
+  "gated": false,
+  "name": "func_count",
+  "release": "v0",
+  "thresholds": []
+}
+
+== dup_blocks ==
+dup_blocks (v0, gated by default)
+Definition: Distinct maximal duplicate token sequences of at least duplication.min_tokens within the package. Generated files, those with a "Code generated ... DO NOT EDIT." header, are left out: a rebuild regenerates them; see tokens_est_generated.
+Evidence: Copy-paste instead of extraction: industry reports on AI-assisted repositories show rising duplicated blocks. The most specific LLM failure mode found; moderate evidence.
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "Distinct maximal duplicate token sequences of at least duplication.min_tokens within the package. Generated files, those with a \"Code generated ... DO NOT EDIT.\" header, are left out: a rebuild regenerates them; see tokens_est_generated.",
+  "evidence": "Copy-paste instead of extraction: industry reports on AI-assisted repositories show rising duplicated blocks. The most specific LLM failure mode found; moderate evidence.",
+  "gated": true,
+  "name": "dup_blocks",
+  "release": "v0",
+  "thresholds": []
+}
+
+== duplication_pct ==
+duplication_pct (v0, gated by default)
+Definition: Share of non-test SLOC covered by a duplicate block, as a percentage. Generated files, those with a "Code generated ... DO NOT EDIT." header, are left out: a rebuild regenerates them; see tokens_est_generated.
+Evidence: Copy-paste instead of extraction: industry reports on AI-assisted repositories show rising duplicated blocks. The most specific LLM failure mode found; moderate evidence.
+Thresholds in the loaded config: none
+Direction: against a baseline, a density rule on it fails a rise only when duplicated_lines rose, so a value that rises because code was deleted passes.
+Merged: when dup_blocks also fires on the row in the same direction, the two are one finding attributed to dup_blocks, whose limit names both and whose also list names duplication_pct.
+-- structured --
+{
+  "definition": "Share of non-test SLOC covered by a duplicate block, as a percentage. Generated files, those with a \"Code generated ... DO NOT EDIT.\" header, are left out: a rebuild regenerates them; see tokens_est_generated.",
+  "evidence": "Copy-paste instead of extraction: industry reports on AI-assisted repositories show rising duplicated blocks. The most specific LLM failure mode found; moderate evidence.",
+  "gated": true,
+  "merged_into": "dup_blocks",
+  "name": "duplication_pct",
+  "release": "v0",
+  "rises_when": "duplicated_lines rose",
+  "thresholds": []
+}
+
+== duplicated_lines ==
+duplicated_lines (v1, not gated by default)
+Definition: Non-test SLOC covered by a duplicate block, duplication_pct's numerator. Generated files, those with a "Code generated ... DO NOT EDIT." header, are left out: a rebuild regenerates them; see tokens_est_generated.
+Evidence: Copy-paste instead of extraction: industry reports on AI-assisted repositories show rising duplicated blocks. The most specific LLM failure mode found; moderate evidence.
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "Non-test SLOC covered by a duplicate block, duplication_pct's numerator. Generated files, those with a \"Code generated ... DO NOT EDIT.\" header, are left out: a rebuild regenerates them; see tokens_est_generated.",
+  "evidence": "Copy-paste instead of extraction: industry reports on AI-assisted repositories show rising duplicated blocks. The most specific LLM failure mode found; moderate evidence.",
+  "gated": false,
+  "name": "duplicated_lines",
+  "release": "v1",
+  "thresholds": []
+}
+
+== test_files ==
+test_files (v0, not gated by default)
+Definition: _test.go files.
+Evidence: Context only: an input to the rebuild estimate or to other metrics, not a failure mode the gate targets.
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "_test.go files.",
+  "evidence": "Context only: an input to the rebuild estimate or to other metrics, not a failure mode the gate targets.",
+  "gated": false,
+  "name": "test_files",
+  "release": "v0",
+  "thresholds": []
+}
+
+== test_funcs ==
+test_funcs (v0, not gated by default)
+Definition: Test, Benchmark, Fuzz and Example functions.
+Evidence: Context only: an input to the rebuild estimate or to other metrics, not a failure mode the gate targets.
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "Test, Benchmark, Fuzz and Example functions.",
+  "evidence": "Context only: an input to the rebuild estimate or to other metrics, not a failure mode the gate targets.",
+  "gated": false,
+  "name": "test_funcs",
+  "release": "v0",
+  "thresholds": []
+}
+
+== has_tests ==
+has_tests (v0, gated by default)
+Definition: Whether test_funcs is above 0 or, a test file anywhere in the module refers to an exported func or method of the package.
+Evidence: Untested additions: agents self-correct through a run-and-check loop, and a package without tests denies the next agent that loop. Moderate, indirect evidence.
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "Whether test_funcs is above 0 or, a test file anywhere in the module refers to an exported func or method of the package.",
+  "evidence": "Untested additions: agents self-correct through a run-and-check loop, and a package without tests denies the next agent that loop. Moderate, indirect evidence.",
+  "gated": true,
+  "name": "has_tests",
+  "release": "v0",
+  "thresholds": []
+}
+
+== untested_exports ==
+untested_exports (v0, gated by default)
+Definition: Exported funcs and methods not referenced from any test file in the package. Generated files, those with a "Code generated ... DO NOT EDIT." header, are left out: a rebuild regenerates them; see tokens_est_generated.
+Evidence: Untested additions: agents self-correct through a run-and-check loop, and a package without tests denies the next agent that loop. Moderate, indirect evidence.
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "Exported funcs and methods not referenced from any test file in the package. Generated files, those with a \"Code generated ... DO NOT EDIT.\" header, are left out: a rebuild regenerates them; see tokens_est_generated.",
+  "evidence": "Untested additions: agents self-correct through a run-and-check loop, and a package without tests denies the next agent that loop. Moderate, indirect evidence.",
+  "gated": true,
+  "name": "untested_exports",
+  "release": "v0",
+  "thresholds": []
+}
+
+== dup_blocks_cross_pkg ==
+dup_blocks_cross_pkg (v1, gated by default)
+Definition: Duplicate blocks shared with other packages in the module: exact normalized repeats of at least duplication.min_tokens found over one module-wide stream, counted once per package they touch. The module-level row (package path "<module>") counts the distinct blocks and is baselined like a package, because one edit that copies code across packages changes two packages' counts. A rule on it is gated on the module row only: package rows report their count but are not gated on it, so one cross-package copy is one finding.
+Evidence: Copy-paste instead of extraction: industry reports on AI-assisted repositories show rising duplicated blocks. The most specific LLM failure mode found; moderate evidence. The default gates the module row: max_delta 0, and max 450 (the corpus p90) for a module with no baseline.
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "Duplicate blocks shared with other packages in the module: exact normalized repeats of at least duplication.min_tokens found over one module-wide stream, counted once per package they touch. The module-level row (package path \"\u003cmodule\u003e\") counts the distinct blocks and is baselined like a package, because one edit that copies code across packages changes two packages' counts. A rule on it is gated on the module row only: package rows report their count but are not gated on it, so one cross-package copy is one finding.",
+  "evidence": "Copy-paste instead of extraction: industry reports on AI-assisted repositories show rising duplicated blocks. The most specific LLM failure mode found; moderate evidence. The default gates the module row: max_delta 0, and max 450 (the corpus p90) for a module with no baseline.",
+  "gated": true,
+  "name": "dup_blocks_cross_pkg",
+  "release": "v1",
+  "thresholds": []
+}
+
+== instability ==
+instability (v1, not gated by default)
+Definition: Martin instability Ce / (Ca + Ce) with Ca = fan_in and Ce = internal_imports; 0 is maximally stable, 1 maximally unstable. Null when both are 0.
+Evidence: Reported, not gated. Martin's package metrics are widely reported but their validation as predictors is mixed and none exists for Go, whose consumer-defined interfaces invert the abstract-provider assumption: idiomatic Go puts stable concrete leaf packages near distance 1 by design. No gate rule until the reference-corpus measurement shows where well-regarded Go modules sit.
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "Martin instability Ce / (Ca + Ce) with Ca = fan_in and Ce = internal_imports; 0 is maximally stable, 1 maximally unstable. Null when both are 0.",
+  "evidence": "Reported, not gated. Martin's package metrics are widely reported but their validation as predictors is mixed and none exists for Go, whose consumer-defined interfaces invert the abstract-provider assumption: idiomatic Go puts stable concrete leaf packages near distance 1 by design. No gate rule until the reference-corpus measurement shows where well-regarded Go modules sit.",
+  "gated": false,
+  "name": "instability",
+  "release": "v1",
+  "thresholds": []
+}
+
+== abstractness ==
+abstractness (v1, not gated by default)
+Definition: Exported interface types over all exported types. Null with no exported types. Generated files, those with a "Code generated ... DO NOT EDIT." header, are left out: a rebuild regenerates them; see tokens_est_generated.
+Evidence: Reported, not gated. Martin's package metrics are widely reported but their validation as predictors is mixed and none exists for Go, whose consumer-defined interfaces invert the abstract-provider assumption: idiomatic Go puts stable concrete leaf packages near distance 1 by design. No gate rule until the reference-corpus measurement shows where well-regarded Go modules sit.
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "Exported interface types over all exported types. Null with no exported types. Generated files, those with a \"Code generated ... DO NOT EDIT.\" header, are left out: a rebuild regenerates them; see tokens_est_generated.",
+  "evidence": "Reported, not gated. Martin's package metrics are widely reported but their validation as predictors is mixed and none exists for Go, whose consumer-defined interfaces invert the abstract-provider assumption: idiomatic Go puts stable concrete leaf packages near distance 1 by design. No gate rule until the reference-corpus measurement shows where well-regarded Go modules sit.",
+  "gated": false,
+  "name": "abstractness",
+  "release": "v1",
+  "thresholds": []
+}
+
+== main_sequence_distance ==
+main_sequence_distance (v1, not gated by default)
+Definition: |abstractness + instability - 1|, the distance from Martin's main sequence. Null when either input is null.
+Evidence: Reported, not gated. Martin's package metrics are widely reported but their validation as predictors is mixed and none exists for Go, whose consumer-defined interfaces invert the abstract-provider assumption: idiomatic Go puts stable concrete leaf packages near distance 1 by design. No gate rule until the reference-corpus measurement shows where well-regarded Go modules sit.
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "|abstractness + instability - 1|, the distance from Martin's main sequence. Null when either input is null.",
+  "evidence": "Reported, not gated. Martin's package metrics are widely reported but their validation as predictors is mixed and none exists for Go, whose consumer-defined interfaces invert the abstract-provider assumption: idiomatic Go puts stable concrete leaf packages near distance 1 by design. No gate rule until the reference-corpus measurement shows where well-regarded Go modules sit.",
+  "gated": false,
+  "name": "main_sequence_distance",
+  "release": "v1",
+  "thresholds": []
+}
+
+== uses_cgo ==
+uses_cgo (v1, not gated by default)
+Definition: Whether a non-test file of the package imports "C".
+Evidence: Opacity: code the next agent cannot follow from Go source alone (C, reflection, unsafe memory, generator output). Informational: reported, not gated, and no default threshold.
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "Whether a non-test file of the package imports \"C\".",
+  "evidence": "Opacity: code the next agent cannot follow from Go source alone (C, reflection, unsafe memory, generator output). Informational: reported, not gated, and no default threshold.",
+  "gated": false,
+  "name": "uses_cgo",
+  "release": "v1",
+  "thresholds": []
+}
+
+== uses_reflect ==
+uses_reflect (v1, not gated by default)
+Definition: Whether a non-test file of the package imports reflect or unsafe, under any name.
+Evidence: Opacity: code the next agent cannot follow from Go source alone (C, reflection, unsafe memory, generator output). Informational: reported, not gated, and no default threshold.
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "Whether a non-test file of the package imports reflect or unsafe, under any name.",
+  "evidence": "Opacity: code the next agent cannot follow from Go source alone (C, reflection, unsafe memory, generator output). Informational: reported, not gated, and no default threshold.",
+  "gated": false,
+  "name": "uses_reflect",
+  "release": "v1",
+  "thresholds": []
+}
+
+== generated_files ==
+generated_files (v1, not gated by default)
+Definition: Non-test files with a "// Code generated ... DO NOT EDIT." line before the package clause, Go's generated-file convention. They count in files and the import metrics and in no other size or structure metric; tokens_est_generated carries their volume.
+Evidence: Opacity: code the next agent cannot follow from Go source alone (C, reflection, unsafe memory, generator output). Informational: reported, not gated, and no default threshold.
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "Non-test files with a \"// Code generated ... DO NOT EDIT.\" line before the package clause, Go's generated-file convention. They count in files and the import metrics and in no other size or structure metric; tokens_est_generated carries their volume.",
+  "evidence": "Opacity: code the next agent cannot follow from Go source alone (C, reflection, unsafe memory, generator output). Informational: reported, not gated, and no default threshold.",
+  "gated": false,
+  "name": "generated_files",
+  "release": "v1",
+  "thresholds": []
+}
+
+== tokens_est_generated ==
+tokens_est_generated (v1, not gated by default)
+Definition: Estimated tokens of the generated non-test files that tokens_est leaves out, by the same method. Null for a language with no generated-file convention.
+Evidence: Opacity: code the next agent cannot follow from Go source alone (C, reflection, unsafe memory, generator output). Informational: reported, not gated, and no default threshold. The rebuild estimate leaves this volume out, since a rebuild reruns the generator.
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "Estimated tokens of the generated non-test files that tokens_est leaves out, by the same method. Null for a language with no generated-file convention.",
+  "evidence": "Opacity: code the next agent cannot follow from Go source alone (C, reflection, unsafe memory, generator output). Informational: reported, not gated, and no default threshold. The rebuild estimate leaves this volume out, since a rebuild reruns the generator.",
+  "gated": false,
+  "name": "tokens_est_generated",
+  "release": "v1",
+  "thresholds": []
+}
+
+== coverage_pct ==
+coverage_pct (v1, not gated by default)
+Definition: Statement coverage of the package's own statements from go test -cover -count=1 -run ., measured only when opted in (--coverage, or coverage: true on an MCP tool) because it runs the tests. Null without the opt-in, for a package without test files, and when its tests fail to build or run. When present it scales the rebuild estimate's unspecified term by 1 - coverage_pct/100.
+Evidence: Untested additions: agents self-correct through a run-and-check loop, and a package without tests denies the next agent that loop. Moderate, indirect evidence. Opt-in and reported only: no gate rule, since baselines do not run tests and a check measures head only, so there is no delta to gate.
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "Statement coverage of the package's own statements from go test -cover -count=1 -run ., measured only when opted in (--coverage, or coverage: true on an MCP tool) because it runs the tests. Null without the opt-in, for a package without test files, and when its tests fail to build or run. When present it scales the rebuild estimate's unspecified term by 1 - coverage_pct/100.",
+  "evidence": "Untested additions: agents self-correct through a run-and-check loop, and a package without tests denies the next agent that loop. Moderate, indirect evidence. Opt-in and reported only: no gate rule, since baselines do not run tests and a check measures head only, so there is no delta to gate.",
+  "gated": false,
+  "name": "coverage_pct",
+  "release": "v1",
+  "thresholds": []
+}
+
+== changed_func_cognitive_max ==
+changed_func_cognitive_max (v1, gated by default)
+Definition: Highest cognitive complexity among functions added or modified since baseline, matched by receiver and name and compared by a fingerprint of the normalized body, so a comment or formatting edit does not count; 0 when none changed. Null without a function-level baseline to diff against, as in assess.
+Evidence: Closes the gap where one very complex new function leaves the package's p90 low. Deep nesting: classical complexity metrics show no consistent correlation with LLM performance. Gated on regressions only; weak evidence. Gated per function against its own baseline: over the max, a new function or a crossing fails, and one already over it fails only on growth past over_max_delta.
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "Highest cognitive complexity among functions added or modified since baseline, matched by receiver and name and compared by a fingerprint of the normalized body, so a comment or formatting edit does not count; 0 when none changed. Null without a function-level baseline to diff against, as in assess.",
+  "evidence": "Closes the gap where one very complex new function leaves the package's p90 low. Deep nesting: classical complexity metrics show no consistent correlation with LLM performance. Gated on regressions only; weak evidence. Gated per function against its own baseline: over the max, a new function or a crossing fails, and one already over it fails only on growth past over_max_delta.",
+  "gated": true,
+  "name": "changed_func_cognitive_max",
+  "release": "v1",
+  "thresholds": []
+}
+

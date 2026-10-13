@@ -1,13 +1,15 @@
-package metrics
+package explain
 
 import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/rfizzle/astimate/internal/metrics"
 )
 
 func TestExplainCoversEveryMetric(t *testing.T) {
-	names := MetricNames()
+	names := metrics.MetricNames()
 	for _, name := range names {
 		t.Run(name, func(t *testing.T) {
 			e, ok := Explain(name)
@@ -17,7 +19,7 @@ func TestExplainCoversEveryMetric(t *testing.T) {
 			if e.Definition == "" || e.Evidence == "" {
 				t.Errorf("Explain(%q) = %+v, want a definition and evidence", name, e)
 			}
-			var zero RawMetrics
+			var zero metrics.RawMetrics
 			_, v0 := zero.Value(name)
 			want := "v1"
 			if v0 {
@@ -35,6 +37,28 @@ func TestExplainCoversEveryMetric(t *testing.T) {
 	}
 	if _, ok := Explain("concrete_param_ratio"); ok {
 		t.Error("Explain(concrete_param_ratio) has an entry for a removed metric")
+	}
+}
+
+// TestTextsMatchFieldTable checks that texts has exactly one entry per
+// RawMetrics field, in the field table's order, and only the known flags:
+// a field added to metrics without an explanation, or an explanation left
+// behind by a removed field, fails here.
+func TestTextsMatchFieldTable(t *testing.T) {
+	var names []string
+	for _, e := range texts() {
+		names = append(names, e.name)
+		for w := range strings.FieldsSeq(e.flags) {
+			if w != "gated" && w != "capacity" {
+				t.Errorf("texts entry %q has unknown flag %q", e.name, w)
+			}
+		}
+		if e.has("capacity") && !e.has("gated") {
+			t.Errorf("texts entry %q is a capacity rule but not gated", e.name)
+		}
+	}
+	if want := metrics.MetricNames(); !slices.Equal(names, want) {
+		t.Errorf("texts names = %v\nwant metrics.MetricNames() = %v", names, want)
 	}
 }
 
@@ -99,7 +123,7 @@ func TestExplainCrossPackageAndOpacity(t *testing.T) {
 	if e, _ := Explain("dup_blocks_cross_pkg"); !e.Gated || !strings.Contains(e.Evidence, "The default gates the module row") {
 		t.Errorf("dup_blocks_cross_pkg = gated %v, evidence %q; want gated on the module row", e.Gated, e.Evidence)
 	}
-	if e, _ := Explain("dup_blocks_cross_pkg"); !strings.Contains(e.Definition, `"`+ModuleRowID+`"`) {
+	if e, _ := Explain("dup_blocks_cross_pkg"); !strings.Contains(e.Definition, `"`+metrics.ModuleRowID+`"`) {
 		t.Errorf("dup_blocks_cross_pkg definition does not name the module row: %s", e.Definition)
 	}
 	if e, _ := Explain("dup_blocks_cross_pkg"); !strings.Contains(e.Definition, "gated on the module row only") {
@@ -115,7 +139,7 @@ func TestExplainGeneratedExcluded(t *testing.T) {
 		"globals", "init_funcs", "max_nesting", "cognitive_total", "cognitive_p90", "func_count",
 		"dup_blocks", "duplication_pct", "untested_exports", "duplicated_lines", "abstractness",
 	}
-	for _, name := range MetricNames() {
+	for _, name := range metrics.MetricNames() {
 		e, _ := Explain(name)
 		if got, want := strings.HasSuffix(e.Definition, generatedExcluded), slices.Contains(excluded, name); got != want {
 			t.Errorf("Explain(%q) says generated files are left out: %v, want %v", name, got, want)

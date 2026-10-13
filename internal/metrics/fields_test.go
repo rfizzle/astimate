@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"slices"
 	"strings"
 	"testing"
 )
@@ -31,7 +30,7 @@ func TestFieldTableMatchesStruct(t *testing.T) {
 				t.Errorf("upper %v, but the slot is a float: %v", f.upper, got)
 			}
 			for w := range strings.FieldsSeq(f.flags) {
-				if !slices.Contains([]string{"gated", "capacity", "module-wide"}, w) {
+				if w != "module-wide" {
 					t.Errorf("unknown flag %q", w)
 				}
 			}
