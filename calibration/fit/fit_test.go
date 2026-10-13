@@ -257,7 +257,7 @@ func TestDefaultIsCommittedCandidate(t *testing.T) {
 			def.Thresholds[i].OverMaxDelta = nil
 		}
 	}
-	if want := map[string]float64{"tokens_est": 1000, "largest_file_sloc": 5, "sloc": 100, "changed_func_cognitive_max": 5}; !maps.Equal(overMax, want) {
+	if want := map[string]float64{"tokens_est": 1000, "largest_file_sloc": 3, "exported_symbols": 0, "internal_imports": 1, "sloc": 100, "changed_func_cognitive_max": 5}; !maps.Equal(overMax, want) {
 		t.Errorf("default over_max_delta = %v, want the validation fit %v", overMax, want)
 	}
 	if floors := takeFloors(def.Thresholds); !maps.Equal(floors, wantFloors()) {

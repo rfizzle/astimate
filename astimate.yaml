@@ -172,17 +172,25 @@ thresholds:
     max: 600
     warn_at: 0.75
     # Fitted the same way: a file already over max may take a few-line fix.
-    over_max_delta: 5
+    # Refitted on 2026-10-13 over five more per-commit replays (3 had the
+    # best J within the false-failure budget; 5 was close behind).
+    over_max_delta: 3
   # Surface past this is a package boundary problem.
   - metric: exported_symbols
     kind: capacity
     max: 60
     warn_at: 0.75
+    # Swept on 2026-10-13 over 276 replayed commits: every allowance above 0
+    # lost more of the later-split commits than it spared, so it stays 0.
+    over_max_delta: 0
   # Fan-out ceiling on internal imports.
   - metric: internal_imports
     kind: capacity
     max: 10
     warn_at: 0.75
+    # Swept the same way: one import more, as a composition root gains per
+    # wired component, passes with a warning; two or more still fail.
+    over_max_delta: 1
   # Overall non-test source size ceiling.
   - metric: sloc
     kind: capacity
@@ -249,31 +257,44 @@ languages:
       - metric: changed_func_cognitive_max
         kind: density
         max: 55
+        # The top level's 5, as the max differs by 10%.
+        over_max_delta: 5
       # p90 34818 over 1209 packages; the top level has max 16000, max_delta none.
       - metric: tokens_est
         kind: capacity
         max: 35000
         warn_at: 0.75
+        # No TypeScript package in the replays was over a ceiling, so the
+        # top level's 1000 scaled by the max ratio (35000/16000), rounded.
+        over_max_delta: 2200
       # p90 891 over 1209 packages; the top level has max 600, max_delta none.
       - metric: largest_file_sloc
         kind: capacity
         max: 900
         warn_at: 0.75
+        # The top level's 3 times 900/600, rounded.
+        over_max_delta: 5
       # p90 57 over 1209 packages; the top level has max 60, max_delta none.
       - metric: exported_symbols
         kind: capacity
         max: 55
         warn_at: 0.75
+        # The top level's 0 scaled by 55/60.
+        over_max_delta: 0
       # p90 8 over 1209 packages; the top level has max 10, max_delta none.
       - metric: internal_imports
         kind: capacity
         max: 8
         warn_at: 0.75
+        # The top level's 1 times 8/10, rounded.
+        over_max_delta: 1
       # p90 2508 over 1209 packages; the top level has max 1000, max_delta none.
       - metric: sloc
         kind: capacity
         max: 2500
         warn_at: 0.75
+        # The top level's 100 times 2500/1000.
+        over_max_delta: 250
 
 # Exemptions (optional; SPEC.md 8.6) accept one rule's violations on one
 # package, with the reason recorded beside them. An exempted violation does

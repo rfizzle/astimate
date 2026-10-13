@@ -30,6 +30,18 @@ func takeFloors(ts []gate.Threshold) map[string]float64 {
 	return floors
 }
 
+// takeOverMax clears every over_max_delta of ts and returns them by metric.
+func takeOverMax(ts []gate.Threshold) map[string]float64 {
+	out := map[string]float64{}
+	for i := range ts {
+		if d := ts[i].OverMaxDelta; d != nil {
+			out[ts[i].Metric] = *d
+			ts[i].OverMaxDelta = nil
+		}
+	}
+	return out
+}
+
 // wantFloors returns the default's density floors (SPEC.md 8.2), the same
 // at the top level and in the typescript override.
 func wantFloors() map[string]float64 {
@@ -257,8 +269,8 @@ func TestCommittedTypeScriptOverride(t *testing.T) {
 
 // TestDefaultCarriesTypeScriptOverride checks the embedded default's
 // languages.typescript section is exactly the committed override block: the
-// same rules, resolved against the top level. The floors, which no fit
-// produces, are compared apart.
+// same rules, resolved against the top level. The floors and the
+// over_max_delta allowances, which no fit produces, are compared apart.
 func TestDefaultCarriesTypeScriptOverride(t *testing.T) {
 	block, err := os.ReadFile(tsCommittedOverride)
 	if err != nil {
@@ -281,6 +293,13 @@ func TestDefaultCarriesTypeScriptOverride(t *testing.T) {
 		t.Errorf("default typescript floors = %v, want %v", floors, wantFloors())
 	}
 	takeFloors(exp.Thresholds)
+	// The allowances are set by hand from the validation fit or scaled from
+	// the top level's (SPEC.md 8.2), not produced by the override fit.
+	wantOver := map[string]float64{"changed_func_cognitive_max": 5, "tokens_est": 2200, "largest_file_sloc": 5, "exported_symbols": 0, "internal_imports": 1, "sloc": 250}
+	if over := takeOverMax(got.Thresholds); !reflect.DeepEqual(over, wantOver) {
+		t.Errorf("default typescript over_max_delta = %v, want %v", over, wantOver)
+	}
+	takeOverMax(exp.Thresholds)
 	if got.Version != exp.Version || got.Rebuild != exp.Rebuild || !reflect.DeepEqual(got.Thresholds, exp.Thresholds) {
 		t.Errorf("default typescript override differs from %s:\n%+v\n%+v", tsCommittedOverride, got, exp)
 	}

@@ -355,12 +355,12 @@ Capacity rules (absolute ceiling with a warning band and an over-ceiling ratchet
 | Metric | `max` | `warn_at` | `over_max_delta` | Rationale |
 | --- | --- | --- | --- | --- |
 | `tokens_est` | 16,000 | 0.75 | 1,000 | The rebuild bar: bounds the volume term of the estimate; breach means split. The ratchet is about 80 SLOC at the replayed packages' median of about 13 tokens per SLOC |
-| `largest_file_sloc` | 600 | 0.75 | 5 | Files past this rarely fit an edit in one view; a file already over it takes a few-line fix, not a feature |
-| `exported_symbols` | 60 | 0.75 | 0 | Surface past this is a package boundary problem |
-| `internal_imports` | 10 | 0.75 | 0 | Fitted from cloned-module rows only (11.1) |
+| `largest_file_sloc` | 600 | 0.75 | 3 | Files past this rarely fit an edit in one view; a file already over it takes a few-line fix, not a feature |
+| `exported_symbols` | 60 | 0.75 | 0 | Surface past this is a package boundary problem; no swept allowance beat 0 (below) |
+| `internal_imports` | 10 | 0.75 | 1 | Fitted from cloned-module rows only (11.1); one import more passes with a warning, as a composition root gains one per wired component |
 | `sloc` | 1,000 | 0.75 | 100 | The ratchet matches the 100 SLOC at which the hand labels of this repository drew the line |
 
-The `over_max_delta` values were fitted on 2026-09-29 by `calibration/validate` (11.4) over the replayed agent commits of `calibration/reports/gate-validation-2026-09-29.md`: for each capacity rule over the 10% false-failure budget as shipped, the swept value within the budget with the best J, the largest on a tie. On the pool with capacity-only labels set aside, `sloc` at 100 fails 25.2% of `block` and 7.3% of `allow` commits (J +17.9 pts; at 0, 62.6% and 36.8%), `tokens_est` at 1,000 fails 24.5% and 9.3% (J +15.2 pts; at 0, 58.3% and 37.7%) and `largest_file_sloc` at 5 fails 31.7% and 7.3% (J +24.4 pts; at 0, 35.3% and 10.4%). `exported_symbols` is within the budget as shipped and `internal_imports` fired on too few commits to judge, so both keep 0. The `languages.typescript` override's capacity rules carry none: no TypeScript rows were replayed.
+The `over_max_delta` values were fitted on 2026-09-29 by `calibration/validate` (11.4) over the replayed agent commits of `calibration/reports/gate-validation-2026-09-29.md`: for each capacity rule over the 10% false-failure budget as shipped, the swept value within the budget with the best J, the largest on a tie. On the pool with capacity-only labels set aside, `sloc` at 100 fails 25.2% of `block` and 7.3% of `allow` commits (J +17.9 pts; at 0, 62.6% and 36.8%), `tokens_est` at 1,000 fails 24.5% and 9.3% (J +15.2 pts; at 0, 58.3% and 37.7%) and `largest_file_sloc` at 5 fails 31.7% and 7.3% (J +24.4 pts; at 0, 35.3% and 10.4%). `exported_symbols` is within the budget as shipped and `internal_imports` fired on too few commits to judge, so both keep 0. A second sweep on 2026-10-13 (`calibration/notes/over-max-delta-2026-10-13.md`) pooled five more per-commit replays of 60 commits each (go-starter, ztp, shhh, crush and the TypeScript ai-shell; 276 commits, 17 `block`) and refitted the three rules the first left alone or close: `largest_file_sloc` moves from 5 to 3 (J +19.9 pts against +14.4), `exported_symbols` keeps 0 (every allowance lost more of `block` than of `allow`: J +16.3 pts at 0, +4.4 at 10) and `internal_imports` takes 1 (it spares every false firing, 2.5% to 0.0%, and keeps the one `block` commit; eight firings, thin). `sloc` and `tokens_est` keep their values. The `languages.typescript` override carries an `over_max_delta` on `sloc` (250), `tokens_est` (2,200), `largest_file_sloc` (5), `exported_symbols` (0), `internal_imports` (1) and `changed_func_cognitive_max` (5): ai-shell had no package over a ceiling, so the values are the Go ones scaled by the ratio of the ceilings and rounded, not fitted.
 
 Requirements:
 
@@ -368,7 +368,7 @@ Requirements:
 | --- | --- |
 | `has_tests` | `require: true` when `sloc > 100` |
 
-A single very complex new function in a package whose 90th percentile stays low is caught by `changed_func_cognitive_max` (section 6), gated as a density rule with `max` alone and an `over_max_delta` of 5 per function (8.1). The `languages.typescript` override's rule carries none, so it is 0 there: any rise of a TypeScript function already over its `max` fails.
+A single very complex new function in a package whose 90th percentile stays low is caught by `changed_func_cognitive_max` (section 6), gated as a density rule with `max` alone and an `over_max_delta` of 5 per function (8.1), in the `languages.typescript` override as well.
 
 ### 8.3 Baselines
 

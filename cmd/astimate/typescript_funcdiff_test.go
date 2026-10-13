@@ -96,7 +96,7 @@ func tsGradeLine(t *testing.T) string {
 // changed_func_cognitive_max and is named in the suggestion, a comment and
 // layout edit to a complex function already on master changes no function,
 // and an operator edit to it marks it changed again but passes while its
-// complexity holds at its baseline value; a branch added to it fails.
+// complexity holds at its baseline value; a branch added to it passes under the allowance, six fail.
 func TestTypeScriptChangedFunction(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not installed")
@@ -161,14 +161,23 @@ func TestTypeScriptChangedFunction(t *testing.T) {
 			wantMax:  60,
 		},
 		{
-			// The TypeScript override sets no over_max_delta, so any rise of a
-			// function already over its max fails.
-			name: "branch added to a function over max",
+			// The TypeScript override's over_max_delta of 5 lets one branch
+			// through; six branches rise past it and fail.
+			name: "branches added to a function over max",
+			change: func(t *testing.T, repo string) {
+				commitGrade(t, repo)
+				rewrite(t, repo, "  let score = 0;\n", "  let score = 0;\n"+strings.Repeat("  if (strict) { score = 1; }\n", 6))
+			},
+			wantExit: exitGateFailed,
+			wantMax:  66,
+		},
+		{
+			name: "one branch added to a function over max",
 			change: func(t *testing.T, repo string) {
 				commitGrade(t, repo)
 				rewrite(t, repo, "  let score = 0;\n", "  let score = 0;\n  if (strict) { score = 1; }\n")
 			},
-			wantExit: exitGateFailed,
+			wantExit: exitOK,
 			wantMax:  61,
 		},
 	}

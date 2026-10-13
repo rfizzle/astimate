@@ -12,6 +12,17 @@ history.
 
 ### Added
 
+- The over-ceiling allowance (`over_max_delta`) of three more capacity rules
+  is fitted from per-commit replays of five more repositories, and the
+  TypeScript override now has one on each capacity rule. At the top level
+  `internal_imports` takes 1, so a composition root that gains an import per
+  wired component passes with a warning, `largest_file_sloc` moves from 5 to
+  3 and `exported_symbols` stays 0, where no allowance beat it. The
+  TypeScript override sets `sloc` 250, `tokens_est` 2,200,
+  `largest_file_sloc` 5, `exported_symbols` 0, `internal_imports` 1 and
+  `changed_func_cognitive_max` 5, the Go values scaled by the ratio of the
+  ceilings because the TypeScript replay had no package over one; before, a
+  TypeScript package over a ceiling failed on any growth.
 - Density rules take a `floor`: a head value at or below it never fails
   the rule, however much it rose. The embedded default sets `max_nesting`
   4, `cognitive_p90` 10 and `duplication_pct` 10, at the top level and in
