@@ -1,4 +1,4 @@
-package inspect
+package globals
 
 import (
 	"go/ast"
@@ -90,7 +90,7 @@ func TestGlobalsSnippets(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := Globals(nil, parseForGlobals(t, tt.src), nil)
+			got := Count(nil, parseForGlobals(t, tt.src), nil)
 			if got.Globals != tt.globals || got.InitFuncs != tt.initFuncs {
 				t.Errorf("globals=%d init_funcs=%d, want globals=%d init_funcs=%d",
 					got.Globals, got.InitFuncs, tt.globals, tt.initFuncs)

@@ -25,6 +25,15 @@ history.
   in a test-support package (used only by other packages' tests), the
   exports its own non-test code refers to, which now read as tested.
   `pflag.Value` and `pflag.SliceValue` join the closed interface list.
+- Go `globals` also leaves out a compiled pattern (`regexp.MustCompile` or
+  `MustCompilePOSIX` of constants) and a read-only table (a non-empty map,
+  slice or array literal of constants, nested literals and compiled
+  patterns) that the package never writes, never indexes on the left of an
+  assignment and never passes to `append`, `delete`, `clear`, `copy`, a
+  `maps`, `slices` or `sort` function or a function of the package; a table
+  of function values or pointers still counts (SPEC.md 6.5 (d), (e)). The
+  standard library loses 254 more of 1880 globals
+  (`calibration/notes/globals-readonly-tables-2026-10-13.md`).
 - Go `has_tests` is true when a test file anywhere in the module references
   an exported func or method of the package, the references
   `untested_exports` already reads, so a package exercised only by another

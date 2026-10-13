@@ -78,8 +78,9 @@ func fieldTable() [numFields]field {
 			"Names declared by package-level var in non-test files that hold mutable state, excluding _. " +
 				"In Go, sentinel errors (errors.New or fmt.Errorf of constants), //go:embed variables and " +
 				"boolean, numeric or string variables with a constant initializer or none that the package " +
-				"never assigns, increments or takes the address of (build information set by -ldflags) " +
-				"are left out.{generated}",
+				"never assigns, increments or takes the address of (build information set by -ldflags), " +
+				"compiled regexps of constants, and read-only literal tables of constants that nothing " +
+				"writes an element of or passes to a call that could mutate them are left out.{generated}",
 			"{hidden}",
 		},
 		{"init_funcs", "v0", 0, "gated", "Number of init() functions.{generated}", "{hidden}"},

@@ -195,12 +195,98 @@ func TestGlobalsMutableState(t *testing.T) {
 			names: []string{"argc"},
 		},
 		{
-			name: "maps, slices, mutexes, pointers, regexps, flags and funcs count",
-			src: "package p\nimport (\n\t\"flag\"\n\t\"regexp\"\n\t\"sync\"\n)\nvar (\n" +
+			name: "maps, slices, mutexes, pointers, flags and funcs count",
+			src: "package p\nimport (\n\t\"flag\"\n\t\"os\"\n\t\"regexp\"\n\t\"sync\"\n)\nvar (\n" +
 				"\tcfg = map[string]string{}\n\tnames []string\n\tmu sync.Mutex\n\tcur *int\n" +
-				"\tword = regexp.MustCompile(`\\w+`)\n\tverbose = flag.Bool(\"v\", false, \"verbose\")\n" +
+				"\tword = regexp.MustCompile(os.Args[0])\n\tverbose = flag.Bool(\"v\", false, \"verbose\")\n" +
 				"\thook = func() {}\n)\n",
 			names: []string{"cfg", "names", "mu", "cur", "word", "verbose", "hook"},
+		},
+		{
+			name: "compiled regexp read in a function",
+			src:  "package p\nimport \"regexp\"\nvar re = regexp.MustCompile(\"x\")\nfunc Has(s string) bool { return re.MatchString(s) }\n",
+		},
+		{
+			name: "compiled POSIX regexps in a group",
+			src:  "package p\nimport \"regexp\"\nvar (\n\ta = regexp.MustCompilePOSIX(\"a\")\n\tb = regexp.MustCompile(`b+`)\n)\n",
+		},
+		{
+			name:  "regexp reassigned in init counts",
+			src:   "package p\nimport \"regexp\"\nvar re = regexp.MustCompile(\"x\")\nfunc init() { re = regexp.MustCompile(\"y\") }\n",
+			names: []string{"re"},
+		},
+		{
+			name:  "regexp of a non-constant counts",
+			src:   "package p\nimport (\n\t\"os\"\n\t\"regexp\"\n)\nvar re = regexp.MustCompile(os.Args[0])\n",
+			names: []string{"re"},
+		},
+		{
+			name: "table read by index, range and len",
+			src:  "package p\nvar table = map[string]int{\"a\": 1}\nfunc Get(k string) int {\n\tn := len(table)\n\tfor range table { n++ }\n\treturn table[k] + n\n}\n",
+		},
+		{
+			name:         "table of nested literals and regexps",
+			src:          "package p\nimport \"regexp\"\nvar rules = []struct{ re *regexp.Regexp; n int }{{regexp.MustCompile(\"a\"), 1}}\nvar grid = [2][]int{{1}, {2, 3}}\n",
+			untypedNames: []string{"rules", "grid"},
+		},
+		{
+			name:  "table element assigned counts",
+			src:   "package p\nvar table = map[string]int{\"a\": 1}\nfunc Set() { table[\"b\"] = 2 }\n",
+			names: []string{"table"},
+		},
+		{
+			name:  "table element incremented counts",
+			src:   "package p\nvar table = []int{1}\nfunc Bump() { table[0]++ }\n",
+			names: []string{"table"},
+		},
+		{
+			name:  "table passed to append counts",
+			src:   "package p\nvar table = []int{1}\nfunc Grow() []int { return append(table[:1], 2) }\n",
+			names: []string{"table"},
+		},
+		{
+			name:  "table passed to delete counts",
+			src:   "package p\nvar table = map[string]int{\"a\": 1}\nfunc Drop() { delete(table, \"a\") }\n",
+			names: []string{"table"},
+		},
+		{
+			name:  "table passed to clear counts",
+			src:   "package p\nvar table = map[string]int{\"a\": 1}\nfunc Drop() { clear(table) }\n",
+			names: []string{"table"},
+		},
+		{
+			name:  "table passed to copy counts",
+			src:   "package p\nvar table = []int{1, 2}\nfunc Fill() { copy(table, []int{3}) }\n",
+			names: []string{"table"},
+		},
+		{
+			name:  "table passed to slices counts",
+			src:   "package p\nimport \"slices\"\nvar table = []int{2, 1}\nfunc Order() { slices.Sort(table) }\n",
+			names: []string{"table"},
+		},
+		{
+			name:  "table passed to a package function counts",
+			src:   "package p\nvar table = []int{1}\nfunc use(xs []int) {}\nfunc Use() { use(table) }\n",
+			names: []string{"table"},
+		},
+		{
+			name: "table passed to another package does not count",
+			src:  "package p\nimport \"strings\"\nvar table = []string{\"a\"}\nfunc Join() string { return strings.Join(table, \",\") }\n",
+		},
+		{
+			name:  "table of function values counts",
+			src:   "package p\nvar table = map[string]func(){\"a\": func() {}}\n",
+			names: []string{"table"},
+		},
+		{
+			name:  "table of pointers counts",
+			src:   "package p\ntype T struct{ n int }\nvar table = []*T{{1}}\n",
+			names: []string{"table"},
+		},
+		{
+			name:  "empty table counts",
+			src:   "package p\nvar table = map[string]int{}\n",
+			names: []string{"table"},
 		},
 	}
 	for _, tt := range tests {
@@ -310,4 +396,15 @@ func BenchmarkGlobals(b *testing.B) {
 			Globals(l, l.Pkgs[path], written[path])
 		}
 	}
+}
+
+// parseForGlobals parses src as one file and wraps it in a package that
+// carries only syntax, with no type information or comments.
+func parseForGlobals(t *testing.T, src string) *packages.Package {
+	t.Helper()
+	f, err := parser.ParseFile(token.NewFileSet(), "src.go", src, 0)
+	if err != nil {
+		t.Fatalf("parsing snippet: %v", err)
+	}
+	return &packages.Package{Syntax: []*ast.File{f}}
 }
