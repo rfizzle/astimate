@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-14",
+  "totals": {
+    "commits": 60,
+    "loaded": 60,
+    "not_loaded": 0,
+    "passed": 36,
+    "failed": 24,
+    "package_rows": 169,
+    "wall_seconds": 2150.085,
+    "written": 60,
+    "skipped": 0
+  },
+  "parallel": 1,
+  "source": {
+    "first": "c470d9e3d2a729cbd9fc133259f9a42755a90fd0",
+    "last": "12b5c978c21b92955a6f476160bc1c6569798b57",
+    "module_dir": ".",
+    "range": "HEAD~60..HEAD",
+    "remote": "github.com:rfizzle/shhh.git",
+    "repository": "shhh"
+  },
+  "tool": {
+    "astimate_commit": "c28a78f0c6d3f31a2cab6999ecbe4005c08a1c95",
+    "config": "embedded",
+    "config_version": "rebuild-2026-09-28-claude-code-opus",
+    "go": "go1.27.1-X:nodwarf5 linux/arm64",
+    "tokenizer": "est"
+  }
+}

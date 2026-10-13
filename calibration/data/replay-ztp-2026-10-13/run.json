@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-13",
+  "totals": {
+    "commits": 60,
+    "loaded": 53,
+    "not_loaded": 7,
+    "passed": 27,
+    "failed": 26,
+    "package_rows": 169,
+    "wall_seconds": 90.34,
+    "written": 60,
+    "skipped": 0
+  },
+  "parallel": 1,
+  "source": {
+    "first": "59b3318550e87acd9e46b47555d1dde8a63c63d5",
+    "last": "6fe1121a16c08addd4c411296f7adb3b7d9a7211",
+    "module_dir": ".",
+    "range": "HEAD~60..HEAD",
+    "remote": "git@gitlab.agodadev.io:Security/Architecture/ztp.git",
+    "repository": "ztp"
+  },
+  "tool": {
+    "astimate_commit": "c28a78f0c6d3f31a2cab6999ecbe4005c08a1c95",
+    "config": "embedded",
+    "config_version": "rebuild-2026-09-28-claude-code-opus",
+    "go": "go1.27.1-X:nodwarf5 linux/arm64",
+    "tokenizer": "est"
+  }
+}

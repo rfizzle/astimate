@@ -1,0 +1,258 @@
+source:
+  repository: https://github.com/charmbracelet/crush.git
+  range: HEAD~60..HEAD
+  data: calibration/data/replay-crush-2026-10-13
+rule: 'block when a later commit in the rest of the replayed range splits a package this commit grew past a ceiling, or extracts duplicate code this commit added, read from the replay''s rows. Split: the commit took a package over a capacity rule''s max (at or under it at the parent, or new, and over it at the commit) or added 100 or more SLOC to a package already over one, and a later commit lowers that package''s sloc by at least 25% (deleting the package counts) while the module''s total sloc falls by less than 5% (code moved, not deleted). Extraction: the commit raised a package''s dup_blocks, or the module row''s dup_blocks_cross_pkg, and a later commit that changes a file of that package (for the module row, of a package the commit changed) lowers that count by at least what this commit added while the package''s sloc (the module''s total, for the module row) falls by less than 25%. Otherwise allow. The module''s total is the sum over every package the rows show, each carried from its nearest row, so a package no replayed commit changed is not counted. A commit the replay did not load has no rows and is allow. Each reason ends with the label''s lookahead: the commits after it in the range, so the last commits of a range are censored.'
+commits:
+  - hash: 63d73f7b4804453c39014040fba3ce188f6f2bf9
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 59 commits)
+    provenance: rule
+  - hash: ba86f77863bd4ca8071fdbe642d283c4c3f35904
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 58 commits)
+    provenance: rule
+  - hash: b82d7d05d8883e3f05c9cb86a6f47bfa3b2ec59b
+    verdict: block
+    reason: 'extract: added 1 duplicate blocks to internal/ui/model (112 to 113); 90bc466d6f35 ("session picker: add mouse support") 30 commits later removed 1 duplicate blocks from internal/ui/model while the SLOC there changed by +0.0% (lookahead 57 commits)'
+    provenance: rule
+    fired:
+      - part: extract
+        by: 90bc466d6f35b120070b6fd8a73f4262f155086a
+        package: internal/ui/model
+  - hash: 48768f8b3d37dcbde70a5d1e1c1b8d5021c656f8
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 56 commits)
+    provenance: rule
+  - hash: c78cc67457a027b4e774904240446ed4f28d8b95
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 55 commits)
+    provenance: rule
+  - hash: f50509d460badf3c914341ac367c91cd708d9131
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 54 commits)
+    provenance: rule
+  - hash: 804324fb80a1133f678b0d8c3d74f32c16988c12
+    verdict: allow
+    reason: added 3 cross-package duplicate blocks (263 to 266); no later commit split or extracted it (lookahead 53 commits)
+    provenance: rule
+  - hash: ec2fe4379f84efa91ad42cddcd02ac5784a5fbcd
+    verdict: allow
+    reason: added 122 SLOC to internal/config, already over tokens_est 16000, largest_file_sloc 600, exported_symbols 60, internal_imports 10, sloc 1000; added 1 cross-package duplicate blocks (266 to 267); added 1 duplicate blocks to internal/config (29 to 30); no later commit split or extracted it (lookahead 52 commits)
+    provenance: rule
+  - hash: 2e024135e8bef2c929ff0a6e6ffc5837204c9e70
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 51 commits)
+    provenance: rule
+  - hash: 25bf6a2551df8c5baefb94ff6d77c4105a2ce8c3
+    verdict: block
+    reason: 'extract: added 1 cross-package duplicate blocks (267 to 268); a0fe47b62871 ("fix: return to the start of the line (#3635)") 35 commits later removed 1 duplicate blocks from the module''s cross-package duplicates while the SLOC there changed by +0.0% (lookahead 50 commits)'
+    provenance: rule
+    fired:
+      - part: extract
+        by: a0fe47b62871ad39eea3723e9231a47ffb924cdf
+        package: <module>
+  - hash: ba531a409ab68f91144c80eafae8b952daa35a0d
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 49 commits)
+    provenance: rule
+  - hash: 06e27eb1eb8f5ea0c1f71d02e4cabe299b36356b
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 48 commits)
+    provenance: rule
+  - hash: 3795102948817bd6407590ab4f0d173da7aba0ab
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 47 commits)
+    provenance: rule
+  - hash: 0fa44aa4d63efdf4a0f0884a954dd8c6ff8dfcde
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 46 commits)
+    provenance: rule
+  - hash: d8daa1107d8376244e627a2e85cee8d5bfb61369
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 45 commits)
+    provenance: rule
+  - hash: 051955a84c14550254d7929b4f27d01b84b4fdde
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 44 commits)
+    provenance: rule
+  - hash: 6abd61ec5868d71ff9e270eaf164dc046297fa51
+    verdict: block
+    reason: 'extract: added 7 duplicate blocks to internal/agent/tools (124 to 131); 240c487ee220 ("Merge pull request #3565 from charmbracelet/revert-3426-upstream/bash-permission-ast") 1 commits later removed 7 duplicate blocks from internal/agent/tools while the SLOC there changed by -3.5% (lookahead 43 commits)'
+    provenance: rule
+    fired:
+      - part: extract
+        by: 240c487ee22017921db343b490b4e95be2441e3b
+        package: internal/agent/tools
+  - hash: 240c487ee22017921db343b490b4e95be2441e3b
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 42 commits)
+    provenance: rule
+  - hash: b8453c4ada638ebf8675ac966fed56f0d6e9b38c
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 41 commits)
+    provenance: rule
+  - hash: ed15da4c46e0bdc3afae4842db54e7def7b9f15e
+    verdict: allow
+    reason: added 1 duplicate blocks to internal/ui/styles (133 to 134); no later commit split or extracted it (lookahead 40 commits)
+    provenance: rule
+  - hash: 7dc88e247d7a8c59f9673967bebf80acfae8bf03
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 39 commits)
+    provenance: rule
+  - hash: b7b90939c6d9069815e3f21d465994fded363af8
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 38 commits)
+    provenance: rule
+  - hash: 47df446e77727b27ee61312fd50b45cfa7402787
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 37 commits)
+    provenance: rule
+  - hash: 4dc477de6e1b670b8caf8fe5703521c2d012813a
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 36 commits)
+    provenance: rule
+  - hash: 0f14334fb03703a5557f875d182e347e6375e0e7
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 35 commits)
+    provenance: rule
+  - hash: afe54827dd653ad908c3debf892d34bf664af52c
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 34 commits)
+    provenance: rule
+  - hash: a6fecdc7f603e26dd335883f6d44d645948a1283
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 33 commits)
+    provenance: rule
+  - hash: 6ee6e5c4cb3baa2d9a30e57e8d5bd34ee82f7e8b
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 32 commits)
+    provenance: rule
+  - hash: 70d321626ca20ad8fcfb99e61bbe377a6b91748c
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 31 commits)
+    provenance: rule
+  - hash: 7d78d7422a92918441a68d01d96d48fa3b9fd9db
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 30 commits)
+    provenance: rule
+  - hash: d86a297c486712c0118ba1a417b9f95eac9894cb
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 29 commits)
+    provenance: rule
+  - hash: db7fac6cc6ad5f2759f0411458148e342f2dd9bf
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 28 commits)
+    provenance: rule
+  - hash: 90bc466d6f35b120070b6fd8a73f4262f155086a
+    verdict: allow
+    reason: added 1 duplicate blocks to internal/ui/dialog (215 to 216); no later commit split or extracted it (lookahead 27 commits)
+    provenance: rule
+  - hash: 37f36e93824e5c4f892e4a817f7f628e2682fe14
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 26 commits)
+    provenance: rule
+  - hash: 08552fb918a3b6247c2f8366d330f3b7f02fc891
+    verdict: allow
+    reason: added 123 SLOC to internal/ui/model, already over tokens_est 16000, largest_file_sloc 600, exported_symbols 60, internal_imports 10, sloc 1000; added 3 cross-package duplicate blocks (268 to 271); added 3 duplicate blocks to internal/ui/model (115 to 118); no later commit split or extracted it (lookahead 25 commits)
+    provenance: rule
+  - hash: 8661a1c4baa171f49b6f7ab3d4db7836cf5b5548
+    verdict: allow
+    reason: added 1 duplicate blocks to internal/ui/dialog (216 to 217); no later commit split or extracted it (lookahead 24 commits)
+    provenance: rule
+  - hash: 41cdd18a4b4f19c31c34301227da9341d62e9823
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 23 commits)
+    provenance: rule
+  - hash: c4835512e04464fd8ea8dd9fdbc1059b9ec485d4
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 22 commits)
+    provenance: rule
+  - hash: 61ce7c038af0a7bfb6fb47573632bc1dcddb12a4
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 21 commits)
+    provenance: rule
+  - hash: 25c8b728800fed4617bdbaa6da038e32609b86ca
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 20 commits)
+    provenance: rule
+  - hash: 6440e6402f6aef11112ef057eeac9a55819b7695
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 19 commits)
+    provenance: rule
+  - hash: 5be6a3380a0d57e9342fcd3cf815ee841f648558
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 18 commits)
+    provenance: rule
+  - hash: cce887189161f4be7fb2bfcdd1bcd5d78d43e7bf
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 17 commits)
+    provenance: rule
+  - hash: c824c880768a4a251c841213d69b09bc0ab4d954
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 16 commits)
+    provenance: rule
+  - hash: a0fe47b62871ad39eea3723e9231a47ffb924cdf
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 15 commits)
+    provenance: rule
+  - hash: 8f63ee5937e29174466896918f60a558e3dd103e
+    verdict: allow
+    reason: took internal/ui/list over sloc max 1000 (928 to 1014); added 1 duplicate blocks to internal/ui/list (3 to 4); no later commit split or extracted it (lookahead 14 commits)
+    provenance: rule
+  - hash: f5c0b067110d7122c12e50b9639137c4ab1f9bfa
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 13 commits)
+    provenance: rule
+  - hash: 0b4dc190d65d8433e7bd6cfa09f85482cb14e737
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 12 commits)
+    provenance: rule
+  - hash: b0115a1baa2f7827240c0d443e2296a7d13638ac
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 11 commits)
+    provenance: rule
+  - hash: 06345cc328127ae6e71ca83c32d3bba1a4f8342c
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 10 commits)
+    provenance: rule
+  - hash: af65d24aa917cf469aa850d13092939c9c9fbb0f
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 9 commits)
+    provenance: rule
+  - hash: abc246403b95c845be2b17551244521d26ad9176
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 8 commits)
+    provenance: rule
+  - hash: 75962c4887d87dcd203b5fba9bf46fd3b52c77c3
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 7 commits)
+    provenance: rule
+  - hash: 82557e2af69ff67fe50e53055bbe83dddbe07f6b
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 6 commits)
+    provenance: rule
+  - hash: 460a877fcb60c32d3194a09f262be4cb4d5928bf
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 5 commits)
+    provenance: rule
+  - hash: 689494f84845cd1d403b1266461b9d505fb1f363
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 4 commits)
+    provenance: rule
+  - hash: 2edc4e68781e458bd9f6975bb32aaaba9631eee5
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 3 commits)
+    provenance: rule
+  - hash: 773c35656467769a12394ccd77119ec3bc960abc
+    verdict: allow
+    reason: added 1 duplicate blocks to internal/shellconfig (30 to 31); no later commit split or extracted it (lookahead 2 commits)
+    provenance: rule
+  - hash: a83480eb156fd75cd96b4fecaf3cc40570bb3142
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 1 commits)
+    provenance: rule
+  - hash: 6d14dd93a9e526505f7de54ae5999431bc32a793
+    verdict: allow
+    reason: took no package over a capacity max, grew none over one by 100 or more SLOC, and added no duplicate blocks (lookahead 0 commits)
+    provenance: rule
