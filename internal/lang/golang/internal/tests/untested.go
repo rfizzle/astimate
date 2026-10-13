@@ -31,7 +31,18 @@ type UntestedCounts struct {
 	// //astimate:untested directive, in the same form, sorted. They are a
 	// debug record of what the directive removed from the count.
 	Excluded []string
+	// Referenced is the number of counted exports that a test file of any
+	// package of the module refers to, directly or through an interface
+	// call. A method counted only because it implements an interface of
+	// the closed list does not count. TestedAnywhere reads it.
+	Referenced int
 }
+
+// TestedAnywhere reports whether a test file anywhere in the module refers
+// to an exported func or method of the package c was counted for (SPEC.md
+// 6.4, 6.5). It is the module-wide counterpart of the package's own
+// test_funcs, and what has_tests reads besides them.
+func (c UntestedCounts) TestedAnywhere() bool { return c.Referenced > 0 }
 
 // Untested counts the exported funcs and methods declared in p's
 // authored non-test files that no _test.go file of any package of m refers
@@ -135,9 +146,13 @@ func untested(m *load.Module, refs *Refs, p *packages.Package, on rules) Unteste
 	if on&ruleOtherTests != 0 {
 		want |= fromOther
 	}
+	// byTest holds the counted keys a test refers to, std-interface
+	// coverage excluded.
+	byTest := make(map[string]bool)
 	for key, o := range refs.direct[p.PkgPath] {
 		if _, counted := marked[key]; counted && o&want != 0 {
 			marked[key] = true
+			byTest[key] = true
 		}
 	}
 	for key, cm := range methods {
@@ -147,8 +162,12 @@ func untested(m *load.Module, refs *Refs, p *packages.Package, on rules) Unteste
 			marked[key] = true
 		default:
 			marked[key] = refs.dispatched(m, p.PkgPath, cm, on)
+			if marked[key] {
+				byTest[key] = true
+			}
 		}
 	}
+	c.Referenced = len(byTest)
 	for key, ok := range marked {
 		if !ok {
 			c.Names = append(c.Names, key)

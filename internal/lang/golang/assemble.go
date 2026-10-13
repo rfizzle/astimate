@@ -101,7 +101,7 @@ func assemble(ctx context.Context, l *loaded, p *packages.Package, opts assemble
 		DuplicationPct:     r.dup.Pct,
 		TestFiles:          r.tests.TestFiles,
 		TestFuncs:          r.tests.TestFuncs,
-		HasTests:           r.tests.HasTests,
+		HasTests:           r.tests.HasTests || r.untested.TestedAnywhere(),
 		UntestedExports:    r.untested.Untested,
 
 		Instability:          instability,

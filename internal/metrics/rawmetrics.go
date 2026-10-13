@@ -56,7 +56,9 @@ type RawMetrics struct {
 	TestFiles int `json:"test_files"`
 	// TestFuncs counts Test*, Benchmark*, Fuzz* and Example* functions.
 	TestFuncs int `json:"test_funcs"`
-	// HasTests reports test_funcs > 0.
+	// HasTests reports test_funcs > 0, or, for Go, that a test file anywhere
+	// in the module refers to an exported func or method of the package
+	// (SPEC.md 6.5).
 	HasTests bool `json:"has_tests"`
 	// UntestedExports counts exported funcs and methods not referenced from
 	// any test file in the package; see SPEC.md 6.4.

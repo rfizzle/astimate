@@ -111,7 +111,10 @@ generated file.
 - **test_files**: `_test.go` files, internal and external test packages.
 - **test_funcs**: top-level `Test*`, `Benchmark*`, `Fuzz*` and `Example*`
   funcs in test files.
-- **has_tests**: `test_funcs > 0`.
+- **has_tests**: `test_funcs > 0`, or a test file of any package of the
+  module references an exported func or method of the package (the
+  references `untested_exports` reads, interface-list coverage excluded).
+  `test_files` and `test_funcs` stay the package's own.
 - **untested_exports**: exported funcs and methods of non-generated files
   with no reference from any test file of any package of the module
   (section 6.4). A method on the closed list of section 6.4 that its
@@ -431,6 +434,7 @@ One file, `sibling.go`, 264 bytes, no test files, no imports.
 - `tokens_est = 264 / 3.2 = 82.5 -> 82`, the same with tests.
 - `exported_symbols=2`, `func_count=2`, each function 0.
 - `fan_in_tests=1`: `consumer`'s test imports it.
+- `has_tests=true` with no tests of its own: `consumer`'s test calls `New`.
 - `untested_exports=1` (`Orphan`). `New` is called only from
   `consumer/consumer_test.go`, another package's test file, which counts;
   `Orphan` is referenced from no test file anywhere. Counting the
@@ -447,6 +451,7 @@ by `consumer/consumer_test.go`.
 - `stdlib_imports=1` (`testing`), `fan_in_tests=1` (`consumer`).
 - Functions: `Equal` 1 (one top-level `if`). Total 1, p90 1,
   `max_nesting=1`, `func_count=1`, `exported_symbols=1`.
+- `has_tests=true`: `consumer`'s test calls `Equal`.
 - `untested_exports=0`: `consumer`'s test calls `Equal`. The package has no
   tests of its own; no rule singles out test-support packages, they read as
   tested because the tests that import them use their exports. Before the

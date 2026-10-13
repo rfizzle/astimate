@@ -117,6 +117,20 @@ func TestUntestedNoTests(t *testing.T) {
 	}
 }
 
+func TestTestedAnywhere(t *testing.T) {
+	l := loadRoot(t, refsRoot(t))
+	refs := new(Refs)
+	for path, want := range map[string]bool{
+		"example.com/refs/lib":     true,  // no tests of its own; user's test calls Lib
+		"example.com/refs/notests": false, // no test file anywhere refers to it
+		"example.com/refs/refs":    true,
+	} {
+		if got := Untested(l, refs, l.Pkgs[path]).TestedAnywhere(); got != want {
+			t.Errorf("%s: TestedAnywhere = %v, want %v", path, got, want)
+		}
+	}
+}
+
 func TestUntestedDirective(t *testing.T) {
 	for _, tc := range []struct {
 		name string

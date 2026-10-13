@@ -272,8 +272,8 @@ func checkInvariants(t *testing.T, pkgs []string, got map[string]metrics.RawMetr
 		m := got[pkg]
 		fanIn += m.FanIn
 		fanOut += m.InternalImports
-		if m.HasTests != (m.TestFuncs > 0) {
-			t.Errorf("%s: has_tests %v disagrees with test_funcs %d", pkg, m.HasTests, m.TestFuncs)
+		if m.TestFuncs > 0 && !m.HasTests {
+			t.Errorf("%s: has_tests false with test_funcs %d", pkg, m.TestFuncs)
 		}
 		if m.LargestFileSLOC > m.SLOC {
 			t.Errorf("%s: largest_file_sloc %d exceeds sloc %d", pkg, m.LargestFileSLOC, m.SLOC)

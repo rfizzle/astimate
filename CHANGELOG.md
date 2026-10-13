@@ -12,6 +12,11 @@ history.
 
 ### Added
 
+- Go `has_tests` is true when a test file anywhere in the module references
+  an exported func or method of the package, the references
+  `untested_exports` already reads, so a package exercised only by another
+  package's tests, or a test-support package, no longer fails the
+  requirement. `test_files` and `test_funcs` stay the package's own.
 - Per-rule severity: every threshold takes `severity`, `fail` (the default)
   or `warn`. A `warn` rule is evaluated as its kind requires, and what
   would be a violation is reported as a warning with the violation's fields
