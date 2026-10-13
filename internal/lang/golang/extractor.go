@@ -281,14 +281,18 @@ func (e *Extractor) Forget(root string) {
 	m.l.detailsMu.Unlock()
 }
 
-// logSkipped logs each module directory l skipped at info level, when e has
-// a logger.
+// logSkipped logs each module directory l skipped at info level, and each
+// embed pattern that matched no file at warn level, when e has a logger.
 func (e *Extractor) logSkipped(l *loaded) {
 	if e.logger == nil {
 		return
 	}
 	for _, s := range l.Skipped {
 		e.logger.Info("skipped package", "package", s.ImportPath, "dir", s.Dir, "reason", s.Reason)
+	}
+	for _, w := range l.Warnings {
+		e.logger.Warn("embed pattern matches no files; metrics do not read embedded files",
+			"package", w.Package, "pattern", w.Pattern)
 	}
 }
 

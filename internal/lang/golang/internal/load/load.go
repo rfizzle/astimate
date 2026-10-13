@@ -66,6 +66,10 @@ type Module struct {
 	// returned no package for, sorted by directory: build constraints
 	// exclude all their files, so "./..." dropped them without a word.
 	Skipped []SkippedDir
+	// Warnings lists the module packages that loaded with an embed pattern
+	// matching no file, sorted by package then pattern, one per pair (see
+	// EmbedWarning). The package is extracted normally.
+	Warnings []EmbedWarning
 
 	// sources maps the import path of each non-test module package whose
 	// Syntax is not its source files, a cgo package, to its source files
@@ -161,13 +165,16 @@ func index(modulePath string, roots []*packages.Package) (*Module, error) {
 		}
 	}
 	slices.SortFunc(mod, byID)
+	var warnings []EmbedWarning
 	for _, p := range mod {
-		if len(p.Errors) > 0 {
-			return nil, packageError(p)
+		var fatal bool
+		if warnings, fatal = tolerateEmbeds(warnings, p); fatal {
+			return nil, packageError(withoutEmbedErrors(p))
 		}
 	}
 	m := newModule(modulePath, len(mod))
 	m.testOnly = testOnly
+	m.Warnings = sortWarnings(warnings)
 	m.fill(mod, func(string) bool { return false }, func(path string) bool {
 		under, ok := strings.CutSuffix(path, ".test")
 		return ok && m.hasTests(under)

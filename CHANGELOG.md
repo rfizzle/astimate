@@ -246,6 +246,13 @@ history.
 
 ### Fixed
 
+- Go: a package whose `//go:embed` pattern matches no file, such as a
+  gitignored frontend build absent from the temporary merge-base checkout,
+  no longer fails the load, so `check` no longer exits 2 for a module that
+  embeds a build directory. The package is extracted as usual and one
+  warning per package and pattern is written to stderr; any other load
+  error still fails.
+
 - calibration: rebuild runs, `select`'s verification, replays and corpus
   collection no longer build into the shared Go build cache, which every
   rebuild run grew by a whole corpus module and its tests until it filled
