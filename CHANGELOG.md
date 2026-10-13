@@ -106,6 +106,16 @@ history.
 
 ### Changed
 
+- A density rule's `max` no longer judges a package already at or over it
+  at baseline: such a package is judged by the rule's `max_delta` alone,
+  so `cognitive_p90` 43 -> 45 passes under the default `max` 20 and
+  `max_delta` +3, and 43 -> 47 fails on `max_delta +3` only. A new package
+  over the `max`, or a change that crosses it, still fails on the `max`,
+  and a rule with `max` alone (`changed_func_cognitive_max`) still fails
+  any rise over it. `explain_metric` says so on each density rule with a
+  `max`, and `calibration/validate` sweeps pick the rule up through
+  `gate.Evaluate`, so its recheck of older replays reports the legacy
+  rises they recorded as disagreements.
 - `globals` counts mutable state only (SPEC.md 6.5). A Go package-level var
   spec that the package never assigns, increments or takes the address of
   is left out when it is a sentinel error (`errors.New` or `fmt.Errorf`

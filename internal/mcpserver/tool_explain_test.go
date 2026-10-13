@@ -139,6 +139,24 @@ func TestExplainMetricOverMaxDelta(t *testing.T) {
 	}
 }
 
+// TestExplainMetricDensityOverMax checks explain_metric says how a density
+// rule's max judges a value over it, with and without a max_delta.
+func TestExplainMetricDensityOverMax(t *testing.T) {
+	t.Parallel()
+
+	cs := newTestClient(t, Options{Config: defaultConfig(t)})
+	for metric, want := range map[string]string{
+		"cognitive_p90": "density max_delta +3 max 20; max fails a new package over it and a crossing, " +
+			"and a package already at or over it is judged by max_delta alone",
+		"changed_func_cognitive_max": "density max 50; max fails a new value over it and any rise over it",
+		"dup_blocks":                 "density max_delta +0, ratchet from zero\n",
+	} {
+		if text := resultText(callExplain(t, cs, metric)); !strings.Contains(text, want) {
+			t.Errorf("%s: text = %q, want %q", metric, text, want)
+		}
+	}
+}
+
 func TestExplainMetricNoConfig(t *testing.T) {
 	t.Parallel()
 

@@ -111,8 +111,10 @@ func ForRow(rules []Threshold, row Row) []Threshold {
 // density rule still applies its Max, but MaxDelta is taken against zero only
 // for rules with RatchetFromZero set. Density rules fail when head minus base
 // exceeds MaxDelta, or when head exceeds Max and either there is no baseline
-// value or head rose above it, so an unchanged or improved legacy value over
-// Max passes. Capacity rules fail above Max under the same condition, except
+// value or head crossed it from below, so an unchanged or improved legacy
+// value over Max passes, and a legacy value already at or over Max is judged
+// by MaxDelta alone; a rule with Max and no MaxDelta fails any rise over
+// Max. Capacity rules fail above Max for a new value or a crossing, except
 // that a value already at or over Max at baseline may rise by up to
 // OverMaxDelta with a warning to split; they warn when an unchanged or
 // improved legacy value is still above Max, and warn at or above WarnAt of
@@ -197,12 +199,34 @@ func (e *evaluator) density(r Threshold, h float64) {
 			e.res.Violations = append(e.res.Violations, e.finding(r.Metric, b, h, hasBase, "max_delta "+signed(*r.MaxDelta)))
 		}
 	}
-	// The max is a ceiling on what a change may introduce, not a judgment
-	// of history: an unchanged or improved legacy value above it passes.
-	introduced := !hasBase || h > b+epsilon
-	if r.Max != nil && introduced && h > *r.Max+epsilon {
+	if r.Max != nil && e.densityMaxApplies(r, b, h, hasBase) {
 		e.res.Violations = append(e.res.Violations, e.finding(r.Metric, b, h, hasBase, "max "+num(*r.Max)))
 	}
+}
+
+// densityMaxApplies reports whether a density rule's max judges a head
+// value h above it, b being the baseline value when hasBase is set
+// (SPEC.md 8.1); it is the one place a density rule's "already over the
+// max" decision lives. The max is a ceiling on what a change may
+// introduce, not a judgment of history, so it judges a package with no
+// baseline value and one whose value crossed it. A value already at or
+// over the max at baseline is judged by the rule's max_delta alone, so an
+// unchanged, improved or slightly risen legacy value passes it. A rule
+// with max alone, whose metric is itself a change against the baseline
+// (changed_func_cognitive_max), has no delta to fall back on: its max
+// judges any rise.
+func (e *evaluator) densityMaxApplies(r Threshold, b, h float64, hasBase bool) bool {
+	switch {
+	case h <= *r.Max+epsilon:
+		return false
+	case !hasBase:
+		return true
+	case h <= b+epsilon:
+		return false
+	case r.MaxDelta != nil && b >= *r.Max-epsilon:
+		return false
+	}
+	return true
 }
 
 func (e *evaluator) capacity(r Threshold, h float64) {

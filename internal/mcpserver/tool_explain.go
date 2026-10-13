@@ -154,9 +154,22 @@ func (r explainResult) text() string {
 		if t.RatchetFromZero {
 			b.WriteString(", ratchet from zero")
 		}
+		b.WriteString(t.overMaxText())
 		b.WriteByte('\n')
 	}
 	return b.String()
+}
+
+// overMaxText says how a density rule's max judges a value over it
+// (SPEC.md 8.1), as a clause led by "; ", and is empty for any other rule.
+func (t explainThreshold) overMaxText() string {
+	if t.Kind != "density" || t.Max == nil {
+		return ""
+	}
+	if t.MaxDelta == nil {
+		return "; max fails a new value over it and any rise over it"
+	}
+	return "; max fails a new package over it and a crossing, and a package already at or over it is judged by max_delta alone"
 }
 
 // formatFloat renders v in its shortest exact form.

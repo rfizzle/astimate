@@ -117,22 +117,29 @@ func TestEvaluateRules(t *testing.T) {
 			want:  gate.Result{Passed: true},
 		},
 		{
-			name:  "legacy value rising within delta above max fails on max",
+			name:  "legacy value over max rising within delta passes",
 			head:  metrics.RawMetrics{DuplicationPct: 80.4},
 			base:  &metrics.RawMetrics{DuplicationPct: 80},
 			rules: []gate.Threshold{density("duplication_pct", 0.5, ptr(5.0))},
-			want: gate.Result{Violations: []gate.Violation{
-				{Metric: "duplication_pct", Base: 80, Head: 80.4, HasBase: true, Limit: "max 5"},
-			}},
+			want:  gate.Result{Passed: true},
 		},
 		{
-			name:  "density delta and max both broken",
+			name:  "legacy value over max rising past delta fails on delta alone",
 			head:  metrics.RawMetrics{MaxNesting: 7},
 			base:  &metrics.RawMetrics{MaxNesting: 6},
 			rules: []gate.Threshold{density("max_nesting", 0, ptr(5.0))},
 			want: gate.Result{Violations: []gate.Violation{
 				{Metric: "max_nesting", Base: 6, Head: 7, HasBase: true, Limit: "max_delta +0"},
-				{Metric: "max_nesting", Base: 6, Head: 7, HasBase: true, Limit: "max 5"},
+			}},
+		},
+		{
+			name:  "density delta and max both broken by a crossing",
+			head:  metrics.RawMetrics{MaxNesting: 7},
+			base:  &metrics.RawMetrics{MaxNesting: 4},
+			rules: []gate.Threshold{density("max_nesting", 0, ptr(5.0))},
+			want: gate.Result{Violations: []gate.Violation{
+				{Metric: "max_nesting", Base: 4, Head: 7, HasBase: true, Limit: "max_delta +0"},
+				{Metric: "max_nesting", Base: 4, Head: 7, HasBase: true, Limit: "max 5"},
 			}},
 		},
 		{
@@ -618,16 +625,16 @@ func TestEvaluateDefaultConfig(t *testing.T) {
 		}
 	})
 
-	t.Run("legacy package rising above max fails", func(t *testing.T) {
+	t.Run("legacy package over max rising past max_delta fails on it", func(t *testing.T) {
 		t.Parallel()
 
 		base := legacy()
 		head := legacy()
-		head.DuplicationPct = 45.8
+		head.DuplicationPct = 51.6
 		head.SLOC = 710
 		got := gate.Evaluate(head, &base, rules, nil)
 		want := gate.Result{Violations: []gate.Violation{
-			{Metric: "duplication_pct", Base: 45.5, Head: 45.8, HasBase: true, Limit: "max 40"},
+			{Metric: "duplication_pct", Base: 45.5, Head: 51.6, HasBase: true, Limit: "max_delta +6"},
 			{Metric: "has_tests", Base: 0, Head: 0, HasBase: true, Limit: "require true"},
 		}}
 		if !reflect.DeepEqual(got, want) {
@@ -930,5 +937,70 @@ func TestEvaluateIdenticalTreesNeverFail(t *testing.T) {
 		if got := gate.Evaluate(m, &base, rules, nil); !got.Passed {
 			t.Errorf("value %d: Evaluate(identical) violations = %+v, want passed", v, got.Violations)
 		}
+	}
+}
+
+// TestEvaluateDensityOverMax checks the SPEC.md 8.1 density max under the
+// default rules: it judges a new package and a crossing, while a package
+// already at or over it at baseline is judged by its max_delta alone. A
+// rule with max and no max_delta still fails any rise over its max.
+func TestEvaluateDensityOverMax(t *testing.T) {
+	t.Parallel()
+
+	rules := defaultRules(t)
+	rule := func(metric string) gate.Threshold {
+		t.Helper()
+		for _, r := range rules {
+			if r.Metric == metric {
+				return r
+			}
+		}
+		t.Fatalf("default rules have no %s rule", metric)
+		return gate.Threshold{}
+	}
+	p90 := func(v int) *metrics.RawMetrics { return &metrics.RawMetrics{CognitiveP90: v} }
+	dup := func(v float64) *metrics.RawMetrics { return &metrics.RawMetrics{DuplicationPct: v} }
+	changed := func(v int) *metrics.RawMetrics { return &metrics.RawMetrics{ChangedFuncCognitiveMax: &v} }
+	tests := []struct {
+		name   string
+		metric string
+		head   *metrics.RawMetrics
+		base   *metrics.RawMetrics
+		want   []gate.Violation
+	}{
+		{name: "p90 over max rising within max_delta passes", metric: "cognitive_p90", head: p90(45), base: p90(43)},
+		{
+			name: "p90 over max rising past max_delta fails on it", metric: "cognitive_p90", head: p90(47), base: p90(43),
+			want: []gate.Violation{{Metric: "cognitive_p90", Base: 43, Head: 47, HasBase: true, Limit: "max_delta +3"}},
+		},
+		{name: "p90 at max rising within max_delta passes", metric: "cognitive_p90", head: p90(22), base: p90(20)},
+		{
+			name: "p90 crossing max fails on max", metric: "cognitive_p90", head: p90(21), base: p90(19),
+			want: []gate.Violation{{Metric: "cognitive_p90", Base: 19, Head: 21, HasBase: true, Limit: "max 20"}},
+		},
+		{name: "duplication over max rising within max_delta passes", metric: "duplication_pct", head: dup(48.6), base: dup(48.3)},
+		{
+			name: "new package over the duplication max fails on max", metric: "duplication_pct", head: dup(48),
+			want: []gate.Violation{{Metric: "duplication_pct", Head: 48, Limit: "max 40"}},
+		},
+		{
+			name: "max-only rule over max fails any rise", metric: "changed_func_cognitive_max", head: changed(60), base: changed(57),
+			want: []gate.Violation{{Metric: "changed_func_cognitive_max", Base: 57, Head: 60, HasBase: true, Limit: "max 50"}},
+		},
+		{
+			name: "new function over the max-only rule fails", metric: "changed_func_cognitive_max", head: changed(51),
+			want: []gate.Violation{{Metric: "changed_func_cognitive_max", Head: 51, Limit: "max 50"}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := gate.Evaluate(*tt.head, tt.base, []gate.Threshold{rule(tt.metric)}, nil)
+			want := gate.Result{Passed: len(tt.want) == 0, Violations: tt.want}
+			if !reflect.DeepEqual(got, want) {
+				t.Errorf("Evaluate() =\n%+v\nwant\n%+v", got, want)
+			}
+		})
 	}
 }
