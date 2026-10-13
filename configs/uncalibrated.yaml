@@ -138,6 +138,13 @@ thresholds:
     kind: requirement
     require: true
     when: sloc > 100
+    roles: [library, test-support, generated-only]
+  # A composition root needs tests of its own only past 300 SLOC.
+  - metric: has_tests
+    kind: requirement
+    require: true
+    when: sloc > 300
+    roles: [main]
 
 # Per-language overrides (optional), keyed by language id: go or typescript.
 # A language's rebuild section sets only the parameters it names; the rest

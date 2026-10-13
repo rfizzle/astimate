@@ -203,7 +203,8 @@ func (e *Extractor) ModuleRow(ctx context.Context, mod *metrics.ModuleContext) (
 
 // ModuleDetails returns the details of the module row of the module at
 // mod.Root (metrics.ModuleDetailer): every cross-package duplicate block
-// counted by the row's dup_blocks_cross_pkg, with all its occurrences. It
+// counted by the row's dup_blocks_cross_pkg, with all its occurrences, and
+// the role of every package they lie in (roleOf). It
 // shares the memoized cross-package pass with ModuleRow and Extract, so it
 // reads no file once either has run, and fails when ModuleRow would.
 func (e *Extractor) ModuleDetails(ctx context.Context, mod *metrics.ModuleContext) (metrics.Details, error) {
@@ -211,7 +212,12 @@ func (e *Extractor) ModuleDetails(ctx context.Context, mod *metrics.ModuleContex
 	if err != nil {
 		return metrics.Details{}, err
 	}
-	return metrics.Details{CrossBlocks: cross.BlocksOf("")}, nil
+	l, err := e.cached(ctx, mod)
+	if err != nil {
+		return metrics.Details{}, err
+	}
+	blocks := cross.BlocksOf("")
+	return metrics.Details{CrossBlocks: blocks, Roles: blockRoles(l, blocks)}, nil
 }
 
 // moduleCross returns the memoized cross-package duplication of the module

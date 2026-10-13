@@ -144,14 +144,20 @@ func TestGatesAs(t *testing.T) {
 		t.Fatal(err)
 	}
 	// fitted is the default without the over_max_delta the gate validation
-	// fitted after the replays and without the density floors set later:
-	// the rules they were replayed under.
+	// fitted after the replays and without the density floors and package
+	// roles set later, with the has_tests rule for main packages they
+	// added: the rules they were replayed under.
 	var kept []string
 	for l := range strings.SplitAfterSeq(string(config.Default()), "\n") {
-		if !strings.HasPrefix(l, "    over_max_delta: ") && !strings.HasPrefix(l, "    floor: ") {
+		if !strings.HasPrefix(l, "    over_max_delta: ") && !strings.HasPrefix(l, "    floor: ") && !strings.HasPrefix(l, "    roles: ") {
 			kept = append(kept, l)
 		}
 	}
+	const mainRule = "  - metric: has_tests\n    kind: requirement\n    require: true\n    when: sloc > 300\n"
+	if !strings.Contains(strings.Join(kept, ""), mainRule) {
+		t.Fatal("the default has no has_tests rule past 300 SLOC")
+	}
+	kept = []string{strings.Replace(strings.Join(kept, ""), mainRule, "", 1)}
 	fitted, err := config.Parse([]byte(strings.Join(kept, "")))
 	if err != nil {
 		t.Fatal(err)

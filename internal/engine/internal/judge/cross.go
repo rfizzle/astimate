@@ -19,12 +19,13 @@ type crossJudgment struct {
 }
 
 // judgeCross returns how the module row's dup_blocks_cross_pkg is judged
-// given head, its blocks at head, and base, the baseline's blocks named
-// like head's and known when the baseline recorded them.
-func (c *Checker) judgeCross(head, base []metrics.CrossBlock, known bool) crossJudgment {
+// given head, its blocks at head, base, the baseline's blocks named like
+// head's and known when the baseline recorded them, and roles, the role
+// of each package of head's blocks.
+func (c *Checker) judgeCross(head, base []metrics.CrossBlock, known bool, roles map[string]string) crossJudgment {
 	j := crossJudgment{known: known, floor: c.o.Config.MinTokensCross}
 	if known {
-		j.added = score.AddedCrossBlocks(head, base, j.floor, c.renamedFrom(head))
+		j.added = score.AddedCrossBlocks(head, base, j.floor, c.renamedFrom(head), roles)
 	}
 	return j
 }

@@ -236,7 +236,8 @@ const committedRebuild = "../rebuild/astimate-rebuild-2026-09-28-claude-code-opu
 // calibration/validate fits the capacity rules' from the replayed commits
 // (SPEC.md 11.4), and changed_func_cognitive_max's is set by hand until
 // replays record changed functions, so they are compared apart, and so are
-// the density floors, set by hand (takeFloors).
+// the density floors, set by hand (takeFloors), and the package roles
+// (takeRoles).
 func TestDefaultIsCommittedCandidate(t *testing.T) {
 	cand, err := config.Load(committedCandidate)
 	if err != nil {
@@ -262,6 +263,12 @@ func TestDefaultIsCommittedCandidate(t *testing.T) {
 	}
 	if floors := takeFloors(def.Thresholds); !maps.Equal(floors, wantFloors()) {
 		t.Errorf("default floors = %v, want %v", floors, wantFloors())
+	}
+	// The package roles are set by hand (SPEC.md 8.2), and so is the rule
+	// for main packages they split has_tests into.
+	var roles map[string]string
+	if def.Thresholds, roles = takeRoles(def.Thresholds); !maps.Equal(roles, wantRoles()) {
+		t.Errorf("default roles = %v, want %v", roles, wantRoles())
 	}
 	if def.Version != rebuild.Version {
 		t.Errorf("default config_version = %q, rebuild fit %q", def.Version, rebuild.Version)

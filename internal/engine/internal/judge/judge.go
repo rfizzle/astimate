@@ -191,7 +191,7 @@ func (c *Checker) Module(ctx context.Context, mm metrics.ModuleMetrics, fromFile
 		names.CrossBlocks, added = score.RankCrossBlocks(det.CrossBlocks, baseBlocks)
 		names.CrossAdded = added > 0
 	}
-	cj := c.judgeCross(det.CrossBlocks, baseBlocks, known)
+	cj := c.judgeCross(det.CrossBlocks, baseBlocks, known, det.Roles)
 	gm, blame, cited := cj.gated(m, bm), (*crossBlame)(nil), cj.added
 	if _, detailed := o.Ext.(metrics.ModuleDetailer); detailed && len(named) > 0 && len(rules) > 0 && m.DupBlocksCrossPkg != nil {
 		gm, blame = blameNamed(m, bm, cj, det.CrossBlocks, named)

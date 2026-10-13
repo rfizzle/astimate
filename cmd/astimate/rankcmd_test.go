@@ -135,7 +135,7 @@ func TestRankTable(t *testing.T) {
 		t.Fatalf("run(%q) exit code = %d, want %d; stderr = %q", args, got, exitOK, stderr.String())
 	}
 	lines := strings.Split(strings.TrimSuffix(stdout.String(), "\n"), "\n")
-	if len(lines) != 3 || strings.Join(strings.Fields(lines[0]), " ") != "PATH PASSES DAYS TIER FAN_IN TOKENS DUP%" {
+	if len(lines) != 3 || strings.Join(strings.Fields(lines[0]), " ") != "PATH PASSES DAYS TIER FAN_IN TOKENS DUP% ROLE" {
 		t.Errorf("table output = %q, want the header and two rows", stdout.String())
 	}
 }

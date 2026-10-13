@@ -33,7 +33,7 @@ func sized(tokens int, pkgs ...string) metrics.CrossBlock {
 func judgment(head, base []metrics.CrossBlock, known bool, floor int, from map[string][]string) crossJudgment {
 	j := crossJudgment{known: known, floor: floor}
 	if known {
-		j.added = score.AddedCrossBlocks(head, base, floor, from)
+		j.added = score.AddedCrossBlocks(head, base, floor, from, nil)
 	}
 	return j
 }

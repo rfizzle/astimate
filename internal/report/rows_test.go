@@ -108,17 +108,20 @@ func TestWriteRowsTable(t *testing.T) {
 
 	rows := []Row{
 		{Path: "internal/billing", AgentPasses: 1.2, HumanDays: 55.2, Tier: score.TierFewPasses,
-			FanIn: 7, TokensEst: 10000, DuplicationPct: 20},
+			FanIn: 7, TokensEst: 10000, DuplicationPct: 20, Role: "library"},
+		{Path: "cmd/app", AgentPasses: 0.1, HumanDays: 2.5, Tier: score.TierOnePass, TokensEst: 900, Role: "main"},
 		{Path: ".", AgentPasses: 0, HumanDays: 0.3, Tier: score.TierOnePass, TokensEst: 55},
 	}
 	var buf bytes.Buffer
 	if err := WriteRowsTable(&buf, rows); err != nil {
 		t.Fatalf("WriteRowsTable error = %v", err)
 	}
+	// A row whose extractor records no role shows a dash.
 	want := strings.Join([]string{
-		"PATH              PASSES  DAYS  TIER        FAN_IN  TOKENS  DUP%",
-		"internal/billing     1.2  55.2  FEW_PASSES       7   10000  20.0",
-		".                    0.0   0.3  ONE_PASS         0      55   0.0",
+		"PATH              PASSES  DAYS  TIER        FAN_IN  TOKENS  DUP%  ROLE",
+		"internal/billing     1.2  55.2  FEW_PASSES       7   10000  20.0  library",
+		"cmd/app              0.1   2.5  ONE_PASS         0     900   0.0  main",
+		".                    0.0   0.3  ONE_PASS         0      55   0.0  -",
 		"",
 	}, "\n")
 	if got := buf.String(); got != want {

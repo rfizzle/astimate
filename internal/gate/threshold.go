@@ -4,8 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/rfizzle/astimate/internal/metrics/role"
 )
 
 // Kind classifies a threshold rule (SPEC.md section 8.1).
@@ -85,6 +88,17 @@ type Threshold struct {
 	// violation; SeverityWarn reports it as a warning instead. It never
 	// changes how the rule is evaluated.
 	Severity Severity
+	// Roles limits the rule to rows whose role (metrics.RawMetrics.Role,
+	// SPEC.md 6.5) it lists, each a name of package metrics/role; empty
+	// means every role. A row with no role is judged as a library
+	// (role.Of). Any kind may carry it.
+	Roles []string
+}
+
+// Judges reports whether t applies to a row of role r: t lists no roles,
+// or lists r, the empty role read as a library (role.Of).
+func (t Threshold) Judges(r string) bool {
+	return len(t.Roles) == 0 || slices.Contains(t.Roles, role.Of(r))
 }
 
 // Warns reports whether a breach of t is a warning rather than a
@@ -183,7 +197,21 @@ func (t Threshold) Validate(known func(string) bool) error {
 	if t.When != nil && !known(t.When.Metric) {
 		add("when: unknown metric %q", t.When.Metric)
 	}
+	t.checkRoles(add)
 	return errors.Join(errs...)
+}
+
+// checkRoles reports through add a role of Roles that metrics/role does
+// not name, or that is listed twice.
+func (t Threshold) checkRoles(add func(string, ...any)) {
+	for i, r := range t.Roles {
+		switch {
+		case !role.Known(r):
+			add("roles: unknown role %q; want one of %s", r, strings.Join(role.Names(), ", "))
+		case slices.Contains(t.Roles[:i], r):
+			add("roles: %q listed twice", r)
+		}
+	}
 }
 
 // overMaxDeltaScope is the error for over_max_delta on a rule that cannot

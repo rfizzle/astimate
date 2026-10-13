@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/role"
 )
 
 // crossOf returns a block of tokens normalized tokens with one occurrence
@@ -15,6 +16,12 @@ func crossOf(tokens int, pkgs ...string) metrics.CrossBlock {
 	for i, p := range pkgs {
 		b.Occurrences = append(b.Occurrences, metrics.Occurrence{Package: p, File: p + "/x.go", StartLine: 10*i + 1, EndLine: 10*i + 9})
 	}
+	return b
+}
+
+// kindOf returns b with its kind set to kind.
+func kindOf(kind string, b metrics.CrossBlock) metrics.CrossBlock {
+	b.Kind = kind
 	return b
 }
 
@@ -35,11 +42,13 @@ func TestAddedCrossBlocks(t *testing.T) {
 	t.Parallel()
 
 	split := map[string][]string{"p2": {"p"}}
+	mains := map[string]string{"cmd/a": role.Main, "cmd/b": role.Main, "lib": role.Library}
 	tests := []struct {
 		name       string
 		head, base []metrics.CrossBlock
 		floor      int
 		from       map[string][]string
+		roles      map[string]string
 		want       []string
 	}{
 		{name: "legacy block", head: []metrics.CrossBlock{crossOf(100, "a", "b")},
@@ -63,11 +72,22 @@ func TestAddedCrossBlocks(t *testing.T) {
 			base: []metrics.CrossBlock{crossOf(100, "a", "b")}, floor: 80},
 		{name: "head order kept", head: []metrics.CrossBlock{crossOf(90, "c", "d"), crossOf(90, "a", "b")}, floor: 80,
 			want: []string{"c-d", "a-b"}},
+		{name: "declarative block between main packages", head: []metrics.CrossBlock{kindOf("declarative", crossOf(200, "cmd/a", "cmd/b"))},
+			floor: 80, roles: mains},
+		{name: "code block between main packages", head: []metrics.CrossBlock{kindOf("code", crossOf(200, "cmd/a", "cmd/b"))},
+			floor: 80, roles: mains, want: []string{"cmd/a-cmd/b"}},
+		{name: "declarative block from a main package to a library", head: []metrics.CrossBlock{kindOf("declarative", crossOf(200, "cmd/a", "lib"))},
+			floor: 80, roles: mains, want: []string{"cmd/a-lib"}},
+		{name: "declarative block between main packages without roles", head: []metrics.CrossBlock{kindOf("declarative", crossOf(200, "cmd/a", "cmd/b"))},
+			floor: 80, want: []string{"cmd/a-cmd/b"}},
+		{name: "exempt legacy block hides no copy", head: []metrics.CrossBlock{crossOf(200, "cmd/a", "cmd/b")},
+			base: []metrics.CrossBlock{kindOf("declarative", crossOf(200, "cmd/a", "cmd/b"))}, floor: 80, roles: mains,
+			want: []string{"cmd/a-cmd/b"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := sets(AddedCrossBlocks(tt.head, tt.base, tt.floor, tt.from))
+			got := sets(AddedCrossBlocks(tt.head, tt.base, tt.floor, tt.from, tt.roles))
 			if !slices.Equal(got, tt.want) {
 				t.Errorf("AddedCrossBlocks = %v, want %v", got, tt.want)
 			}

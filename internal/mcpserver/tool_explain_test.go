@@ -3,6 +3,7 @@ package mcpserver
 import (
 	"bytes"
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 
@@ -136,6 +137,33 @@ func TestExplainMetricOverMaxDelta(t *testing.T) {
 	}
 	if want := "capacity max 1000 warn_at 0.75 over_max_delta 100"; !strings.Contains(text, want) {
 		t.Errorf("text = %q, want %q", text, want)
+	}
+}
+
+// TestExplainMetricRoles checks explain_metric says which package roles
+// each rule judges: internal_imports every role but main, and has_tests
+// one rule for main past 300 SLOC beside the rule for the others.
+func TestExplainMetricRoles(t *testing.T) {
+	t.Parallel()
+
+	cs := newTestClient(t, Options{Config: defaultConfig(t)})
+	res := callExplain(t, cs, "internal_imports")
+	text := resultText(res)
+	r := decodeExplain(t, res)
+	if len(r.Thresholds) != 1 || !slices.Equal(r.Thresholds[0].Roles, []string{"library", "test-support", "generated-only"}) {
+		t.Errorf("thresholds = %+v, want one judging library, test-support and generated-only", r.Thresholds)
+	}
+	if want := "; judges library, test-support, generated-only packages only\n"; !strings.Contains(text, want) {
+		t.Errorf("text = %q, want %q", text, want)
+	}
+	res = callExplain(t, cs, "has_tests")
+	text = resultText(res)
+	if want := "requirement require true when sloc > 300; judges main packages only\n"; !strings.Contains(text, want) {
+		t.Errorf("text = %q, want %q", text, want)
+	}
+	res = callExplain(t, cs, "globals")
+	if text, r := resultText(res), decodeExplain(t, res); strings.Contains(text, "judges") || len(r.Thresholds[0].Roles) != 0 {
+		t.Errorf("globals text = %q, roles %v; want a rule judging every role, unmentioned", text, r.Thresholds[0].Roles)
 	}
 }
 

@@ -132,7 +132,8 @@ func ForRow(rules []Threshold, row Row) []Threshold {
 // Max. Requirement rules fail when the metric's boolean disagrees with
 // Require while When holds and the package is new or its sloc grew. A rule
 // whose metric is unknown or not computed at head is skipped, which also
-// covers rebuild outputs the config loader already rejects; a v1 metric
+// covers rebuild outputs the config loader already rejects, and so is a
+// rule whose roles leave out head's role (Threshold.Judges); a v1 metric
 // computed at head but null at base skips only its delta rule and adds a
 // Note. A warn rule (Threshold.Warns) is evaluated the same way, and each
 // violation it would have is reported as a warning instead, with the same
@@ -200,7 +201,7 @@ type evaluator struct {
 
 func (e *evaluator) rule(i int, r Threshold) {
 	h, ok := e.head.Value(r.Metric)
-	if !ok {
+	if !ok || !r.Judges(e.head.Role) {
 		return
 	}
 	e.cur, e.warns = i, r.Warns()

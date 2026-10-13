@@ -136,6 +136,9 @@ type fileThreshold struct {
 	When            string   `yaml:"when"`
 	// Severity is fail or warn; absent means fail.
 	Severity string `yaml:"severity"`
+	// Roles limits the rule to rows of these roles; absent means every
+	// role.
+	Roles []string `yaml:"roles"`
 	// Disabled drops the top-level rule on Metric; only under languages.
 	Disabled bool `yaml:"disabled"`
 }
@@ -419,7 +422,7 @@ func (ft fileThreshold) build(prefix string) (gate.Threshold, error) {
 		Require:         ft.Require,
 		RatchetFromZero: ft.RatchetFromZero,
 	}
-	t.Severity, t.Floor = gate.Severity(ft.Severity), ft.Floor
+	t.Severity, t.Floor, t.Roles = gate.Severity(ft.Severity), ft.Floor, ft.Roles
 	switch {
 	case ft.WarnAt != nil:
 		t.WarnAt = *ft.WarnAt

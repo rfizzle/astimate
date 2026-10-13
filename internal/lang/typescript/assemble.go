@@ -10,6 +10,7 @@ import (
 	"github.com/rfizzle/astimate/internal/lang/duptok"
 	"github.com/rfizzle/astimate/internal/lang/typescript/internal/inspect"
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/role"
 )
 
 // assembleOptions carries the extractor configuration assemble needs.
@@ -139,6 +140,14 @@ func assemble(m *module, p *pkg, opts assembleOptions) (metrics.RawMetrics, erro
 	r.MainSequenceDistance = metrics.RoundRatio(metrics.MainSequenceDistance(abstractness, instability))
 	r.Instability = metrics.RoundRatio(instability)
 	r.Abstractness = metrics.RoundRatio(abstractness)
+
+	// A package a bin entry names, or one that exports nothing, is a
+	// composition root (SPEC.md 6.5); TypeScript has no test-support or
+	// generated-only rule.
+	r.Role = role.Library
+	if m.bins[p.id] || r.ExportedSymbols == 0 {
+		r.Role = role.Main
+	}
 
 	groups := dup.Groups()
 	for _, g := range groups {

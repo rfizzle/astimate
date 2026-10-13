@@ -332,6 +332,7 @@ type packageRow struct {
 	Commit     string              `json:"commit"`
 	Package    string              `json:"package"`
 	Language   string              `json:"language"`
+	Role       string              `json:"role"`
 	Metrics    metrics.RawMetrics  `json:"metrics"`
 	Base       *metrics.RawMetrics `json:"base"`
 	SLOCDelta  int                 `json:"sloc_delta"`
@@ -393,6 +394,7 @@ func readRows(path string) (map[string][]Row, error) {
 			return err
 		}
 		r := Row{Package: pr.Package, Language: pr.Language, Head: pr.Metrics, Base: pr.Base, SLOCDelta: pr.SLOCDelta}
+		r.Head.Role = pr.Role
 		r.Changed = pr.changed()
 		for i := range pr.Violations {
 			r.Violated = append(r.Violated, pr.Violations[i].metrics()...)

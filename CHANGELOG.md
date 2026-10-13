@@ -12,6 +12,21 @@ history.
 
 ### Added
 
+- Every package row carries a `role`: `main` for a composition root (a Go
+  `package main`, or a TypeScript package a `bin` entry names or that
+  exports nothing), `test-support` for a package only tests use,
+  `generated-only`, or `library`. Reports carry it as a top-level `role`,
+  `rank` as a ROLE column and a `role` field, and replay rows beside the
+  metrics. A threshold may set `roles: [...]` to judge only rows of those
+  roles, and `explain_metric` says which roles each rule judges. The
+  default no longer judges `main` packages on `internal_imports`,
+  `exported_symbols` or `untested_exports` (nor `test-support` ones on
+  `untested_exports`), requires tests of a `main` package only past 300
+  SLOC, and does not count a declarative cross-package block shared only by
+  `main` packages as added. On the 94 failed commits of the five
+  2026-10-13 replays this removes one finding, ztp's `cmd/broker`
+  `internal_imports` 20 -> 21, and changes no verdict
+  (`calibration/notes/package-roles-2026-10-14.md`).
 - `astimate dryrun [<module-root>] --last N` (default 50) answers "how
   often would this have failed us?" before the gate is turned on: it
   replays the last N first-parent commits of `HEAD`, each against its

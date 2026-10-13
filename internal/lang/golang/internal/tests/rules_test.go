@@ -57,6 +57,19 @@ func TestUntestedExclusionRules(t *testing.T) {
 	}
 }
 
+// TestSupport checks Refs.Support on testdata/go/rules: the package only
+// another package's tests use is test-support, and one a non-test file
+// imports, or no test refers to, is not.
+func TestSupport(t *testing.T) {
+	l := loadRoot(t, rulesRoot(t))
+	refs := new(Refs)
+	for pkg, want := range map[string]bool{"support": true, "shared": false, "opts": false, "quiet": false} {
+		if got := refs.Support(l, "example.com/rules/"+pkg); got != want {
+			t.Errorf("Support(%s) = %v, want %v", pkg, got, want)
+		}
+	}
+}
+
 // TestUntestedPflagValue checks that pflag.Value and pflag.SliceValue are
 // matched by method set, without the package being imported.
 func TestUntestedPflagValue(t *testing.T) {

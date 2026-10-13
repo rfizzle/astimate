@@ -51,8 +51,8 @@ func TestAssessJSONSchema(t *testing.T) {
 	// SPEC.md 10.2 keys an assess report carries; baseline, violations,
 	// warnings and passed are omitted because no baseline or gate ran.
 	// The Go extractor records details, at least the largest file, for
-	// every package.
-	wantTop := sorted("language", "package_path", "module_path", "rebuild", "suggestions",
+	// every package, and a role for every package.
+	wantTop := sorted("language", "package_path", "module_path", "role", "rebuild", "suggestions",
 		"metrics", "details", "astimate_version", "config_version")
 	wantRebuild := sorted("agent_passes", "rebuild_tokens", "human_days", "tier", "calibrated", "drivers")
 	wantDriver := sorted("term", "tokens", "detail")

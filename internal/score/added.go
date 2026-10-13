@@ -4,14 +4,19 @@ import (
 	"strconv"
 
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/role"
 )
 
 // AddedCrossBlocks returns the cross-package blocks of head, a module's
 // blocks at head, that dup_blocks_cross_pkg judges as added by the change
 // (SPEC.md 8.1), in head's order: those that are new against base, the
-// blocks at the baseline (matched as below), at least floor tokens long
-// and not moved. A block of unknown length (Tokens 0) is kept
-// whatever the floor. A block is moved when every package it touches lies
+// blocks at the baseline (matched as below), at least floor tokens long,
+// not moved and not exempt. A block of unknown length (Tokens 0) is kept
+// whatever the floor. A block is exempt when it is declarative and every
+// occurrence lies in a package whose role in roles is main: the flag
+// tables and registration calls composition roots repeat are counted but
+// not gated. roles maps a package, named like head's, to its role
+// (metrics.Details.Roles); nil exempts nothing. A block is moved when every package it touches lies
 // in one group of packages a rename joined: a package seeded by a rename
 // and the packages it was seeded from, groups sharing a package being one
 // group, so splitting a package in two moves the code the halves share
@@ -20,21 +25,22 @@ import (
 // nil when nothing was renamed. head is not modified.
 //
 // Blocks are matched by the set of packages they touch, as NewCrossBlocks
-// does, but only among the blocks that clear the floor on both sides, so
-// a short legacy block cannot hide a long copy between the same packages,
-// nor a long legacy block be blamed for a short repeat added beside it.
-func AddedCrossBlocks(head, base []metrics.CrossBlock, floor int, from map[string][]string) []metrics.CrossBlock {
+// does, but only among the blocks that clear the floor and are not exempt
+// on both sides, so a short legacy block cannot hide a long copy between
+// the same packages, nor a long legacy block be blamed for a short repeat
+// added beside it.
+func AddedCrossBlocks(head, base []metrics.CrossBlock, floor int, from map[string][]string, roles map[string]string) []metrics.CrossBlock {
 	group := renameGroups(from)
 	old := make(map[string]int, len(base))
 	for i := range base {
-		if !underFloor(&base[i], floor) {
+		if !underFloor(&base[i], floor) && !mainOnly(&base[i], roles) {
 			old[packageSet(&base[i])]++
 		}
 	}
 	var out []metrics.CrossBlock
 	for i := range head {
 		b := &head[i]
-		if underFloor(b, floor) || moved(b, group) {
+		if underFloor(b, floor) || mainOnly(b, roles) || moved(b, group) {
 			continue
 		}
 		if k := packageSet(b); old[k] > 0 {
@@ -49,6 +55,20 @@ func AddedCrossBlocks(head, base []metrics.CrossBlock, floor int, from map[strin
 // underFloor reports whether b is known to be shorter than floor tokens.
 func underFloor(b *metrics.CrossBlock, floor int) bool {
 	return b.Tokens > 0 && b.Tokens < floor
+}
+
+// mainOnly reports whether b is a declarative block every occurrence of
+// which lies in a package roles calls main.
+func mainOnly(b *metrics.CrossBlock, roles map[string]string) bool {
+	if b.Kind != "declarative" || len(b.Occurrences) == 0 {
+		return false
+	}
+	for _, o := range b.Occurrences {
+		if roles[o.Package] != role.Main {
+			return false
+		}
+	}
+	return true
 }
 
 // renameGroups returns, for each package of from, keys and sources alike,

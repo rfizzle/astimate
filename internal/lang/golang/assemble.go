@@ -49,7 +49,8 @@ type results struct {
 // rounded to three decimal places), the opacity flags uses_cgo,
 // uses_reflect and generated_files, tokens_est_generated, dup_blocks_code, and
 // dup_blocks_cross_pkg (nil for the standard-library loads, which are not
-// modules); coverage_pct and changed_func_cognitive_max are left nil. It
+// modules), and the package's role (roleOf); coverage_pct and
+// changed_func_cognitive_max are left nil. It
 // records the debug details of p in l. Errors are wrapped with p's import
 // path.
 func assemble(ctx context.Context, l *loaded, p *packages.Package, opts assembleOptions) (metrics.RawMetrics, error) {
@@ -114,6 +115,8 @@ func assemble(ctx context.Context, l *loaded, p *packages.Package, opts assemble
 		UsesReflect:          &r.opacity.Reflect,
 		GeneratedFiles:       &r.opacity.Generated,
 		TokensEstGenerated:   &r.tokens.TokensEstGenerated,
+
+		Role: roleOf(l, p),
 	}, nil
 }
 

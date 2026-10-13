@@ -75,7 +75,8 @@ func NewRules(cfg *config.Config) *Rules {
 }
 
 // For returns the List index of the rule on metric that judges row r:
-// the rule of r's language on that metric, when the rule's row kind
+// the first rule of r's language on that metric whose roles take r's
+// role (gate.Threshold.Judges), when the rule's row kind
 // (metrics.ModuleWide on the module row, every other metric on package
 // rows) is r's. ok is false when no rule does.
 func (s *Rules) For(r *corpus.Row, metric string) (i int, ok bool) {
@@ -87,7 +88,7 @@ func (s *Rules) For(r *corpus.Row, metric string) (i int, ok bool) {
 		idx = s.top
 	}
 	for _, i := range idx {
-		if s.List[i].Threshold.Metric == metric {
+		if t := &s.List[i].Threshold; t.Metric == metric && t.Judges(r.Head.Role) {
 			return i, true
 		}
 	}

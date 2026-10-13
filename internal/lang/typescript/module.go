@@ -28,6 +28,10 @@ type module struct {
 	// metric that needs "referenced from a test anywhere in the module"
 	// reads it too.
 	testRefs map[string]bool
+	// bins holds the directories the bin field of the root package.json
+	// names (resolve.BinDirs); a package of that identifier is a
+	// composition root.
+	bins map[string]bool
 
 	detailsMu sync.Mutex
 	details   map[string]details
@@ -77,7 +81,7 @@ func loadModule(ctx context.Context, root string, opts inspect.Options) (*module
 	if err != nil {
 		return nil, fmt.Errorf("listing TypeScript files of %s: %w", root, err)
 	}
-	m := &module{root: root, pkgs: make(map[string]*pkg), testRefs: make(map[string]bool)}
+	m := &module{root: root, pkgs: make(map[string]*pkg), testRefs: make(map[string]bool), bins: resolve.BinDirs(root)}
 	for _, f := range files {
 		if f.Test {
 			continue

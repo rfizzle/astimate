@@ -22,6 +22,9 @@ type Report struct {
 	PackagePath string `json:"package_path"`
 	// ModulePath is the module's import path.
 	ModulePath string `json:"module_path"`
+	// Role is the package's role (metrics.RawMetrics.Role, SPEC.md 6.5);
+	// omitted on the module row and when the extractor records none.
+	Role string `json:"role,omitempty"`
 	// Rebuild is the rebuild estimate (SPEC.md section 7).
 	Rebuild Rebuild `json:"rebuild"`
 	// Suggestions are the driver suggestions of SPEC.md 7.4; never null.
@@ -206,6 +209,7 @@ func Build(in *Input) Report {
 		Language:    in.Language,
 		PackagePath: in.PackagePath,
 		ModulePath:  in.ModulePath,
+		Role:        in.Metrics.Role,
 		Rebuild: Rebuild{
 			AgentPasses:   est.AgentPassesRounded(),
 			RebuildTokens: roundInt(est.RebuildTokens),

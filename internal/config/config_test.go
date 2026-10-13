@@ -70,7 +70,7 @@ func TestParseDefault(t *testing.T) {
 	want := map[gate.Kind]string{
 		gate.Density:     "dup_blocks duplication_pct untested_exports globals init_funcs max_nesting cognitive_p90 changed_func_cognitive_max dup_blocks_cross_pkg",
 		gate.Capacity:    "tokens_est largest_file_sloc exported_symbols internal_imports sloc",
-		gate.Requirement: "has_tests",
+		gate.Requirement: "has_tests has_tests",
 	}
 	for k, w := range want {
 		if got := strings.Join(kinds[k], " "); got != w {
@@ -123,9 +123,33 @@ func TestParseDefault(t *testing.T) {
 	if got, w := strings.Join(ratchet, " "), "dup_blocks untested_exports globals init_funcs"; got != w {
 		t.Errorf("ratchet_from_zero metrics = %q, want %q", got, w)
 	}
-	last := cfg.Thresholds[len(cfg.Thresholds)-1]
-	if last.When == nil || *last.When != (gate.Condition{Metric: "sloc", Value: 100}) {
-		t.Errorf("has_tests when = %+v, want sloc > 100", last.When)
+	// has_tests is two rules: past 100 SLOC for every role but main, and
+	// past 300 for main (SPEC.md 8.2).
+	n := len(cfg.Thresholds)
+	for i, w := range []struct {
+		sloc  float64
+		roles string
+	}{{100, "library test-support generated-only"}, {300, "main"}} {
+		r := cfg.Thresholds[n-2+i]
+		if r.Metric != "has_tests" || r.When == nil || *r.When != (gate.Condition{Metric: "sloc", Value: w.sloc}) ||
+			strings.Join(r.Roles, " ") != w.roles {
+			t.Errorf("thresholds[%d] = %s when %+v roles %v, want has_tests when sloc > %v roles %s", n-2+i, r.Metric, r.When, r.Roles, w.sloc, w.roles)
+		}
+	}
+	// The roles of the other rules (SPEC.md 8.2), the same in the
+	// typescript override.
+	notMain := "library test-support generated-only"
+	wantRoles := map[string]string{"untested_exports": "library generated-only", "exported_symbols": notMain, "internal_imports": notMain}
+	for _, lang := range []string{"", "typescript"} {
+		roles := map[string]string{}
+		for _, th := range cfg.ForLanguage(lang).Thresholds {
+			if len(th.Roles) > 0 && th.Metric != "has_tests" {
+				roles[th.Metric] = strings.Join(th.Roles, " ")
+			}
+		}
+		if !maps.Equal(roles, wantRoles) {
+			t.Errorf("roles for %q = %v, want %v", lang, roles, wantRoles)
+		}
 	}
 	// The default sets no severity, so every rule it ships fails the gate.
 	for _, lang := range append([]string{""}, cfg.Languages()...) {
@@ -161,6 +185,44 @@ func TestParseSeverity(t *testing.T) {
 	for _, th := range cfg.ForLanguage("typescript").Thresholds {
 		if th.Metric == "init_funcs" && !th.Warns() {
 			t.Errorf("typescript init_funcs severity = %q, want warn", th.Severity)
+		}
+	}
+}
+
+// TestParseRoles checks that a rule's roles are read as written, at the
+// top level and in a language override, and that a rule without them
+// judges every role.
+func TestParseRoles(t *testing.T) {
+	t.Parallel()
+
+	data := replace(t, "  - metric: globals\n    kind: density\n", "  - metric: globals\n    kind: density\n    roles: [library, test-support]\n")
+	data = strings.Replace(data, "languages:\n  typescript:\n    thresholds:\n",
+		"languages:\n  typescript:\n    thresholds:\n      - metric: init_funcs\n        kind: density\n        max_delta: 0\n        roles: [main]\n", 1)
+	cfg, err := Parse([]byte(data))
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	roles := func(rules []gate.Threshold, metric string) string {
+		for _, th := range rules {
+			if th.Metric == metric {
+				return strings.Join(th.Roles, " ")
+			}
+		}
+		return "missing"
+	}
+	if got := roles(cfg.Thresholds, "globals"); got != "library test-support" {
+		t.Errorf("globals roles = %q, want library test-support", got)
+	}
+	if got := roles(cfg.Thresholds, "init_funcs"); got != "" {
+		t.Errorf("init_funcs roles = %q, want none", got)
+	}
+	ts := cfg.ForLanguage("typescript").Thresholds
+	if got := roles(ts, "init_funcs"); got != "main" {
+		t.Errorf("typescript init_funcs roles = %q, want main", got)
+	}
+	for _, th := range ts {
+		if th.Metric == "init_funcs" && (th.Judges("library") || !th.Judges("main")) {
+			t.Errorf("typescript init_funcs judges library %v, main %v; want main only", th.Judges("library"), th.Judges("main"))
 		}
 	}
 }
@@ -263,6 +325,10 @@ func TestParseErrors(t *testing.T) {
 		{name: "over_max_delta on a disabled rule", old: "languages:\n  typescript:\n    thresholds:\n", repl: "languages:\n  typescript:\n    thresholds:\n      - metric: sloc\n        disabled: true\n        over_max_delta: 10\n", wantErr: "a disabled rule sets only metric and disabled"},
 		{name: "unknown severity", old: capacityRule, repl: capacityRule + "    severity: error\n", wantErr: `"sloc": unknown severity "error"; want fail or warn`},
 		{name: "severity on a disabled rule", old: "languages:\n  typescript:\n    thresholds:\n", repl: "languages:\n  typescript:\n    thresholds:\n      - metric: sloc\n        disabled: true\n        severity: warn\n", wantErr: "a disabled rule sets only metric and disabled"},
+		{name: "unknown role", old: capacityRule, repl: capacityRule + "    roles: [cmd]\n", wantErr: `"sloc": roles: unknown role "cmd"; want one of main, library, test-support, generated-only`},
+		{name: "role listed twice", old: capacityRule, repl: capacityRule + "    roles: [main, main]\n", wantErr: `"sloc": roles: "main" listed twice`},
+		{name: "unknown role in a language override", old: "languages:\n  typescript:\n    thresholds:\n", repl: "languages:\n  typescript:\n    thresholds:\n      - metric: globals\n        kind: density\n        max_delta: 0\n        roles: [bin]\n", wantErr: `languages.typescript.thresholds[0]: threshold "globals": roles: unknown role "bin"`},
+		{name: "roles on a disabled rule", old: "languages:\n  typescript:\n    thresholds:\n", repl: "languages:\n  typescript:\n    thresholds:\n      - metric: sloc\n        disabled: true\n        roles: [main]\n", wantErr: "a disabled rule sets only metric and disabled"},
 		{name: "ratchet_from_zero not a bool", old: "    ratchet_from_zero: true\n", repl: "    ratchet_from_zero: sometimes\n", wantErr: "`sometimes` into bool"},
 		{name: "warn_at out of range", old: capacityRule, repl: strings.Replace(capacityRule, "0.75", "1.5", 1), wantErr: "warn_at must be in (0, 1)"},
 		{name: "unknown metric", old: "metric: dup_blocks", repl: "metric: dupe_blocks", wantErr: `"dupe_blocks": unknown metric`},

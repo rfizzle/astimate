@@ -19,6 +19,10 @@ type packageRow struct {
 	Package string `json:"package"`
 	// Language is the extractor's language id.
 	Language string `json:"language"`
+	// Role is the package's role at the commit (report.Report.Role), which
+	// a rule's roles are matched against when the row is re-evaluated;
+	// omitted on the module row and on rows replayed before it existed.
+	Role string `json:"role,omitempty"`
 	// New is true when the baseline has no such row: the package is new at
 	// the commit, or the commit is judged against an empty baseline.
 	New bool `json:"new"`
@@ -190,6 +194,7 @@ func newPackageRow(commit string, p *report.CheckedPackage) packageRow {
 		Commit:       commit,
 		Package:      r.PackagePath,
 		Language:     r.Language,
+		Role:         r.Role,
 		New:          r.Baseline == nil,
 		BaselineFrom: r.BaselineFrom,
 		Passed:       r.Passed == nil || *r.Passed,

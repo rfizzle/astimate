@@ -45,6 +45,9 @@ type Row struct {
 	TokensEst int `json:"tokens_est"`
 	// DuplicationPct is the package's duplication_pct metric.
 	DuplicationPct float64 `json:"duplication_pct"`
+	// Role is the package's role (metrics.RawMetrics.Role, SPEC.md 6.5);
+	// omitted when the extractor records none.
+	Role string `json:"role,omitempty"`
 }
 
 // NewRow estimates the rebuild effort of m under p and returns the ranking
@@ -59,6 +62,7 @@ func NewRow(path string, m *metrics.RawMetrics, p score.RebuildParams) Row {
 		FanIn:          m.FanIn,
 		TokensEst:      m.TokensEst,
 		DuplicationPct: m.DuplicationPct,
+		Role:           m.Role,
 	}
 }
 
@@ -110,13 +114,13 @@ func WriteRowsJSON(w io.Writer, rows []Row) error {
 
 // rowColumns are the ranking table's column headers.
 func rowColumns() []string {
-	return []string{"PATH", "PASSES", "DAYS", "TIER", "FAN_IN", "TOKENS", "DUP%"}
+	return []string{"PATH", "PASSES", "DAYS", "TIER", "FAN_IN", "TOKENS", "DUP%", "ROLE"}
 }
 
 // numericColumn reports whether column i of the ranking table holds numbers,
-// which are right-aligned; PATH and TIER are text.
+// which are right-aligned; PATH, TIER and ROLE are text.
 func numericColumn(i int) bool {
-	return i != 0 && i != 3
+	return i != 0 && i != 3 && i != 7
 }
 
 // WriteRowsTable writes rows for a human reader: one header line, then one
@@ -135,6 +139,7 @@ func WriteRowsTable(w io.Writer, rows []Row) error {
 			strconv.Itoa(r.FanIn),
 			strconv.Itoa(r.TokensEst),
 			strconv.FormatFloat(r.DuplicationPct, 'f', 1, 64),
+			cmp.Or(r.Role, "-"),
 		})
 	}
 	// Pad numeric cells on the left to their column's width so they

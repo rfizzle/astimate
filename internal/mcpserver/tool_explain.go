@@ -58,6 +58,9 @@ type explainThreshold struct {
 	Require         *bool    `json:"require,omitempty"`
 	When            string   `json:"when,omitempty"`
 	RatchetFromZero bool     `json:"ratchet_from_zero"`
+	// Roles are the package roles the rule judges (SPEC.md 6.5); omitted
+	// when it judges every role.
+	Roles []string `json:"roles,omitempty"`
 }
 
 // addExplainTool registers explain_metric on srv, backed by s.
@@ -121,7 +124,7 @@ func (s *session) thresholdsFor(metric string) []explainThreshold {
 			Require:         t.Require,
 			RatchetFromZero: t.RatchetFromZero,
 		}
-		et.Floor = t.Floor
+		et.Floor, et.Roles = t.Floor, t.Roles
 		if t.When != nil {
 			et.When = t.When.Metric + " > " + formatFloat(t.When.Value)
 		}
@@ -187,7 +190,7 @@ func (r explainResult) thresholdLines(b *strings.Builder) {
 		if t.RatchetFromZero {
 			b.WriteString(", ratchet from zero")
 		}
-		b.WriteString(t.overMaxText() + t.floorText())
+		b.WriteString(t.overMaxText() + t.floorText() + t.rolesText())
 		b.WriteByte('\n')
 	}
 }
@@ -218,6 +221,15 @@ func (t explainThreshold) floorText() string {
 		return ""
 	}
 	return "; floor " + formatFloat(*t.Floor) + ": a value at or below it never fails, max included"
+}
+
+// rolesText says which package roles the rule judges, as a clause led by
+// "; ", and is empty for a rule that judges every role.
+func (t explainThreshold) rolesText() string {
+	if len(t.Roles) == 0 {
+		return ""
+	}
+	return "; judges " + strings.Join(t.Roles, ", ") + " packages only"
 }
 
 // formatFloat renders v in its shortest exact form.

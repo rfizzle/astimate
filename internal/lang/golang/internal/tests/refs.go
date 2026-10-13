@@ -41,6 +41,8 @@ type Refs struct {
 	// the index holds as a test-support package's own code.
 	under   map[*packages.Package]string
 	support map[*packages.Package]bool
+	// supportPkgs holds the import paths of the test-support packages.
+	supportPkgs map[string]bool
 	// held maps a method name to the interfaces a test holds a value of
 	// (see heldBy), built on first need.
 	heldOnce sync.Once

@@ -65,6 +65,32 @@ func open(name string, flags int) (string, error) {
 ` + body + "}\n"
 }
 
+// commandSource is a package main declaring a flag table of about 110
+// normalized tokens, a declarative block, followed by main.
+func commandSource(main string) string {
+	return `package main
+
+var flags = []struct {
+	name, usage string
+	def         int
+}{
+	{"alpha", "the first flag", 1},
+	{"beta", "the second flag", 2},
+	{"gamma", "the third flag", 3},
+	{"delta", "the fourth flag", 4},
+	{"epsilon", "the fifth flag", 5},
+	{"zeta", "the sixth flag", 6},
+	{"eta", "the seventh flag", 7},
+	{"theta", "the eighth flag", 8},
+	{"iota", "the ninth flag", 9},
+	{"kappa", "the tenth flag", 10},
+	{"lambda", "the eleventh flag", 11},
+	{"mu", "the twelfth flag", 12},
+}
+
+` + main
+}
+
 // moduleRow returns c's module row, failing t when it has none.
 func moduleRow(t *testing.T, c *report.Check) *report.Report {
 	t.Helper()
@@ -104,6 +130,13 @@ func TestCheckAddedCrossBlockFloor(t *testing.T) {
 				"q/q.go": "package q\n\nfunc one() int { return 1 }\n",
 			},
 			head: map[string]string{"q/open.go": preambleSource("q", "\tn := len(name) + flags\n\treturn name[:n], nil\n")},
+		},
+		{
+			// A declarative block shared only by main packages is counted
+			// but not judged as added (SPEC.md 8.1).
+			name: "flag table repeated in a second command",
+			base: map[string]string{"cmd/a/main.go": commandSource("func main() { _ = flags }\n")},
+			head: map[string]string{"cmd/b/main.go": commandSource("func main() {\n\tfor range flags {\n\t}\n}\n")},
 		},
 	}
 	for _, tt := range tests {

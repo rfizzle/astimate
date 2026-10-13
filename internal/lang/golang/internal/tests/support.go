@@ -23,14 +23,27 @@ func (r *Refs) indexSupport(m *load.Module) {
 			}
 		}
 	}
+	r.supportPkgs = make(map[string]bool)
 	for _, path := range m.Paths {
 		p := m.Pkgs[path]
-		if imported[path] || p.TypesInfo == nil || !r.referencedByOthers(path) {
+		if imported[path] || !r.referencedByOthers(path) {
+			continue
+		}
+		r.supportPkgs[path] = true
+		if p.TypesInfo == nil {
 			continue
 		}
 		files := syntaxFiles(m, p, func(string) bool { return true })
 		r.indexFiles(m, path, p, files, true)
 	}
+}
+
+// Support reports whether the package at pkgPath is a test-support
+// package of m (SPEC.md 6.4, rule d), the test-support role of SPEC.md
+// 6.5. It builds the index on first use.
+func (r *Refs) Support(m *load.Module, pkgPath string) bool {
+	r.build(m)
+	return r.supportPkgs[pkgPath]
 }
 
 // referencedByOthers reports whether a test file of a package other than

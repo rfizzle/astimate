@@ -55,6 +55,12 @@ type Details struct {
 	// SourceFiles are the package's non-test source files relative to the
 	// package directory in slash form, sorted. Nil when unknown.
 	SourceFiles []string
+	// Roles maps the identifier of each package an occurrence of
+	// CrossBlocks lies in to its role (RawMetrics.Role), for the module
+	// row (ModuleDetailer), whose rule leaves out the declarative blocks
+	// shared only by composition roots (SPEC.md 8.1). Nil for a package's
+	// details and when the implementation records no roles.
+	Roles map[string]string
 }
 
 // UntestedRules lists the exports that rules a through d of SPEC.md 6.4

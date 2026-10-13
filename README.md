@@ -114,6 +114,7 @@ $ astimate assess testdata/go/fixture/dupes --json | head -25
   "language": "go",
   "package_path": "dupes",
   "module_path": "example.com/fixture",
+  "role": "library",
   "rebuild": {
     "agent_passes": 0,
     "rebuild_tokens": 1053,
@@ -134,31 +135,30 @@ $ astimate assess testdata/go/fixture/dupes --json | head -25
     ]
   },
   "suggestions": [
-    "3 exported functions have no test (CountVisits, SumOrders, TallyScores); a rebuild would have to reverse-engineer their behavior."
 ...
 ```
 <!-- /sample:assess-json -->
 
 ### rank
 
-`astimate rank [<module-root>]` ranks every package of the module containing the directory (default the current one) by rebuild effort, largest first. `--sort passes|days|fan_in|tokens|duplication` changes the key, `--top N` keeps the first N rows and `--json` prints an array.
+`astimate rank [<module-root>]` ranks every package of the module containing the directory (default the current one) by rebuild effort, largest first. `--sort passes|days|fan_in|tokens|duplication` changes the key, `--top N` keeps the first N rows and `--json` prints an array. Each row names the package's role: `main` for a composition root (a Go `package main`, or a TypeScript package a `bin` entry names or that exports nothing), `test-support` for a package only tests use, `generated-only`, or `library`.
 
 <!-- sample:rank -->
 ```
 $ astimate rank testdata/go/fixture
-PATH      PASSES  DAYS  TIER      FAN_IN  TOKENS  DUP%
-a            0.0   1.3  ONE_PASS       0     159   0.0
-b            0.0   1.3  ONE_PASS       0     179   0.0
-consumer     0.0   0.1  ONE_PASS       0      45   0.0
-dupes        0.0   0.7  ONE_PASS       0     506  80.6
-errs         0.0   0.2  ONE_PASS       0     178   0.0
-hidden       0.0   1.9  ONE_PASS       0     226   0.0
-hub          0.0   1.1  ONE_PASS       4     177   0.0
-immut        0.0   1.5  ONE_PASS       0     344   0.0
-sibling      0.0   0.1  ONE_PASS       0      82   0.0
-support      0.0   0.3  ONE_PASS       0      85   0.0
-tested       0.0   1.0  ONE_PASS       0     237   0.0
-trivial      0.0   0.2  ONE_PASS       0      47   0.0
+PATH      PASSES  DAYS  TIER      FAN_IN  TOKENS  DUP%  ROLE
+a            0.0   1.3  ONE_PASS       0     159   0.0  library
+b            0.0   1.3  ONE_PASS       0     179   0.0  library
+consumer     0.0   0.1  ONE_PASS       0      45   0.0  library
+dupes        0.0   0.7  ONE_PASS       0     506  80.6  library
+errs         0.0   0.2  ONE_PASS       0     178   0.0  library
+hidden       0.0   1.9  ONE_PASS       0     226   0.0  library
+hub          0.0   1.1  ONE_PASS       4     177   0.0  library
+immut        0.0   1.5  ONE_PASS       0     344   0.0  library
+sibling      0.0   0.1  ONE_PASS       0      82   0.0  test-support
+support      0.0   0.3  ONE_PASS       0      85   0.0  test-support
+tested       0.0   1.0  ONE_PASS       0     237   0.0  library
+trivial      0.0   0.2  ONE_PASS       0      47   0.0  library
 ```
 <!-- /sample:rank -->
 
@@ -167,15 +167,15 @@ A TypeScript module ranks the same way; the language is detected from the module
 <!-- sample:rank-ts -->
 ```
 $ astimate rank testdata/ts/fixture
-PATH     PASSES  DAYS  TIER      FAN_IN  TOKENS  DUP%
-a           0.0   0.2  ONE_PASS       0      48   0.0
-b           0.0   1.0  ONE_PASS       0     344   0.0
-covered     0.0   0.3  ONE_PASS       0      81   0.0
-dupes       0.0   0.5  ONE_PASS       0     527  81.8
-hidden      0.0   1.3  ONE_PASS       0     210   0.0
-hub         0.0   1.7  ONE_PASS       4     232   0.0
-tested      0.0   0.9  ONE_PASS       0     216   0.0
-trivial     0.0   0.9  ONE_PASS       1     214   0.0
+PATH     PASSES  DAYS  TIER      FAN_IN  TOKENS  DUP%  ROLE
+a           0.0   0.2  ONE_PASS       0      48   0.0  library
+b           0.0   1.0  ONE_PASS       0     344   0.0  library
+covered     0.0   0.3  ONE_PASS       0      81   0.0  library
+dupes       0.0   0.5  ONE_PASS       0     527  81.8  library
+hidden      0.0   1.3  ONE_PASS       0     210   0.0  library
+hub         0.0   1.7  ONE_PASS       4     232   0.0  library
+tested      0.0   0.9  ONE_PASS       0     216   0.0  library
+trivial     0.0   0.9  ONE_PASS       1     214   0.0  library
 ```
 <!-- /sample:rank-ts -->
 
@@ -227,7 +227,7 @@ Each finding reads `metric: baseline -> head, limit. suggestion`, one per cause:
 
 #### Gate semantics
 
-Density rules measure how the code is written (duplicate blocks, untested exports, globals, nesting, complexity), so adding features should never raise them: they ratchet on the change with `max_delta`, usually 0, against the baseline, and a `max` on one judges a new package and a change that crosses it, never a legacy value already over it, which is held to its `max_delta` alone. A density rule may set a `floor`, a value at or below which it never fails (4 for `max_nesting`, 10 for `cognitive_p90` and `duplication_pct`), and `duplication_pct` and `cognitive_p90` fail a rise only when the change raised the duplicated lines or added or modified a function more complex than the baseline's p90, so deleting code never fails them. Capacity rules measure how much code there is (`tokens_est`, `sloc`, `largest_file_sloc`, `exported_symbols`, `internal_imports`), which features are supposed to grow, so they carry no delta: an absolute `max` says the package has outgrown one agent pass and needs a split, and a warning from `warn_at` (0.75 of the ceiling) gives notice before it lands. Crossing the `max` fails; a package already over it may grow by up to the rule's `over_max_delta` in one change (100 for `sloc`, 1,000 for `tokens_est`, 5 for `largest_file_sloc`, 0 for the others) with a warning to split, and more than that fails. A package new at head faces every `max`, and the count-of-things-added rules (`dup_blocks`, `untested_exports`, `globals`, `init_funcs`) ratchet from zero. One requirement completes the defaults: a package over 100 `sloc` must have tests (`has_tests`), judged like a density `max`, so only when the package is new or grew. Warnings never fail the gate. Any rule may set `severity: warn` (the default is `fail`): it is judged the same way, but what would be a violation is reported as a warning with the same fields and `severity: warn`, so a rule can be shown to agents and measured before it is allowed to fail a commit. `SPEC.md` section 8 has the full rules and the default thresholds.
+Density rules measure how the code is written (duplicate blocks, untested exports, globals, nesting, complexity), so adding features should never raise them: they ratchet on the change with `max_delta`, usually 0, against the baseline, and a `max` on one judges a new package and a change that crosses it, never a legacy value already over it, which is held to its `max_delta` alone. A density rule may set a `floor`, a value at or below which it never fails (4 for `max_nesting`, 10 for `cognitive_p90` and `duplication_pct`), and `duplication_pct` and `cognitive_p90` fail a rise only when the change raised the duplicated lines or added or modified a function more complex than the baseline's p90, so deleting code never fails them. Capacity rules measure how much code there is (`tokens_est`, `sloc`, `largest_file_sloc`, `exported_symbols`, `internal_imports`), which features are supposed to grow, so they carry no delta: an absolute `max` says the package has outgrown one agent pass and needs a split, and a warning from `warn_at` (0.75 of the ceiling) gives notice before it lands. Crossing the `max` fails; a package already over it may grow by up to the rule's `over_max_delta` in one change (100 for `sloc`, 1,000 for `tokens_est`, 5 for `largest_file_sloc`, 0 for the others) with a warning to split, and more than that fails. A package new at head faces every `max`, and the count-of-things-added rules (`dup_blocks`, `untested_exports`, `globals`, `init_funcs`) ratchet from zero. One requirement completes the defaults: a package over 100 `sloc` must have tests (`has_tests`), judged like a density `max`, so only when the package is new or grew. Any rule may set `roles` to judge only packages of those roles: composition roots wire everything, so by default `internal_imports`, `exported_symbols` and `untested_exports` do not judge `main` packages, `untested_exports` does not judge `test-support` ones either, a `main` package needs tests only past 300 `sloc`, and a declarative cross-package block shared only by `main` packages is counted but not judged. Warnings never fail the gate. Any rule may set `severity: warn` (the default is `fail`): it is judged the same way, but what would be a violation is reported as a warning with the same fields and `severity: warn`, so a rule can be shown to agents and measured before it is allowed to fail a commit. `SPEC.md` section 8 has the full rules and the default thresholds.
 
 | Rule | Kind | Baseline | Head | Verdict |
 | --- | --- | --- | --- | --- |

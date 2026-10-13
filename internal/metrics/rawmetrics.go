@@ -108,6 +108,16 @@ type RawMetrics struct {
 	// functions added or modified since baseline; nil without a baseline diff
 	// (v1).
 	ChangedFuncCognitiveMax *int `json:"changed_func_cognitive_max"`
+
+	// Role is what the package is for in its module, one of the names of
+	// package metrics/role (SPEC.md 6.5), set by the extractor; a
+	// threshold's roles list limits the rule to rows of those roles. It is
+	// not a metric: MetricNames, Value and Delta leave it out, and it is
+	// not encoded with the metrics; a report carries it as its own role
+	// field. Empty on the module row, on rows recorded before it existed
+	// and from an extractor that records none, which the gate judges as a
+	// library.
+	Role string `json:"-"`
 }
 
 // MetricNames returns every RawMetrics JSON field name in SPEC.md section 6

@@ -89,6 +89,7 @@ One table for each of the 5 views. Fired counts commits, not rows. A rule that j
 | `internal_imports` | 0 | 0 | none fired | 0.0% | 0.0% |
 | `sloc` | 1 | 0 | 100.0% | 50.0% | 0.0% |
 | `has_tests` | 0 | 0 | none fired | 0.0% | 0.0% |
+| `has_tests` | no rows |  |  |  |  |
 | `duplication_pct (typescript)` | no rows |  |  |  |  |
 | `max_nesting (typescript)` | no rows |  |  |  |  |
 | `cognitive_p90 (typescript)` | no rows |  |  |  |  |
@@ -120,6 +121,7 @@ One table for each of the 5 views. Fired counts commits, not rows. A rule that j
 | `internal_imports` | 0 | 0 | none fired | 0.0% | 0.0% |
 | `sloc` | 0 | 0 | none fired | 0.0% | 0.0% |
 | `has_tests` | 0 | 0 | none fired | 0.0% | 0.0% |
+| `has_tests` | no rows |  |  |  |  |
 | `duplication_pct (typescript)` | no rows |  |  |  |  |
 | `max_nesting (typescript)` | no rows |  |  |  |  |
 | `cognitive_p90 (typescript)` | no rows |  |  |  |  |
@@ -151,6 +153,7 @@ One table for each of the 5 views. Fired counts commits, not rows. A rule that j
 | `internal_imports` | 0 | 0 | none fired | 0.0% | 0.0% |
 | `sloc` | 0 | 0 | none fired | 0.0% | 0.0% |
 | `has_tests` | 0 | 0 | none fired | 0.0% | 0.0% |
+| `has_tests` | no rows |  |  |  |  |
 | `duplication_pct (typescript)` | no rows |  |  |  |  |
 | `max_nesting (typescript)` | no rows |  |  |  |  |
 | `cognitive_p90 (typescript)` | no rows |  |  |  |  |
@@ -182,6 +185,7 @@ One table for each of the 5 views. Fired counts commits, not rows. A rule that j
 | `internal_imports` | 0 | 0 | none fired | 0.0% | 0.0% |
 | `sloc` | 1 | 0 | 100.0% | 33.3% | 0.0% |
 | `has_tests` | 0 | 0 | none fired | 0.0% | 0.0% |
+| `has_tests` | no rows |  |  |  |  |
 | `duplication_pct (typescript)` | no rows |  |  |  |  |
 | `max_nesting (typescript)` | no rows |  |  |  |  |
 | `cognitive_p90 (typescript)` | no rows |  |  |  |  |
@@ -213,6 +217,7 @@ One table for each of the 5 views. Fired counts commits, not rows. A rule that j
 | `internal_imports` | 0 | 0 | none fired | 0.0% | 0.0% |
 | `sloc` | 0 | 0 | none fired | 0.0% | 0.0% |
 | `has_tests` | 0 | 0 | none fired | 0.0% | 0.0% |
+| `has_tests` | no rows |  |  |  |  |
 | `duplication_pct (typescript)` | no rows |  |  |  |  |
 | `max_nesting (typescript)` | no rows |  |  |  |  |
 | `cognitive_p90 (typescript)` | no rows |  |  |  |  |
@@ -566,6 +571,10 @@ Nothing to sweep: no limit, or no row it judges.
 | no guard | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | rule dropped |  |  |  | 50.0% | 50.0% |
 
+### `has_tests`
+
+Nothing to sweep: no limit, or no row it judges.
+
 ### `duplication_pct (typescript)`
 
 Nothing to sweep: no limit, or no row it judges.
@@ -635,6 +644,7 @@ Judged on the all corpora pooled, capacity-only set aside view. A rule that fire
 | `internal_imports` | keep |  | fired on 0 labeled commits, fewer than 10, too thin to judge; shipped fails 0.0% of block and 0.0% of allow (J +0.0 pts) |
 | `sloc` | keep |  | fired on 0 labeled commits, fewer than 10, too thin to judge; shipped fails 0.0% of block and 0.0% of allow (J +0.0 pts) |
 | `has_tests` | keep |  | fired on 0 labeled commits, fewer than 10, too thin to judge; shipped fails 0.0% of block and 0.0% of allow (J +0.0 pts) |
+| `has_tests` | keep |  | no row it judges in these corpora; nothing measured |
 | `duplication_pct (typescript)` | keep |  | no row it judges in these corpora; nothing measured |
 | `max_nesting (typescript)` | keep |  | no row it judges in these corpora; nothing measured |
 | `cognitive_p90 (typescript)` | keep |  | no row it judges in these corpora; nothing measured |

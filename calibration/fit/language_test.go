@@ -42,6 +42,35 @@ func takeOverMax(ts []gate.Threshold) map[string]float64 {
 	return out
 }
 
+// takeRoles returns ts without the rules that judge main packages only,
+// which no fit produces (the default's has_tests past 300 SLOC for main,
+// SPEC.md 8.2), and with every other rule's roles cleared, and the roles
+// it cleared, space-joined by metric.
+func takeRoles(ts []gate.Threshold) ([]gate.Threshold, map[string]string) {
+	out := make([]gate.Threshold, 0, len(ts))
+	roles := map[string]string{}
+	for _, t := range ts {
+		if slices.Equal(t.Roles, []string{"main"}) {
+			continue
+		}
+		if len(t.Roles) > 0 {
+			roles[t.Metric] = strings.Join(t.Roles, " ")
+			t.Roles = nil
+		}
+		out = append(out, t)
+	}
+	return out, roles
+}
+
+// wantRoles returns the roles the default's rules carry (SPEC.md 8.2),
+// the same at the top level and in the typescript override, as takeRoles
+// returns them.
+func wantRoles() map[string]string {
+	notMain := "library test-support generated-only"
+	return map[string]string{"untested_exports": "library generated-only", "exported_symbols": notMain,
+		"internal_imports": notMain, "has_tests": notMain}
+}
+
 // wantFloors returns the default's density floors (SPEC.md 8.2), the same
 // at the top level and in the typescript override.
 func wantFloors() map[string]float64 {
@@ -300,6 +329,12 @@ func TestDefaultCarriesTypeScriptOverride(t *testing.T) {
 		t.Errorf("default typescript over_max_delta = %v, want %v", over, wantOver)
 	}
 	takeOverMax(exp.Thresholds)
+	// The roles are set by hand too (SPEC.md 8.2).
+	var roles map[string]string
+	if got.Thresholds, roles = takeRoles(got.Thresholds); !reflect.DeepEqual(roles, wantRoles()) {
+		t.Errorf("default typescript roles = %v, want %v", roles, wantRoles())
+	}
+	exp.Thresholds, _ = takeRoles(exp.Thresholds)
 	if got.Version != exp.Version || got.Rebuild != exp.Rebuild || !reflect.DeepEqual(got.Thresholds, exp.Thresholds) {
 		t.Errorf("default typescript override differs from %s:\n%+v\n%+v", tsCommittedOverride, got, exp)
 	}
