@@ -1,4 +1,4 @@
-package main
+package replay
 
 import (
 	"bytes"
@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -64,10 +65,16 @@ const (
 )
 
 // listCommits returns the commits of revRange along first parents, oldest
-// first.
-func listCommits(ctx context.Context, repo, revRange string) ([]commitInfo, error) {
+// first; when last is positive, only the newest last of them.
+func listCommits(ctx context.Context, repo, revRange string, last int) ([]commitInfo, error) {
 	format := strings.Join([]string{"%H", "%P", "%an", "%ae", "%cI", "%s", "%(trailers:only,unfold)"}, "%x1f") + "%x1e"
-	out, err := gitCmd(ctx, repo, "log", "--first-parent", "--reverse", "--format="+format, revRange, "--")
+	args := []string{"log", "--first-parent", "--reverse", "--format=" + format}
+	if last > 0 {
+		// git limits the walk before it reverses it, so these are the
+		// newest last commits, oldest first.
+		args = append(args, "--max-count="+strconv.Itoa(last))
+	}
+	out, err := gitCmd(ctx, repo, append(args, revRange, "--")...)
 	if err != nil {
 		return nil, fmt.Errorf("listing %s: %w", revRange, err)
 	}
@@ -162,7 +169,9 @@ func addWorktree(ctx context.Context, repo, commit string) (string, func(), erro
 	// A unique base name gives the worktree its own record in git, so
 	// concurrent replays never reuse one another's.
 	dir := filepath.Join(tmp, filepath.Base(tmp))
-	_, err = gitCmd(ctx, repo, "worktree", "add", "--detach", dir, commit)
+	// No hook runs on the checkout: a post-checkout hook of the replayed
+	// repository must neither slow nor change the replay.
+	_, err = gitCmd(ctx, repo, "-c", "core.hooksPath=/dev/null", "worktree", "add", "--detach", dir, commit)
 	if err != nil {
 		removeWorktree(repo, tmp, dir)
 		return "", nil, fmt.Errorf("checking %s out into a worktree: %w", commit, err)
@@ -183,10 +192,31 @@ func removeWorktree(repo, tmp, dir string) {
 	}
 }
 
-// repoName names the repository at repo for the default output directory:
+// Locate returns the top level of the git repository holding dir and dir
+// relative to it in slash form, "." for the top level itself.
+func Locate(ctx context.Context, dir string) (repo, rel string, err error) {
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return "", "", fmt.Errorf("resolving %s: %w", dir, err)
+	}
+	// One line each, the prefix's empty at the top level.
+	out, err := gitCmd(ctx, abs, "rev-parse", "--show-toplevel", "--show-prefix")
+	if err != nil {
+		return "", "", fmt.Errorf("%s is not in a git repository: %w", abs, err)
+	}
+	top, prefix, _ := strings.Cut(out, "\n")
+	rel = strings.TrimSuffix(strings.TrimSpace(prefix), "/")
+	if rel == "" {
+		rel = "."
+	}
+	return top, rel, nil
+}
+
+// RepoName names the repository at repo, as run.json records it and the
+// calibration command names its default output directory:
 // the directory holding its main git directory, so a linked worktree is
 // named after the repository, not the worktree.
-func repoName(ctx context.Context, repo string) string {
+func RepoName(ctx context.Context, repo string) string {
 	out, err := gitCmd(ctx, repo, "rev-parse", "--path-format=absolute", "--git-common-dir")
 	if err != nil {
 		abs, _ := filepath.Abs(repo)

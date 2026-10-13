@@ -1,4 +1,4 @@
-package main
+package replay
 
 import (
 	"bytes"
@@ -10,11 +10,15 @@ import (
 	"path/filepath"
 )
 
-// Output file names inside the output directory.
+// Output file names inside the output directory: PackagesFile holds one
+// row per checked package, CommitsFile one row per commit.
 const (
-	packagesFile = "packages.jsonl"
-	commitsFile  = "commits.jsonl"
+	PackagesFile = "packages.jsonl"
+	CommitsFile  = "commits.jsonl"
 	runFile      = "run.json"
+
+	packagesFile = PackagesFile
+	commitsFile  = CommitsFile
 )
 
 // store appends rows to the output directory. A commit's package rows are

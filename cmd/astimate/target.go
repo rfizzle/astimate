@@ -108,6 +108,18 @@ func moduleRoot(name string, positional []string, fs *flag.FlagSet, stderr io.Wr
 	return "", false
 }
 
+// parseModuleArgs parses args, flags and positional arguments interleaved,
+// with fs and returns the module root among the positional arguments
+// (moduleRoot). On a usage error, which the flag package or moduleRoot has
+// printed, it returns false.
+func parseModuleArgs(name string, fs *flag.FlagSet, args []string, stderr io.Writer) (string, bool) {
+	positional, err := parseInterspersed(fs, args)
+	if err != nil {
+		return "", false
+	}
+	return moduleRoot(name, positional, fs, stderr)
+}
+
 // newFlagSet returns the flag set of command name, "astimate <name>",
 // which prints its errors to stderr and, on -h or a usage error, usageLine
 // followed by the flag defaults.

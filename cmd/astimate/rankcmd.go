@@ -28,11 +28,7 @@ func runRank(args []string, stdout, stderr io.Writer) int {
 	sortKey := fs.String("sort", report.SortPasses, "sort key: "+strings.Join(report.SortKeys(), ", "))
 	var tf targetFlags
 	tf.register(fs, true)
-	positional, err := parseInterspersed(fs, args)
-	if err != nil {
-		return exitUsage // the flag package has printed the error and usage
-	}
-	dir, ok := moduleRoot("rank", positional, fs, stderr)
+	dir, ok := parseModuleArgs("rank", fs, args, stderr)
 	if !ok {
 		return exitUsage
 	}

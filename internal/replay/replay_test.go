@@ -1,9 +1,10 @@
-package main
+package replay
 
 import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/rfizzle/astimate/internal/config"
 )
 
 // fixtureRepo builds a git repository in a temporary directory, one commit
@@ -113,13 +116,49 @@ func threeCommits() []fixtureCommit {
 	}
 }
 
-// replayT runs the command with args and returns its exit code and
-// stderr.
+// Exit codes replayT returns, as the calibration command exits: 0 when
+// every selected commit is recorded, 1 when the run stopped early, 2 when
+// the replay could not start.
+const (
+	exitOK      = 0
+	exitPartial = 1
+	exitUsage   = 2
+)
+
+// replayT replays with the options args name, as flag and value pairs of
+// the calibration command (--repo, --out, --parallel), under the embedded
+// default configuration, and returns the exit code that command would
+// return and the replay's log.
 func replayT(t *testing.T, args ...string) (int, string) {
 	t.Helper()
-	var stderr bytes.Buffer
-	code := run(context.Background(), args, &stderr)
-	return code, stderr.String()
+	cfg, err := config.Parse(config.Default())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var log bytes.Buffer
+	opts := Options{Config: cfg, Logger: slog.New(slog.NewTextHandler(&log, nil))}
+	for i := 0; i+1 < len(args); i += 2 {
+		switch v := args[i+1]; args[i] {
+		case "--repo":
+			opts.Repo = v
+		case "--out":
+			opts.Out = v
+		case "--parallel":
+			if opts.Parallel, err = strconv.Atoi(v); err != nil {
+				t.Fatal(err)
+			}
+		default:
+			t.Fatalf("replayT: unknown option %s", args[i])
+		}
+	}
+	rp, err := New(context.Background(), opts)
+	if err != nil {
+		return exitUsage, err.Error()
+	}
+	if err := rp.Run(context.Background()); err != nil {
+		return exitPartial, log.String() + err.Error()
+	}
+	return exitOK, log.String()
 }
 
 func TestReplayRows(t *testing.T) {
@@ -334,27 +373,6 @@ func TestReplayDeterministic(t *testing.T) {
 	}
 }
 
-func TestParseFlags(t *testing.T) {
-	tests := []struct {
-		name string
-		args []string
-		ok   bool
-	}{
-		{name: "defaults", ok: true},
-		{name: "extra argument", args: []string{"x"}},
-		{name: "zero parallel", args: []string{"--parallel", "0"}},
-		{name: "option as range", args: []string{"--range", "--all"}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := parseFlags(tt.args, &bytes.Buffer{})
-			if (err == nil) != tt.ok {
-				t.Errorf("err %v, want ok %v", err, tt.ok)
-			}
-		})
-	}
-}
-
 func TestParseTrailers(t *testing.T) {
 	got := parseTrailers("Co-authored-by: A <a@x>\nCo-Authored-By: B <b@x>\nSigned-off-by: C\n\n")
 	if want := []string{"A <a@x>", "B <b@x>"}; !slices.Equal(coAuthors(got), want) {
@@ -367,40 +385,12 @@ func TestParseTrailers(t *testing.T) {
 
 func TestDefaultOut(t *testing.T) {
 	repo, _ := fixtureRepo(t, threeCommits()[:1])
-	name := repoName(context.Background(), repo)
+	name := RepoName(context.Background(), repo)
 	if name != filepath.Base(repo) {
 		t.Errorf("repo name %q, want %q", name, filepath.Base(repo))
 	}
 	if got := defaultRange(context.Background(), repo); got != "master" {
 		t.Errorf("default range %q", got)
-	}
-}
-
-// TestIsolateGoCache checks that a replay's go commands build into a
-// temporary directory of the replay's own, not the shared GOCACHE, and that
-// cleanup removes it and restores the environment.
-func TestIsolateGoCache(t *testing.T) {
-	shared := t.TempDir()
-	t.Setenv("GOCACHE", shared)
-	t.Setenv("GOTMPDIR", "")
-	cleanup, err := isolateGoCache()
-	if err != nil {
-		t.Fatal(err)
-	}
-	cache := os.Getenv("GOCACHE")
-	dir := filepath.Dir(cache)
-	if cache == shared || filepath.Base(cache) != "gocache" || !strings.HasPrefix(filepath.Base(dir), "astimate-replay-gocache-") {
-		t.Errorf("GOCACHE = %q, want gocache under a new astimate-replay-gocache-* directory", cache)
-	}
-	if got := os.Getenv("GOTMPDIR"); got != filepath.Join(dir, "gotmp") {
-		t.Errorf("GOTMPDIR = %q, want it beside the cache", got)
-	}
-	cleanup()
-	if got := os.Getenv("GOCACHE"); got != shared {
-		t.Errorf("GOCACHE after cleanup = %q, want %q", got, shared)
-	}
-	if _, err := os.Stat(dir); !os.IsNotExist(err) {
-		t.Errorf("replay's build cache %s left behind: %v", dir, err)
 	}
 }
 

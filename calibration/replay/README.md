@@ -7,6 +7,11 @@ history as it would have run at each commit, and writes what it said, with
 every metric it measured, so later analyses can join the rows with labels
 and re-evaluate any rule at any threshold without replaying again.
 
+The replay itself is package `internal/replay`, which `astimate dryrun`
+also runs; this command is its calibration wrapper, keeping the flags, the
+default output directory, the go environment and the build cache described
+below.
+
 ## Invocation
 
 From the repository root:
@@ -35,7 +40,8 @@ parent are checked, the baseline is extracted at the parent, and an
 exemption's expiry is judged at the commit's committer date. A root commit,
 or one whose parent has no `go.mod` (or `package.json`) at `--dir`, is
 checked with every package new, against an empty baseline. The worktree is
-removed and pruned after the commit, and on interrupt.
+added with no hooks run (`core.hooksPath=/dev/null`), and removed and
+pruned after the commit, and on interrupt.
 
 The go command runs with `GOWORK=off` and `GOFLAGS=-mod=mod` unless they are
 already set, as the collector runs for cloned modules. A module whose
@@ -100,7 +106,7 @@ One row per commit.
 | `files_changed` | Every path the commit changed against its first parent, sorted |
 | `config_version` | The configuration the commit was gated under |
 | `baseline` | `parent`, or `empty` when every package was judged new |
-| `loaded` | False when the module did not load, the baseline could not be extracted, or the check failed; the commit then has no package rows |
+| `loaded` | False when the module did not load, the baseline could not be extracted, the check failed, or the check selected a package that does not load (SPEC.md 6.5); the commit then has no package rows |
 | `error` | Why, when not `loaded`; the temporary worktree's path reads `<worktree>` |
 | `packages_changed` | The packages checked, module-relative (`.` for the root package), in check order |
 | `packages_deleted` | The directories that lost their package since the parent |

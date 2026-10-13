@@ -76,6 +76,7 @@ The repository follows the [golang-standards/project-layout](https://github.com/
 - `internal/baseline` may call `git` and the extractor registry, and nothing in `score` or `gate` may call `git`.
 - `internal/report` shapes output, including the hook and GitHub formats.
 - `internal/engine` orchestrates the operations (resolving a target, assess, rank, check, baseline write). It composes `lang`, `baseline`, `score`, `gate`, `report` and `config`, and never imports `cmd/...` or `internal/mcpserver`.
+- `internal/replay` runs the gate over a repository's history in temporary worktrees; it imports `engine` and `config` (and `report`, `metrics` and `baseline` for the row and empty-baseline formats), and `calibration/replay` and `cmd/astimate` import it. Its sub-package `internal/replay/summary` reads a replay's rows for `dryrun` (the summary, the rows as JSON lines and the suggested configuration); it imports `replay` and `config`.
 - `cmd/astimate` and `internal/mcpserver` depend on `engine`, and on `report` and `config` for its inputs and results, never on `lang`, `baseline`, `score` or `gate` directly except to register extractors. They keep only input parsing, rendering and exit codes or tool results. Import-boundary tests in `cmd/astimate` and `internal/engine` enforce this with `go list`.
 - Go analysis uses the standard toolchain (`go/packages`, `go/types`, `go/ast`). Never tree-sitter for Go.
 

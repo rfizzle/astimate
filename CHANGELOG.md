@@ -12,6 +12,22 @@ history.
 
 ### Added
 
+- `astimate dryrun [<module-root>] --last N` (default 50) answers "how
+  often would this have failed us?" before the gate is turned on: it
+  replays the last N first-parent commits of `HEAD`, each against its
+  parent in a temporary worktree under the resolved configuration, and
+  prints the share of the commits it checked that the gate would have
+  failed (the share `calibration/validate` reports for the same rows), and
+  of those that touched a package, a per-rule table (commits failed,
+  share, commits failed by that rule alone), the five most-failed packages
+  and the commits it could not check. `--suggest <file>` writes the configuration with
+  `severity: warn` on every rule whose share exceeds `--budget` (default
+  10%); `--json` prints the replay's rows for the calibration tools;
+  `--timeout` and `--parallel` bound the run. It exits 0 unless the replay
+  itself fails. The replay engine moved from `calibration/replay` to
+  `internal/replay`; the calibration command keeps its flags and data
+  format.
+
 - A Go package that does not load, such as one whose test imports a
   private module missing from the module cache, is skipped instead of
   failing the whole module: `check`, `rank` and `assess` measure and gate
@@ -224,6 +240,11 @@ history.
   their declaration headers stop counting as duplication.
 
 ### Changed
+
+- The commit replay checks each commit out with no hooks run, and records
+  a commit whose check selected a package that does not load as not
+  loaded, with the skip's reason, as it records a module that does not
+  load.
 
 - The duplicate locations an extractor's `Details` lists, and so the one a
   duplication suggestion cites and `details.duplicates` leads with, are

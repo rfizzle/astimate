@@ -1,0 +1,18 @@
+replayed 50 of 50 commits in 3m12s: 49 checked, 1 not loaded, 40 touched a package
+would have failed 9 of 49 commits checked (18.4%), 9 of the 40 that touched a package (22.5%)
+
+rule             failed   share  alone
+sloc                  5   10.2%      3  over budget
+dup_blocks            4    8.2%      2
+duplication_pct       1    2.0%      0
+budget 10.0% of the commits checked: --suggest sets severity warn on the rules over it
+
+most-failed packages
+  internal/engine  4 commits
+  <module>         2 commits
+  cmd/astimate     2 commits
+  internal/report  1 commit
+  internal/gate    1 commit
+
+not loaded
+  0123456789ab build: add a cgo package: internal/native: skipped, it does not load (missing module): example.com/absent/client

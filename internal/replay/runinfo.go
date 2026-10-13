@@ -1,4 +1,4 @@
-package main
+package replay
 
 import (
 	"context"
@@ -49,8 +49,8 @@ type totals struct {
 }
 
 // newRunInfo describes the run rp is about to make.
-func newRunInfo(ctx context.Context, rp *replayer) runInfo {
-	src := map[string]string{"repository": repoName(ctx, rp.repo), "module_dir": filepath.ToSlash(rp.opts.dir), "range": rp.opts.revRange}
+func newRunInfo(ctx context.Context, rp *Replayer) runInfo {
+	src := map[string]string{"repository": RepoName(ctx, rp.repo), "module_dir": filepath.ToSlash(rp.opts.Dir), "range": rp.opts.Range}
 	if out, err := gitCmd(ctx, rp.repo, "remote", "get-url", "origin"); err == nil {
 		src["remote"] = strings.TrimSpace(out)
 	}
@@ -58,14 +58,14 @@ func newRunInfo(ctx context.Context, rp *replayer) runInfo {
 		src["first"], src["last"] = rp.commits[0].hash, rp.commits[n-1].hash
 	}
 	tool := map[string]string{
-		"config": "embedded", "config_version": rp.cfg.Version, "astimate_commit": astimateCommit(ctx),
+		"config": "embedded", "config_version": rp.cfg.Version, "astimate_commit": rp.opts.ToolCommit,
 		"go":        runtime.Version() + " " + runtime.GOOS + "/" + runtime.GOARCH,
 		"tokenizer": engine.TokenizerEst,
 	}
-	if rp.opts.configPath != "" {
-		tool["config"] = filepath.ToSlash(rp.opts.configPath)
+	if rp.opts.ConfigPath != "" {
+		tool["config"] = filepath.ToSlash(rp.opts.ConfigPath)
 	}
-	return runInfo{Date: time.Now().Format(time.DateOnly), Parallel: rp.opts.parallel, Source: src, Tool: tool}
+	return runInfo{Date: time.Now().Format(time.DateOnly), Parallel: rp.opts.Parallel, Source: src, Tool: tool}
 }
 
 // astimateCommit returns the commit the running binary was built from, or,

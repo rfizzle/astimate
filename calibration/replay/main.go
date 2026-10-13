@@ -10,6 +10,11 @@
 // the same output directory resumes: commits already in commits.jsonl are
 // skipped.
 //
+// The replay itself is package internal/replay, which `astimate dryrun`
+// also runs. This command keeps what is the calibration's own: its flags,
+// the default output directory under calibration/data, the go command's
+// environment for cloned modules, and a build cache of the run's own.
+//
 // Usage, from the repository root:
 //
 //	go run ./calibration/replay --repo <path> [--range <rev-range>] [--dir <module dir>]
@@ -34,6 +39,7 @@ import (
 
 	"github.com/rfizzle/astimate/calibration/internal/gocache"
 	"github.com/rfizzle/astimate/internal/config"
+	"github.com/rfizzle/astimate/internal/replay"
 )
 
 // Exit codes: 0 when every selected commit is recorded, 1 when the run
@@ -82,11 +88,31 @@ func run(ctx context.Context, args []string, stderr io.Writer) int {
 		return exitUsage
 	}
 	defer cleanup()
-	if err := rp.replay(ctx); err != nil {
+	if err := rp.Run(ctx); err != nil {
 		logger.Error("replay stopped; rerun the same command to resume", "err", err)
 		return exitPartial
 	}
 	return exitOK
+}
+
+// newReplayer resolves opts into a replay: the configuration, the go
+// command's environment and the output directory. logger receives the
+// replay's progress, engineLogger the engine's own logs.
+func newReplayer(ctx context.Context, opts options, logger, engineLogger *slog.Logger) (*replay.Replayer, error) {
+	cfg, err := loadConfig(opts.configPath)
+	if err != nil {
+		return nil, fmt.Errorf("loading config: %w", err)
+	}
+	if err := setGoEnv(); err != nil {
+		return nil, err
+	}
+	if opts.out == "" {
+		opts.out = defaultOut(replay.RepoName(ctx, opts.repo), time.Now())
+	}
+	ro := replay.Options{Config: cfg, Logger: logger, EngineLogger: engineLogger}
+	ro.Repo, ro.Dir, ro.Range, ro.Only, ro.Out = opts.repo, opts.dir, opts.revRange, opts.only, opts.out
+	ro.ConfigPath, ro.Parallel = opts.configPath, opts.parallel
+	return replay.New(ctx, ro)
 }
 
 // isolateGoCache points GOCACHE and GOTMPDIR in the process environment,
