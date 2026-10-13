@@ -125,7 +125,7 @@ func TestCrossPackageAttribution(t *testing.T) {
 			fs := token.NewFileSet()
 			filePkg := make([]int32, 0, len(tc.files))
 			for i, f := range tc.files {
-				if err := z.scan(fs, "f"+strconv.Itoa(i)+".go", []byte(f.src), &s); err != nil {
+				if err := z.scan(fs, "f"+strconv.Itoa(i)+".go", []byte(f.src), nil, &s); err != nil {
 					t.Fatalf("scan: %v", err)
 				}
 				filePkg = append(filePkg, f.pkg)
@@ -142,7 +142,7 @@ func TestCrossPackageAttribution(t *testing.T) {
 
 	t.Run("package table must cover the stream", func(t *testing.T) {
 		var s duptok.Stream
-		if err := newDupTokenizer(DefaultOptions()).scan(token.NewFileSet(), "f.go", []byte("package a\n"), &s); err != nil {
+		if err := newDupTokenizer(DefaultOptions()).scan(token.NewFileSet(), "f.go", []byte("package a\n"), nil, &s); err != nil {
 			t.Fatal(err)
 		}
 		if _, _, err := crossPackage(&s, nil, 1, DefaultOptions()); err == nil {

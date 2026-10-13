@@ -35,6 +35,9 @@ type Token struct {
 	// Line and Last are the first and last 1-based lines the token spans;
 	// both are 0 for a separator.
 	Line, Last int32
+	// Shape is the shape SetShape gave the token, duptok.ShapeCode when
+	// none.
+	Shape duptok.Shape
 }
 
 // File is one closed file of a recorded stream.
@@ -66,6 +69,14 @@ func (r *Recorder) Add(code int32, class duptok.Class, line, last int) error {
 		Line: int32(line), Last: int32(max(last, line)),
 	})
 	return nil
+}
+
+// SetShape sets the shape of the token added last, as
+// duptok.Stream.SetShape does.
+func (r *Recorder) SetShape(shape duptok.Shape) {
+	if n := len(r.Tokens); n > 0 {
+		r.Tokens[n-1].Shape = shape
+	}
 }
 
 // EndFile closes the current file, as duptok.Stream.EndFile does.
@@ -143,7 +154,7 @@ func (r *Recorder) fileName(i int32) string {
 // does: the number of blocks, the covered source lines and their share of
 // sloc as a percentage, and every occurrence's location, blocks in order
 // of first occurrence. It also returns the covered source lines per file
-// name. It leaves Result.Anchors nil.
+// name. It leaves Result.Anchors and Result.Kinds nil and Result.Code 0.
 func (r *Recorder) Count(blocks []Block, sloc int) (duptok.Result, map[string]int) {
 	res := duptok.Result{Blocks: len(blocks)}
 	sorted := slices.Clone(blocks)

@@ -146,6 +146,9 @@ type Result struct {
 	// Blocks is dup_blocks: distinct maximal repeated sequences after
 	// merging.
 	Blocks int
+	// Code is dup_blocks_code: the blocks of Blocks whose kind is KindCode
+	// (kind.go).
+	Code int
 	// Pct is duplication_pct: covered SLOC over package SLOC times 100,
 	// rounded to one decimal.
 	Pct float64
@@ -160,6 +163,9 @@ type Result struct {
 	// Anchors holds, for each entry of Locations, the anchors of the block
 	// that occurrence belongs to (Group.Anchors).
 	Anchors [][2]uint64
+	// Kinds holds, for each entry of Locations, the kind of the block that
+	// occurrence belongs to.
+	Kinds []Kind
 }
 
 // Group is one duplicate block of a Result with its occurrences.
@@ -170,6 +176,8 @@ type Group struct {
 	// commit even when a change moved one of its ends (see the package
 	// comment).
 	Anchors [2]uint64
+	// Kind is what the block is made of (kind.go).
+	Kind Kind
 	// Locations are the block's occurrences in stream order.
 	Locations []Location
 }
@@ -198,7 +206,7 @@ func (r Result) Groups() []Group {
 	for _, j := range r.largestFirst() {
 		a := r.Anchors[j]
 		if n := len(out); n == 0 || out[n-1].Anchors != a {
-			out = append(out, Group{Anchors: a})
+			out = append(out, Group{Anchors: a, Kind: r.kindOf(j)})
 		}
 		g := &out[len(out)-1]
 		g.Locations = append(g.Locations, r.Locations[j])
@@ -222,9 +230,18 @@ func Details(groups []Group, name func(string) string) ([]string, []metrics.DupB
 			}
 			locs = append(locs, file+":"+strconv.Itoa(l.StartLine)+"-"+strconv.Itoa(l.EndLine))
 		}
-		blocks = append(blocks, metrics.DupBlock{Anchors: g.Anchors, Locations: slices.Clone(locs[start:])})
+		blocks = append(blocks, metrics.DupBlock{Anchors: g.Anchors, Kind: g.Kind.String(), Locations: slices.Clone(locs[start:])})
 	}
 	return locs, blocks
+}
+
+// kindOf returns the kind of the block of occurrence j, KindCode when r
+// records no kinds.
+func (r Result) kindOf(j int) Kind {
+	if j < len(r.Kinds) {
+		return r.Kinds[j]
+	}
+	return KindCode
 }
 
 // largestFirst returns the indexes of r.Locations in the order
@@ -258,7 +275,9 @@ type Stream struct {
 	codes []int32
 	// keys holds each token's anchor key, nil while every token was added
 	// with Add, whose key is its code.
-	keys       []uint64
+	keys []uint64
+	// shape holds each token's Shape, nil while none was set (SetShape).
+	shape      []Shape
 	class      []Class
 	file       []int32
 	line, last []int32
@@ -274,9 +293,7 @@ func (s *Stream) Add(code int32, class Class, line, last int) error {
 		return fmt.Errorf("adding code %d: outside [0, %d)", code, SeparatorBase)
 	}
 	s.codes = append(s.codes, code)
-	if s.keys != nil {
-		s.keys = append(s.keys, uint64(code))
-	}
+	s.grow(uint64(code))
 	s.class = append(s.class, class)
 	s.file = append(s.file, int32(len(s.files)))
 	s.line = append(s.line, int32(line))
@@ -303,15 +320,24 @@ func (s *Stream) AddKeyed(code int32, class Class, line, last int, key uint64) e
 	return nil
 }
 
+// grow extends the side slices in use, the keys with key and the shapes
+// with ShapeCode, by the token just appended.
+func (s *Stream) grow(key uint64) {
+	if s.keys != nil {
+		s.keys = append(s.keys, key)
+	}
+	if s.shape != nil {
+		s.shape = append(s.shape, ShapeCode)
+	}
+}
+
 // EndFile closes the current file under name, with code marking its source
 // lines by 1-based index (index 0 is unused), and appends its separator.
 func (s *Stream) EndFile(name string, code []bool) {
 	fi := int32(len(s.files))
 	s.files = append(s.files, file{name: name, code: code})
 	s.codes = append(s.codes, SeparatorBase+fi)
-	if s.keys != nil {
-		s.keys = append(s.keys, uint64(SeparatorBase+fi))
-	}
+	s.grow(uint64(SeparatorBase + fi))
 	s.class = append(s.class, Code)
 	s.file = append(s.file, -1)
 	s.line = append(s.line, 0)
@@ -338,6 +364,8 @@ func (s *Stream) Count(opts Options, sloc int) (Result, error) {
 type Block struct {
 	// Tokens is the length of the block in tokens.
 	Tokens int
+	// Kind is what the block is made of (kind.go).
+	Kind Kind
 	// Files holds, for each occurrence of the block, the index of the file
 	// it lies in, counting files from 0 in EndFile order. Occurrences are
 	// in no particular order, and a file holding several occurrences
@@ -366,12 +394,14 @@ func (s *Stream) Blocks(opts Options) ([]Block, error) {
 	out := make([]Block, 0, len(reps))
 	for _, r := range reps {
 		start := len(files)
+		pos := make([]int32, 0, r.rb-r.lb+1)
 		for _, p := range sa[r.lb : r.rb+1] {
 			files = append(files, s.file[p+r.off])
 			locs = append(locs, s.location(p+r.off, r.n))
+			pos = append(pos, p+r.off)
 		}
 		end := len(files)
-		out = append(out, Block{Tokens: int(r.n), Files: files[start:end:end], Locations: locs[start:end:end]})
+		out = append(out, Block{Tokens: int(r.n), Kind: s.kind(pos, r.n), Files: files[start:end:end], Locations: locs[start:end:end]})
 	}
 	return out, nil
 }
@@ -405,6 +435,9 @@ func (s *Stream) trim() {
 	s.codes, s.class, s.file = s.codes[:n], s.class[:n], s.file[:n]
 	if s.keys != nil {
 		s.keys = s.keys[:n]
+	}
+	if s.shape != nil {
+		s.shape = s.shape[:n]
 	}
 	s.line, s.last = s.line[:n], s.last[:n]
 }
@@ -498,8 +531,9 @@ func (s *Stream) count(sa []int32, reps []repeat, sloc, minTokens int) Result {
 	}
 	// Blocks in order of first occurrence, occurrences in stream order.
 	type block struct {
-		n   int32
-		pos []int32
+		n    int32
+		pos  []int32
+		kind Kind
 	}
 	blocks := make([]block, 0, len(reps))
 	for _, r := range reps {
@@ -508,7 +542,7 @@ func (s *Stream) count(sa []int32, reps []repeat, sloc, minTokens int) Result {
 			pos[i] += r.off
 		}
 		slices.Sort(pos)
-		blocks = append(blocks, block{n: r.n, pos: pos})
+		blocks = append(blocks, block{n: r.n, pos: pos, kind: s.kind(pos, r.n)})
 	}
 	slices.SortFunc(blocks, func(a, b block) int {
 		return cmp.Or(cmp.Compare(a.pos[0], b.pos[0]), cmp.Compare(a.n, b.n))
@@ -550,10 +584,15 @@ func (s *Stream) count(sa []int32, reps []repeat, sloc, minTokens int) Result {
 	}
 	res.Lines, res.Pct = lines, Percent(lines, sloc)
 	res.Anchors = make([][2]uint64, 0, len(res.Locations))
+	res.Kinds = make([]Kind, 0, len(res.Locations))
 	for _, b := range blocks {
 		a := s.anchors(b.pos[0], b.n, int32(minTokens))
+		if b.kind == KindCode {
+			res.Code++
+		}
 		for range b.pos {
 			res.Anchors = append(res.Anchors, a)
+			res.Kinds = append(res.Kinds, b.kind)
 		}
 	}
 	return res

@@ -39,6 +39,8 @@ func (r *dupRecorder) Add(code int32, class duptok.Class, _, _ int) error {
 	return nil
 }
 
+func (r *dupRecorder) SetShape(duptok.Shape) {}
+
 func (r *dupRecorder) EndFile(string, []bool) { r.files++ }
 
 // dupScan scans one source under opts and returns what it emitted, with
@@ -47,7 +49,7 @@ func dupScan(t *testing.T, src string, opts Options) ([]dupToken, *dupTokenizer)
 	t.Helper()
 	var r dupRecorder
 	z := newDupTokenizer(opts)
-	if err := z.scan(token.NewFileSet(), "src.go", []byte(src), &r); err != nil {
+	if err := z.scan(token.NewFileSet(), "src.go", []byte(src), nil, &r); err != nil {
 		t.Fatalf("scan: %v", err)
 	}
 	if r.files != 1 {
@@ -144,8 +146,9 @@ func TestDupClasses(t *testing.T) {
 }
 
 // dupOfSources runs the duplication stream over inline sources, one file
-// each, skipping generated ones as duplication does, with the SLOC of all
-// of them (generated included) as the denominator.
+// each with its token shapes, skipping generated ones as duplication does,
+// with the SLOC of all of them (generated included) as the denominator. A
+// source of package main is named main.go, in a directory of its own.
 func dupOfSources(t *testing.T, opts Options, srcs ...string) duptok.Result {
 	t.Helper()
 	var s duptok.Stream
@@ -154,6 +157,9 @@ func dupOfSources(t *testing.T, opts Options, srcs ...string) duptok.Result {
 	sloc := 0
 	for i, src := range srcs {
 		name := "f" + strconv.Itoa(i) + ".go"
+		if strings.HasPrefix(src, "package main\n") {
+			name = "main" + strconv.Itoa(i) + "/main.go"
+		}
 		pf := token.NewFileSet()
 		f, err := parser.ParseFile(pf, name, src, parser.ParseComments)
 		if err != nil {
@@ -163,7 +169,8 @@ func dupOfSources(t *testing.T, opts Options, srcs ...string) duptok.Result {
 		if ast.IsGenerated(f) {
 			continue
 		}
-		if err := z.scan(fs, name, []byte(src), &s); err != nil {
+		sh := &shapes{spans: shapeSpans(pf.File(f.FileStart), f)}
+		if err := z.scan(fs, name, []byte(src), sh, &s); err != nil {
 			t.Fatalf("scan: %v", err)
 		}
 	}

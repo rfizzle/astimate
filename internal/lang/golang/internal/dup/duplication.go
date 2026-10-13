@@ -130,10 +130,12 @@ func (o Options) finder() duptok.Options {
 	}
 }
 
-// tokenSink receives the normalized tokens of each file and then closes
-// the file. *duptok.Stream implements it; tests record what scan emits.
+// tokenSink receives the normalized tokens of each file, each followed by
+// its shape, and then closes the file. *duptok.Stream implements it; tests
+// record what scan emits.
 type tokenSink interface {
 	Add(code int32, class duptok.Class, line, last int) error
+	SetShape(shape duptok.Shape)
 	EndFile(name string, code []bool)
 }
 
@@ -183,7 +185,11 @@ func (z *dupTokenizer) appendPackage(fs *token.FileSet, m *load.Module, p *packa
 		if err != nil {
 			return err
 		}
-		if err := z.scan(fs, tf.Name(), data, sink); err != nil {
+		var sh *shapes
+		if tf.Size() == len(data) {
+			sh = &shapes{spans: shapeSpans(tf, f)}
+		}
+		if err := z.scan(fs, tf.Name(), data, sh, sink); err != nil {
 			return err
 		}
 	}
@@ -195,12 +201,14 @@ func (z *dupTokenizer) appendPackage(fs *token.FileSet, m *load.Module, p *packa
 type heldSign struct {
 	code       int32
 	line, last int
+	shape      duptok.Shape
 	held       bool
 }
 
-// scan adds the normalized tokens of one file to sink under name, then
-// closes the file. On a scan error the file is left open.
-func (z *dupTokenizer) scan(fs *token.FileSet, name string, src []byte, sink tokenSink) error {
+// scan adds the normalized tokens of one file to sink under name, each
+// with its shape from sh unless sh is nil, then closes the file. On a scan
+// error the file is left open.
+func (z *dupTokenizer) scan(fs *token.FileSet, name string, src []byte, sh *shapes, sink tokenSink) error {
 	tf := fs.AddFile(name, -1, len(src))
 	var sc scanner.Scanner
 	var scanErr error
@@ -226,7 +234,7 @@ func (z *dupTokenizer) scan(fs *token.FileSet, name string, src []byte, sink tok
 			if isNumericLit(tok) {
 				class = duptok.Sign
 			}
-			if err := sink.Add(sign.code, class, sign.line, sign.last); err != nil {
+			if err := add(sink, sh, sign.code, class, sign.line, sign.last, sign.shape); err != nil {
 				return err
 			}
 			sign.held = false
@@ -243,16 +251,20 @@ func (z *dupTokenizer) scan(fs *token.FileSet, name string, src []byte, sink tok
 			last = markRawLines(code, line, lit)
 		}
 		c, class := z.code(tok, lit)
+		var shape duptok.Shape
+		if sh != nil {
+			shape = sh.at(tf.Offset(pos))
+		}
 		if unary {
-			sign = heldSign{code: c, line: line, last: last, held: true}
+			sign = heldSign{code: c, line: line, last: last, shape: shape, held: true}
 			continue
 		}
-		if err := sink.Add(c, class, line, last); err != nil {
+		if err := add(sink, sh, c, class, line, last, shape); err != nil {
 			return err
 		}
 	}
 	if sign.held {
-		if err := sink.Add(sign.code, duptok.Code, sign.line, sign.last); err != nil {
+		if err := add(sink, sh, sign.code, duptok.Code, sign.line, sign.last, sign.shape); err != nil {
 			return err
 		}
 	}
@@ -260,6 +272,17 @@ func (z *dupTokenizer) scan(fs *token.FileSet, name string, src []byte, sink tok
 		return scanErr
 	}
 	sink.EndFile(name, code)
+	return nil
+}
+
+// add adds one token to sink and, unless sh is nil, its shape.
+func add(sink tokenSink, sh *shapes, code int32, class duptok.Class, line, last int, shape duptok.Shape) error {
+	if err := sink.Add(code, class, line, last); err != nil {
+		return err
+	}
+	if sh != nil {
+		sink.SetShape(shape)
+	}
 	return nil
 }
 

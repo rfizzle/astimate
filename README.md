@@ -87,21 +87,21 @@ suggestions:
   - 3 exported functions have no test (CountVisits, SumOrders, TallyScores); a rebuild would have to reverse-engineer their behavior.
 
 metrics:
-  files                  1      sloc              67
-  largest_file_sloc      67     tokens_est        506
-  tokens_est_with_tests  561    internal_imports  0
-  external_imports       0      stdlib_imports    0
-  fan_in                 0      fan_in_tests      0
-  exported_symbols       4      globals           0
-  init_funcs             0      max_nesting       2
-  cognitive_total        19     cognitive_p90     6
-  func_count             4      dup_blocks        1
-  duplication_pct        80.6   duplicated_lines  54
-  test_files             1      test_funcs        1
-  has_tests              true   untested_exports  3
-  dup_blocks_cross_pkg   0      uses_cgo          false
-  uses_reflect           false  generated_files   0
-  tokens_est_generated   0
+  files                  1      sloc                  67
+  largest_file_sloc      67     tokens_est            506
+  tokens_est_with_tests  561    internal_imports      0
+  external_imports       0      stdlib_imports        0
+  fan_in                 0      fan_in_tests          0
+  exported_symbols       4      globals               0
+  init_funcs             0      max_nesting           2
+  cognitive_total        19     cognitive_p90         6
+  func_count             4      dup_blocks            1
+  dup_blocks_code        1      duplication_pct       80.6
+  duplicated_lines       54     test_files            1
+  test_funcs             1      has_tests             true
+  untested_exports       3      dup_blocks_cross_pkg  0
+  uses_cgo               false  uses_reflect          false
+  generated_files        0      tokens_est_generated  0
 ```
 <!-- /sample:assess -->
 

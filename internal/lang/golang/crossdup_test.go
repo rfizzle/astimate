@@ -44,10 +44,10 @@ func TestModuleRow(t *testing.T) {
 	}
 }
 
-// fixtureCrossBlock is the fixture's one cross-package block: a.Checksum
-// and its copy b.Digest.
+// fixtureCrossBlock is the fixture's one cross-package block, of kind code:
+// a.Checksum and its copy b.Digest.
 func fixtureCrossBlock() []metrics.CrossBlock {
-	return []metrics.CrossBlock{{Occurrences: []metrics.Occurrence{
+	return []metrics.CrossBlock{{Kind: "code", Occurrences: []metrics.Occurrence{
 		{Package: "example.com/fixture/a", File: "a/a.go", StartLine: 7, EndLine: 19},
 		{Package: "example.com/fixture/b", File: "b/b.go", StartLine: 13, EndLine: 25},
 	}}}

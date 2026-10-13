@@ -227,7 +227,7 @@ func cloneDupBlocks(bs []metrics.DupBlock) []metrics.DupBlock {
 // cloneCrossBlocks returns a deep copy of bs, nil when bs is.
 func cloneCrossBlocks(bs []metrics.CrossBlock) []metrics.CrossBlock {
 	return cloneEach(bs, func(b metrics.CrossBlock) metrics.CrossBlock {
-		return metrics.CrossBlock{Occurrences: slices.Clone(b.Occurrences)}
+		return metrics.CrossBlock{Kind: b.Kind, Occurrences: slices.Clone(b.Occurrences)}
 	})
 }
 

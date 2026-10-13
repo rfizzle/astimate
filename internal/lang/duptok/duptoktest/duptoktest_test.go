@@ -110,9 +110,10 @@ func TestRecorderMatchesStream(t *testing.T) {
 				t.Fatal("stream has no blocks; the test input is too weak")
 			}
 			got, per := r.Count(blocks, sloc)
-			// Anchors match blocks across commits; no measurement
-			// reads them, so Count leaves them out.
-			want.Anchors = nil
+			// Anchors match blocks across commits and kinds need the
+			// shapes the recorder does not keep; no measurement reads
+			// them, so Count leaves them out.
+			want.Anchors, want.Kinds, want.Code = nil, nil, 0
 			if !reflect.DeepEqual(got, want) {
 				t.Errorf("Count = %+v\nwant %+v", got, want)
 			}
@@ -144,5 +145,17 @@ func TestRecorderRejectsBadCode(t *testing.T) {
 	}
 	if _, err := r.Blocks(duptok.Options{}); err == nil {
 		t.Error("Blocks with MinTokens 0: no error")
+	}
+}
+
+func TestRecorderSetShape(t *testing.T) {
+	var r Recorder
+	r.SetShape(duptok.ShapeDecl)
+	if err := r.Add(1, duptok.Code, 1, 1); err != nil {
+		t.Fatal(err)
+	}
+	r.SetShape(duptok.ShapeIdiom)
+	if len(r.Tokens) != 1 || r.Tokens[0].Shape != duptok.ShapeIdiom {
+		t.Errorf("Tokens = %+v, want one token of shape idiom", r.Tokens)
 	}
 }

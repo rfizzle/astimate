@@ -165,7 +165,7 @@ func crossBlocks(m *load.Module, found []duptok.Block, filePkg []int32) []metric
 			}
 		}
 		slices.SortFunc(occ, compareOccurrence)
-		out = append(out, metrics.CrossBlock{Occurrences: occ})
+		out = append(out, metrics.CrossBlock{Kind: b.Kind.String(), Occurrences: occ})
 	}
 	slices.SortFunc(out, func(a, b metrics.CrossBlock) int {
 		return cmp.Or(compareOccurrence(a.Occurrences[0], b.Occurrences[0]),
@@ -229,7 +229,7 @@ func (c Cross) BlocksOf(pkg string) []metrics.CrossBlock {
 		if pkg != "" && !slices.ContainsFunc(b.Occurrences, func(o metrics.Occurrence) bool { return o.Package == pkg }) {
 			continue
 		}
-		out = append(out, metrics.CrossBlock{Occurrences: slices.Clone(b.Occurrences)})
+		out = append(out, metrics.CrossBlock{Kind: b.Kind, Occurrences: slices.Clone(b.Occurrences)})
 	}
 	return out
 }

@@ -85,9 +85,13 @@ func (r UntestedRules) Clone() UntestedRules {
 
 // DupBlock is one duplicate block: hashes of the first and of the last
 // duplication.min_tokens tokens of its normalized sequence, equal across
-// commits, and its occurrences as in DupLocations.
+// commits, its kind, and its occurrences as in DupLocations.
 type DupBlock struct {
-	Anchors   [2]uint64
+	Anchors [2]uint64
+	// Kind is what the block is made of (SPEC.md 6.3): "code",
+	// "declarative", "idiom" or "self-overlap"; empty when the
+	// implementation does not classify blocks.
+	Kind      string
 	Locations []string
 }
 
@@ -103,6 +107,8 @@ type Position struct {
 // CrossBlock is one duplicate block whose occurrences lie in two or more
 // packages of a module.
 type CrossBlock struct {
+	// Kind is what the block is made of, as DupBlock.Kind.
+	Kind string
 	// Occurrences are the block's occurrences, at least two, in order of
 	// package identifier, then file, then line.
 	Occurrences []Occurrence
@@ -123,7 +129,7 @@ func MapPackages(blocks []CrossBlock, rename func(string) string) []CrossBlock {
 			o.Package = rename(o.Package)
 			occ[j] = o
 		}
-		out[i] = CrossBlock{Occurrences: occ}
+		out[i] = CrossBlock{Kind: blocks[i].Kind, Occurrences: occ}
 	}
 	return out
 }

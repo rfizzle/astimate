@@ -17,6 +17,7 @@
   "cognitive_p90": 4,
   "func_count": 2,
   "dup_blocks": 0,
+  "dup_blocks_code": 0,
   "duplication_pct": 0,
   "duplicated_lines": 0,
   "test_files": 0,

@@ -47,7 +47,7 @@ type results struct {
 // its SPEC.md section 6 name, with the v1 fields instability, abstractness
 // and main_sequence_distance derived from them (nil when undefined, else
 // rounded to three decimal places), the opacity flags uses_cgo,
-// uses_reflect and generated_files, tokens_est_generated, and
+// uses_reflect and generated_files, tokens_est_generated, dup_blocks_code, and
 // dup_blocks_cross_pkg (nil for the standard-library loads, which are not
 // modules); coverage_pct and changed_func_cognitive_max are left nil. It
 // records the debug details of p in l. Errors are wrapped with p's import
@@ -98,6 +98,7 @@ func assemble(ctx context.Context, l *loaded, p *packages.Package, opts assemble
 		CognitiveP90:       r.cx.CognitiveP90,
 		FuncCount:          r.cx.FuncCount,
 		DupBlocks:          r.dup.Blocks,
+		DupBlocksCode:      &r.dup.Code,
 		DuplicationPct:     r.dup.Pct,
 		DuplicatedLines:    &r.dup.Lines,
 		TestFiles:          r.tests.TestFiles,

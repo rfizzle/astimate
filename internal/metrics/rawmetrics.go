@@ -49,6 +49,10 @@ type RawMetrics struct {
 	// duplication.min_tokens (default 40) within the package; see SPEC.md
 	// 6.3.
 	DupBlocks int `json:"dup_blocks"`
+	// DupBlocksCode counts the blocks of DupBlocks whose kind is code, not
+	// declarative, idiom or self-overlap; see SPEC.md 6.3. Nil when not
+	// computed (v1).
+	DupBlocksCode *int `json:"dup_blocks_code"`
 	// DuplicationPct is the share of non-test SLOC covered by a duplicate
 	// block, as a percentage in [0, 100].
 	DuplicationPct float64 `json:"duplication_pct"`

@@ -131,6 +131,11 @@ func texts() []entry {
 			"{duplication}",
 		},
 		{
+			"dup_blocks_code", "",
+			"The dup_blocks blocks that are code: not only declarations and literals, not only error returns, call statements and call assignments, and not overlapping their own previous copy.{generated}",
+			"{duplication} Reported, not gated, while its gate rule is measured.",
+		},
+		{
 			"duplication_pct", "gated",
 			"Share of non-test SLOC covered by a duplicate block, as a percentage.{generated}",
 			"{duplication}",

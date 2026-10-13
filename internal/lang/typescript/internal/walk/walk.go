@@ -31,14 +31,15 @@ type Func struct {
 }
 
 // Tokens is the normalized token stream of one file, parallel slices: the
-// token code, its fingerprint code, its duplication class, and its first
-// and last 1-based lines. Codes are interned per module load; Keys, the
+// token code, its fingerprint code, its duplication class, its shape
+// (shape.go), and its first and last 1-based lines. Codes are interned per module load; Keys, the
 // fingerprint codes, are the same in every load, so a duplicate block's
 // fingerprint (duptok.Stream.AddKeyed) matches across commits.
 type Tokens struct {
 	Codes      []int32
 	Keys       []uint64
 	Class      []duptok.Class
+	Shape      []duptok.Shape
 	Line, Last []int32
 }
 
@@ -116,6 +117,8 @@ type Walker struct {
 	hashing    bool
 	self       string
 	selfMember string
+	// shaping is the shape the tokens met now take (shape.go).
+	shaping shaping
 }
 
 // state is the context visit passes down.
@@ -135,7 +138,7 @@ type state struct {
 // grammar lang, a test file when test is set, interning token kinds in
 // kinds, which every file of the module shares.
 func New(lang *sitter.Language, src []byte, test bool, kinds *Kinds) *Walker {
-	w := &Walker{lang: lang, src: src, test: test, kinds: kinds}
+	w := &Walker{lang: lang, src: src, test: test, kinds: kinds, shaping: shaping{shape: duptok.ShapeNeutral}}
 	if test {
 		w.Idents = make(map[string]bool)
 	}
@@ -179,8 +182,8 @@ func isIdentType(typ string) bool {
 // recorded.
 func (w *Walker) Function(receiver, ident string, fn *sitter.Node) {
 	score := &Func{Receiver: receiver, Ident: ident, Line: int(fn.StartPoint().Row) + 1, Fingerprint: fpOffset}
-	prev, prevHashing, prevSelf, prevMember := w.fn, w.hashing, w.self, w.selfMember
-	w.fn, w.self, w.selfMember = score, "", ""
+	prev, prevHashing, prevSelf, prevMember, prevShaping := w.fn, w.hashing, w.self, w.selfMember, w.shaping
+	w.fn, w.self, w.selfMember, w.shaping = score, "", "", shaping{shape: duptok.ShapeNeutral}
 	switch {
 	case receiver == "":
 		w.self = ident
@@ -191,7 +194,7 @@ func (w *Walker) Function(receiver, ident string, fn *sitter.Node) {
 		w.hashing = !w.test && fn.FieldNameForChild(i, w.lang) == "body"
 		w.visit(fn.Child(i), state{})
 	}
-	w.fn, w.hashing, w.self, w.selfMember = prev, prevHashing, prevSelf, prevMember
+	w.fn, w.hashing, w.self, w.selfMember, w.shaping = prev, prevHashing, prevSelf, prevMember, prevShaping
 	if !w.test {
 		w.Funcs = append(w.Funcs, *score)
 	}
@@ -205,6 +208,10 @@ func (w *Walker) visit(n *sitter.Node, st state) {
 		return
 	}
 	typ := n.Type(w.lang)
+	if cc > 0 && !w.test {
+		prev := w.enter(n, typ)
+		defer func() { w.shaping = prev }()
+	}
 	switch typ {
 	case "comment", "html_comment", "hash_bang_line":
 		w.Comments = append(w.Comments, Span{int(n.StartByte()), int(n.EndByte())})
@@ -344,6 +351,7 @@ func (w *Walker) leaf(n *sitter.Node, typ string, st state, sign bool) {
 	t.Codes = append(t.Codes, code)
 	t.Keys = append(t.Keys, fp)
 	t.Class = append(t.Class, class)
+	t.Shape = append(t.Shape, w.shaping.shape)
 	t.Line = append(t.Line, int32(n.StartPoint().Row)+1)
 	t.Last = append(t.Last, int32(n.EndPoint().Row)+1)
 }

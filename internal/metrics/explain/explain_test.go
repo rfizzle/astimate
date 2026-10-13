@@ -137,7 +137,7 @@ func TestExplainGeneratedExcluded(t *testing.T) {
 	excluded := []string{
 		"sloc", "largest_file_sloc", "tokens_est", "tokens_est_with_tests", "exported_symbols",
 		"globals", "init_funcs", "max_nesting", "cognitive_total", "cognitive_p90", "func_count",
-		"dup_blocks", "duplication_pct", "untested_exports", "duplicated_lines", "abstractness",
+		"dup_blocks", "dup_blocks_code", "duplication_pct", "untested_exports", "duplicated_lines", "abstractness",
 	}
 	for _, name := range metrics.MetricNames() {
 		e, _ := Explain(name)

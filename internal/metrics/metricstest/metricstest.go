@@ -77,7 +77,8 @@ type Fixture struct {
 // succeeds for every package after Extract and names as many untested
 // exports as untested_exports counts; that recorded positions number one
 // per untested export and one per global; that recorded DupBlocks list
-// DupLocations block by block, each block occurring at least twice; and
+// DupLocations block by block, each block occurring at least twice and,
+// with dup_blocks_code computed, as many of kind code as it counts; and
 // that recorded CrossBlocks
 // number dup_blocks_cross_pkg, each block with at least two occurrences in
 // at least two packages of the fixture, the package itself among them,
@@ -460,24 +461,39 @@ func checkDetails(t *testing.T, d metrics.Detailer, mod *metrics.ModuleContext, 
 				pkg, n, det.UntestedExports, want)
 		}
 		checkDetailsConsistency(t, pkg, det, got[pkg], pkgs)
-		checkDupBlocks(t, pkg, &det)
+		checkDupBlocks(t, pkg, &det, got[pkg].DupBlocksCode)
 	}
 }
 
 // checkDupBlocks checks that det's DupBlocks, when recorded, list
 // DupLocations block by block in the same order, each block with at least
-// two occurrences.
-func checkDupBlocks(t *testing.T, pkg string, det *metrics.Details) {
+// two occurrences, and, when code is not nil, that as many of them are of
+// kind "code" as code says, every other kind being "declarative", "idiom"
+// or "self-overlap".
+func checkDupBlocks(t *testing.T, pkg string, det *metrics.Details, code *int) {
 	t.Helper()
 	if det.DupBlocks == nil {
 		return
 	}
 	var flat []string
+	n := 0
 	for _, b := range det.DupBlocks {
 		if len(b.Locations) < 2 {
 			t.Errorf("%s: duplicate block %x has %d occurrences, want at least 2", pkg, b.Anchors, len(b.Locations))
 		}
+		switch b.Kind {
+		case "code":
+			n++
+		case "declarative", "idiom", "self-overlap":
+		default:
+			if code != nil {
+				t.Errorf("%s: duplicate block %x has kind %q, want code, declarative, idiom or self-overlap", pkg, b.Anchors, b.Kind)
+			}
+		}
 		flat = append(flat, b.Locations...)
+	}
+	if code != nil && n != *code {
+		t.Errorf("%s: %d duplicate blocks of kind code, want dup_blocks_code %d", pkg, n, *code)
 	}
 	if !slices.Equal(flat, det.DupLocations) {
 		t.Errorf("%s: DupBlocks list %q, want DupLocations %q", pkg, flat, det.DupLocations)

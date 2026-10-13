@@ -22,7 +22,14 @@ history.
   The import graph keeps the skipped package's edges, so its neighbours'
   `fan_in` is unchanged. `check_package` on a skipped package returns a
   result saying so, not an error.
-
+- Duplicate blocks carry a kind, declarative, idiom, self-overlap or code,
+  from the syntax around their tokens (Go from the syntax tree, TypeScript
+  from node kinds), in the extractor details of package and cross-package
+  blocks, and a new v1 metric `dup_blocks_code` counts the code blocks
+  beside `dup_blocks`. It is reported, not gated: over the five 2026-10-13
+  replays declarative and idiom blocks explain the duplication findings of
+  only 10 of 94 failed commits, all labelled `allow`
+  (`calibration/notes/dup-block-kinds-2026-10-14.md`).
 - Hand labels for the five 2026-10-13 replays (go-starter, ztp, shhh,
   crush, ai-shell): `calibration/replay/labels/<name>-hand.yaml`, drafted
   by reading every failed commit's diff and 60 sampled passed ones, with

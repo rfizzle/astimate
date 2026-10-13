@@ -272,6 +272,21 @@ Thresholds in the loaded config: none
   "thresholds": []
 }
 
+== dup_blocks_code ==
+dup_blocks_code (v1, not gated by default)
+Definition: The dup_blocks blocks that are code: not only declarations and literals, not only error returns, call statements and call assignments, and not overlapping their own previous copy. Generated files, those with a "Code generated ... DO NOT EDIT." header, are left out: a rebuild regenerates them; see tokens_est_generated.
+Evidence: Copy-paste instead of extraction: industry reports on AI-assisted repositories show rising duplicated blocks. The most specific LLM failure mode found; moderate evidence. Reported, not gated, while its gate rule is measured.
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "The dup_blocks blocks that are code: not only declarations and literals, not only error returns, call statements and call assignments, and not overlapping their own previous copy. Generated files, those with a \"Code generated ... DO NOT EDIT.\" header, are left out: a rebuild regenerates them; see tokens_est_generated.",
+  "evidence": "Copy-paste instead of extraction: industry reports on AI-assisted repositories show rising duplicated blocks. The most specific LLM failure mode found; moderate evidence. Reported, not gated, while its gate rule is measured.",
+  "gated": false,
+  "name": "dup_blocks_code",
+  "release": "v1",
+  "thresholds": []
+}
+
 == duplication_pct ==
 duplication_pct (v0, gated by default)
 Definition: Share of non-test SLOC covered by a duplicate block, as a percentage. Generated files, those with a "Code generated ... DO NOT EDIT." header, are left out: a rebuild regenerates them; see tokens_est_generated.

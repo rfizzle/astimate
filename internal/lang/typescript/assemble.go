@@ -126,6 +126,7 @@ func assemble(m *module, p *pkg, opts assembleOptions) (metrics.RawMetrics, erro
 		return metrics.RawMetrics{}, fmt.Errorf("extracting %s: %w", p.id, err)
 	}
 	r.DupBlocks, r.DuplicationPct, r.DuplicatedLines = dup.Blocks, dup.Pct, &dup.Lines
+	r.DupBlocksCode = &dup.Code
 	// Seam: further duplication row fields are set here, from dup.
 
 	// Martin's package metrics: Ca = fan_in and Ce = internal_imports;
@@ -176,6 +177,7 @@ func duplication(p *pkg, sloc int, opts duptok.Options) (duptok.Result, error) {
 			if err := s.AddKeyed(c, t.Class[i], int(t.Line[i]), int(t.Last[i]), t.Keys[i]); err != nil {
 				return duptok.Result{}, err
 			}
+			s.SetShape(t.Shape[i])
 		}
 		s.EndFile(f.Abs, f.CodeLines)
 	}

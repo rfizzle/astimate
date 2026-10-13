@@ -107,7 +107,9 @@ generated file.
   ascending, take the value at rank `ceil(0.9 * n)` (1-based).
 - **dup_blocks / duplication_pct / duplicated_lines**: see `dupes` below;
   `duplicated_lines` (v1) is the covered SLOC, the percentage's numerator,
-  0 in every package without a block. Generated files and
+  0 in every package without a block. `dup_blocks_code` (v1) counts the
+  blocks of kind code (SPEC.md 6.3), 0 in every package without a block.
+  Generated files and
   test files are excluded from duplication, from the token stream and from
   the `sloc` denominator of the percentage alike.
 - **test_files**: `_test.go` files, internal and external test packages.
@@ -389,7 +391,9 @@ position pairs confirmed this.
 
 Covered lines are every line holding a token of any occurrence: 3 x 18 = 54
 lines, all of them SLOC: `duplicated_lines=54`, and
-`duplication_pct = 54 / 67 * 100 = 80.597 -> 80.6`.
+`duplication_pct = 54 / 67 * 100 = 80.597 -> 80.6`. The block holds a `for`
+loop, an `if` and a `return`, statements no kind but code admits:
+`dup_blocks_code=1`.
 
 **Semicolon rule (SPEC.md 6.3):** automatically inserted semicolons (the
 `token.SEMICOLON` tokens `go/scanner` emits with literal `"\n"`) are dropped
