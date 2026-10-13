@@ -38,6 +38,11 @@ type Violation struct {
 	// (Threshold.Warns), which Evaluate reports as a warning, and empty on
 	// every other finding.
 	Severity Severity
+	// Also lists the metrics of the other rules whose findings of the same
+	// cause were merged into this one (merge, SPEC.md 8.1), in the order
+	// merged; nil when nothing was. Limit names each merged rule's values
+	// and limit, so the finding reads as one cause.
+	Also []string
 }
 
 // Warning is a non-failing finding with the same shape as a Violation: a
@@ -125,14 +130,24 @@ func ForRow(rules []Threshold, row Row) []Threshold {
 // computed at head but null at base skips only its delta rule and adds a
 // Note. A warn rule (Threshold.Warns) is evaluated the same way, and each
 // violation it would have is reported as a warning instead, with the same
-// fields and Severity SeverityWarn, so it never fails the result.
+// fields and Severity SeverityWarn, so it never fails the result. Before
+// the findings are split into violations and warnings, findings of one
+// cause are merged into one (merge): a rule breaching both its max_delta
+// and its max, sloc with tokens_est, and dup_blocks with duplication_pct.
 // Suggestions come from s; a nil s leaves them empty. Evaluate does no
 // I/O. Evaluate applies every rule it is given, whatever the row; callers
 // select a row's rules with ForRow.
 func Evaluate(head metrics.RawMetrics, base *metrics.RawMetrics, rules []Threshold, s Suggester) Result {
 	e := evaluator{head: head, base: base, suggest: s}
-	for _, r := range rules {
-		e.rule(r)
+	for i, r := range rules {
+		e.rule(i, r)
+	}
+	for _, f := range merge(e.found) {
+		if f.warning || f.v.Severity == SeverityWarn {
+			e.res.Warnings = append(e.res.Warnings, f.v)
+		} else {
+			e.res.Violations = append(e.res.Violations, f.v)
+		}
 	}
 	byMetric := func(a, b Violation) int { return cmp.Compare(a.Metric, b.Metric) }
 	slices.SortStableFunc(e.res.Violations, byMetric)
@@ -142,19 +157,36 @@ func Evaluate(head metrics.RawMetrics, base *metrics.RawMetrics, rules []Thresho
 	return e.res
 }
 
+// found is one finding of a rule before the merge step: a violation, a
+// warn rule's breach (Severity SeverityWarn), or a warning, with the
+// index of the rule that produced it.
+type found struct {
+	v Violation
+	// rule is the index in Evaluate's rules of the rule that produced v.
+	rule int
+	// warning marks a finding that is a warning whatever the rule's
+	// severity: a capacity rule's warn_at or over-ceiling warning.
+	warning bool
+}
+
 type evaluator struct {
 	head    metrics.RawMetrics
 	base    *metrics.RawMetrics
 	suggest Suggester
 	res     Result
+	found   []found
+	// cur and warns are the index and the severity of the rule being
+	// evaluated, which breach and warn record with each finding.
+	cur   int
+	warns bool
 }
 
-func (e *evaluator) rule(r Threshold) {
+func (e *evaluator) rule(i int, r Threshold) {
 	h, ok := e.head.Value(r.Metric)
 	if !ok {
 		return
 	}
-	n := len(e.res.Violations)
+	e.cur, e.warns = i, r.Warns()
 	switch r.Kind {
 	case Density:
 		e.density(r, h)
@@ -163,25 +195,16 @@ func (e *evaluator) rule(r Threshold) {
 	case Requirement:
 		e.requirement(r, h)
 	}
-	if r.Warns() {
-		e.demote(n)
-	}
 }
 
-// demote reports the violations recorded from index n on, a warn rule's,
-// as warnings through warn, each unchanged but for Severity SeverityWarn,
-// and removes them from the violations, leaving them nil when none
-// remain, as they are for a result that never had one.
-func (e *evaluator) demote(n int) {
-	for _, v := range e.res.Violations[n:] {
+// breach records v as the current rule's breach: a violation, or, for a
+// warn rule, the same finding with Severity SeverityWarn, which Evaluate
+// reports as a warning.
+func (e *evaluator) breach(v Violation) {
+	if e.warns {
 		v.Severity = SeverityWarn
-		e.warn(v, "")
 	}
-	if n == 0 {
-		e.res.Violations = nil
-		return
-	}
-	e.res.Violations = e.res.Violations[:n]
+	e.found = append(e.found, found{v: v, rule: e.cur})
 }
 
 func (e *evaluator) density(r Threshold, h float64) {
@@ -196,11 +219,11 @@ func (e *evaluator) density(r Threshold, h float64) {
 				Text:   "not computed at baseline; max_delta skipped",
 			})
 		case h-b > *r.MaxDelta+epsilon:
-			e.res.Violations = append(e.res.Violations, e.finding(r.Metric, b, h, hasBase, "max_delta "+signed(*r.MaxDelta)))
+			e.breach(e.finding(r.Metric, b, h, hasBase, "max_delta "+signed(*r.MaxDelta)))
 		}
 	}
 	if r.Max != nil && e.densityMaxApplies(r, b, h, hasBase) {
-		e.res.Violations = append(e.res.Violations, e.finding(r.Metric, b, h, hasBase, "max "+num(*r.Max)))
+		e.breach(e.finding(r.Metric, b, h, hasBase, "max "+num(*r.Max)))
 	}
 }
 
@@ -269,15 +292,15 @@ func (e *evaluator) overMax(r Threshold, b, h float64, hasBase bool) {
 	}
 	switch {
 	case !hasBase || b < limit-epsilon:
-		e.res.Violations = append(e.res.Violations, e.finding(r.Metric, b, h, hasBase, "max "+num(limit)))
+		e.breach(e.finding(r.Metric, b, h, hasBase, "max "+num(limit)))
 	case h <= b+epsilon:
 		e.warn(e.finding(r.Metric, b, h, hasBase, "max "+num(limit)), "over the "+num(limit)+" ceiling (unchanged since baseline); plan a split.")
 	case allowed <= 0:
-		e.res.Violations = append(e.res.Violations, e.finding(r.Metric, b, h, hasBase, "max "+num(limit)))
+		e.breach(e.finding(r.Metric, b, h, hasBase, "max "+num(limit)))
 	case h-b <= allowed+epsilon:
 		e.warn(e.overMaxFinding(r.Metric, b, h, limit, allowed), "")
 	default:
-		e.res.Violations = append(e.res.Violations, e.overMaxFinding(r.Metric, b, h, limit, allowed))
+		e.breach(e.overMaxFinding(r.Metric, b, h, limit, allowed))
 	}
 }
 
@@ -299,11 +322,12 @@ func (e *evaluator) overMaxFinding(metric string, b, h, limit, allowed float64) 
 	return f
 }
 
-// warn records w as a warning, its suggestion led by text when text is
-// not empty.
+// warn records w as a warning of the current rule, its suggestion led by
+// text when text is not empty. It is a warning whatever the rule's
+// severity.
 func (e *evaluator) warn(w Warning, text string) {
 	w.Suggestion = joinSentences(text, w.Suggestion)
-	e.res.Warnings = append(e.res.Warnings, w)
+	e.found = append(e.found, found{v: w, rule: e.cur, warning: true})
 }
 
 // joinSentences joins two fix sentences with a space, leaving out an
@@ -332,7 +356,7 @@ func (e *evaluator) requirement(r Threshold, h float64) {
 		return
 	}
 	b, hasBase, _ := e.baseValue(r.Metric)
-	e.res.Violations = append(e.res.Violations, e.finding(r.Metric, b, h, hasBase, "require "+strconv.FormatBool(*r.Require)))
+	e.breach(e.finding(r.Metric, b, h, hasBase, "require "+strconv.FormatBool(*r.Require)))
 }
 
 // grew reports whether requirement rules apply: the package is new at head,

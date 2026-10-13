@@ -200,8 +200,7 @@ $ astimate check testdata/go/fixture-degraded --baseline /tmp/fixture-baseline.j
 violations:
   tested
     changed_func_cognitive_max: 51 (changed since baseline), max 50. Changed function grade (grade.go:8) has cognitive complexity 51; split it into smaller functions or flatten its branching.
-    dup_blocks: 0 -> 1, max_delta +0. 1 duplicate block covers 12.2% of lines; extract shared helpers, starting with degraded.go:15-20.
-    duplication_pct: 0 -> 12.2, max_delta +6. 1 duplicate block covers 12.2% of lines; extract shared helpers, starting with degraded.go:15-20.
+    dup_blocks: 0 -> 1, max_delta +0; duplication_pct 0 -> 12.2, max_delta +6. 1 duplicate block covers 12.2% of lines; extract shared helpers, starting with degraded.go:15-20.
     globals: 0 -> 1, max_delta +0. 1 mutable package-level variable holds state no signature reveals (joins); pass it explicitly or move it into a struct.
     untested_exports: 0 -> 1, max_delta +0. 1 exported function has no test (JoinAgain); a rebuild would have to reverse-engineer its behavior.
 <module>: dup_blocks_cross_pkg 1, 0 violations, 0 warnings, 0 exempted
@@ -215,14 +214,14 @@ hub: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 0 exempted, +0.0 passes fr
 immut: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 0 exempted, +0.0 passes from baseline
 sibling: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 0 exempted, +0.0 passes from baseline
 support: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 0 exempted, +0.0 passes from baseline
-tested: 0.0 passes (ONE_PASS), 5 violations, 0 warnings, 0 exempted, +0.0 passes from baseline
+tested: 0.0 passes (ONE_PASS), 4 violations, 0 warnings, 0 exempted, +0.0 passes from baseline
 trivial: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 0 exempted, +0.0 passes from baseline
 $ echo $?
 3
 ```
 <!-- /sample:check -->
 
-Each finding reads `metric: baseline -> head, limit. suggestion`. [docs/reading-violations.md](docs/reading-violations.md) explains them and the order to fix them in. The `<module>` row carries module-wide metrics, today `dup_blocks_cross_pkg`, the code copied between packages; it is reported first, and the default rule fails any new cross-package copy (`max_delta: 0`; a module with no baseline is held to `max: 450`, the corpus p90).
+Each finding reads `metric: baseline -> head, limit. suggestion`, one per cause: a rule over both its `max_delta` and its `max`, `tokens_est` beside `sloc` and `duplication_pct` beside `dup_blocks` are each one finding whose limit names both. [docs/reading-violations.md](docs/reading-violations.md) explains them and the order to fix them in. The `<module>` row carries module-wide metrics, today `dup_blocks_cross_pkg`, the code copied between packages; it is reported first, and the default rule fails any new cross-package copy (`max_delta: 0`; a module with no baseline is held to `max: 450`, the corpus p90).
 
 #### Gate semantics
 

@@ -157,6 +157,34 @@ func TestExplainMetricDensityOverMax(t *testing.T) {
 	}
 }
 
+// TestExplainMetricMerged checks explain_metric says which rule a merged
+// finding is attributed to (SPEC.md 8.1): tokens_est to sloc and
+// duplication_pct to dup_blocks, and nothing for a metric merged into no
+// other.
+func TestExplainMetricMerged(t *testing.T) {
+	t.Parallel()
+
+	cs := newTestClient(t, Options{Config: defaultConfig(t)})
+	for metric, into := range map[string]string{"tokens_est": "sloc", "duplication_pct": "dup_blocks", "sloc": ""} {
+		text := resultText(callExplain(t, cs, metric))
+		want := "Merged: when " + into + " also fires on the row in the same direction, the two are one finding attributed to " +
+			into + ", whose limit names both and whose also list names " + metric + ".\n"
+		if into == "" {
+			if strings.Contains(text, "Merged:") {
+				t.Errorf("%s: text = %q, want no merge line", metric, text)
+			}
+			continue
+		}
+		if !strings.Contains(text, want) {
+			t.Errorf("%s: text = %q, want %q", metric, text, want)
+		}
+	}
+	text := resultText(callExplain(t, cs, "duplication_pct"))
+	if want := "; a change breaching both max_delta and max is one finding whose limit names both"; !strings.Contains(text, want) {
+		t.Errorf("duplication_pct: text = %q, want %q", text, want)
+	}
+}
+
 func TestExplainMetricNoConfig(t *testing.T) {
 	t.Parallel()
 

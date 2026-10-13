@@ -275,3 +275,44 @@ func TestExemptionsExpiredAndStale(t *testing.T) {
 		t.Errorf("a nil Exemptions changed %+v or reported exemptions", res)
 	}
 }
+
+// TestExemptionsMergedFinding checks a finding that merged another rule's
+// (Violation.Also): it is exempted only when every rule it carries is,
+// since each would have failed on its own, and an exemption on one of them
+// is used either way, so it is never reported stale.
+func TestExemptionsMergedFinding(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 10, 13, 0, 0, 0, 0, time.UTC)
+	sloc := Exemption{Package: "a", Metric: "sloc", Reason: "generated tables"}
+	tokens := Exemption{Package: "a", Metric: "tokens_est", Reason: "large by design"}
+	unknown := func(Exemption) bool { return false }
+	for _, tt := range []struct {
+		name       string
+		list       []Exemption
+		wantPassed bool
+		wantReason string
+	}{
+		{name: "kept rule only", list: []Exemption{sloc}},
+		{name: "merged rule only", list: []Exemption{tokens}},
+		{name: "both rules", list: []Exemption{tokens, sloc}, wantPassed: true, wantReason: "large by design"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			res := Result{Violations: []Violation{{Metric: "sloc", Head: 1100, Limit: "max 1000; tokens_est 17000, max 16000",
+				Also: []string{"tokens_est"}}}}
+			x := NewExemptions(tt.list, now)
+			x.Apply("a", &res)
+			if res.Passed != tt.wantPassed {
+				t.Errorf("Passed = %t, want %t: %+v", res.Passed, tt.wantPassed, res)
+			}
+			if tt.wantPassed && (len(res.Exempted) != 1 || res.Exempted[0].Reason != tt.wantReason) {
+				t.Errorf("Exempted = %+v, want one with reason %q", res.Exempted, tt.wantReason)
+			}
+			if stale := x.Stale(unknown); stale != nil {
+				t.Errorf("Stale() = %+v, want none", stale)
+			}
+		})
+	}
+}

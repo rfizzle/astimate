@@ -138,8 +138,7 @@ func TestEvaluateRules(t *testing.T) {
 			base:  &metrics.RawMetrics{MaxNesting: 4},
 			rules: []gate.Threshold{density("max_nesting", 0, ptr(5.0))},
 			want: gate.Result{Violations: []gate.Violation{
-				{Metric: "max_nesting", Base: 4, Head: 7, HasBase: true, Limit: "max_delta +0"},
-				{Metric: "max_nesting", Base: 4, Head: 7, HasBase: true, Limit: "max 5"},
+				{Metric: "max_nesting", Base: 4, Head: 7, HasBase: true, Limit: "max_delta +0 and max 5"},
 			}},
 		},
 		{

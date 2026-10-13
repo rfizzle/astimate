@@ -42,3 +42,27 @@ func TestLoadWarned(t *testing.T) {
 		t.Errorf("c2 failed %v passed %v, want a passed commit with the warn breach recorded", w.Failed(), w.Passed)
 	}
 }
+
+// TestLoadAlso checks that a recorded finding's also list, the rules the
+// gate merged into it, counts as a breach of each of them, in violations
+// and in warn rules' warnings alike, and that a finding without one reads
+// as before.
+func TestLoadAlso(t *testing.T) {
+	t.Parallel()
+
+	src := writeReplay(t,
+		`{"commit":"c1","subject":"s","config_version":"v","baseline":"parent","loaded":true,"passed":false}
+`,
+		`{"commit":"c1","package":"a","language":"go","metrics":{},"base":{},"violations":[{"metric":"sloc","also":["tokens_est"]},{"metric":"globals"}],"warnings":[{"metric":"dup_blocks","also":["duplication_pct"],"severity":"warn"}]}
+`,
+		"source: {repository: r, range: x, data: d}\ncommits:\n"+
+			"  - {hash: c1, verdict: block, reason: r, provenance: proposed}\n")
+	c, err := Load(src, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := &c.Commits[0].Rows[0]
+	if !slices.Equal(r.Violated, []string{"sloc", "tokens_est", "globals"}) || !slices.Equal(r.Warned, []string{"dup_blocks", "duplication_pct"}) {
+		t.Errorf("violated %q warned %q, want each finding's metric followed by its merged rules", r.Violated, r.Warned)
+	}
+}

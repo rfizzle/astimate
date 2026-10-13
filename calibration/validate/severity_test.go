@@ -13,9 +13,10 @@ import (
 // TestRunWarnRule validates the fixture corpora under the default with the
 // dup_blocks rule marked severity: warn, beside a corpus replayed under
 // that configuration, which recorded the rule's breach as a warning with
-// severity warn. The gate's verdict ignores the warn rule: the commits
-// only dup_blocks failed as replayed now pass, and the one it warned on
-// stays passed. The rule keeps its own row with its precision and recall,
+// severity warn. The gate's verdict ignores the warn rule: the commit
+// only dup_blocks failed as replayed now passes, the one it warned on
+// stays passed, and the one whose dup_blocks finding also carries
+// duplication_pct, a fail rule, still fails. The rule keeps its own row with its precision and recall,
 // counted from the breaches recorded under either severity.
 func TestRunWarnRule(t *testing.T) {
 	dir := t.TempDir()
@@ -57,17 +58,20 @@ commits:
 	}
 	report := string(got)
 	for _, want := range []string{
-		// The gate's verdict: h3 (allow) and r1 (block), which only
-		// dup_blocks failed as replayed, pass; h1 still fails on sloc.
-		"| hand | 1 of 2 (50.0%) | not met | 0 of 1 (0.0%) | met |",
+		// The gate's verdict: r1 (block), which only dup_blocks failed as
+		// replayed, passes; h1 still fails on sloc, and h3 (allow) on the
+		// duplication_pct breach its dup_blocks finding carries in also,
+		// a fail rule's breach under this configuration.
+		"| hand | 1 of 2 (50.0%) | not met | 1 of 1 (100.0%) | not met |",
 		"| rule | 0 of 1 (0.0%) | not met | 0 of 1 (0.0%) | met |",
 		"| warned | 0 of 1 (0.0%) | not met | 0 of 1 (0.0%) | met |",
 		// Pooled, the warn rule's own rates: it fired on h3 (allow), r1
 		// and w1 (block) of 4 block and 3 allow commits; the gate's row
-		// counts h1 alone.
+		// counts h1 and, through duplication_pct, h3.
 		"| `dup_blocks (warn)` | 2 | 1 | 66.7% | 50.0% | 33.3% |",
-		"| gate (any `fail` rule) | 1 | 0 | 100.0% | 25.0% | 0.0% |",
-		"| all corpora pooled | 1 of 4 (25.0%) | not met | 0 of 3 (0.0%) | met |",
+		"| `duplication_pct` | 0 | 1 | 0.0% | 0.0% | 33.3% |",
+		"| gate (any `fail` rule) | 1 | 1 | 50.0% | 25.0% | 33.3% |",
+		"| all corpora pooled | 1 of 4 (25.0%) | not met | 1 of 3 (33.3%) | not met |",
 		"A rule marked `(warn)` has `severity: warn`",
 		"- A rule with `severity: warn`, marked `(warn)`, reports its breaches as warnings",
 		// The commits the gate now misses include the warn rule's.

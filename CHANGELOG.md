@@ -117,6 +117,20 @@ history.
   order, instead of by first occurrence, so the suggestion names the copy
   worth extracting rather than the first short run of setters. Every
   occurrence is still listed.
+- One finding per cause: the gate merges findings of the same change
+  before severity and exemptions apply. A rule breaching both its
+  `max_delta` and its `max` is one finding (`limit` `max_delta +6 and max
+  40`); a `tokens_est` breach is folded into a `sloc` breach on the same
+  package in the same direction, and a `duplication_pct` breach into a
+  `dup_blocks` one, the kept finding's `limit` naming the other's values
+  and limit (`max 1000; tokens_est 15000 -> 17500, max 16000`). Only two
+  violations, or two breaches of `warn` rules, merge, so `passed` and the
+  exit code never change; capacity warnings are left apart. Findings gain
+  an optional `also` list of the merged rules, additive to the report
+  schema; an exemption silences a merged finding only when every rule in
+  it is exempted. `explain_metric` names the rule a merged finding is
+  attributed to, and `calibration/validate` reads `also` from replay rows
+  so a merged rule's precision is still measured.
 - A density rule's `max` no longer judges a package already at or over it
   at baseline: such a package is judged by the rule's `max_delta` alone,
   so `cognitive_p90` 43 -> 45 passes under the default `max` 20 and

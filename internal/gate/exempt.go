@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"path"
+	"slices"
 	"strings"
 	"time"
 
@@ -84,10 +85,10 @@ func (e Exemption) Expired(now time.Time) bool {
 }
 
 // Matches reports whether the exemption applies to v, a violation on the
-// row whose package path is pkg: the same row and the same metric. It does
-// not consider expiry.
+// row whose package path is pkg: the same row, and v's metric or one of
+// the metrics merged into v (Violation.Also). It does not consider expiry.
 func (e Exemption) Matches(pkg string, v *Violation) bool {
-	return e.Package == pkg && e.Metric == v.Metric
+	return e.Package == pkg && (e.Metric == v.Metric || slices.Contains(v.Also, e.Metric))
 }
 
 // validPackage reports whether p is metrics.ModuleRowID, "." or a clean,
@@ -183,9 +184,14 @@ func (x *Exemptions) exempt(pkg string, res *Result, fs []Violation, eligible fu
 }
 
 // match returns the reason of the first unexpired exemption matching v on
-// row pkg, marking every such exemption used, and whether there was one.
+// row pkg, marking every such exemption used, and whether v is exempted.
+// A finding that merged other rules' findings (Violation.Also) is
+// exempted only when every rule it carries is matched, since each of
+// those rules would have failed on its own; an exemption matching only
+// some of them is still used.
 func (x *Exemptions) match(pkg string, v *Violation) (string, bool) {
 	reason, ok := "", false
+	covered := make(map[string]bool, 1+len(v.Also))
 	for i := range x.list {
 		// Validate requires a reason; one built without it never silences
 		// a finding, whose reason every output must show.
@@ -193,11 +199,12 @@ func (x *Exemptions) match(pkg string, v *Violation) (string, bool) {
 			continue
 		}
 		x.used[i] = true
+		covered[x.list[i].Metric] = true
 		if !ok {
 			reason, ok = x.list[i].Reason, true
 		}
 	}
-	return reason, ok
+	return reason, ok && len(covered) == 1+len(v.Also)
 }
 
 // Expired returns the exemptions that were expired when x was created, in

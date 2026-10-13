@@ -51,7 +51,7 @@ func corpora(t *testing.T, dir string) (hand, rule string) {
 	hand = fixture(t, dir, "hand",
 		c("h1", false)+c("h2", true)+c("h3", false),
 		`{"commit":"h1","package":"a","language":"go","metrics":{"sloc":1500,"has_tests":true},"base":null,"sloc_delta":1500,"violations":[{"metric":"sloc"}]}
-{"commit":"h3","package":"a","language":"go","metrics":{"sloc":100,"dup_blocks":2,"has_tests":true},"base":{"sloc":90,"dup_blocks":1,"has_tests":true},"sloc_delta":10,"violations":[{"metric":"dup_blocks"}]}
+{"commit":"h3","package":"a","language":"go","metrics":{"sloc":100,"dup_blocks":2,"duplication_pct":12,"has_tests":true},"base":{"sloc":90,"dup_blocks":1,"duplication_pct":2,"has_tests":true},"sloc_delta":10,"violations":[{"metric":"dup_blocks","also":["duplication_pct"]}]}
 `,
 		`source: {repository: r, range: x, data: d}
 commits:

@@ -6,6 +6,7 @@ import (
 	"io"
 	"math"
 	"path"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -116,6 +117,12 @@ func tokenizerNote(c *Check) string {
 	return ""
 }
 
+// MergedInto returns the metric a finding of metric is reported under when
+// both rules fire on one row in the same direction, and false when the
+// gate merges metric into no other rule's finding (SPEC.md 8.1); it lets
+// the MCP server explain a merge without importing the gate.
+func MergedInto(metric string) (string, bool) { return gate.MergedInto(metric) }
+
 // findings converts gate violations or warnings to report findings; the
 // result is never nil, so the JSON array is present when a gate ran.
 func findings(vs []gate.Violation) []Finding {
@@ -128,7 +135,8 @@ func findings(vs []gate.Violation) []Finding {
 
 // finding converts one gate violation or warning to a report finding.
 func finding(v *gate.Violation) Finding {
-	f := Finding{Metric: v.Metric, Head: v.Head, Limit: v.Limit, Suggestion: v.Suggestion, Severity: string(v.Severity)}
+	f := Finding{Metric: v.Metric, Head: v.Head, Limit: v.Limit, Suggestion: v.Suggestion, Severity: string(v.Severity),
+		Also: slices.Clone(v.Also)}
 	if v.HasBase {
 		b := v.Base
 		f.Base = &b

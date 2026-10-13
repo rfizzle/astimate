@@ -1,0 +1,2 @@
+::error file=internal/big::dup_blocks: 1 -> 2, max_delta +0; duplication_pct 38 -> 45, max_delta +6 and max 40. 2 duplicate blocks cover 45%25 of lines; extract shared helpers.
+::error file=internal/big::sloc: 900 -> 1100, max 1000; tokens_est 15000 -> 17500, max 16000. Split the package.

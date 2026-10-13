@@ -418,7 +418,7 @@ func TestCheckCalibratedText(t *testing.T) {
 
 		uncal := check(t, formatText, "--config", uncalCfg)
 		assertNoEstimate(t, uncal)
-		if !strings.Contains("\n"+uncal, "\ntested: 5 violations, 0 warnings, 0 exempted\n") {
+		if !strings.Contains("\n"+uncal, "\ntested: 4 violations, 0 warnings, 0 exempted\n") {
 			t.Errorf("uncalibrated text has no plain summary line for tested:\n%s", uncal)
 		}
 		cal := check(t, formatText)

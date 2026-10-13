@@ -12,8 +12,10 @@ import (
 // TestCheckPackageExemptions checks the degraded fixture under the default
 // thresholds with an exemption on each of its tested package's violations:
 // the call passes, and both the text and the structured content list every
-// exempted finding with its reason. An exemption on another package is not
-// reported stale by this one-package check.
+// exempted finding with its reason. The dup_blocks finding carries the
+// duplication_pct breach of the same paste (SPEC.md 8.1), so it is
+// exempted only because both rules are. An exemption on another package
+// is not reported stale by this one-package check.
 func TestCheckPackageExemptions(t *testing.T) {
 	if testing.Short() {
 		t.Skip("integration test: loads Go packages")
@@ -50,13 +52,19 @@ func TestCheckPackageExemptions(t *testing.T) {
 			t.Errorf("text does not list %s with its reason:\n%s", e.Metric, text)
 		}
 	}
-	if !slices.Equal(got, violated) {
-		t.Errorf("exempted metrics = %q, want %q", got, violated)
+	reported := slices.DeleteFunc(slices.Clone(violated), func(m string) bool { return m == "duplication_pct" })
+	if !slices.Equal(got, reported) {
+		t.Errorf("exempted metrics = %q, want %q", got, reported)
 	}
-	if want := "PASSED: tested is no worse than its baseline. 5 violation(s) are exempted"; !strings.HasPrefix(text, want) {
+	for _, e := range cr.Exemptions {
+		if e.Metric == "dup_blocks" && !slices.Equal(e.Also, []string{"duplication_pct"}) {
+			t.Errorf("dup_blocks also = %q, want duplication_pct", e.Also)
+		}
+	}
+	if want := "PASSED: tested is no worse than its baseline. 4 violation(s) are exempted"; !strings.HasPrefix(text, want) {
 		t.Errorf("text = %q, want it to start with %q", text, want)
 	}
-	if !strings.Contains(text, "\ntested: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 5 exempted, +0.0 passes from baseline\n") {
+	if !strings.Contains(text, "\ntested: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 4 exempted, +0.0 passes from baseline\n") {
 		t.Errorf("text has no summary line counting the exemptions:\n%s", text)
 	}
 	if cr.Module == nil || cr.Module.Exemptions == nil {

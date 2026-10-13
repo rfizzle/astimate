@@ -109,11 +109,13 @@ type Row struct {
 	// SLOCDelta is sloc at the commit minus at the parent.
 	SLOCDelta int
 	// Violated holds the metric of every violation the replay recorded on
-	// the row, in the order recorded.
+	// the row, each followed by the metrics the gate merged into it
+	// (its also list), in the order recorded.
 	Violated []string
 	// Warned holds the metric of every breach of a warn rule the replay
-	// recorded on the row, a warning with severity warn, in the order
-	// recorded: what the rule would have failed at severity fail.
+	// recorded on the row, a warning with severity warn, with its merged
+	// metrics, in the order recorded: what the rule would have failed at
+	// severity fail.
 	Warned []string
 }
 
@@ -322,13 +324,23 @@ type packageRow struct {
 	Metrics    metrics.RawMetrics  `json:"metrics"`
 	Base       *metrics.RawMetrics `json:"base"`
 	SLOCDelta  int                 `json:"sloc_delta"`
-	Violations []struct {
-		Metric string `json:"metric"`
-	} `json:"violations"`
-	Warnings []struct {
-		Metric   string `json:"metric"`
-		Severity string `json:"severity"`
-	} `json:"warnings"`
+	Violations []rowFinding        `json:"violations"`
+	Warnings   []rowFinding        `json:"warnings"`
+}
+
+// rowFinding is the part of a recorded finding the join reads: its metric,
+// the metrics of the rules the gate merged into it (also, absent from rows
+// recorded before findings were merged, SPEC.md 8.1), and its severity.
+type rowFinding struct {
+	Metric   string   `json:"metric"`
+	Also     []string `json:"also"`
+	Severity string   `json:"severity"`
+}
+
+// metrics returns f's metric followed by each merged rule's, so a merged
+// rule's breach is still recorded against it.
+func (f *rowFinding) metrics() []string {
+	return append([]string{f.Metric}, f.Also...)
 }
 
 // readRows reads packages.jsonl at path, keyed by commit hash.
@@ -340,8 +352,8 @@ func readRows(path string) (map[string][]Row, error) {
 			return err
 		}
 		r := Row{Package: pr.Package, Language: pr.Language, Head: pr.Metrics, Base: pr.Base, SLOCDelta: pr.SLOCDelta}
-		for _, v := range pr.Violations {
-			r.Violated = append(r.Violated, v.Metric)
+		for i := range pr.Violations {
+			r.Violated = append(r.Violated, pr.Violations[i].metrics()...)
 		}
 		r.Warned = pr.warned()
 		out[pr.Commit] = append(out[pr.Commit], r)
@@ -351,12 +363,13 @@ func readRows(path string) (map[string][]Row, error) {
 }
 
 // warned returns the metric of each of pr's warnings that is a warn
-// rule's breach, one with severity warn, in the order recorded.
+// rule's breach, one with severity warn, with the metrics merged into it,
+// in the order recorded.
 func (pr *packageRow) warned() []string {
 	var out []string
 	for i := range pr.Warnings {
 		if pr.Warnings[i].Severity == "warn" {
-			out = append(out, pr.Warnings[i].Metric)
+			out = append(out, pr.Warnings[i].metrics()...)
 		}
 	}
 	return out

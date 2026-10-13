@@ -148,7 +148,7 @@ func TestDefaultTypeScriptOverride(t *testing.T) {
 		wantWarnings   []string
 		wantVersion    string
 	}{
-		{lang: "go", wantViolations: []string{"has_tests", "sloc", "tokens_est"}, wantWarnings: []string{"largest_file_sloc"},
+		{lang: "go", wantViolations: []string{"has_tests", "sloc"}, wantWarnings: []string{"largest_file_sloc"},
 			wantVersion: "rebuild-2026-09-28-claude-code-opus"},
 		{lang: "typescript", wantViolations: []string{"has_tests"}, wantWarnings: []string{"sloc"},
 			wantVersion: "rebuild-2026-09-28-claude-code-opus+typescript"},

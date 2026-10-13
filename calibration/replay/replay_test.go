@@ -151,7 +151,7 @@ func TestReplayRows(t *testing.T) {
 		// The copy is most of the package: its duplication_pct breaks both
 		// the rule's max and its max_delta.
 		{name: "duplicate", baseline: baselineParent, packages: []string{"a"},
-			violations: []string{"dup_blocks", "duplication_pct", "duplication_pct"},
+			violations: []string{"dup_blocks"},
 			coAuthors:  []string{"Bot <bot@example.com>"}},
 		{name: "unrelated", baseline: baselineParent},
 	}

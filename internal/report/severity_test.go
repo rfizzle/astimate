@@ -63,10 +63,36 @@ func severityCheck(sev gate.Severity) *Check {
 func TestSeverityFormats(t *testing.T) {
 	t.Parallel()
 
-	formats := []struct {
-		name  string
-		write func(*Check) (string, error)
-	}{
+	for _, f := range checkFormats() {
+		for _, sev := range []gate.Severity{gate.SeverityFail, gate.SeverityWarn} {
+			name := f.name + "-" + string(sev)
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+
+				c := severityCheck(sev)
+				if c.Failed() != (sev == gate.SeverityFail) {
+					t.Errorf("Failed() = %v under severity %s", c.Failed(), sev)
+				}
+				got, err := f.write(c)
+				if err != nil {
+					t.Fatal(err)
+				}
+				compareGolden(t, filepath.Join("testdata", "severity", name+".golden"), got)
+			})
+		}
+	}
+}
+
+// checkFormat is one check renderer under the name its golden files use.
+type checkFormat struct {
+	name  string
+	write func(*Check) (string, error)
+}
+
+// checkFormats returns every check renderer: text, json, hook (its stdout
+// and stderr, each under a heading) and github.
+func checkFormats() []checkFormat {
+	return []checkFormat{
 		{"text", func(c *Check) (string, error) {
 			var b bytes.Buffer
 			err := WriteCheckText(&b, c)
@@ -88,38 +114,26 @@ func TestSeverityFormats(t *testing.T) {
 			return b.String(), err
 		}},
 	}
-	for _, f := range formats {
-		for _, sev := range []gate.Severity{gate.SeverityFail, gate.SeverityWarn} {
-			name := f.name + "-" + string(sev)
-			t.Run(name, func(t *testing.T) {
-				t.Parallel()
+}
 
-				c := severityCheck(sev)
-				if c.Failed() != (sev == gate.SeverityFail) {
-					t.Errorf("Failed() = %v under severity %s", c.Failed(), sev)
-				}
-				got, err := f.write(c)
-				if err != nil {
-					t.Fatal(err)
-				}
-				golden := filepath.Join("testdata", "severity", name+".golden")
-				if flag.Lookup(updateFlag).Value.String() == "true" {
-					if err := os.MkdirAll(filepath.Dir(golden), 0o755); err != nil {
-						t.Fatal(err)
-					}
-					if err := os.WriteFile(golden, []byte(got), 0o644); err != nil {
-						t.Fatal(err)
-					}
-				}
-				want, err := os.ReadFile(golden)
-				if err != nil {
-					t.Fatalf("%v (run with -%s to create it)", err, updateFlag)
-				}
-				if got != string(want) {
-					t.Errorf("%s output differs from %s; rerun with -%s and read the diff:\n%s", name, golden, updateFlag, got)
-				}
-			})
+// compareGolden compares got with the golden file at golden, first
+// rewriting it under -update.
+func compareGolden(t *testing.T, golden, got string) {
+	t.Helper()
+	if flag.Lookup(updateFlag).Value.String() == "true" {
+		if err := os.MkdirAll(filepath.Dir(golden), 0o755); err != nil {
+			t.Fatal(err)
 		}
+		if err := os.WriteFile(golden, []byte(got), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	want, err := os.ReadFile(golden)
+	if err != nil {
+		t.Fatalf("%v (run with -%s to create it)", err, updateFlag)
+	}
+	if got != string(want) {
+		t.Errorf("output differs from %s; rerun with -%s and read the diff:\n%s", golden, updateFlag, got)
 	}
 }
 

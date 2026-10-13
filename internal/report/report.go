@@ -124,6 +124,11 @@ type Finding struct {
 	// reported among the warnings (or the exemptions) with the fields the
 	// violation would have had; empty (omitted) on every other finding.
 	Severity string `json:"severity,omitempty"`
+	// Also lists the metrics of the rules whose findings of the same
+	// cause the gate merged into this one (SPEC.md 8.1), such as
+	// tokens_est on a sloc finding; Limit names their values and limits.
+	// Omitted when nothing was merged.
+	Also []string `json:"also,omitempty"`
 }
 
 // Exempted is a violation an exemption silenced: the finding it would
