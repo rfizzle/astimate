@@ -37,7 +37,7 @@ func TestConformance(t *testing.T) {
 
 // fixturePackages lists the packages of testdata/ts/fixture, sorted.
 func fixturePackages() []string {
-	return []string{"a", "b", "dupes", "hidden", "hub", "tested", "trivial"}
+	return []string{"a", "b", "covered", "dupes", "hidden", "hub", "tested", "trivial"}
 }
 
 // fixtureRoot returns the absolute path of testdata/ts/fixture, relative to

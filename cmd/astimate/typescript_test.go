@@ -18,7 +18,7 @@ const tsFixtureDir = "../../testdata/ts/fixture"
 
 // tsFixturePackages are the package directories of the TypeScript fixture.
 func tsFixturePackages() []string {
-	return []string{"a", "b", "dupes", "hidden", "hub", "tested", "trivial"}
+	return []string{"a", "b", "covered", "dupes", "hidden", "hub", "tested", "trivial"}
 }
 
 func TestTypeScriptRank(t *testing.T) {
@@ -57,7 +57,7 @@ func TestTypeScriptCheckSelfBaseline(t *testing.T) {
 	if got := run(write, &stdout, &stderr); got != exitOK {
 		t.Fatalf("run(%q) exit code = %d, want %d; stderr = %q", write, got, exitOK, stderr.String())
 	}
-	if want := "(7 packages)"; !strings.Contains(stdout.String(), want) {
+	if want := "(8 packages)"; !strings.Contains(stdout.String(), want) {
 		t.Errorf("baseline write stdout = %q, want it to report %s", stdout.String(), want)
 	}
 

@@ -686,6 +686,28 @@ func TestClassifyConfigDirAlias(t *testing.T) {
 	}
 }
 
+// TestClassifyFromTestOnlyDirectory checks that a paths alias and a relative
+// specifier resolve from a directory that is no package, such as test/.
+func TestClassifyFromTestOnlyDirectory(t *testing.T) {
+	root := t.TempDir()
+	writeTree(t, root, map[string]string{
+		"package.json":   "{}",
+		"tsconfig.json":  `{"compilerOptions": {"baseUrl": ".", "paths": {"@lib/*": ["src/lib/*"]}}}`,
+		"src/lib/x.ts":   "export const x = 1;\n",
+		"test/x.test.ts": "export {};\n",
+	})
+	cfg, err := ReadConfig(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := New(root, map[string]struct{}{"src/lib": {}}, cfg)
+	for _, spec := range []string{"@lib/x", "../src/lib/x"} {
+		if got, want := r.Classify("test", spec), (Import{Internal, "src/lib"}); got != want {
+			t.Errorf("Classify(test, %q) = %+v, want %+v", spec, got, want)
+		}
+	}
+}
+
 func TestReadTSConfigErrors(t *testing.T) {
 	root := t.TempDir()
 	writeTree(t, root, map[string]string{"tsconfig.json": "{ not json"})

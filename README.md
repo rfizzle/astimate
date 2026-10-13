@@ -169,6 +169,7 @@ $ astimate rank testdata/ts/fixture
 PATH     PASSES  DAYS  TIER      FAN_IN  TOKENS  DUP%
 a           0.0   0.2  ONE_PASS       0      48   0.0
 b           0.0   1.0  ONE_PASS       0     344   0.0
+covered     0.0   0.3  ONE_PASS       0      81   0.0
 dupes       0.0   0.5  ONE_PASS       0     527  81.8
 hidden      0.0   1.3  ONE_PASS       0     210   0.0
 hub         0.0   1.7  ONE_PASS       4     232   0.0

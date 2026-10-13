@@ -37,6 +37,10 @@ are the same on every checkout.
 - `hub/types.d.ts` and `b/types.d.mts` are declaration files and count
   nowhere.
 - `tested/__tests__/count.test.ts` is a test file of package `tested`.
+- `test/covered.test.ts` is a test file in a directory with no source file.
+  `test/` is no package and has no row, but the file is parsed and its
+  identifiers count in the module-wide test reference index, so it tests
+  `covered`.
 
 ## Counting rules used
 
@@ -148,6 +152,8 @@ Two files: `trivial.ts` (109 bytes, 3 SLOC) and `wrappers.ts` (577 bytes,
   doc comment; and `Box.close`. Counting only the package's own test
   files, as before the module-wide rule, gave 4 with `answer`.
   `TestDetails` checks both lists.
+- `has_tests=true` with `test_funcs=0`: `trivial` has no test file, but the
+  tests of `dupes` name `answer`, an export of the package.
 - `fan_in=1`: `b/esm.mts` imports `@multi/trivial.js`. The first `@multi/*`
   target, `./missing/trivial.js`, does not exist; the second,
   `./trivial/trivial.js`, exists as `trivial.ts` through the `.js` to `.ts`
@@ -275,6 +281,19 @@ Non-test files: `tested.ts` (539 bytes, 15 SLOC) and `count.ts` (154 bytes,
 - `untested_exports=0`: the tests name `join`, `bounded`, `shout` and
   `countUpper`.
 - instability 1.
+
+## covered
+
+One file, `covered.ts`, with two exported functions, `reach` and `stray`.
+It has no test file of its own. `test/covered.test.ts` imports `reach` through
+the `@app/*` alias and calls it; `test/` holds no non-test source file, so it
+is no package and reports no row.
+
+- `test_files=0`, `test_funcs=0`: they stay the package's own.
+- `has_tests=true`: a test file of the module names `reach`, an export of
+  the package (13.1).
+- `untested_exports=1`: `stray`; `reach` is named by the test.
+- `fan_in_tests=0`: the test file belongs to no package.
 
 ## dupes
 

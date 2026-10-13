@@ -158,6 +158,47 @@ func TestUntestedOtherPackagesTests(t *testing.T) {
 	}
 }
 
+// TestTestOnlyDirectory checks that test files in directories with no
+// non-test source file, a top-level test/ or tests/, count as test
+// references without making the directory a package, and that a package
+// only they reference has tests.
+func TestTestOnlyDirectory(t *testing.T) {
+	root := t.TempDir()
+	writeTree(t, root, map[string]string{
+		"package.json":     "{}",
+		"tsconfig.json":    `{"compilerOptions": {"baseUrl": ".", "paths": {"@lib/*": ["lib/*"]}}}`,
+		"lib/lib.ts":       "export function used(): number { return 1; }\nexport function lonely(): number { return 2; }\n",
+		"other/other.ts":   "export function idle(): number { return 3; }\n",
+		"test/a.test.ts":   "import { used } from \"@lib/lib\";\nit(\"a\", () => { used(); });\n",
+		"tests/b.spec.ts":  "it(\"b\", () => {});\n",
+		"test/helper.d.ts": "export {};\n",
+	})
+	e := New()
+	pkgs, err := e.Packages(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"lib", "other"}; !slices.Equal(pkgs, want) {
+		t.Fatalf("Packages = %q, want %q", pkgs, want)
+	}
+	mod := &metrics.ModuleContext{Root: root}
+	lib, err := e.Extract(t.Context(), mod, "lib")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !lib.HasTests || lib.TestFiles != 0 || lib.TestFuncs != 0 || lib.UntestedExports != 1 {
+		t.Errorf("lib: has_tests=%v test_files=%d test_funcs=%d untested=%d, want true 0 0 1",
+			lib.HasTests, lib.TestFiles, lib.TestFuncs, lib.UntestedExports)
+	}
+	other, err := e.Extract(t.Context(), mod, "other")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if other.HasTests || other.UntestedExports != 1 {
+		t.Errorf("other: has_tests=%v untested=%d, want false 1", other.HasTests, other.UntestedExports)
+	}
+}
+
 // TestCouplingRatiosRounded checks that assemble rounds instability and
 // abstractness to three decimals and computes main_sequence_distance from
 // the unrounded ratios: |1/3 + 1/3 - 1| is 0.333, where the rounded ratios

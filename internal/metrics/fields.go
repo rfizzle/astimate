@@ -107,7 +107,7 @@ func fieldTable() [numFields]field {
 		},
 		{"test_files", "v0", 0, "", "_test.go files.", "{context}"},
 		{"test_funcs", "v0", 0, "", "Test, Benchmark, Fuzz and Example functions.", "{context}"},
-		{"has_tests", "v0", 0, "gated", "Whether test_funcs is above 0 or, for Go, a test file anywhere in the module refers to an exported func or method of the package.", "{tests}"},
+		{"has_tests", "v0", 0, "gated", "Whether test_funcs is above 0 or, a test file anywhere in the module refers to an exported func or method of the package.", "{tests}"},
 		{
 			"untested_exports", "v0", 0, "gated",
 			"Exported funcs and methods not referenced from any test file in the package.{generated}", "{tests}",

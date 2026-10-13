@@ -88,6 +88,10 @@ func assemble(m *module, p *pkg, opts assembleOptions) (metrics.RawMetrics, erro
 			excluded = append(excluded, c.Display)
 		case !m.testRefs[c.Match]:
 			missed = append(missed, c)
+		default:
+			// Some test file of the module names an export of the
+			// package: it has tests, whatever its own test_funcs.
+			r.HasTests = true
 		}
 	}
 	slices.SortStableFunc(missed, func(a, b candidate) int { return strings.Compare(a.Display, b.Display) })
@@ -123,6 +127,7 @@ func assemble(m *module, p *pkg, opts assembleOptions) (metrics.RawMetrics, erro
 		return metrics.RawMetrics{}, fmt.Errorf("extracting %s: %w", p.id, err)
 	}
 	r.DupBlocks, r.DuplicationPct = dup.Blocks, dup.Pct
+	// Seam: further duplication row fields are set here, from dup.
 
 	// Martin's package metrics: Ca = fan_in and Ce = internal_imports;
 	// abstractness is exported interfaces over exported classes,

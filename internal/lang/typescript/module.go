@@ -102,18 +102,20 @@ func loadModule(ctx context.Context, root string, opts inspect.Options) (*module
 	res := resolve.New(root, ids, cfg)
 	sc := inspect.NewScanner(opts)
 	for _, f := range files {
-		p, ok := m.pkgs[f.Pkg]
-		if !ok {
-			// A test file in a directory with no source files belongs to
-			// no package.
-			continue
-		}
 		if err := ctx.Err(); err != nil {
 			return nil, fmt.Errorf("loading %s: %w", root, err)
 		}
 		ff, err := sc.Scan(f.Abs, f.Rel, f.Test)
 		if err != nil {
 			return nil, err
+		}
+		p, ok := m.pkgs[f.Pkg]
+		if !ok {
+			// A test file in a directory with no source files, such as a
+			// top-level test/ directory, belongs to no package and gets no
+			// row, but its references count module-wide (SPEC.md 13.1).
+			m.indexTestRefs(ff)
+			continue
 		}
 		if f.Test {
 			p.tests = append(p.tests, ff)
@@ -126,8 +128,9 @@ func loadModule(ctx context.Context, root string, opts inspect.Options) (*module
 	return m, nil
 }
 
-// indexTestRefs adds the identifiers of f, a test file of a package of m,
-// to the module-wide test reference index.
+// indexTestRefs adds the identifiers of f, a test file of m,
+// to the module-wide test reference index. f may also be a test file of
+// a directory that is no package.
 func (m *module) indexTestRefs(f *inspect.Facts) {
 	for id := range f.Idents {
 		m.testRefs[id] = true

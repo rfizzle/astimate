@@ -20,7 +20,7 @@
   "duplication_pct": 0,
   "test_files": 0,
   "test_funcs": 0,
-  "has_tests": false,
+  "has_tests": true,
   "untested_exports": 3,
   "instability": 0,
   "abstractness": 0,

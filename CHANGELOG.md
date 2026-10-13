@@ -12,6 +12,12 @@ history.
 
 ### Added
 
+- TypeScript test files in a directory with no non-test source file, such
+  as a top-level `test/` or `tests/`, now count as test references: the
+  exports they name read as tested. Such a directory is still no package and
+  reports no row. TypeScript `has_tests` is true when a test file anywhere
+  in the module names an exported function or method of the package, as for
+  Go; `test_files` and `test_funcs` stay the package's own.
 - Go `untested_exports` leaves out three more shapes no test needs to name,
   and lists each separately in the details: functional-option constructors
   whose body only sets fields of the options value; exported methods of
