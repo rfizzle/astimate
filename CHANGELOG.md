@@ -12,6 +12,15 @@ history.
 
 ### Added
 
+- Hand labels for the five 2026-10-13 replays (go-starter, ztp, shhh,
+  crush, ai-shell): `calibration/replay/labels/<name>-hand.yaml`, drafted
+  by reading every failed commit's diff and 60 sampled passed ones, with
+  each finding's cause and evidence in `<name>-hand-notes.md`. 23 of the
+  94 failed commits are `block`; no sampled passed commit hid a missed
+  regression. `calibration/reports/gate-validation-2026-10-14-hand.md`
+  scores the gate with them first and the split-or-extraction labels
+  second (`calibration/notes/hand-labels-2026-10-14.md`). The labels are
+  drafts awaiting confirmation.
 - `largest_file_sloc` and `exported_symbols` now allow growth of 5 in a
   package already over their ceiling (the TypeScript override: 8 and 5),
   hand-set from the field adjudication instead of the sweep's 3 and 0. crush's config package

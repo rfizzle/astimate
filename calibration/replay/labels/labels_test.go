@@ -222,3 +222,48 @@ func TestAstimateSplitExtractLabels(t *testing.T) {
 		}
 	}
 }
+
+// TestHandLabels checks every hand-labeled external replay,
+// <name>-hand.yaml, against the replay data directory it names: one hand
+// label (proposed or confirmed, without rule evidence) per replayed commit
+// that says whether the commit is agent-written, a rule text saying how the
+// labels were drafted, and the per-finding notes file beside it.
+func TestHandLabels(t *testing.T) {
+	const repoRoot = "../../.."
+	paths, err := filepath.Glob("*-hand.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(paths) == 0 {
+		t.Fatal("no *-hand.yaml labels files")
+	}
+	for _, path := range paths {
+		t.Run(path, func(t *testing.T) {
+			f, err := Load(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if f.Source.Range == "" || f.Source.Data == "" || f.Rule == "" {
+				t.Fatalf("source %+v and rule %q: want a range, a data directory and a rule text", f.Source, f.Rule)
+			}
+			replayed, err := Replayed(filepath.Join(repoRoot, f.Source.Data))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := f.Validate(replayed); err != nil {
+				t.Fatal(err)
+			}
+			for i := range f.Commits {
+				l := &f.Commits[i]
+				if (l.Provenance != Proposed && l.Provenance != Confirmed) || l.Agent == nil || len(l.Fired) > 0 {
+					t.Errorf("label %s: provenance %s, agent %v, %d rule evidence entries; want a hand label with agent set",
+						l.Hash, l.Provenance, l.Agent, len(l.Fired))
+				}
+			}
+			notes := strings.TrimSuffix(path, ".yaml") + "-notes.md"
+			if _, err := os.Stat(notes); err != nil {
+				t.Errorf("per-finding notes: %v", err)
+			}
+		})
+	}
+}

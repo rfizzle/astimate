@@ -1,0 +1,307 @@
+source:
+  repository: "github.com:rfizzle/go-starter.git"
+  range: "HEAD~60..HEAD"
+  data: calibration/data/replay-go-starter-2026-10-13
+rule: "none: hand-drafted judgments awaiting the user's confirmation (provenance proposed), made by reading each diff against the replay's findings as calibration/notes/field-adjudication-2026-10-13.md did. A failed commit is block when it introduced something a careful reviewer would ask to fix before merging, or that measurably makes a package harder to maintain, and one of the gate's findings names it; allow otherwise. Each reason starts with the cause (real, or for allow boilerplate-dup, covered-export, over-ceiling-growth, tiny-ratchet, no-baseline, double-report, immutable-global or other) and ends with file:line evidence; the per-finding causes are in <name>-hand-notes.md. A stratified sample of passed commits that touched a package was read too and is block only where the gate missed a regression of a kind it claims to catch; the other passed commits were not read and are allow by assumption, which their reason says. agent follows the Co-Authored-By and author rule of calibration/corpus-commits.yaml."
+commits:
+  - hash: 3d226d162dadb3d01e8cb1b4de699e0b8f737348
+    verdict: allow
+    reason: "sampled pass, read: Deletion of the unused generic storage API (about 1,100 lines removed, a few call-site edits in internal/app/app.go); nothing to catch. Evidence: internal/storage/postgres/postgres.go:1, internal/storage/errors.go:1."
+    provenance: proposed
+    agent: false
+  - hash: 74f7726315f6193673dabe5d710397df97d67677
+    verdict: allow
+    reason: "no-baseline + other: moved duplicates: An architecture move: the domain dup is an interface method set in a new package and the user-module dup is the pre-existing ErrNoRows error chain carried over by the rename, so no new copy-paste was introduced. Evidence: internal/domain/user.go:42, internal/modules/user/repository.go:52, internal/modules/user/repository.go:65."
+    provenance: proposed
+    agent: false
+  - hash: 3deae3dad4019bedc82e545645327675aec5a117
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: 804071bae7722dbb31bcc8e8714bca8065570e84
+    verdict: allow
+    reason: "passed, outside the hand sample: the diff was not read and allow is assumed."
+    provenance: proposed
+    agent: false
+  - hash: 6c9f0f73fe29372e76f50b582a6ad00d2fc4bff7
+    verdict: allow
+    reason: "sampled pass, read: Six added lines in the config struct as part of a move; no logic, no copy. Evidence: internal/platform/config/config.go:1."
+    provenance: proposed
+    agent: false
+  - hash: 21b819ab69692be1a6725bb6965df37bca1b7bac
+    verdict: allow
+    reason: "passed, outside the hand sample: the diff was not read and allow is assumed."
+    provenance: proposed
+    agent: false
+  - hash: bd1e892c732dece256a7139c55c65c299882db69
+    verdict: block
+    reason: "real (with other: cobra command var, other: cobra AddCommand init, boilerplate-dup): The new migrate command was built by pasting seed's command preamble, flag block and pool/open/ping setup; a reviewer would ask for shared helpers, and the author added them a few commits later (186d1c4, eab9fe9). Evidence: cmd/migrate.go:65, cmd/migrate.go:119, cmd/migrate.go:138."
+    metrics: [dup_blocks, duplication_pct]
+    provenance: proposed
+    agent: false
+  - hash: e9fbc1d3af34e10d7658e99ca2505d1dc8149380
+    verdict: allow
+    reason: "covered-export: The only flagged export is a trivial boolean wrapper over the tested Check, and integration tests call it directly. Evidence: internal/platform/health/health.go:87, internal/platform/health/health_integration_test.go:62."
+    provenance: proposed
+    agent: false
+  - hash: bef19d605589d501b4f141d803e6a8367bf31675
+    verdict: allow
+    reason: "sampled pass, read: Adds a test harness behind //go:build integration (postgrestest/harness.go:1) and an export_test.go; test-support code only. Evidence: internal/platform/database/postgrestest/harness.go:1."
+    provenance: proposed
+    agent: false
+  - hash: 89922c436c40fa12592d94f8c014f363b1f16ba4
+    verdict: allow
+    reason: "passed, outside the hand sample: the diff was not read and allow is assumed."
+    provenance: proposed
+    agent: false
+  - hash: 5d9bb0069ce3310720ee92cb9ff79457ffe13f9d
+    verdict: allow
+    reason: "covered-export: A test-focused commit; both flagged exports are an accessor and an unexported-type listener method that tests do run. Evidence: internal/platform/http/server/webserver.go:268, internal/platform/http/server/webserver_test.go:62, internal/app/app_integration_test.go:128."
+    provenance: proposed
+    agent: false
+  - hash: a9233346443d19b3bd3c6ee1e9804708e6974430
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: 72f02c0de06b3511bc5c2ce0f28d039f00402a31
+    verdict: allow
+    reason: "immutable-global + covered-export: The new global is a read-only precomputed hash and the new repository method has integration tests the gate does not see. Evidence: internal/modules/credential/service.go:32, internal/modules/user/repository.go:80, internal/modules/user/repository_integration_test.go:43."
+    provenance: proposed
+    agent: false
+  - hash: 09783ecbbaed17e0184643d9b9ee5926721520cb
+    verdict: allow
+    reason: "other: composition root wiring: Crossing the import ceiling by one in the composition root to wire a new module is expected, not a structural problem. Evidence: internal/app/app.go:19, internal/app/app.go:209."
+    provenance: proposed
+    agent: false
+  - hash: aaee4660b542a3186a216dbe11e44fb27773b504
+    verdict: allow
+    reason: "sampled pass, read: Moves the dummy hash into NewService with a cost check and merges Authenticate's branches into one comparison path; simpler, removes a package global, and the tests were updated alongside. Evidence: internal/modules/credential/service.go:56, internal/modules/credential/service_test.go:1."
+    provenance: proposed
+    agent: false
+  - hash: f818863cab74c529912cf327a32ad0d12dabe7fa
+    verdict: allow
+    reason: "boilerplate-dup: A security fix that added seed flags; the duplicate is cobra flag registration nobody would extract. Evidence: cmd/seed.go:127."
+    provenance: proposed
+    agent: false
+  - hash: 96d2cffa923faebe5772fd5701608bb6951eb71b
+    verdict: allow
+    reason: "boilerplate-dup: The ratelimiter rewrite removed far more than it added; the extra cross-package block is the standard HTTP middleware closure shell. Evidence: internal/platform/ratelimiter/middleware.go:16, internal/auth/audit.go:12."
+    provenance: proposed
+    agent: false
+  - hash: 93137e71f2cffa15f81954bf32ee6cf74f43a17f
+    verdict: allow
+    reason: "boilerplate-dup + other: composition root wiring: A feature that adds flags, config validation and wiring; every duplicate is flag/option/validation-table scaffolding and the import rise is the composition root wiring a new middleware. Evidence: cmd/serve.go:175, internal/app/app.go:308, internal/app/app.go:25."
+    provenance: proposed
+    agent: false
+  - hash: 2546c965e6e33d6710e12b078feb0d787215a479
+    verdict: allow
+    reason: "passed, outside the hand sample: the diff was not read and allow is assumed."
+    provenance: proposed
+    agent: false
+  - hash: 960cdd563e3b72895e6c5f7ff9529eeee4fdbe1a
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: 9674c81bb00a5c2b85ce8320b79b5d1ecadaabdc
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: true
+  - hash: 4f11de7277c0e90387ebacfb369935107b22ab5f
+    verdict: allow
+    reason: "tiny-ratchet: Nesting 2->3 from a small single-pass replacement loop is ordinary code, not a maintainability regression. Evidence: internal/templateinit/initializer.go:407."
+    provenance: proposed
+    agent: true
+  - hash: aaaa9058b017a7798d69779a2ebcad35a3c14f83
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: true
+  - hash: 59825a75022e6475af0cff0a427bb39cbfdcfc4b
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: true
+  - hash: 46c00d9597c676c935073cff7176f55766db56ec
+    verdict: allow
+    reason: "sampled pass, read: Deletes the dead auth subsystem and middleware chain (more than 1,400 lines removed, 60 added, mostly test rewrites); nothing to catch. Evidence: internal/auth/auth.go:1, internal/platform/http/middleware/chain.go:1."
+    provenance: proposed
+    agent: true
+  - hash: b991ac861cddb402c6bb66180a49999c5dba5578
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: true
+  - hash: 14b93614f39ab88c413f866b3403db577d6338d4
+    verdict: allow
+    reason: "passed, outside the hand sample: the diff was not read and allow is assumed."
+    provenance: proposed
+    agent: true
+  - hash: ecb1d88f78c83b84c058e273c07cd539a5fcad23
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: true
+  - hash: bd8e156c22515e6f94219f74af27ccfc49826ef7
+    verdict: allow
+    reason: "sampled pass, read: Changes only integration tests and the build-tagged test harness so packages share one container. Evidence: internal/platform/database/postgrestest/harness.go:1."
+    provenance: proposed
+    agent: true
+  - hash: 7f57d99b94fd1f038e967263dec50cc2224dbbf5
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: true
+  - hash: 2379661a8a1aeca5ca9ccbfea2d493da6633780c
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: true
+  - hash: 0fc918b71f89eacdd033aa68eab05b4a5d6d925e
+    verdict: allow
+    reason: "passed, outside the hand sample: the diff was not read and allow is assumed."
+    provenance: proposed
+    agent: true
+  - hash: 64033a1b2f7ce2e495bfd29d7c3ca766055fefce
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: true
+  - hash: 20e2158277212e9c7b6b5e30795f7dbb9fb134ab
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: 9e8242c12d45d08cba89837d23a9f71da9c06ea0
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: 1c72b921424638aaf02bc119bdd5e799c7c50cf3
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: 369c4bc7f38e8a3c7fde5f50b538669b29b4aec2
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: c6a211328e25457ec4ffc938ccc57d54617e9bc0
+    verdict: allow
+    reason: "sampled pass, read: Build change: one removed line in templateinit and a tools.go import swap. Evidence: tools.go:1, internal/templateinit/initializer.go:1."
+    provenance: proposed
+    agent: true
+  - hash: bd919ea0cacb96b00cb3983ad5d4b42c6ca77bdd
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: true
+  - hash: cfb326ea87b82c8a5f969d30d589bae0aec95779
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: true
+  - hash: cc6213c3bd60f46daeff97dcbd41239565d158a3
+    verdict: allow
+    reason: "passed, outside the hand sample: the diff was not read and allow is assumed."
+    provenance: proposed
+    agent: true
+  - hash: 470381735dac8237463a0a402483356215b46677
+    verdict: allow
+    reason: "passed, outside the hand sample: the diff was not read and allow is assumed."
+    provenance: proposed
+    agent: true
+  - hash: 74f6a0bf9aa1d64fa4bbe7955a21262c54760d54
+    verdict: allow
+    reason: "sampled pass, read: Removes the request-based Validator surface (about 40 lines out, 5 in); deletion only. Evidence: internal/auth/jwt.go:1, internal/auth/interfaces.go:1."
+    provenance: proposed
+    agent: true
+  - hash: e38caf5a83e8372b0df0c84b4aea2fff223e578c
+    verdict: allow
+    reason: "passed, outside the hand sample: the diff was not read and allow is assumed."
+    provenance: proposed
+    agent: true
+  - hash: c856d535b72f29c60927499c3a9d07c2ae341453
+    verdict: allow
+    reason: "sampled pass, read: Removes the unused URI/connection/close surface and its tests; deletion only. Evidence: internal/platform/database/postgres/options.go:1, internal/platform/database/postgres/postgres.go:1."
+    provenance: proposed
+    agent: true
+  - hash: 067f1bcafca9db61bdede8333f8d29131dce79ab
+    verdict: allow
+    reason: "passed, outside the hand sample: the diff was not read and allow is assumed."
+    provenance: proposed
+    agent: true
+  - hash: a609d270cd99b4a837ceb455322fbcc0a10fedca
+    verdict: allow
+    reason: "sampled pass, read: Deletes 173 lines of low-value tests and no source; the options it covered were deleted two commits later in 5cca615. Evidence: internal/platform/database/postgres/options_test.go:1."
+    provenance: proposed
+    agent: true
+  - hash: 900aeb1e3de37451c5e73fbaa7c5697ce08ff921
+    verdict: allow
+    reason: "passed, outside the hand sample: the diff was not read and allow is assumed."
+    provenance: proposed
+    agent: true
+  - hash: 186d1c44dff42190c0ef0cb9b46995b21ef8888d
+    verdict: allow
+    reason: "sampled pass, read: Extracts addDatabaseFlags/addLoggingFlags into cmd/utils.go and removes three copies; it reduces duplication. Evidence: cmd/utils.go:75, cmd/utils.go:87."
+    provenance: proposed
+    agent: true
+  - hash: eab9fe9580c935470d2f66701a601d5568b157c0
+    verdict: allow
+    reason: "covered-export: A deduplication refactor; the flagged export is a trivial struct mapping. Evidence: internal/platform/database/postgres/pool.go:41."
+    provenance: proposed
+    agent: true
+  - hash: e7cc411e09bb0c1d1dc94e6b6c6d182431c1e3c5
+    verdict: allow
+    reason: "passed, outside the hand sample: the diff was not read and allow is assumed."
+    provenance: proposed
+    agent: true
+  - hash: d48f75d9c83b1da6ac8b4db106a9728969939056
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: true
+  - hash: cb2aa28b0bc75db7a3f9a5ffc4562b613847d9d4
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: true
+  - hash: 5cca615b6956d153b009b96517d4b4d1649f6d08
+    verdict: allow
+    reason: "sampled pass, read: Replaces the Client type and option funcs with free Ping/Migrate/MigrationStatus functions that take the pool; net removal of about 300 lines, with no new copy or complexity. Evidence: internal/platform/database/postgres/postgres.go:21, internal/platform/database/postgres/migration.go:86."
+    provenance: proposed
+    agent: true
+  - hash: bfc2c59613088a867594dcc870a66a6555261480
+    verdict: allow
+    reason: "passed, outside the hand sample: the diff was not read and allow is assumed."
+    provenance: proposed
+    agent: true
+  - hash: ea8a388d1c697dd08c6284e7343ed6af366add35
+    verdict: allow
+    reason: "tiny-ratchet: p90 rose only because 15 trivial option functions were deleted; the refactor made the package simpler. Evidence: internal/platform/http/server/webserver.go:127, internal/platform/http/server/webserver.go:192."
+    provenance: proposed
+    agent: true
+  - hash: ce6099c3f6aadd3f208af260cdd61b08e5cd9f8b
+    verdict: allow
+    reason: "sampled pass, read: A one-line build-target change in templateinit, plus test deletions. Evidence: internal/templateinit/initializer.go:1."
+    provenance: proposed
+    agent: true
+  - hash: ef5b99f791588e051b012b9d1a323841cb04106a
+    verdict: allow
+    reason: "boilerplate-dup: The commit only deleted code; the new duplicates are dependency-struct declarations that became identical once a field was removed. Evidence: cmd/seed.go:20, cmd/seed.go:26."
+    provenance: proposed
+    agent: true
+  - hash: 8288a89f5cac63d8aaeceecd3379cfefa7fe166e
+    verdict: allow
+    reason: "passed, outside the hand sample: the diff was not read and allow is assumed."
+    provenance: proposed
+    agent: true
+  - hash: b2f5f209634c732a98da3bb1b49beff989272053
+    verdict: allow
+    reason: "sampled pass, read: Deletes the unused UserRepository interface and its assertion; deletion only. Evidence: internal/domain/user.go:1, internal/modules/user/repository.go:1."
+    provenance: proposed
+    agent: true

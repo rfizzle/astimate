@@ -1,0 +1,309 @@
+source:
+  repository: "https://github.com/charmbracelet/crush.git"
+  range: "HEAD~60..HEAD"
+  data: calibration/data/replay-crush-2026-10-13
+rule: "none: hand-drafted judgments awaiting the user's confirmation (provenance proposed), made by reading each diff against the replay's findings as calibration/notes/field-adjudication-2026-10-13.md did. A failed commit is block when it introduced something a careful reviewer would ask to fix before merging, or that measurably makes a package harder to maintain, and one of the gate's findings names it; allow otherwise. Each reason starts with the cause (real, or for allow boilerplate-dup, covered-export, over-ceiling-growth, tiny-ratchet, no-baseline, double-report, immutable-global or other) and ends with file:line evidence; the per-finding causes are in <name>-hand-notes.md. A stratified sample of passed commits that touched a package was read too and is block only where the gate missed a regression of a kind it claims to catch; the other passed commits were not read and are allow by assumption, which their reason says. agent follows the Co-Authored-By and author rule of calibration/corpus-commits.yaml."
+commits:
+  - hash: 63d73f7b4804453c39014040fba3ce188f6f2bf9
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: ba86f77863bd4ca8071fdbe642d283c4c3f35904
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: b82d7d05d8883e3f05c9cb86a6f47bfa3b2ec59b
+    verdict: block
+    reason: "real (with other: +6 guard in legacy 52 function, over-ceiling-growth, boilerplate-dup): The same restore-model-from-session routine was pasted into three packages (app, cmd, ui/model) instead of living once next to config.IsModelAvailable; a reviewer would ask for one shared helper, and the cross-package and per-package dup findings name it. Evidence: internal/app/app.go:449, internal/cmd/run.go:546, internal/ui/model/ui.go:2183."
+    metrics: [dup_blocks_cross_pkg, dup_blocks, untested_exports]
+    provenance: proposed
+    agent: false
+  - hash: 48768f8b3d37dcbde70a5d1e1c1b8d5021c656f8
+    verdict: allow
+    reason: "sampled pass, read: Removes two mcp.WaitForInit waits and rewrites comments; deletion-only logic change, nothing the gate should catch. Evidence: internal/agent/coordinator.go:227."
+    provenance: proposed
+    agent: false
+  - hash: c78cc67457a027b4e774904240446ed4f28d8b95
+    verdict: allow
+    reason: "sampled pass, read: Restores the wait for non-interactive runs behind one if and adds DisarmInit, a 3-line test-support export; no copy, no complexity jump. Evidence: internal/agent/coordinator.go:242, internal/agent/tools/mcp/init.go:120."
+    provenance: proposed
+    agent: false
+  - hash: f50509d460badf3c914341ac367c91cd708d9131
+    verdict: allow
+    reason: "over-ceiling-growth: Two duration log lines in an already-large file; nobody would split init.go for this. Evidence: internal/agent/tools/mcp/init.go:295, internal/agent/tools/mcp/init.go:627."
+    provenance: proposed
+    agent: false
+  - hash: 804324fb80a1133f678b0d8c3d74f32c16988c12
+    verdict: allow
+    reason: "boilerplate-dup + over-ceiling-growth + covered-export: A small feature: an exit banner in cmd plus a trivial accessor; the dup is an options literal and the capacity hits are ordinary growth in already-over packages. Evidence: internal/cmd/root.go:172, internal/cmd/root.go:176, internal/ui/model/ui.go:3954."
+    provenance: proposed
+    agent: false
+  - hash: ec2fe4379f84efa91ad42cddcd02ac5784a5fbcd
+    verdict: block
+    reason: "real (with other: undecided, over-ceiling-growth): Adds an exported ~50-line RefetchHyperProvider that mutates store state with no test, and duplicates its own replace-or-prepend provider loop in two places; a reviewer would ask for a test and one helper. Evidence: internal/config/store.go:188, internal/config/store.go:210, internal/config/provider.go:251."
+    metrics: [untested_exports, dup_blocks]
+    provenance: proposed
+    agent: false
+  - hash: 2e024135e8bef2c929ff0a6e6ffc5837204c9e70
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: 25bf6a2551df8c5baefb94ff6d77c4105a2ce8c3
+    verdict: allow
+    reason: "boilerplate-dup + other: one case arm in legacy 327 switch + over-ceiling-growth: A keybinding feature that adds one case arm and one helper, and the helper deduplicates three call sites; nothing a reviewer would push back on. Evidence: internal/ui/model/ui.go:2398, internal/ui/model/chat.go:631, internal/ui/model/keys.go:241."
+    provenance: proposed
+    agent: false
+  - hash: ba531a409ab68f91144c80eafae8b952daa35a0d
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: 06e27eb1eb8f5ea0c1f71d02e4cabe299b36356b
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: 3795102948817bd6407590ab4f0d173da7aba0ab
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: 0fa44aa4d63efdf4a0f0884a954dd8c6ff8dfcde
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: d8daa1107d8376244e627a2e85cee8d5bfb61369
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: 051955a84c14550254d7929b4f27d01b84b4fdde
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: 6abd61ec5868d71ff9e270eaf164dc046297fa51
+    verdict: allow
+    reason: "boilerplate-dup + over-ceiling-growth: A merged PR that rewrites the read-only command check as a parsed allow-list with tests; the duplication is table rows and the growth is one coherent feature in an already-oversized package. Evidence: internal/agent/tools/safe.go:145, internal/agent/tools/safe.go:279, internal/agent/tools/bash.go:209."
+    provenance: proposed
+    agent: false
+  - hash: 240c487ee22017921db343b490b4e95be2441e3b
+    verdict: allow
+    reason: "other: revert restores prior code: A clean revert of PR #3426; it restores the exact pre-merge tree, so the complexity rise only undoes the previous merge's reduction. Evidence: internal/agent/tools/bash.go:209."
+    provenance: proposed
+    agent: false
+  - hash: b8453c4ada638ebf8675ac966fed56f0d6e9b38c
+    verdict: allow
+    reason: "sampled pass, read: gofumpt reformat of one call (one line split in two); formatting only. Evidence: internal/agent/tools/mcp/init.go:629."
+    provenance: proposed
+    agent: false
+  - hash: ed15da4c46e0bdc3afae4842db54e7def7b9f15e
+    verdict: allow
+    reason: "boilerplate-dup: A one-field bug fix in the theme table; the duplicate is lipgloss style assignments. Evidence: internal/ui/styles/quickstyle.go:963, internal/ui/dialog/permissions.go:574."
+    provenance: proposed
+    agent: false
+  - hash: 7dc88e247d7a8c59f9673967bebf80acfae8bf03
+    verdict: allow
+    reason: "immutable-global: The new global is a lazily computed constant via sync.OnceValue, not mutable state. Evidence: internal/ui/model/header.go:38."
+    provenance: proposed
+    agent: true
+  - hash: b7b90939c6d9069815e3f21d465994fded363af8
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: 47df446e77727b27ee61312fd50b45cfa7402787
+    verdict: allow
+    reason: "sampled pass, read: Reverts the user@host header feature; deletion only. Evidence: internal/ui/model/header.go:24."
+    provenance: proposed
+    agent: false
+  - hash: 4dc477de6e1b670b8caf8fe5703521c2d012813a
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: 0f14334fb03703a5557f875d182e347e6375e0e7
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: afe54827dd653ad908c3debf892d34bf664af52c
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: a6fecdc7f603e26dd335883f6d44d645948a1283
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: 6ee6e5c4cb3baa2d9a30e57e8d5bd34ee82f7e8b
+    verdict: allow
+    reason: "sampled pass, read: Re-recorded VCR cassettes and a one-line test model change; no source change. Evidence: internal/agent/agent_test.go:33."
+    provenance: proposed
+    agent: false
+  - hash: 70d321626ca20ad8fcfb99e61bbe377a6b91748c
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: 7d78d7422a92918441a68d01d96d48fa3b9fd9db
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: d86a297c486712c0118ba1a417b9f95eac9894cb
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: db7fac6cc6ad5f2759f0411458148e342f2dd9bf
+    verdict: allow
+    reason: "sampled pass, read: Test-only: adds an env-isolation helper to a test file. Evidence: internal/config/refresh_singleflight_test.go:18."
+    provenance: proposed
+    agent: false
+  - hash: 90bc466d6f35b120070b6fd8a73f4262f155086a
+    verdict: allow
+    reason: "other: legacy block re-chunked: Mouse support in the session picker; the new duplicate is a pre-existing Draw preamble shifted by one inserted line, per the field adjudication, which the diff confirms. Evidence: internal/ui/dialog/sessions.go:281, internal/ui/dialog/sessions.go:371."
+    provenance: proposed
+    agent: false
+  - hash: 37f36e93824e5c4f892e4a817f7f628e2682fe14
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: 08552fb918a3b6247c2f8366d330f3b7f02fc891
+    verdict: allow
+    reason: "boilerplate-dup + other: three delegating guards in legacy 369 Update + over-ceiling-growth: Textarea selection is ordinary feature work in an already-huge UI package; the new logic sits in a helper and the duplicates are key tables and two short case arms. Evidence: internal/ui/model/ui.go:711, internal/ui/model/ui.go:3503, internal/ui/model/ui.go:2687."
+    provenance: proposed
+    agent: false
+  - hash: 8661a1c4baa171f49b6f7ab3d4db7836cf5b5548
+    verdict: allow
+    reason: "other: pre-existing copies lengthened by a uniform fix: A minimal Windows bug fix applied identically to five filter blocks that were already copies; it did not create the duplication. Evidence: internal/ui/dialog/notifications.go:157, internal/ui/dialog/commands.go:231."
+    provenance: proposed
+    agent: false
+  - hash: 41cdd18a4b4f19c31c34301227da9341d62e9823
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: c4835512e04464fd8ea8dd9fdbc1059b9ec485d4
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: 61ce7c038af0a7bfb6fb47573632bc1dcddb12a4
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: 25c8b728800fed4617bdbaa6da038e32609b86ca
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: 6440e6402f6aef11112ef057eeac9a55819b7695
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: 5be6a3380a0d57e9342fcd3cf815ee841f648558
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: cce887189161f4be7fb2bfcdd1bcd5d78d43e7bf
+    verdict: allow
+    reason: "over-ceiling-growth: A focused stdio-diagnostics bug fix with a test; no maintainer would split init.go over 17 lines. Evidence: internal/agent/tools/mcp/init.go:980."
+    provenance: proposed
+    agent: true
+  - hash: c824c880768a4a251c841213d69b09bc0ab4d954
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: a0fe47b62871ad39eea3723e9231a47ffb924cdf
+    verdict: allow
+    reason: "sampled pass, read: Adds ctrl+a to one key binding and rewrites a comment; trivial. Evidence: internal/ui/model/ui.go:405."
+    provenance: proposed
+    agent: false
+  - hash: 8f63ee5937e29174466896918f60a558e3dd103e
+    verdict: block
+    reason: "real (with other: marginal ceiling crossing by one fix): The fix copied a 15-line row/column-range loop from HighlightBuffer into extractRows; a reviewer would ask to share it, and the dup_blocks finding names it. Evidence: internal/ui/list/highlight.go:58, internal/ui/list/highlight.go:211."
+    metrics: [dup_blocks]
+    provenance: proposed
+    agent: false
+  - hash: f5c0b067110d7122c12e50b9639137c4ab1f9bfa
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: 0b4dc190d65d8433e7bd6cfa09f85482cb14e737
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: b0115a1baa2f7827240c0d443e2296a7d13638ac
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: 06345cc328127ae6e71ca83c32d3bba1a4f8342c
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: af65d24aa917cf469aa850d13092939c9c9fbb0f
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: abc246403b95c845be2b17551244521d26ad9176
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: 75962c4887d87dcd203b5fba9bf46fd3b52c77c3
+    verdict: allow
+    reason: "sampled pass, read: Adds a small unexported renderLines helper for a rendering bug; no copy, no complexity, no new export. Evidence: internal/ui/xchroma/chroma.go:94."
+    provenance: proposed
+    agent: false
+  - hash: 82557e2af69ff67fe50e53055bbe83dddbe07f6b
+    verdict: allow
+    reason: "over-ceiling-growth + immutable-global: A bug fix adding one option and a read-only lookup table; neither finding is a maintainability regression. Evidence: internal/config/config.go:461, internal/config/config.go:471."
+    provenance: proposed
+    agent: false
+  - hash: 460a877fcb60c32d3194a09f262be4cb4d5928bf
+    verdict: allow
+    reason: "sampled pass, read: One-line change from TrimSpace to Trim(\"\\n\") with a doc update; trivial. Evidence: internal/stringext/string.go:23."
+    provenance: proposed
+    agent: false
+  - hash: 689494f84845cd1d403b1266461b9d505fb1f363
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: 2edc4e68781e458bd9f6975bb32aaaba9631eee5
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
+  - hash: 773c35656467769a12394ccd77119ec3bc960abc
+    verdict: allow
+    reason: "over-ceiling-growth + covered-export + boilerplate-dup: Adds one config option end to end; every finding is a new enum, an accessor, a validation arm or small growth in already-over files. Evidence: internal/cmd/root.go:231, internal/config/config.go:313, internal/shellconfig/options.go:237."
+    provenance: proposed
+    agent: false
+  - hash: a83480eb156fd75cd96b4fecaf3cc40570bb3142
+    verdict: allow
+    reason: "over-ceiling-growth + covered-export: A refactor that extracts a tested exitbanner package and centralises option defaults; it makes the code easier to maintain and the findings are capacity ratchets and covered exports. Evidence: internal/config/load.go:546, internal/config/config.go:287, internal/ui/exitbanner/exitbanner.go:73."
+    provenance: proposed
+    agent: false
+  - hash: 6d14dd93a9e526505f7de54ae5999431bc32a793
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: proposed
+    agent: false
