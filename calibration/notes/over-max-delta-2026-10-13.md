@@ -128,3 +128,20 @@ ratio, rounded to a readable step:
 per-function ratchet landed; it now carries the Go value, since the ceiling
 differs by 10% only. The sweep over ai-shell reports no effect for any of
 these settings, which is what a corpus with no over-ceiling row should show.
+
+## Decision 2026-10-14
+
+The user set `largest_file_sloc` and `exported_symbols` by hand, not from the
+sweep above, on the 2026-10-13 field adjudication: crush's config-schema
+package (150+ exports) failed on +1, +3 and +5 exports for ordinary options,
+and bug fixes of +6 to +24 lines failed in files over 600 (12 of crush's 22
+per-commit false findings). The sweep's 17 split-or-extraction `block` labels
+are thin and rule-generated, and a later split is predicted by growth of an
+already-over package almost by construction, so it rewards a small allowance.
+
+| Rule | Sweep | Decided | TypeScript |
+| --- | --- | --- | --- |
+| `largest_file_sloc` | 3 | 5 | 8 (5 times 900/600, rounded up) |
+| `exported_symbols` | 0 | 5 | 5 (5 times 55/60 rounds to 5) |
+
+The values stay hand-set until the hand labels allow a refit.

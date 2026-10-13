@@ -12,6 +12,12 @@ history.
 
 ### Added
 
+- `largest_file_sloc` and `exported_symbols` now allow growth of 5 in a
+  package already over their ceiling (the TypeScript override: 8 and 5),
+  hand-set from the field adjudication instead of the sweep's 3 and 0. crush's config package
+  failed on +1, +3 and +5 exports and bug fixes of +6 to +24 lines failed in
+  files over 600; the same changes now pass with a warning.
+
 - The over-ceiling allowance (`over_max_delta`) of three more capacity rules
   is fitted from per-commit replays of five more repositories, and the
   TypeScript override now has one on each capacity rule. At the top level

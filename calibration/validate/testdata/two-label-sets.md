@@ -472,8 +472,8 @@ Nothing to sweep: no limit, or no row it judges.
 | over_max_delta 0 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | over_max_delta 1 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | over_max_delta 2 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
-| over_max_delta 3 * | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
-| over_max_delta 5 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 3 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 5 * | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | over_max_delta 10 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | over_max_delta 20 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | over_max_delta 25 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
@@ -496,11 +496,11 @@ Nothing to sweep: no limit, or no row it judges.
 | max 120 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | max 180 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | max 300 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
-| over_max_delta 0 * | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 0 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | over_max_delta 1 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | over_max_delta 2 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | over_max_delta 3 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
-| over_max_delta 5 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
+| over_max_delta 5 * | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | over_max_delta 10 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | over_max_delta 20 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |
 | over_max_delta 25 | 0.0% | 0.0% | +0.0 pts | 50.0% | 50.0% |

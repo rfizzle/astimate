@@ -88,8 +88,9 @@ func TestParseDefault(t *testing.T) {
 			t.Errorf("changed_func_cognitive_max max = %v, max_delta = %v, want max 50 and no max_delta", th.Max, th.MaxDelta)
 		}
 	}
-	// over_max_delta is fitted for five capacity rules (SPEC.md 8.2), 0 on
-	// exported_symbols. changed_func_cognitive_max carries 5,
+	// over_max_delta is fitted for three capacity rules and hand-set for two
+	// (largest_file_sloc and exported_symbols, 5 each; SPEC.md 8.2).
+	// changed_func_cognitive_max carries 5,
 	// per function (SPEC.md 8.1); no other rule has one.
 	overMax := map[string]float64{}
 	for _, th := range cfg.Thresholds {
@@ -97,7 +98,7 @@ func TestParseDefault(t *testing.T) {
 			overMax[th.Metric] = *th.OverMaxDelta
 		}
 	}
-	if w := map[string]float64{"tokens_est": 1000, "largest_file_sloc": 3, "exported_symbols": 0, "internal_imports": 1, "sloc": 100, "changed_func_cognitive_max": 5}; !maps.Equal(overMax, w) {
+	if w := map[string]float64{"tokens_est": 1000, "largest_file_sloc": 5, "exported_symbols": 5, "internal_imports": 1, "sloc": 100, "changed_func_cognitive_max": 5}; !maps.Equal(overMax, w) {
 		t.Errorf("over_max_delta = %v, want %v", overMax, w)
 	}
 	// The density floors (SPEC.md 8.2), the same in the typescript

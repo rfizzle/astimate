@@ -295,7 +295,7 @@ func TestDefaultCarriesTypeScriptOverride(t *testing.T) {
 	takeFloors(exp.Thresholds)
 	// The allowances are set by hand from the validation fit or scaled from
 	// the top level's (SPEC.md 8.2), not produced by the override fit.
-	wantOver := map[string]float64{"changed_func_cognitive_max": 5, "tokens_est": 2200, "largest_file_sloc": 5, "exported_symbols": 0, "internal_imports": 1, "sloc": 250}
+	wantOver := map[string]float64{"changed_func_cognitive_max": 5, "tokens_est": 2200, "largest_file_sloc": 8, "exported_symbols": 5, "internal_imports": 1, "sloc": 250}
 	if over := takeOverMax(got.Thresholds); !reflect.DeepEqual(over, wantOver) {
 		t.Errorf("default typescript over_max_delta = %v, want %v", over, wantOver)
 	}

@@ -171,18 +171,22 @@ thresholds:
     kind: capacity
     max: 600
     warn_at: 0.75
-    # Fitted the same way: a file already over max may take a few-line fix.
-    # Refitted on 2026-10-13 over five more per-commit replays (3 had the
-    # best J within the false-failure budget; 5 was close behind).
-    over_max_delta: 3
+    # Hand-set from the 2026-10-13 field adjudication, not the sweep's 3:
+    # bug fixes of +6 to +24 lines in files over 600 failed. The sweep's 17
+    # split-or-extraction block labels are thin and predict growth of an
+    # already-over package by construction; S-198's hand labels will refit it.
+    over_max_delta: 5
   # Surface past this is a package boundary problem.
   - metric: exported_symbols
     kind: capacity
     max: 60
     warn_at: 0.75
-    # Swept on 2026-10-13 over 276 replayed commits: every allowance above 0
-    # lost more of the later-split commits than it spared, so it stays 0.
-    over_max_delta: 0
+    # Hand-set from the 2026-10-13 field adjudication, not the sweep's 0:
+    # crush's config package (150+ exports) failed on +1, +3 and +5 exports
+    # for ordinary options. The sweep's 17 split-or-extraction block labels
+    # are thin and predict growth of an already-over package by construction;
+    # S-198's hand labels will refit it.
+    over_max_delta: 5
   # Fan-out ceiling on internal imports.
   - metric: internal_imports
     kind: capacity
@@ -272,15 +276,15 @@ languages:
         kind: capacity
         max: 900
         warn_at: 0.75
-        # The top level's 3 times 900/600, rounded.
-        over_max_delta: 5
+        # The top level's hand-set 5 times 900/600, rounded up.
+        over_max_delta: 8
       # p90 57 over 1209 packages; the top level has max 60, max_delta none.
       - metric: exported_symbols
         kind: capacity
         max: 55
         warn_at: 0.75
-        # The top level's 0 scaled by 55/60.
-        over_max_delta: 0
+        # The top level's hand-set 5 (55/60 rounds to 5).
+        over_max_delta: 5
       # p90 8 over 1209 packages; the top level has max 10, max_delta none.
       - metric: internal_imports
         kind: capacity
@@ -311,6 +315,7 @@ languages:
 #     - package: internal/registry
 #       metric: globals
 #       reason: the registry is process-wide by design; see ADR 12
+#       expires: 2026-12-31
 #       expires: 2026-12-31
 
 exemptions:
