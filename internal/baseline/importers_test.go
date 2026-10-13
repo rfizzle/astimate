@@ -12,45 +12,6 @@ import (
 	"github.com/rfizzle/astimate/internal/metrics"
 )
 
-func TestParseNameStatus(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name    string
-		out     string
-		want    []changedPath
-		wantErr bool
-	}{
-		{name: "empty", out: "", want: []changedPath{}},
-		{
-			name: "added, modified, deleted, type changed and unmerged",
-			out:  "A\x00a/new.ts\x00M\x00b/b.ts\x00D\x00c/types.d.ts\x00T\x00d/link.ts\x00U\x00e/e.ts\x00",
-			want: []changedPath{
-				{path: "a/new.ts"},
-				{path: "b/b.ts"},
-				{path: "c/types.d.ts", deleted: true},
-				{path: "d/link.ts"},
-				{path: "e/e.ts"},
-			},
-		},
-		{name: "path with a space and a newline", out: "D\x00a b/x\ny.ts\x00", want: []changedPath{{path: "a b/x\ny.ts", deleted: true}}},
-		{name: "missing path", out: "M\x00a.ts\x00D\x00", wantErr: true},
-		{name: "rename status", out: "R100\x00old.ts\x00", wantErr: true},
-		{name: "copy status", out: "C100\x00old.ts\x00", wantErr: true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			got, err := parseNameStatus(tt.out)
-			if (err != nil) != tt.wantErr {
-				t.Fatalf("parseNameStatus(%q) error = %v, want error %v", tt.out, err, tt.wantErr)
-			}
-			if !tt.wantErr && !slices.Equal(got, tt.want) {
-				t.Errorf("parseNameStatus(%q) = %+v, want %+v", tt.out, got, tt.want)
-			}
-		})
-	}
-}
-
 func TestChangedPackagesRemovedContract(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -164,17 +125,17 @@ func TestFromGitRecordsImporters(t *testing.T) {
 	r.write("a/a.go", "package a\n")
 	r.commit("second")
 
-	b, err := FromGit(context.Background(), r.dir, first, golang.New(), "example.com/m", "est")
+	b, err := FromGit(context.Background(), r.dir, first, golang.New(), golang.ModulePath, "est")
 	if err != nil {
 		t.Fatalf("FromGit: %v", err)
 	}
-	if got, ok := b.Importers("example.com/m/b"); !ok || !slices.Equal(got, []string{"example.com/m/a"}) {
+	if got, ok := b.Importers("b"); !ok || !slices.Equal(got, []string{"a"}) {
 		t.Errorf("Importers(b) = %q, %v, want a from the first commit", got, ok)
 	}
-	if got, ok := b.Importers("example.com/m/a"); !ok || len(got) != 0 {
+	if got, ok := b.Importers("a"); !ok || len(got) != 0 {
 		t.Errorf("Importers(a) = %q, %v, want none and recorded", got, ok)
 	}
-	if got, ok := b.Importers("example.com/m/gone"); !ok || len(got) != 0 {
+	if got, ok := b.Importers("gone"); !ok || len(got) != 0 {
 		t.Errorf("Importers(gone) = %q, %v, want none and recorded", got, ok)
 	}
 }
@@ -201,7 +162,7 @@ func TestFileBaselineRecordsNoImporters(t *testing.T) {
 	if err != nil {
 		t.Fatalf("FromFile: %v", err)
 	}
-	if got, ok := b.Importers("example.com/m/a"); ok || got != nil {
+	if got, ok := b.Importers("a"); ok || got != nil {
 		t.Errorf("Importers(a) = %q, %v, want nil and false for a file baseline", got, ok)
 	}
 }

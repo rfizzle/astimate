@@ -31,6 +31,11 @@ type Report struct {
 	Metrics metrics.RawMetrics `json:"metrics"`
 	// Baseline is the metrics the package was compared against, if any.
 	Baseline *Baseline `json:"baseline,omitempty"`
+	// BaselineFrom are the module-relative directories, sorted, of the
+	// baseline packages the package's baseline was seeded from because its
+	// files were renamed from them (SPEC.md 8.4); omitted when the package
+	// has a baseline row of its own or none.
+	BaselineFrom []string `json:"baseline_from,omitempty"`
 	// Violations are the failed gate rules: nil (omitted) when no gate ran,
 	// non-nil and possibly empty (an empty array) when one did.
 	Violations []Finding `json:"violations,omitzero"`

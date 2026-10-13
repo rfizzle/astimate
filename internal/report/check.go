@@ -236,7 +236,10 @@ func findingCounts(r *Report) string {
 }
 
 // writeSummary writes one package's summary line: "<pkg>: N violations,
-// M warnings, K exempted" (findingCounts) and whether the package is new since the baseline. The agent
+// M warnings, K exempted" (findingCounts), whether the package is new
+// since the baseline and, last, "baseline seeded from <dirs> (rename)"
+// when its baseline was seeded from the packages its files were renamed
+// from (Report.BaselineFrom). The agent
 // passes and tier lead the counts, and the change in agent passes from the
 // baseline follows them, only when the rebuild estimate is calibrated
 // (Rebuild.Calibrated): until then the estimate's invariants (SPEC.md 7.5)
@@ -264,6 +267,9 @@ func writeSummary(w *bufio.Writer, p *CheckedPackage) {
 			sign = "+"
 		}
 		_, _ = w.WriteString(", " + sign + strconv.FormatFloat(d, 'f', 1, 64) + " passes from baseline")
+	}
+	if len(r.BaselineFrom) > 0 {
+		_, _ = w.WriteString(", baseline seeded from " + strings.Join(r.BaselineFrom, ", ") + " (rename)")
 	}
 	_, _ = w.WriteString("\n")
 }

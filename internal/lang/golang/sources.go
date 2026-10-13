@@ -16,7 +16,8 @@ import (
 // a package's metrics. No file is marked Contract: a Go import path names
 // its package whatever files it holds, so an importer's internal_imports
 // moves only with the importer's own import declarations, whose change
-// selects it (SPEC.md 8.4).
+// selects it (SPEC.md 8.4). A file whose name ends in "_test.go" is
+// marked Test.
 func (e *Extractor) ClassifyFile(rel string) metrics.SourceFile {
 	if !strings.HasSuffix(rel, ".go") {
 		return metrics.SourceFile{}
@@ -25,7 +26,7 @@ func (e *Extractor) ClassifyFile(rel string) metrics.SourceFile {
 	if slices.Contains(strings.Split(dir, "/"), "testdata") {
 		return metrics.SourceFile{}
 	}
-	return metrics.SourceFile{Kind: metrics.PackageSource, Package: dir}
+	return metrics.SourceFile{Kind: metrics.PackageSource, Package: dir, Test: strings.HasSuffix(rel, "_test.go")}
 }
 
 // IsModuleMarker implements metrics.SourceClassifier: a go.mod file starts

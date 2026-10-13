@@ -65,6 +65,26 @@ type CrossBlock struct {
 	Occurrences []Occurrence
 }
 
+// MapPackages returns copies of blocks with each occurrence's Package
+// replaced by rename(Package), as when blocks move between package
+// identifiers and module-relative directories; blocks is left unchanged
+// and nil stays nil.
+func MapPackages(blocks []CrossBlock, rename func(string) string) []CrossBlock {
+	if blocks == nil {
+		return nil
+	}
+	out := make([]CrossBlock, len(blocks))
+	for i := range blocks {
+		occ := make([]Occurrence, len(blocks[i].Occurrences))
+		for j, o := range blocks[i].Occurrences {
+			o.Package = rename(o.Package)
+			occ[j] = o
+		}
+		out[i] = CrossBlock{Occurrences: occ}
+	}
+	return out
+}
+
 // Occurrence is one occurrence of a duplicate block.
 type Occurrence struct {
 	// Package is the native identifier of the package holding the

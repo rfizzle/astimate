@@ -3,6 +3,8 @@ package baseline
 import (
 	"context"
 	"path/filepath"
+
+	"github.com/rfizzle/astimate/internal/baseline/internal/diff"
 )
 
 // RepoDir returns root's directory relative to the top level of the git
@@ -13,7 +15,7 @@ import (
 // repository, or git cannot say, it returns "" and the module root stays
 // the prefix: a check outside git has no repository to be relative to.
 func RepoDir(ctx context.Context, root string) string {
-	rel, err := repoRelative(ctx, root)
+	rel, err := diff.RepoRelative(ctx, root)
 	if err != nil || rel == "." {
 		return ""
 	}

@@ -166,9 +166,10 @@ func TestSelectImportersAtBaseline(t *testing.T) {
 		modPath + "/c":   nil,
 		modPath + "/hub": {modPath + "/b"},
 	}
+	// A baseline keys and lists its import graph by directory.
 	baseGraph := map[string][]string{
-		modPath + "/hub":  {modPath + "/a", modPath + "/b"},
-		modPath + "/gone": {modPath + "/c", modPath + "/old"},
+		"hub":  {"a", "b"},
+		"gone": {"c", "old"},
 	}
 	tests := []struct {
 		name     string

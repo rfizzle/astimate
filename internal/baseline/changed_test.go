@@ -15,49 +15,6 @@ import (
 	"github.com/rfizzle/astimate/internal/lang/typescript"
 )
 
-// packageDirs returns the sorted, de-duplicated package directories that
-// sourceFiles finds among paths with the Go extractor's rules.
-func packageDirs(paths []string, prefix string) []string {
-	cps := make([]changedPath, 0, len(paths))
-	for _, p := range paths {
-		cps = append(cps, changedPath{path: p})
-	}
-	files := sourceFiles(cps, prefix, golang.New())
-	dirs := make([]string, 0, len(files.dirs))
-	for _, d := range files.dirs {
-		dirs = append(dirs, d.pkg)
-	}
-	return slices.Compact(dirs)
-}
-
-func TestPackageDirs(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name   string
-		paths  []string
-		prefix string
-		want   []string
-	}{
-		{name: "test file selects its package", paths: []string{"a/a_test.go"}, prefix: ".", want: []string{"a"}},
-		{name: "root package is dot", paths: []string{"main.go"}, prefix: ".", want: []string{"."}},
-		{name: "non-Go files select nothing", paths: []string{"README.md", "a/data.json", "go.mod", "a/x.go.txt"}, prefix: ".", want: []string{}},
-		{name: "duplicates collapse and sort", paths: []string{"b/b.go", "a/a.go", "b/b_test.go", "a/a.go"}, prefix: ".", want: []string{"a", "b"}},
-		{name: "testdata ignored at any depth", paths: []string{"testdata/x.go", "a/testdata/y/y.go", "a/a.go"}, prefix: ".", want: []string{"a"}},
-		{name: "module below repository root", paths: []string{"sub/a/a.go", "sub/root.go", "other/o.go", "subway/s.go"}, prefix: "sub", want: []string{".", "a"}},
-		{name: "prefix is cleaned", paths: []string{"sub/a/a.go"}, prefix: "sub/", want: []string{"a"}},
-		{name: "no paths", paths: nil, prefix: ".", want: []string{}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			got := packageDirs(tt.paths, tt.prefix)
-			if !slices.Equal(got, tt.want) {
-				t.Errorf("packageDirs(%q, %q) = %q, want %q", tt.paths, tt.prefix, got, tt.want)
-			}
-		})
-	}
-}
-
 // newChangeRepo commits a module with packages a and b, a README, a Go file
 // under testdata and a nested module on master, and returns the repository
 // and the commit hash.

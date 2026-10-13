@@ -74,11 +74,11 @@ func TestCheckModuleNamedModule(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if m, ok := b.Metrics("module"); !ok || m.Files != 1 {
-			t.Errorf("baseline row of package module = %+v (present %v), want the root package", m, ok)
+		if r, ok := b.Row("."); !ok || r.Metrics.Files != 1 {
+			t.Errorf("baseline row of package module = %+v (present %v), want the root package", r.Metrics, ok)
 		}
-		if m, ok := b.Metrics(metrics.ModuleRowID); !ok || m.DupBlocksCrossPkg == nil || m.Files != 0 {
-			t.Errorf("baseline module row = %+v (present %v), want the module row", m, ok)
+		if r, ok := b.Row(metrics.ModuleRowID); !ok || r.Metrics.DupBlocksCrossPkg == nil || r.Metrics.Files != 0 {
+			t.Errorf("baseline module row = %+v (present %v), want the module row", r.Metrics, ok)
 		}
 
 		// A new global in the root package fails it, not the module row.

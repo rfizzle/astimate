@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rfizzle/astimate/internal/baseline/internal/diff"
 	"github.com/rfizzle/astimate/internal/lang/golang"
 	"github.com/rfizzle/astimate/internal/metrics"
 )
@@ -38,7 +39,7 @@ func (r *testRepo) git(args ...string) string {
 	r.t.Helper()
 	cmd := exec.Command("git", args...)
 	cmd.Dir = r.dir
-	cmd.Env = append(withoutGitOverrides(os.Environ()),
+	cmd.Env = append(diff.WithoutOverrides(os.Environ()),
 		"GIT_CONFIG_GLOBAL="+os.DevNull,
 		"GIT_CONFIG_NOSYSTEM=1",
 		"GIT_AUTHOR_NAME=test", "GIT_AUTHOR_EMAIL=test@example.com",
@@ -134,7 +135,7 @@ func TestFromGitReturnsBaseCommitMetrics(t *testing.T) {
 	r.write("a/a.go", "package a\n\nvar x = 2\n\nfunc A() int { return x }\n")
 	r.commit("second")
 
-	b, err := FromGit(context.Background(), r.dir, first, golang.New(), "example.com/m", "est")
+	b, err := FromGit(context.Background(), r.dir, first, golang.New(), golang.ModulePath, "est")
 	if err != nil {
 		t.Fatalf("FromGit: %v", err)
 	}
@@ -144,28 +145,26 @@ func TestFromGitReturnsBaseCommitMetrics(t *testing.T) {
 	if b.Tokenizer() != "est" {
 		t.Errorf("Tokenizer() = %q, want the one passed, est", b.Tokenizer())
 	}
-	for pkg, want := range map[string]int{"example.com/m/a": 0, "example.com/m/b": 1} {
-		m, ok := b.Metrics(pkg)
+	// Rows are keyed by module-relative directory.
+	for dir, want := range map[string]int{"a": 0, "b": 1} {
+		r, ok := b.Row(dir)
 		if !ok {
-			t.Errorf("Metrics(%q): not found", pkg)
+			t.Errorf("Row(%q): not found", dir)
 			continue
 		}
-		if m.Globals != want {
-			t.Errorf("Metrics(%q).Globals = %d, want %d (first commit)", pkg, m.Globals, want)
+		if r.Metrics.Globals != want {
+			t.Errorf("Row(%q).Metrics.Globals = %d, want %d (first commit)", dir, r.Metrics.Globals, want)
 		}
 	}
-	if _, ok := b.Metrics("example.com/m/c"); ok {
-		t.Error("Metrics of a package absent from the base reported found")
+	if _, ok := b.Row("c"); ok {
+		t.Error("Row of a package absent from the base reported found")
 	}
 	// The Go extractor lists functions, so the base commit's are recorded.
-	if fns, ok := b.Functions("example.com/m/a"); !ok || len(fns) != 1 || fns[0].Name != "A" || fns[0].Fingerprint == 0 {
-		t.Errorf("Functions(a) = %+v, %v, want A with a fingerprint", fns, ok)
+	if r, _ := b.Row("a"); !r.HasFunctions || len(r.Functions) != 1 || r.Functions[0].Name != "A" || r.Functions[0].Fingerprint == 0 {
+		t.Errorf("Row(a) functions = %+v, %v, want A with a fingerprint", r.Functions, r.HasFunctions)
 	}
-	if fns, ok := b.Functions("example.com/m/b"); !ok || len(fns) != 0 {
-		t.Errorf("Functions(b) = %+v, %v, want recorded and empty", fns, ok)
-	}
-	if _, ok := b.Functions("example.com/m/c"); ok {
-		t.Error("Functions of a package absent from the base reported found")
+	if r, _ := b.Row("b"); !r.HasFunctions || len(r.Functions) != 0 {
+		t.Errorf("Row(b) functions = %+v, %v, want recorded and empty", r.Functions, r.HasFunctions)
 	}
 	if n := r.worktrees(); n != 1 {
 		t.Errorf("git worktree list shows %d worktrees after FromGit, want 1", n)
@@ -195,15 +194,15 @@ func TestFromGitUsesMergeBase(t *testing.T) {
 	r.commit("feature work")
 
 	ext := &stubExtractor{pkgs: []string{"p"}}
-	b, err := FromGit(context.Background(), r.dir, "", ext, "example.com/m", "est")
+	b, err := FromGit(context.Background(), r.dir, "", ext, nil, "est")
 	if err != nil {
 		t.Fatalf("FromGit: %v", err)
 	}
 	if b.Ref() != base {
 		t.Errorf("Ref() = %q, want merge-base %q", b.Ref(), base)
 	}
-	if _, ok := b.Metrics("p"); !ok {
-		t.Error(`Metrics("p"): not found`)
+	if _, ok := b.Row("p"); !ok {
+		t.Error(`Row("p"): not found`)
 	}
 	assertCleanedUp(t, r, ext.root)
 }
@@ -223,7 +222,7 @@ func TestFromGitNestedModule(t *testing.T) {
 		return metrics.RawMetrics{}, nil
 	}
 	ext.pkgs = []string{"example.com/tools"}
-	if _, err := FromGit(context.Background(), filepath.Join(r.dir, "tools"), sha, ext, "example.com/tools", "est"); err != nil {
+	if _, err := FromGit(context.Background(), filepath.Join(r.dir, "tools"), sha, ext, nil, "est"); err != nil {
 		t.Fatalf("FromGit: %v", err)
 	}
 	if filepath.Base(ext.root) != "tools" {
@@ -278,7 +277,7 @@ func TestFromGitRemovesWorktreeOnFailure(t *testing.T) {
 			ext.extract = func(ctx context.Context) (metrics.RawMetrics, error) { return tt.extract(ctx, cancel) }
 
 			err := callRecovering(func() error {
-				_, err := FromGit(ctx, r.dir, sha, ext, "example.com/m", "est")
+				_, err := FromGit(ctx, r.dir, sha, ext, nil, "est")
 				return err
 			})
 			if err == nil {
@@ -329,7 +328,7 @@ func TestFromGitRemovesWorktreeOnSignal(t *testing.T) {
 			return metrics.RawMetrics{}, errors.New("context not cancelled by SIGINT")
 		}
 	}
-	_, err := FromGit(context.Background(), r.dir, sha, ext, "example.com/m", "est")
+	_, err := FromGit(context.Background(), r.dir, sha, ext, nil, "est")
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("FromGit error = %v, want context.Canceled from the signal", err)
 	}
@@ -460,7 +459,7 @@ func TestFromGitForgetsWorktreeLoad(t *testing.T) {
 
 	r, first := twoCommitRepo(t)
 	ext := &forgettingRecorder{rootRecorder: rootRecorder{Extractor: golang.New()}}
-	if _, err := FromGit(context.Background(), r.dir, first, ext, "example.com/m", "est"); err != nil {
+	if _, err := FromGit(context.Background(), r.dir, first, ext, nil, "est"); err != nil {
 		t.Fatalf("FromGit: %v", err)
 	}
 	if len(ext.forgot) != 1 || ext.forgot[0] != ext.root {
@@ -485,7 +484,7 @@ func TestFromGitForgetHeap(t *testing.T) {
 	r, first := twoCommitRepo(t)
 	gox := golang.New()
 	ext := &rootRecorder{Extractor: gox}
-	if _, err := FromGit(context.Background(), r.dir, first, ext, "example.com/m", "est"); err != nil {
+	if _, err := FromGit(context.Background(), r.dir, first, ext, nil, "est"); err != nil {
 		t.Fatalf("FromGit: %v", err)
 	}
 	var held, released runtime.MemStats

@@ -22,6 +22,13 @@ type packageRow struct {
 	// New is true when the baseline has no such row: the package is new at
 	// the commit, or the commit is judged against an empty baseline.
 	New bool `json:"new"`
+	// BaselineFrom are the module-relative directories of the parent's
+	// packages the row's baseline was seeded from because its files were
+	// renamed from them (report.Report.BaselineFrom); omitted when the row
+	// has a baseline row of its own or none. Such a row is not New, so
+	// counting the rows that carry it counts the rows a rename kept from
+	// reading as new.
+	BaselineFrom []string `json:"baseline_from,omitempty"`
 	// Passed is the row's gate verdict under the replay's configuration.
 	Passed bool `json:"passed"`
 	// Violations, Warnings and Exemptions are the row's findings.
@@ -115,16 +122,17 @@ func toFinding(f *report.Finding) finding {
 // newPackageRow returns the row of r, a report of a check of commit.
 func newPackageRow(commit string, r *report.Report) packageRow {
 	row := packageRow{
-		Commit:     commit,
-		Package:    r.PackagePath,
-		Language:   r.Language,
-		New:        r.Baseline == nil,
-		Passed:     r.Passed == nil || *r.Passed,
-		Violations: findings(r.Violations),
-		Warnings:   findings(r.Warnings),
-		Exemptions: make([]exempted, 0, len(r.Exemptions)),
-		Metrics:    r.Metrics,
-		SLOCDelta:  r.Metrics.SLOC,
+		Commit:       commit,
+		Package:      r.PackagePath,
+		Language:     r.Language,
+		New:          r.Baseline == nil,
+		BaselineFrom: r.BaselineFrom,
+		Passed:       r.Passed == nil || *r.Passed,
+		Violations:   findings(r.Violations),
+		Warnings:     findings(r.Warnings),
+		Exemptions:   make([]exempted, 0, len(r.Exemptions)),
+		Metrics:      r.Metrics,
+		SLOCDelta:    r.Metrics.SLOC,
 	}
 	for _, e := range r.Exemptions {
 		row.Exemptions = append(row.Exemptions, exempted{finding: toFinding(&e.Finding), Reason: e.Reason})

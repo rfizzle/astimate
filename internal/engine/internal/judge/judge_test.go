@@ -7,25 +7,26 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rfizzle/astimate/internal/baseline"
 	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/gate"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/metrics/metricstest"
 )
 
-// fakeBaseline is a baseline.Baseline over a map of package metrics that
-// records no functions, blocks or import graph.
+// fakeBaseline is a baseline.Baseline over a map of package metrics, keyed
+// by module-relative directory, that records no functions, blocks or
+// import graph.
 type fakeBaseline map[string]metrics.RawMetrics
 
-func (b fakeBaseline) Metrics(pkg string) (metrics.RawMetrics, bool) {
-	m, ok := b[pkg]
-	return m, ok
+func (b fakeBaseline) Row(dir string) (baseline.Row, bool) {
+	m, ok := b[dir]
+	return baseline.Row{Metrics: m}, ok
 }
-func (fakeBaseline) Ref() string                                     { return "base" }
-func (fakeBaseline) Tokenizer() string                               { return "est" }
-func (fakeBaseline) Functions(string) ([]metrics.FunctionInfo, bool) { return nil, false }
-func (fakeBaseline) CrossBlocks() ([]metrics.CrossBlock, bool)       { return nil, false }
-func (fakeBaseline) Importers(string) ([]string, bool)               { return nil, false }
+func (fakeBaseline) Ref() string                               { return "base" }
+func (fakeBaseline) Tokenizer() string                         { return "est" }
+func (fakeBaseline) CrossBlocks() ([]metrics.CrossBlock, bool) { return nil, false }
+func (fakeBaseline) Importers(string) ([]string, bool)         { return nil, false }
 
 // checker returns a Checker over a fake module of one package a, whose
 // globals rose from base, gated by a zero-tolerance globals rule and a
@@ -46,7 +47,7 @@ func checker(t *testing.T, row *int, exemptions []gate.Exemption) *Checker {
 	return New(Options{
 		Ext:  metricstest.NewFake("go", root, pkgs, opts...),
 		Mod:  &metrics.ModuleContext{Root: root, ModulePath: modPath},
-		Base: fakeBaseline{modPath + "/a": {Globals: 1}, metrics.ModuleRowID: {DupBlocksCrossPkg: new(int)}},
+		Base: fakeBaseline{"a": {Globals: 1}, metrics.ModuleRowID: {DupBlocksCrossPkg: new(int)}},
 		Config: config.Effective{Version: "v", Exemptions: exemptions, Thresholds: []gate.Threshold{
 			{Metric: "globals", Kind: gate.Density, MaxDelta: &zero},
 			{Metric: "dup_blocks_cross_pkg", Kind: gate.Density, MaxDelta: &zero},

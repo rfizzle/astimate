@@ -76,12 +76,12 @@ func TestBaselineWrite(t *testing.T) {
 			if err != nil {
 				t.Fatalf("FromFile: %v", err)
 			}
-			a, ok := b.Metrics("example.com/m/a")
-			if !ok || a.Globals != 1 {
-				t.Errorf("example.com/m/a = %+v (found %v), want globals 1", a, ok)
+			a, ok := b.Row("a")
+			if !ok || a.Metrics.Globals != 1 {
+				t.Errorf("a = %+v (found %v), want globals 1", a.Metrics, ok)
 			}
-			if bm, ok := b.Metrics("example.com/m/b"); !ok || bm.Files != 2 {
-				t.Errorf("example.com/m/b = %+v (found %v), want 2 files", bm, ok)
+			if br, ok := b.Row("b"); !ok || br.Metrics.Files != 2 {
+				t.Errorf("b = %+v (found %v), want 2 files", br.Metrics, ok)
 			}
 			if b.Tokenizer() != tokenizerEst {
 				t.Errorf("Tokenizer() = %q, want the default %q", b.Tokenizer(), tokenizerEst)

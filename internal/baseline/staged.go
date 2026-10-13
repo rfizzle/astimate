@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/rfizzle/astimate/internal/baseline/internal/diff"
 )
 
 // ErrNoRepository is returned by StagedTree when root is not inside a git
@@ -26,15 +28,15 @@ var ErrNoRepository = errors.New("not in a git repository")
 // path and must be called exactly once. It returns an error wrapping
 // ErrNoRepository when root is not in a git working tree.
 func StagedTree(ctx context.Context, root, indexFile string) (tree string, cleanup func(), err error) {
-	top, err := git(ctx, root, "rev-parse", "--show-toplevel")
+	top, err := diff.Git(ctx, root, "rev-parse", "--show-toplevel")
 	if err != nil {
 		return "", nil, fmt.Errorf("finding repository root of %s: %w: %w", root, ErrNoRepository, err)
 	}
-	rel, err := repoRelative(ctx, root)
+	rel, err := diff.RepoRelative(ctx, root)
 	if err != nil {
 		return "", nil, err
 	}
-	env, err := indexEnv(top, indexFile)
+	env, err := diff.IndexEnv(top, indexFile)
 	if err != nil {
 		return "", nil, err
 	}
@@ -46,25 +48,9 @@ func StagedTree(ctx context.Context, root, indexFile string) (tree string, clean
 	// --prefix must end in a separator to name a directory; git creates the
 	// directories below it. Running at the top level makes -a cover the
 	// whole index rather than the part below the working directory.
-	if _, err := gitEnv(ctx, top, env, "checkout-index", "--all", "--prefix="+dir+string(filepath.Separator)); err != nil {
+	if _, err := diff.GitEnv(ctx, top, env, "checkout-index", "--all", "--prefix="+dir+string(filepath.Separator)); err != nil {
 		cleanup()
 		return "", nil, fmt.Errorf("checking out the index into %s: %w", dir, err)
 	}
 	return filepath.Join(dir, rel), cleanup, nil
-}
-
-// indexEnv returns the environment entries that point git at indexFile,
-// made absolute against the repository root top; none when indexFile is
-// empty.
-func indexEnv(top, indexFile string) ([]string, error) {
-	if indexFile == "" {
-		return nil, nil
-	}
-	if !filepath.IsAbs(indexFile) {
-		indexFile = filepath.Join(top, indexFile)
-	}
-	if _, err := os.Stat(indexFile); err != nil {
-		return nil, fmt.Errorf("reading index file: %w", err)
-	}
-	return []string{"GIT_INDEX_FILE=" + indexFile}, nil
 }

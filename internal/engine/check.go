@@ -249,6 +249,9 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 		if _, err := loadBase(); err != nil {
 			return nil, nil, err
 		}
+		if base, err = seedRenames(ctx, t, ht, base, src, headOf(ht, opts)); err != nil {
+			return nil, nil, baseline.TreeRelative(err, tmp)
+		}
 	}
 
 	c = &report.Check{
@@ -413,15 +416,23 @@ func resolveBaselineSource(ctx context.Context, t *Target, opts CheckOptions) (b
 // fileBaseline reads the baseline file at path through cache, keyed by the
 // file's absolute path, size and modification time; a nil cache reads it.
 // Reading a file that stores the module row under its old key, "module",
-// logs one warning to logger saying so, once per read of the file.
+// logs one warning to logger saying so, and reading one that keys its
+// packages by import path only another, each once per read of the file.
 func fileBaseline(path string, cache *BaselineCache, logger *slog.Logger) (baseline.Baseline, error) {
 	load := func() (baseline.Baseline, error) {
 		b, err := baseline.FromFile(path)
-		if err == nil && baseline.MigratedModuleRow(b) {
+		if err != nil {
+			return nil, err
+		}
+		if baseline.MigratedModuleRow(b) {
 			logger.Warn("baseline file stores the module row under the old key \"module\"; "+
 				"run `astimate baseline write` to rewrite it", "path", path, "row", metrics.ModuleRowID)
 		}
-		return b, err
+		if baseline.KeyedByImportPath(b) {
+			logger.Warn("baseline file keys packages by import path only; "+
+				"run `astimate baseline write` to record each package_path", "path", path)
+		}
+		return b, nil
 	}
 	if cache == nil {
 		return load()
@@ -445,7 +456,7 @@ func fileBaseline(path string, cache *BaselineCache, logger *slog.Logger) (basel
 // nil cache leaves the whole resolution to baseline.FromGit.
 func gitBaseline(ctx context.Context, t *Target, ref string, cache *BaselineCache) (baseline.Baseline, error) {
 	if cache == nil {
-		return baseline.FromGit(ctx, t.Mod.Root, ref, t.Ext, t.Mod.ModulePath, t.tokenizer())
+		return baseline.FromGit(ctx, t.Mod.Root, ref, t.Ext, t.modulePathFunc(), t.tokenizer())
 	}
 	sha, err := baseline.MergeBase(ctx, t.Mod.Root, ref)
 	if err != nil {
@@ -453,7 +464,7 @@ func gitBaseline(ctx context.Context, t *Target, ref string, cache *BaselineCach
 	}
 	return cache.get("git:"+sha, func() (baseline.Baseline, error) {
 		// The merge-base of HEAD and one of its ancestors is that ancestor.
-		return baseline.FromGit(ctx, t.Mod.Root, sha, t.Ext, t.Mod.ModulePath, t.tokenizer())
+		return baseline.FromGit(ctx, t.Mod.Root, sha, t.Ext, t.modulePathFunc(), t.tokenizer())
 	})
 }
 
@@ -532,9 +543,9 @@ func selectPackages(ctx context.Context, t *Target, hm *metrics.ModuleContext, h
 // importerGraph is the reverse import graph a baseline recorded
 // (baseline.Baseline.Importers).
 type importerGraph interface {
-	// Importers returns the importers of pkg, and false when no graph was
-	// recorded.
-	Importers(pkg string) ([]string, bool)
+	// Importers returns the module-relative directories of the importers
+	// of the package in dir, and false when no graph was recorded.
+	Importers(dir string) ([]string, bool)
 }
 
 // selectImporters adds to changed the import paths of the packages, among
@@ -584,7 +595,11 @@ func selectImporters(ctx context.Context, il metrics.ImporterLister, mod *metric
 		var importers []string
 		known := base != nil
 		if known {
-			importers, known = base.Importers(judge.ImportPath(modPath, dir))
+			var dirs []string
+			dirs, known = base.Importers(dir)
+			for _, d := range dirs {
+				importers = append(importers, judge.ImportPath(modPath, d))
+			}
 		}
 		if !known {
 			if len(change.RemovedContract) > 0 {

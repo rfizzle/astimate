@@ -3,17 +3,23 @@ package baseline
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/rfizzle/astimate/internal/metrics"
 )
 
-// Baseline serves the metrics a change is compared against. Packages are
-// matched by import path, so a renamed or moved package has no baseline and
-// is treated as new.
+// Baseline serves the metrics a change is compared against. Rows are
+// keyed by the package directory relative to the module root, in slash
+// form ("." for the root package), the package_path reports use (SPEC.md
+// 10.2), so a change of the module path does not void the baseline; the
+// module-level row stays under metrics.ModuleRowID. A package moved to
+// another directory has no row of its own; Seeded serves one from the
+// packages its files were renamed from.
 type Baseline interface {
-	// Metrics returns the baseline metrics of the package with import path
-	// pkg, and false when the baseline has no such package.
-	Metrics(pkg string) (metrics.RawMetrics, bool)
+	// Row returns the baseline row of the package in the module-relative
+	// directory dir, or the module row under metrics.ModuleRowID, and
+	// false when the baseline has no such row.
+	Row(dir string) (Row, bool)
 	// Ref names where the baseline came from: the merge-base commit for a git
 	// baseline, or the ref recorded in a baseline file.
 	Ref() string
@@ -21,48 +27,109 @@ type Baseline interface {
 	// the extractor's tokenizer for a baseline extracted from a commit, or
 	// the tokenizer recorded in a baseline file, "est" when it records none.
 	Tokenizer() string
-	// Functions returns the functions of the package with import path pkg
-	// as the baseline recorded them, for the function-level diff behind
-	// changed_func_cognitive_max, and false when it recorded none for pkg:
-	// the package is not in the baseline, the extractor does not implement
-	// metrics.FunctionLister, or the baseline file predates function
-	// records. A file baseline's functions carry no File or Line.
-	Functions(pkg string) ([]metrics.FunctionInfo, bool)
 	// CrossBlocks returns the module's cross-package duplicate blocks as
-	// the baseline recorded them, and false when it recorded none: the
+	// the baseline recorded them, each occurrence's Package being a
+	// module-relative directory, and false when it recorded none: the
 	// extractor does not implement metrics.ModuleDetailer, or the baseline
 	// is a file, which stores only the module row's count. A check of
 	// named packages matches them against the blocks at head to tell which
 	// blocks are new.
 	CrossBlocks() ([]metrics.CrossBlock, bool)
-	// Importers returns the identifiers of the packages that imported pkg
-	// in the baseline, sorted, as metrics.ImporterLister listed them there
-	// (nil when pkg was not a package), and false when the baseline
-	// recorded no import graph: the extractor does not implement
-	// metrics.ImporterLister, or the baseline is a file. Changed-package
-	// detection selects a removed declaration file's former importers
-	// from it (SPEC.md 8.4).
-	Importers(pkg string) ([]string, bool)
+	// Importers returns the module-relative directories of the packages
+	// that imported the package in dir in the baseline, sorted, as
+	// metrics.ImporterLister listed them there (nil when dir was not a
+	// package), and false when the baseline recorded no import graph: the
+	// extractor does not implement metrics.ImporterLister, or the baseline
+	// is a file. Changed-package detection selects a removed declaration
+	// file's former importers from it (SPEC.md 8.4).
+	Importers(dir string) ([]string, bool)
+}
+
+// Row is what a baseline records for one package, or for the module row.
+// It is the one place a per-package baseline record lives: a new record is
+// a field here, filled from the extraction in collected.rows and from a
+// baseline file's per-package fileRow in FromFile.
+type Row struct {
+	// Metrics are the package's metrics at the baseline.
+	Metrics metrics.RawMetrics
+	// Functions are the package's functions as the baseline recorded
+	// them, for the function-level diff behind changed_func_cognitive_max;
+	// meaningful only when HasFunctions. A file baseline's functions carry
+	// no File or Line.
+	Functions []metrics.FunctionInfo
+	// HasFunctions is false when the baseline recorded no functions for
+	// the package: the extractor does not implement
+	// metrics.FunctionLister, or the baseline file predates function
+	// records.
+	HasFunctions bool
+	// From are the module-relative directories, sorted, of the baseline
+	// packages a row served by Seeded was seeded from, because the
+	// package's files were renamed from them; nil for a row the baseline
+	// recorded.
+	From []string
 }
 
 // snapshot is the map-backed Baseline shared by the git and file sources.
 type snapshot struct {
 	ref       string
 	tokenizer string
-	pkgs      map[string]metrics.RawMetrics
-	// funcs holds each package's functions; nil when none were recorded.
-	funcs map[string][]metrics.FunctionInfo
-	// cross holds the module's cross-package blocks; crossKnown says
-	// whether they were recorded at all.
+	// rows are keyed by module-relative directory, the module row by
+	// metrics.ModuleRowID.
+	rows map[string]Row
+	// cross holds the module's cross-package blocks, packages named by
+	// directory; crossKnown says whether they were recorded at all.
 	cross      []metrics.CrossBlock
 	crossKnown bool
-	// importers holds each package's importers; importersKnown says
-	// whether the import graph was recorded at all.
+	// importers holds each package's importers, keyed and listed by
+	// directory; importersKnown says whether the import graph was recorded
+	// at all.
 	importers      map[string][]string
 	importersKnown bool
 	// migrated says a file stored the module row under the key used
 	// before metrics.ModuleRowID was reserved.
 	migrated bool
+	// importPathOnly says a file keyed its packages by import path only,
+	// as files written before package_rows existed do.
+	importPathOnly bool
+}
+
+// collected is a baseline's packages as an extraction or a file holds
+// them, keyed by the identifier the extractor gave each (the import path
+// for Go).
+type collected struct {
+	pkgs  map[string]metrics.RawMetrics
+	funcs map[string][]metrics.FunctionInfo
+	// dir maps an identifier to its module-relative directory.
+	dir func(id string) string
+}
+
+// rows returns c's rows keyed by module-relative directory. A package with
+// no entry in c.funcs, and every package when c.funcs is nil, records no
+// functions.
+func (c *collected) rows() map[string]Row {
+	rows := make(map[string]Row, len(c.pkgs))
+	for id, m := range c.pkgs {
+		r := Row{Metrics: m}
+		if id != metrics.ModuleRowID {
+			r.Functions, r.HasFunctions = c.funcs[id]
+		}
+		rows[c.dir(id)] = r
+	}
+	return rows
+}
+
+// PackageDir returns the module-relative directory, in slash form, of the
+// package with identifier id in the module of path modulePath: "." for the
+// root package, and id itself when modulePath is empty (a TypeScript
+// identifier already is that directory) or id is metrics.ModuleRowID.
+func PackageDir(modulePath, id string) string {
+	switch {
+	case modulePath == "" || id == metrics.ModuleRowID:
+		return id
+	case id == modulePath:
+		return "."
+	}
+	return strings.TrimPrefix(id, modulePath+"/")
 }
 
 // CrossBlocks implements Baseline.
@@ -71,20 +138,14 @@ func (s *snapshot) CrossBlocks() ([]metrics.CrossBlock, bool) {
 }
 
 // Importers implements Baseline.
-func (s *snapshot) Importers(pkg string) ([]string, bool) {
-	return s.importers[pkg], s.importersKnown
+func (s *snapshot) Importers(dir string) ([]string, bool) {
+	return s.importers[dir], s.importersKnown
 }
 
-// Metrics implements Baseline.
-func (s *snapshot) Metrics(pkg string) (metrics.RawMetrics, bool) {
-	m, ok := s.pkgs[pkg]
-	return m, ok
-}
-
-// Functions implements Baseline.
-func (s *snapshot) Functions(pkg string) ([]metrics.FunctionInfo, bool) {
-	fns, ok := s.funcs[pkg]
-	return fns, ok
+// Row implements Baseline.
+func (s *snapshot) Row(dir string) (Row, bool) {
+	r, ok := s.rows[dir]
+	return r, ok
 }
 
 // Ref implements Baseline.

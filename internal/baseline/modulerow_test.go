@@ -42,8 +42,9 @@ func TestFileModuleNamedModule(t *testing.T) {
 		t.Fatalf("FromFile: %v", err)
 	}
 	for pkg, want := range pkgs {
-		if got, ok := b.Metrics(pkg); !ok || !reflect.DeepEqual(got, want) {
-			t.Errorf("Metrics(%q) = %+v (present %v), want %+v", pkg, got, ok, want)
+		dir := PackageDir("module", pkg)
+		if got, ok := b.Row(dir); !ok || !reflect.DeepEqual(got.Metrics, want) {
+			t.Errorf("Row(%q) = %+v (present %v), want %+v", dir, got.Metrics, ok, want)
 		}
 	}
 	if MigratedModuleRow(b) {
@@ -103,13 +104,15 @@ func TestFileLegacyModuleKey(t *testing.T) {
 			if got := MigratedModuleRow(b); got != tt.migrated {
 				t.Errorf("MigratedModuleRow = %v, want %v", got, tt.migrated)
 			}
+			// The file's module path is example.com/m, so the package with
+			// import path "module" lies in the directory "module".
 			for key, want := range map[string]*metrics.RawMetrics{metrics.ModuleRowID: tt.row, "module": tt.pkg} {
-				got, ok := b.Metrics(key)
+				got, ok := b.Row(key)
 				switch {
 				case want == nil && ok:
-					t.Errorf("Metrics(%q) = %+v, want none", key, got)
-				case want != nil && (!ok || !reflect.DeepEqual(got, *want)):
-					t.Errorf("Metrics(%q) = %+v (present %v), want %+v", key, got, ok, *want)
+					t.Errorf("Row(%q) = %+v, want none", key, got.Metrics)
+				case want != nil && (!ok || !reflect.DeepEqual(got.Metrics, *want)):
+					t.Errorf("Row(%q) = %+v (present %v), want %+v", key, got.Metrics, ok, *want)
 				}
 			}
 		})

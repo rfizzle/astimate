@@ -77,11 +77,13 @@ func (c *Checker) Package(ctx context.Context, pkg string, m metrics.RawMetrics)
 	if err != nil {
 		return report.CheckedPackage{}, false, err
 	}
+	path := Rel(o.Mod.ModulePath, pkg)
 	var bm *metrics.RawMetrics
-	if v, ok := o.Base.Metrics(pkg); ok {
-		bm = &v
+	row, inBase := o.Base.Row(path)
+	if inBase {
+		bm = &row.Metrics
 	}
-	worst, unrecorded, err := c.changedFunctions(ctx, pkg, bm != nil)
+	worst, unrecorded, err := c.changedFunctions(ctx, pkg, row, inBase)
 	if err != nil {
 		return report.CheckedPackage{}, false, err
 	}
@@ -92,7 +94,8 @@ func (c *Checker) Package(ctx context.Context, pkg string, m metrics.RawMetrics)
 	suggest := func(metric string, h float64, hm metrics.RawMetrics) string {
 		return score.MetricSuggestion(metric, h, hm, names)
 	}
-	r := c.row(Rel(o.Mod.ModulePath, pkg), m, m, bm, c.pkgRules, suggest, names)
+	r := c.row(path, m, m, bm, c.pkgRules, suggest, names)
+	r.BaselineFrom = row.From
 	locateFindings(&r, &det, worst)
 	r.Details = c.details(&det)
 	p = report.CheckedPackage{Report: r}
@@ -146,8 +149,8 @@ func (c *Checker) Module(ctx context.Context, mm metrics.ModuleMetrics, fromFile
 	}
 	rules := c.moduleRules
 	var bm *metrics.RawMetrics
-	if v, ok := o.Base.Metrics(metrics.ModuleRowID); ok {
-		bm = &v
+	if row, ok := o.Base.Row(metrics.ModuleRowID); ok {
+		bm = &row.Metrics
 	} else if fromFile && len(rules) > 0 {
 		o.Logger.Info("baseline file has no module row; module-wide rules skipped; run `astimate baseline write` to add it")
 		rules = nil
@@ -160,6 +163,8 @@ func (c *Checker) Module(ctx context.Context, mm metrics.ModuleMetrics, fromFile
 	gm, blame := m, (*crossBlame)(nil)
 	if _, detailed := o.Ext.(metrics.ModuleDetailer); detailed && len(named) > 0 && len(rules) > 0 && m.DupBlocksCrossPkg != nil {
 		baseBlocks, known := o.Base.CrossBlocks()
+		// The baseline names packages by directory; head by identifier.
+		baseBlocks = metrics.MapPackages(baseBlocks, func(dir string) string { return ImportPath(o.Mod.ModulePath, dir) })
 		gm, blame = blameNamed(m, bm, baseBlocks, known, names.CrossBlocks, named)
 	}
 	suggest := func(metric string, h float64, hm metrics.RawMetrics) string {
@@ -215,24 +220,26 @@ func (c *Checker) details(d *metrics.Details) *report.Details {
 	return report.NewDetails(d, func(pkg string) string { return Rel(c.o.Mod.ModulePath, pkg) })
 }
 
-// changedFunctions diffs pkg's functions at head against the baseline's
-// (worstChanged) and returns the most complex changed one, or a zero
-// changedFunction when none changed. inBase reports whether the baseline
-// has pkg; a package new at head diffs against no functions, so all of its
-// functions are changed. It returns nil when there is nothing to diff: the
-// extractor does not implement metrics.FunctionLister, or the baseline has
-// pkg but recorded no functions for it, which unrecorded reports so the
-// caller can say why the metric is null.
-func (c *Checker) changedFunctions(ctx context.Context, pkg string, inBase bool) (worst *changedFunction, unrecorded bool, err error) {
+// changedFunctions diffs pkg's functions at head against those of row, its
+// baseline row (worstChanged), and returns the most complex changed one,
+// or a zero changedFunction when none changed. inBase reports whether the
+// baseline has a row for pkg; a package new at head diffs against no
+// functions, so all of its functions are changed. It returns nil when
+// there is nothing to diff: the extractor does not implement
+// metrics.FunctionLister, or the row recorded no functions, which
+// unrecorded reports so the caller can say why the metric is null.
+func (c *Checker) changedFunctions(ctx context.Context, pkg string, row baseline.Row, inBase bool,
+) (worst *changedFunction, unrecorded bool, err error) {
 	fl, ok := c.o.Ext.(metrics.FunctionLister)
 	if !ok {
 		return nil, false, nil
 	}
 	var before []metrics.FunctionInfo
 	if inBase {
-		if before, ok = c.o.Base.Functions(pkg); !ok {
+		if !row.HasFunctions {
 			return nil, true, nil
 		}
+		before = row.Functions
 	}
 	head, err := fl.Functions(ctx, c.o.Mod, pkg)
 	if err != nil {

@@ -38,6 +38,19 @@ type fileFormat struct {
 	// diff; absent in files written before it existed, which then record
 	// none.
 	Functions map[string][]fileFunction `json:"functions,omitempty"`
+	// PackageRows holds each package's own record, keyed like Packages;
+	// the module row has none. Absent (nil) in files written before it
+	// existed, which key packages by import path only.
+	PackageRows map[string]fileRow `json:"package_rows"`
+}
+
+// fileRow is a package's own record in a baseline file, beside its metrics
+// and functions: the per-package fields of Row that have no top-level map
+// of their own. A new per-package record is a field here and in Row.
+type fileRow struct {
+	// PackagePath is the package's directory relative to the module root,
+	// in slash form, the key the baseline matches packages by.
+	PackagePath string `json:"package_path"`
 }
 
 // fileFunction is one function in a baseline file: the matching key, the
@@ -61,7 +74,9 @@ type Contents struct {
 	// Tokenizer names the method that counted tokens_est; empty records
 	// DefaultTokenizer.
 	Tokenizer string
-	// Packages are the metrics keyed by import path.
+	// Packages are the metrics keyed by package identifier (the import
+	// path for Go); the file also records each one's module-relative
+	// directory (PackageDir under ModulePath), the key a check matches by.
 	Packages map[string]metrics.RawMetrics
 	// Functions are each package's functions keyed by import path, as
 	// CollectFunctions returns them; nil records none, so a check against
@@ -72,12 +87,17 @@ type Contents struct {
 // FromFile reads a baseline file written by Write or WriteContents. Its Ref
 // and Tokenizer are the ones recorded in the file; a file that records no
 // tokenizer reports DefaultTokenizer, and one that records no functions
-// reports none from Functions. A file written before metrics.ModuleRowID
+// serves rows without them (Row.HasFunctions false). A file written before metrics.ModuleRowID
 // was reserved stores the module row under "module"; FromFile serves that
 // row under metrics.ModuleRowID when the file has no row under the new key
 // and every v0 field of the row is zero, as on the module row and on no
 // package, and MigratedModuleRow then reports true. A row under "module"
 // with any v0 field set is the package of that import path.
+//
+// Rows are keyed by the package_path the file records for each package
+// under package_rows. A file written before package_rows existed keys its
+// packages by import path only; FromFile then takes each directory from the
+// recorded module path (PackageDir) and KeyedByImportPath reports true.
 func FromFile(path string) (Baseline, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -98,7 +118,35 @@ func FromFile(path string) (Baseline, error) {
 		return nil, fmt.Errorf("decoding baseline %s: %w", path, err)
 	}
 	migrated := migrateModuleRow(f.Packages)
-	return &snapshot{ref: f.Ref, tokenizer: f.Tokenizer, pkgs: f.Packages, funcs: funcs, migrated: migrated}, nil
+	dir := func(id string) string {
+		if r, ok := f.PackageRows[id]; ok && r.PackagePath != "" {
+			return r.PackagePath
+		}
+		return PackageDir(f.ModulePath, id)
+	}
+	importPathOnly := false
+	if f.PackageRows == nil {
+		for id := range f.Packages {
+			if id != metrics.ModuleRowID {
+				importPathOnly = true
+				break
+			}
+		}
+	}
+	c := collected{pkgs: f.Packages, funcs: funcs, dir: dir}
+	return &snapshot{
+		ref: f.Ref, tokenizer: f.Tokenizer, rows: c.rows(), migrated: migrated, importPathOnly: importPathOnly,
+	}, nil
+}
+
+// KeyedByImportPath reports whether b was read by FromFile from a file that
+// keys its packages by import path only, as files written before
+// package_rows existed do. b still matches packages by directory, taken
+// from the module path the file records; rewriting the file with
+// WriteContents records each package's directory.
+func KeyedByImportPath(b Baseline) bool {
+	s, ok := b.(*snapshot)
+	return ok && s.importPathOnly
 }
 
 // MigratedModuleRow reports whether b was read by FromFile from a file that
@@ -184,6 +232,19 @@ func encodeFunctions(in map[string][]metrics.FunctionInfo) map[string][]fileFunc
 	return out
 }
 
+// packageRows returns the file's per-package records of pkgs, a module of
+// path modulePath, keyed like pkgs; the module row has none. Never nil, so
+// the file says it records them.
+func packageRows(modulePath string, pkgs map[string]metrics.RawMetrics) map[string]fileRow {
+	rows := make(map[string]fileRow, len(pkgs))
+	for id := range pkgs {
+		if id != metrics.ModuleRowID {
+			rows[id] = fileRow{PackagePath: PackageDir(modulePath, id)}
+		}
+	}
+	return rows
+}
+
 // Write stores pkgs, keyed by import path, as a baseline file at path
 // recording no functions; it is WriteContents with only Ref, ModulePath,
 // Tokenizer and Packages set.
@@ -217,6 +278,7 @@ func WriteContents(path string, c Contents) (err error) {
 		Tokenizer:   tokenizer,
 		Packages:    pkgs,
 		Functions:   encodeFunctions(c.Functions),
+		PackageRows: packageRows(c.ModulePath, pkgs),
 	})
 	if err != nil {
 		return fmt.Errorf("encoding baseline: %w", err)

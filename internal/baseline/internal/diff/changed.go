@@ -1,4 +1,4 @@
-package baseline
+package diff
 
 import (
 	"context"
@@ -39,7 +39,7 @@ type Change struct {
 	// still packages at head, such as one whose TypeScript declaration
 	// file was removed: the head import graph lacks the edges that file
 	// resolved, so callers take these packages' importers from the
-	// merge-base graph (Baseline.Importers). Sorted.
+	// merge-base graph (baseline.Baseline.Importers). Sorted.
 	RemovedContract []string
 	// All reports that a changed file can move every package's metrics,
 	// such as configuration that import resolution reads; callers then
@@ -53,11 +53,11 @@ type Head struct {
 	// Staged compares the index (git diff --cached) instead of the working
 	// tree: unstaged changes and untracked files do not count.
 	Staged bool
-	// IndexFile is the index Staged reads, as StagedTree takes it; empty
+	// IndexFile is the index Staged reads, as baseline.StagedTree takes it; empty
 	// means the repository's own index. Ignored unless Staged.
 	IndexFile string
 	// Tree is root's counterpart in a copy of the head tree, such as
-	// StagedTree returns, whose files decide which changed directories
+	// baseline.StagedTree returns, whose files decide which changed directories
 	// still hold a package and which lie in a nested module; empty means
 	// root itself.
 	Tree string
@@ -76,10 +76,7 @@ type Head struct {
 // Selecting every package (--all) is the caller's concern: it checks every
 // package the extractor lists and does not call ChangedPackages.
 func ChangedPackages(ctx context.Context, root, mergeBase string, sc metrics.SourceClassifier, head Head) (Change, error) {
-	if mergeBase == "" || strings.HasPrefix(mergeBase, "-") {
-		return Change{}, fmt.Errorf("listing changes since %q: not a valid commit", mergeBase)
-	}
-	rel, err := repoRelative(ctx, root)
+	prefix, err := modulePrefix(ctx, root, mergeBase)
 	if err != nil {
 		return Change{}, err
 	}
@@ -93,7 +90,7 @@ func ChangedPackages(ctx context.Context, root, mergeBase string, sc metrics.Sou
 
 	var c Change
 	nested := make(map[string]bool)
-	files := sourceFiles(paths, filepath.ToSlash(rel), sc)
+	files := sourceFiles(paths, prefix, sc)
 	for _, f := range files.module {
 		in, err := inNestedModule(root, path.Dir(f), sc, nested)
 		if err != nil {
@@ -156,33 +153,20 @@ type changedPath struct {
 // untracked, non-ignored files, which count as added; against the index
 // the cached diff alone.
 func changedPaths(ctx context.Context, root, mergeBase string, head Head) ([]changedPath, error) {
-	// --no-renames lists a rename as its deleted and its added path, so the
-	// directories on both sides are considered. --no-relative keeps paths
-	// relative to the repository top level whatever diff.relative says.
-	args := []string{"diff", "--name-status", "-z", "--no-renames", "--no-relative", mergeBase, "--"}
-	var env []string
-	if head.Staged {
-		top, err := git(ctx, root, "rev-parse", "--show-toplevel")
-		if err != nil {
-			return nil, fmt.Errorf("finding repository root of %s: %w", root, err)
-		}
-		if env, err = indexEnv(top, head.IndexFile); err != nil {
-			return nil, err
-		}
-		args = slices.Insert(args, 1, "--cached")
-	}
-	diff, err := gitEnv(ctx, root, env, args...)
+	// Without rename detection a rename is its deleted and its added path,
+	// so the directories on both sides are considered.
+	out, err := nameStatus(ctx, root, mergeBase, head, false)
 	if err != nil {
-		return nil, fmt.Errorf("listing files changed since %s: %w", mergeBase, err)
+		return nil, err
 	}
-	paths, err := parseNameStatus(diff)
+	paths, err := parseNameStatus(out)
 	if err != nil {
 		return nil, fmt.Errorf("listing files changed since %s: %w", mergeBase, err)
 	}
 	if head.Staged {
 		return paths, nil
 	}
-	untracked, err := git(ctx, root, "ls-files", "-z", "--others", "--exclude-standard", "--full-name")
+	untracked, err := Git(ctx, root, "ls-files", "-z", "--others", "--exclude-standard", "--full-name")
 	if err != nil {
 		return nil, fmt.Errorf("listing untracked files: %w", err)
 	}
@@ -190,6 +174,60 @@ func changedPaths(ctx context.Context, root, mergeBase string, head Head) ([]cha
 		paths = append(paths, changedPath{path: p})
 	}
 	return paths, nil
+}
+
+// modulePrefix checks that mergeBase can name a commit and returns the
+// slash path of the module at root relative to the top level of its
+// repository, "." when root is the top level.
+func modulePrefix(ctx context.Context, root, mergeBase string) (string, error) {
+	if mergeBase == "" || strings.HasPrefix(mergeBase, "-") {
+		return "", fmt.Errorf("listing changes since %q: not a valid commit", mergeBase)
+	}
+	rel, err := RepoRelative(ctx, root)
+	if err != nil {
+		return "", err
+	}
+	return path.Clean(filepath.ToSlash(rel)), nil
+}
+
+// nameStatus returns the output of git diff --name-status -z between the
+// commit mergeBase and head: the working tree, or the index when
+// head.Staged. renames turns git's rename detection on (-M); otherwise it
+// is off whatever the configuration says. Paths are relative to the
+// repository top level whatever diff.relative says.
+func nameStatus(ctx context.Context, root, mergeBase string, head Head, renames bool) (string, error) {
+	mode := "--no-renames"
+	if renames {
+		mode = "-M"
+	}
+	args := []string{"diff", "--name-status", "-z", mode, "--no-relative", mergeBase, "--"}
+	var env []string
+	if head.Staged {
+		top, err := Git(ctx, root, "rev-parse", "--show-toplevel")
+		if err != nil {
+			return "", fmt.Errorf("finding repository root of %s: %w", root, err)
+		}
+		if env, err = IndexEnv(top, head.IndexFile); err != nil {
+			return "", err
+		}
+		args = slices.Insert(args, 1, "--cached")
+	}
+	out, err := GitEnv(ctx, root, env, args...)
+	if err != nil {
+		return "", fmt.Errorf("listing files changed since %s: %w", mergeBase, err)
+	}
+	return out, nil
+}
+
+// moduleRelative returns p, slash-separated and relative to the repository
+// top level, made relative to the module at prefix ("." when the module is
+// the repository root), and false when p lies outside that module.
+func moduleRelative(p, prefix string) (string, bool) {
+	p = path.Clean(p)
+	if prefix == "." {
+		return p, true
+	}
+	return strings.CutPrefix(p, prefix+"/")
 }
 
 // parseNameStatus parses the output of git diff --name-status -z
@@ -265,13 +303,9 @@ func sourceFiles(paths []changedPath, prefix string, sc metrics.SourceClassifier
 	index := make(map[changedDir]int, len(paths))
 	var out changedFiles
 	for _, cp := range paths {
-		p := path.Clean(cp.path)
-		if prefix != "." {
-			rest, ok := strings.CutPrefix(p, prefix+"/")
-			if !ok {
-				continue
-			}
-			p = rest
+		p, ok := moduleRelative(cp.path, prefix)
+		if !ok {
+			continue
 		}
 		sf := sc.ClassifyFile(p)
 		switch sf.Kind {

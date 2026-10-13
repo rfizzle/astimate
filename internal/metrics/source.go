@@ -52,4 +52,9 @@ type SourceFile struct {
 	// importers in the head tree (ImporterLister). Only meaningful when
 	// Kind is PackageSource or MemberSource.
 	Contract bool
+	// Test reports that the file is a test file, such as a Go _test.go
+	// file. A rename of a test file never seeds a moved package's baseline
+	// (SPEC.md 8.4). A language whose test files are MemberSource need not
+	// set it.
+	Test bool
 }

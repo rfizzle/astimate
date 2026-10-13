@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rfizzle/astimate/internal/baseline/internal/diff"
 	"github.com/rfizzle/astimate/internal/lang/golang"
 )
 
@@ -119,7 +120,7 @@ func TestStagedTreeIndexFile(t *testing.T) {
 	}
 	cmd := exec.Command("git", "add", "b/b.go")
 	cmd.Dir = r.dir
-	cmd.Env = append(withoutGitOverrides(os.Environ()), "GIT_INDEX_FILE="+alt)
+	cmd.Env = append(diff.WithoutOverrides(os.Environ()), "GIT_INDEX_FILE="+alt)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git add with GIT_INDEX_FILE: %v\n%s", err, out)
 	}

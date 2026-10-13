@@ -39,17 +39,24 @@ func TestFileRoundTrip(t *testing.T) {
 		t.Errorf("Ref() = %q, want %q", b.Ref(), "abc123")
 	}
 	for pkg, want := range pkgs {
-		got, ok := b.Metrics(pkg)
+		dir := PackageDir("example.com/m", pkg)
+		got, ok := b.Row(dir)
 		if !ok {
-			t.Errorf("Metrics(%q): not found", pkg)
+			t.Errorf("Row(%q): not found", dir)
 			continue
 		}
-		if !reflect.DeepEqual(got, want) {
-			t.Errorf("Metrics(%q) = %+v, want %+v", pkg, got, want)
+		if !reflect.DeepEqual(got.Metrics, want) {
+			t.Errorf("Row(%q).Metrics = %+v, want %+v", dir, got.Metrics, want)
 		}
 	}
-	if _, ok := b.Metrics("example.com/m/renamed"); ok {
-		t.Error("Metrics of an unknown import path reported found")
+	if _, ok := b.Row("renamed"); ok {
+		t.Error("Row of an unknown directory reported found")
+	}
+	if _, ok := b.Row("example.com/m/a"); ok {
+		t.Error("Row of an import path reported found; rows are keyed by directory")
+	}
+	if KeyedByImportPath(b) {
+		t.Error("KeyedByImportPath = true for a file Write recorded package_rows in")
 	}
 
 	data, err := os.ReadFile(path)
@@ -61,9 +68,17 @@ func TestFileRoundTrip(t *testing.T) {
 		GeneratedAt string                     `json:"generated_at"`
 		ModulePath  string                     `json:"module_path"`
 		Packages    map[string]json.RawMessage `json:"packages"`
+		PackageRows map[string]struct {
+			PackagePath string `json:"package_path"`
+		} `json:"package_rows"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		t.Fatalf("decoding baseline: %v", err)
+	}
+	// Both keys are stored: the import path keys packages, as before, and
+	// package_rows records each one's directory beside it.
+	if got := raw.PackageRows["example.com/m/a"].PackagePath; got != "a" || len(raw.PackageRows) != 2 {
+		t.Errorf("package_rows = %+v, want a and b, a's package_path \"a\"", raw.PackageRows)
 	}
 	if raw.ModulePath != "example.com/m" || len(raw.Packages) != len(pkgs) {
 		t.Errorf("module_path = %q with %d packages, want example.com/m with %d", raw.ModulePath, len(raw.Packages), len(pkgs))
@@ -111,7 +126,7 @@ func TestWriteReplacesExistingFile(t *testing.T) {
 	if b.Ref() != "new" {
 		t.Errorf("Ref() = %q, want %q", b.Ref(), "new")
 	}
-	if _, ok := b.Metrics("example.com/m/a"); ok {
+	if _, ok := b.Row("a"); ok {
 		t.Error("package from the replaced file is still present")
 	}
 }
@@ -227,11 +242,11 @@ func TestFileFunctions(t *testing.T) {
 		{Name: "Parse", Fingerprint: 0xff, Cognitive: 4},
 		{Receiver: "T", Name: "Run", Fingerprint: 0xfedcba9876543210, Cognitive: 12},
 	}
-	if got, ok := b.Functions("example.com/m/a"); !ok || !reflect.DeepEqual(got, want) {
-		t.Errorf("Functions(a) = %+v, %v, want %+v", got, ok, want)
+	if got, _ := b.Row("a"); !got.HasFunctions || !reflect.DeepEqual(got.Functions, want) {
+		t.Errorf("Row(a) functions = %+v, %v, want %+v", got.Functions, got.HasFunctions, want)
 	}
-	if got, ok := b.Functions("example.com/m/b"); !ok || len(got) != 0 {
-		t.Errorf("Functions(b) = %+v, %v, want recorded and empty", got, ok)
+	if got, _ := b.Row("b"); !got.HasFunctions || len(got.Functions) != 0 {
+		t.Errorf("Row(b) functions = %+v, %v, want recorded and empty", got.Functions, got.HasFunctions)
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -260,8 +275,8 @@ func TestFileFunctions(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, ok := b.Functions("example.com/m/a"); ok {
-			t.Error("Functions of a file that records none reported found")
+		if r, ok := b.Row("a"); !ok || r.HasFunctions {
+			t.Errorf("Row(a) = %+v, %v, want a row recording no functions", r, ok)
 		}
 	})
 	t.Run("bad fingerprint", func(t *testing.T) {

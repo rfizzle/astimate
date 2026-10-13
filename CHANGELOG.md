@@ -17,6 +17,20 @@ history.
   `untested_exports` already reads, so a package exercised only by another
   package's tests, or a test-support package, no longer fails the
   requirement. `test_files` and `test_funcs` stay the package's own.
+- Baselines match packages by their directory relative to the module root
+  (`package_path`) instead of by import path, so a module-path change such
+  as a `/vN` bump no longer makes every package read as new. A package
+  whose non-test files were moved by git rename since the baseline is
+  judged against a row seeded from the packages they came from (the source
+  most files came from gives the metrics, every source its functions), so
+  a package carved out of another is held by the ratchet rather than
+  judged as new; the report records the sources as `baseline_from` and the
+  text summary says `baseline seeded from <dirs> (rename)`. The import from
+  a package to one carved out of it in the same change is not a rise in
+  its `internal_imports` (nor in the carved-out package's `fan_in`).
+  `baseline write` now also records each package's `package_path` under a
+  new `package_rows` key; older files still load, with one warning. Replay
+  rows record `baseline_from`.
 - Per-rule severity: every threshold takes `severity`, `fail` (the default)
   or `warn`. A `warn` rule is evaluated as its kind requires, and what
   would be a violation is reported as a warning with the violation's fields

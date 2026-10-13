@@ -14,7 +14,7 @@ func TestClassifyFile(t *testing.T) {
 	}{
 		{rel: "main.go", want: metrics.SourceFile{Kind: metrics.PackageSource, Package: "."}},
 		{rel: "a/a.go", want: metrics.SourceFile{Kind: metrics.PackageSource, Package: "a"}},
-		{rel: "a/a_test.go", want: metrics.SourceFile{Kind: metrics.PackageSource, Package: "a"}},
+		{rel: "a/a_test.go", want: metrics.SourceFile{Kind: metrics.PackageSource, Package: "a", Test: true}},
 		{rel: "a/b/c.go", want: metrics.SourceFile{Kind: metrics.PackageSource, Package: "a/b"}},
 		{rel: "testdata/x.go"},
 		{rel: "a/testdata/y/y.go"},

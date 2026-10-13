@@ -121,6 +121,7 @@ checked.
 | `package` | Module-relative directory, or `<module>` |
 | `language` | The extractor's language id |
 | `new` | True when the baseline has no such row (a new package, or an `empty` baseline) |
+| `baseline_from` | Present only when the row's baseline was seeded from the parent's packages its files were renamed from (SPEC.md 8.4): their directories. Such a row is not `new`, so counting the rows that carry it counts the rows a rename kept from reading as new |
 | `passed` | The row's verdict |
 | `violations`, `warnings` | `{metric, base, head, limit, location}`: `base` is null for a new row, `limit` names the rule (`max 1000`, `max_delta +0`, ...), `location` is `{file, line}` relative to the module root, or null; a warning that is the breach of a rule with `severity: warn` also has `severity` `warn` |
 | `exemptions` | The violations an exemption silenced, as above with its `reason` |

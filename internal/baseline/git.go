@@ -1,7 +1,6 @@
 package baseline
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -13,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/rfizzle/astimate/internal/baseline/internal/diff"
 	"github.com/rfizzle/astimate/internal/metrics"
 )
 
@@ -30,15 +30,24 @@ func defaultRefs() []string {
 // cancelled.
 const cleanupTimeout = 30 * time.Second
 
+// ModulePathFunc returns the module path of the module rooted at root,
+// which package identifiers are relative to (PackageDir); "" for a
+// language whose identifiers already are module-relative directories.
+type ModulePathFunc func(root string) (string, error)
+
 // FromGit returns the baseline at the merge-base of HEAD and ref in the git
 // repository containing root. An empty ref means DefaultRef. The merge-base
 // is checked out into a temporary detached worktree, every package ext lists
-// there is extracted with a ModuleContext carrying modulePath, and the
-// worktree is removed before FromGit returns, including on error, panic,
-// cancellation of ctx, and SIGINT or SIGTERM received meanwhile. root may be
-// a module nested below the repository root. Ref reports the merge-base
-// commit and Tokenizer reports tokenizer, the method ext counts tokens with.
-// When ext implements metrics.FunctionLister, Functions reports each
+// there is extracted with a ModuleContext carrying the module path
+// modulePath reads there (none when modulePath is nil), and the worktree is
+// removed before FromGit returns, including on error, panic, cancellation
+// of ctx, and SIGINT or SIGTERM received meanwhile. root may be a module
+// nested below the repository root. Rows are keyed by the directory each
+// package has relative to that module path (PackageDir), so a module path
+// changed since the merge-base still matches every package. Ref reports
+// the merge-base commit and Tokenizer reports tokenizer, the method ext
+// counts tokens with.
+// When ext implements metrics.FunctionLister, each Row carries the
 // package's functions at the merge-base (CollectFunctions); when it
 // implements metrics.ModuleMetrics and metrics.ModuleDetailer, CrossBlocks
 // reports the module's cross-package blocks there (CollectCrossBlocks);
@@ -49,7 +58,7 @@ const cleanupTimeout = 30 * time.Second
 // When ext implements metrics.Forgetter, FromGit calls Forget on the
 // worktree's module root before removing it, so ext keeps nothing loaded
 // from the baseline.
-func FromGit(ctx context.Context, root, ref string, ext metrics.Extractor, modulePath, tokenizer string) (Baseline, error) {
+func FromGit(ctx context.Context, root, ref string, ext metrics.Extractor, modulePath ModulePathFunc, tokenizer string) (Baseline, error) {
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
@@ -64,7 +73,7 @@ func FromGit(ctx context.Context, root, ref string, ext metrics.Extractor, modul
 	if err != nil {
 		return nil, err
 	}
-	rel, err := repoRelative(ctx, root)
+	rel, err := diff.RepoRelative(ctx, root)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +85,13 @@ func FromGit(ctx context.Context, root, ref string, ext metrics.Extractor, modul
 	defer cleanup()
 
 	modRoot := filepath.Join(wt, rel)
-	mod := &metrics.ModuleContext{Root: modRoot, ModulePath: modulePath}
+	baseModPath := ""
+	if modulePath != nil {
+		if baseModPath, err = modulePath(modRoot); err != nil {
+			return nil, fmt.Errorf("reading the module path at %s: %w", sha, TreeRelative(err, modRoot))
+		}
+	}
+	mod := &metrics.ModuleContext{Root: modRoot, ModulePath: baseModPath}
 	pkgs, err := Collect(ctx, ext, mod)
 	var funcs map[string][]metrics.FunctionInfo
 	if err == nil {
@@ -100,9 +115,17 @@ func FromGit(ctx context.Context, root, ref string, ext metrics.Extractor, modul
 	if err != nil {
 		return nil, fmt.Errorf("extracting baseline at %s: %w", sha, TreeRelative(err, modRoot))
 	}
+	dir := func(id string) string { return PackageDir(baseModPath, id) }
+	c := collected{pkgs: pkgs, funcs: funcs, dir: dir}
+	byDir := make(map[string][]string, len(importers))
+	for id, from := range importers {
+		for _, imp := range from {
+			byDir[dir(id)] = append(byDir[dir(id)], dir(imp))
+		}
+	}
 	return &snapshot{
-		ref: sha, tokenizer: tokenizer, pkgs: pkgs, funcs: funcs, cross: cross, crossKnown: crossKnown,
-		importers: importers, importersKnown: importersKnown,
+		ref: sha, tokenizer: tokenizer, rows: c.rows(), cross: metrics.MapPackages(cross, dir), crossKnown: crossKnown,
+		importers: byDir, importersKnown: importersKnown,
 	}, nil
 }
 
@@ -133,7 +156,7 @@ func MergeBase(ctx context.Context, root, ref string) (string, error) {
 	if !found {
 		return "", fmt.Errorf("resolving baseline ref %q: not a commit", ref)
 	}
-	base, err := git(ctx, root, "merge-base", "HEAD", sha)
+	base, err := diff.Git(ctx, root, "merge-base", "HEAD", sha)
 	if err != nil {
 		return "", fmt.Errorf("finding merge-base of HEAD and %s: %w", ref, err)
 	}
@@ -161,7 +184,7 @@ func resolveCommit(ctx context.Context, root, ref string) (sha string, found boo
 		return "", false, fmt.Errorf("resolving ref %q: not a valid ref", ref)
 	}
 	// The leading-dash check above keeps ref from being read as an option.
-	out, err := git(ctx, root, "rev-parse", "--verify", "--quiet", ref+"^{commit}")
+	out, err := diff.Git(ctx, root, "rev-parse", "--verify", "--quiet", ref+"^{commit}")
 	if err != nil {
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) && exitErr.ExitCode() == 1 && ctx.Err() == nil {
@@ -170,33 +193,6 @@ func resolveCommit(ctx context.Context, root, ref string) (sha string, found boo
 		return "", false, fmt.Errorf("resolving ref %q: %w", ref, err)
 	}
 	return out, true, nil
-}
-
-// repoRelative returns root's path relative to the top of its git working
-// tree, so the same module can be found inside a worktree of that
-// repository.
-func repoRelative(ctx context.Context, root string) (string, error) {
-	top, err := git(ctx, root, "rev-parse", "--show-toplevel")
-	if err != nil {
-		return "", fmt.Errorf("finding repository root of %s: %w", root, err)
-	}
-	abs, err := filepath.Abs(root)
-	if err != nil {
-		return "", fmt.Errorf("resolving %s: %w", root, err)
-	}
-	// git reports the top level with symlinks resolved; resolve root too so
-	// the two paths are comparable (for example /var and /private/var).
-	if resolved, err := filepath.EvalSymlinks(abs); err == nil {
-		abs = resolved
-	}
-	if resolved, err := filepath.EvalSymlinks(top); err == nil {
-		top = resolved
-	}
-	rel, err := filepath.Rel(top, abs)
-	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return "", fmt.Errorf("locating %s within repository %s: not inside it", root, top)
-	}
-	return rel, nil
 }
 
 // addWorktree checks sha out into a new temporary directory as a detached
@@ -211,70 +207,18 @@ func addWorktree(ctx context.Context, root, sha string) (dir string, cleanup fun
 	cleanup = func() {
 		cctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), cleanupTimeout)
 		defer cancel()
-		if _, err := git(cctx, root, "worktree", "remove", "--force", dir); err == nil {
+		if _, err := diff.Git(cctx, root, "worktree", "remove", "--force", dir); err == nil {
 			_ = os.RemoveAll(dir)
 			return
 		}
 		// Fallback: delete the directory ourselves and let git forget the
 		// now-missing worktree.
 		_ = os.RemoveAll(dir)
-		_, _ = git(cctx, root, "worktree", "prune")
+		_, _ = diff.Git(cctx, root, "worktree", "prune")
 	}
-	if _, err := git(ctx, root, "worktree", "add", "--detach", dir, sha); err != nil {
+	if _, err := diff.Git(ctx, root, "worktree", "add", "--detach", dir, sha); err != nil {
 		cleanup()
 		return "", nil, fmt.Errorf("checking out baseline %s: %w", sha, err)
 	}
 	return dir, cleanup, nil
-}
-
-// gitEnvOverrides are environment variables, set when astimate runs inside a
-// git hook, that would redirect git away from the repository at cmd.Dir.
-func gitEnvOverrides() []string {
-	return []string{"GIT_DIR=", "GIT_WORK_TREE=", "GIT_INDEX_FILE="}
-}
-
-// git runs git with args as separate arguments (never through a shell) in
-// dir and returns its trimmed standard output. The error includes git's
-// standard error and wraps the *exec.ExitError.
-func git(ctx context.Context, dir string, args ...string) (string, error) {
-	return gitEnv(ctx, dir, nil, args...)
-}
-
-// gitEnv is git with the entries of env added to the environment after the
-// variables gitEnvOverrides names are dropped, such as a GIT_INDEX_FILE
-// that selects the index to read.
-func gitEnv(ctx context.Context, dir string, env []string, args ...string) (string, error) {
-	cmd := exec.CommandContext(ctx, "git", args...)
-	cmd.Dir = dir
-	cmd.Env = append(withoutGitOverrides(os.Environ()), env...)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	out, err := cmd.Output()
-	if err != nil {
-		msg := strings.TrimSpace(stderr.String())
-		if msg == "" {
-			return "", fmt.Errorf("git %s: %w", args[0], err)
-		}
-		return "", fmt.Errorf("git %s: %w: %s", args[0], err, msg)
-	}
-	return strings.TrimSpace(string(out)), nil
-}
-
-// withoutGitOverrides returns env without the variables gitEnvOverrides
-// names.
-func withoutGitOverrides(env []string) []string {
-	out := make([]string, 0, len(env))
-	for _, kv := range env {
-		drop := false
-		for _, prefix := range gitEnvOverrides() {
-			if strings.HasPrefix(kv, prefix) {
-				drop = true
-				break
-			}
-		}
-		if !drop {
-			out = append(out, kv)
-		}
-	}
-	return out
 }
