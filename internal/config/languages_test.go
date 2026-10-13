@@ -76,6 +76,11 @@ func TestDefaultTypeScriptOverride(t *testing.T) {
 	if ts.Rebuild != cfg.Rebuild {
 		t.Errorf("typescript Rebuild = %+v, want the top level's", ts.Rebuild)
 	}
+	for _, eff := range []Effective{cfg.ForLanguage("go"), ts} {
+		if eff.MinTokensCross != 80 {
+			t.Errorf("%s MinTokensCross = %d, want the shared duplication.min_tokens_cross 80", eff.Version, eff.MinTokensCross)
+		}
+	}
 	if !slices.Equal(ruleMetrics(ts.Thresholds), ruleMetrics(cfg.Thresholds)) {
 		t.Fatalf("typescript rules = %q, want the top level's metrics in order %q",
 			ruleMetrics(ts.Thresholds), ruleMetrics(cfg.Thresholds))

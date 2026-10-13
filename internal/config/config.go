@@ -70,6 +70,10 @@ type Duplication struct {
 	// MinTokens is the minimum normalized token run counted as a duplicate
 	// block.
 	MinTokens int
+	// MinTokensCross is the shortest cross-package block, in normalized
+	// tokens, that dup_blocks_cross_pkg judges as added by a change
+	// (SPEC.md 8.1); shorter added blocks are reported, not gated.
+	MinTokensCross int
 	// IgnoreLiteralOnly drops a duplicate block made only of literals and
 	// literal-table punctuation.
 	IgnoreLiteralOnly bool
@@ -100,13 +104,6 @@ type fileConfig struct {
 	DupMinTokens         *int  `yaml:"dup_min_tokens"`
 	DupIgnoreLiteralOnly *bool `yaml:"dup_ignore_literal_only"`
 	DupFoldSigns         *bool `yaml:"dup_fold_signs"`
-}
-
-type fileDuplication struct {
-	MinTokens         *int  `yaml:"min_tokens"`
-	IgnoreLiteralOnly *bool `yaml:"ignore_literal_only"`
-	FoldSigns         *bool `yaml:"fold_signs"`
-	SplitLiteralRuns  *bool `yaml:"split_literal_runs"`
 }
 
 type fileRebuild struct {
@@ -247,6 +244,9 @@ func (c *Config) Validate() error {
 	}
 	if c.Duplication.MinTokens <= 0 {
 		errs = append(errs, fmt.Errorf("duplication.min_tokens must be > 0, got %d", c.Duplication.MinTokens))
+	}
+	if c.Duplication.MinTokensCross < 0 {
+		errs = append(errs, fmt.Errorf("duplication.min_tokens_cross must be >= 0, got %d", c.Duplication.MinTokensCross))
 	}
 	if err := c.Rebuild.Validate(); err != nil {
 		errs = append(errs, fmt.Errorf("rebuild: %w", err))
@@ -442,6 +442,15 @@ type legacyDupKey struct {
 	set      bool
 }
 
+// fileDuplication mirrors the duplication section.
+type fileDuplication struct {
+	MinTokens         *int  `yaml:"min_tokens"`
+	MinTokensCross    *int  `yaml:"min_tokens_cross"`
+	IgnoreLiteralOnly *bool `yaml:"ignore_literal_only"`
+	FoldSigns         *bool `yaml:"fold_signs"`
+	SplitLiteralRuns  *bool `yaml:"split_literal_runs"`
+}
+
 // buildDuplication fills cfg.Duplication from the duplication section, or
 // from the deprecated top-level keys with a warning, taking every absent key
 // from the embedded default. Setting both forms is an error naming both.
@@ -474,13 +483,16 @@ func (fc *fileConfig) buildDuplication(cfg *Config) error {
 	case d == nil:
 		d = &fileDuplication{}
 	}
-	if d.MinTokens == nil || d.IgnoreLiteralOnly == nil || d.FoldSigns == nil || d.SplitLiteralRuns == nil {
+	if d.MinTokens == nil || d.MinTokensCross == nil || d.IgnoreLiteralOnly == nil || d.FoldSigns == nil || d.SplitLiteralRuns == nil {
 		def, err := defaultDuplication()
 		if err != nil {
 			return err
 		}
 		if d.MinTokens == nil {
 			d.MinTokens = def.MinTokens
+		}
+		if d.MinTokensCross == nil {
+			d.MinTokensCross = def.MinTokensCross
 		}
 		if d.IgnoreLiteralOnly == nil {
 			d.IgnoreLiteralOnly = def.IgnoreLiteralOnly
@@ -494,6 +506,7 @@ func (fc *fileConfig) buildDuplication(cfg *Config) error {
 	}
 	cfg.Duplication = Duplication{
 		MinTokens:         *d.MinTokens,
+		MinTokensCross:    *d.MinTokensCross,
 		IgnoreLiteralOnly: *d.IgnoreLiteralOnly,
 		FoldSigns:         *d.FoldSigns,
 		// An embedded default without split_literal_runs leaves it off.
@@ -511,7 +524,7 @@ func defaultDuplication() (*fileDuplication, error) {
 		return nil, fmt.Errorf("embedded default: %w", err)
 	}
 	d := fc.Duplication
-	if d == nil || d.MinTokens == nil || d.IgnoreLiteralOnly == nil || d.FoldSigns == nil {
+	if d == nil || d.MinTokens == nil || d.MinTokensCross == nil || d.IgnoreLiteralOnly == nil || d.FoldSigns == nil {
 		return nil, errors.New("embedded default: duplication section is incomplete")
 	}
 	return d, nil

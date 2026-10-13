@@ -168,7 +168,7 @@ func texts() []entry {
 		{
 			"dup_blocks_cross_pkg", "gated",
 			"Duplicate blocks shared with other packages in the module: exact normalized repeats of at least duplication.min_tokens found over one module-wide stream, counted once per package they touch. The module-level row (package path \"<module>\") counts the distinct blocks and is baselined like a package, because one edit that copies code across packages changes two packages' counts. A rule on it is gated on the module row only: package rows report their count but are not gated on it, so one cross-package copy is one finding.",
-			"{duplication} The default gates the module row: max_delta 0, and max 450 (the corpus p90) for a module with no baseline.",
+			"{duplication} The default gates the module row: max_delta 0, and max 450 (the corpus p90) for a module with no baseline. Against a git baseline, which records the blocks, the rule judges the baseline's count plus the blocks the change added: new blocks of at least duplication.min_tokens_cross tokens (default 80, near where golangci-lint's dupl starts reporting copies), not counting a block every package of which came out of one rename, the code a split leaves shared between its halves; the finding names only those, and the row keeps the full count. Against a baseline file, which records only the count, the full count is judged.",
 		},
 		{
 			"instability", "",

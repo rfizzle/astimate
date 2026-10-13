@@ -18,6 +18,10 @@ func Digest(text string) int {
 			acc = -acc
 		}
 	}
+	acc = (acc*37 + len(text)) % 999983
+	if acc > 499991 {
+		acc = 999983 - acc
+	}
 	if acc == 0 {
 		return 1
 	}

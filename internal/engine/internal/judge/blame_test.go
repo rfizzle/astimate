@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/score"
 )
 
 // block returns a cross-package block with one occurrence in each of pkgs,
@@ -18,6 +19,23 @@ func block(pkgs ...string) metrics.CrossBlock {
 		})
 	}
 	return b
+}
+
+// sized returns block(pkgs...) with a length of tokens normalized tokens.
+func sized(tokens int, pkgs ...string) metrics.CrossBlock {
+	b := block(pkgs...)
+	b.Tokens = tokens
+	return b
+}
+
+// judgment returns the crossJudgment of head against base under floor and
+// the renames from, as Checker.judgeCross builds it.
+func judgment(head, base []metrics.CrossBlock, known bool, floor int, from map[string][]string) crossJudgment {
+	j := crossJudgment{known: known, floor: floor}
+	if known {
+		j.added = score.AddedCrossBlocks(head, base, floor, from)
+	}
+	return j
 }
 
 // blockNames renders blocks as their package sets, "a-b", for comparison.
@@ -40,6 +58,8 @@ func TestBlameCross(t *testing.T) {
 		name       string
 		head, base []metrics.CrossBlock
 		known      bool
+		floor      int
+		from       map[string][]string
 		named      string
 		want       []string
 		wantGated  int
@@ -75,6 +95,30 @@ func TestBlameCross(t *testing.T) {
 			known: true, named: "hub", want: []string{"a-hub"}, wantGated: 3,
 		},
 		{
+			name:  "new copy under the floor",
+			head:  []metrics.CrossBlock{block("a", "b"), sized(45, "a", "hub")},
+			base:  []metrics.CrossBlock{block("a", "b")},
+			known: true, floor: 80, named: "hub", wantGated: 1,
+		},
+		{
+			name:  "new copy at the floor",
+			head:  []metrics.CrossBlock{block("a", "b"), sized(80, "a", "hub")},
+			base:  []metrics.CrossBlock{block("a", "b")},
+			known: true, floor: 80, named: "hub", want: []string{"a-hub"}, wantGated: 2,
+		},
+		{
+			name:  "block between a split's halves is moved",
+			head:  []metrics.CrossBlock{sized(200, "hub", "hub2")},
+			from:  map[string][]string{"example.com/m/hub2": {"example.com/m/hub"}},
+			known: true, floor: 80, named: "hub2", wantGated: 0,
+		},
+		{
+			name:  "copy from a split half into another package is added",
+			head:  []metrics.CrossBlock{sized(200, "a", "hub2")},
+			from:  map[string][]string{"example.com/m/hub2": {"example.com/m/hub"}},
+			known: true, floor: 80, named: "hub2", want: []string{"a-hub2"}, wantGated: 1,
+		},
+		{
 			name:  "no block identities, no block touches the named package",
 			head:  []metrics.CrossBlock{block("a", "b"), block("hidden", "hub")},
 			named: "trivial", wantGated: 1,
@@ -89,7 +133,7 @@ func TestBlameCross(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			named := map[string]bool{"example.com/m/" + tt.named: true}
-			b := blameCross(tt.head, tt.base, tt.known, named)
+			b := blameCross(tt.head, judgment(tt.head, tt.base, tt.known, tt.floor, tt.from), named)
 			if got := blockNames(b.blocks); !slices.Equal(got, tt.want) {
 				t.Errorf("blamed %v, want %v", got, tt.want)
 			}
@@ -129,7 +173,7 @@ func TestBlameNamed(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got, b := blameNamed(m, tt.bm, base, true, head, []string{"example.com/m/" + tt.named})
+			got, b := blameNamed(m, tt.bm, judgment(head, base, true, 0, nil), head, []string{"example.com/m/" + tt.named})
 			if *got.DupBlocksCrossPkg != tt.want {
 				t.Errorf("gated dup_blocks_cross_pkg = %d, want %d", *got.DupBlocksCrossPkg, tt.want)
 			}
@@ -150,7 +194,7 @@ func TestCrossBlameSuggestion(t *testing.T) {
 	got := b.suggestion(metrics.RawMetrics{}, "example.com/m")
 	const want = "2 duplicate blocks are shared with other packages; extract each into one package, " +
 		"starting with the block in hidden/hidden.go:10-15 and hub/hub.go:20-25. " +
-		"New blocks touching the checked package are shared by hidden and hub; a, b and hub."
+		"Added blocks touching the checked package are shared by hidden and hub; a, b and hub."
 	if got != want {
 		t.Errorf("suggestion =\n%q\nwant\n%q", got, want)
 	}

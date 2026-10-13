@@ -335,13 +335,16 @@ func gitIn(t *testing.T, dir string, args ...string) {
 }
 
 // crossPackageConfig returns the default configuration with exactly one
-// rule on dup_blocks_cross_pkg: max_delta 0 with ratchet_from_zero.
+// rule on dup_blocks_cross_pkg: max_delta 0 with ratchet_from_zero, and no
+// duplication.min_tokens_cross floor, so the short copies the tests make
+// are judged.
 func crossPackageConfig(t *testing.T) *config.Config {
 	t.Helper()
 	cfg, err := config.Parse(config.Default())
 	if err != nil {
 		t.Fatal(err)
 	}
+	cfg.Duplication.MinTokensCross = 0
 	zero := 0.0
 	cfg.Thresholds = slices.DeleteFunc(cfg.Thresholds, func(r gate.Threshold) bool { return metrics.ModuleWide(r.Metric) })
 	cfg.Thresholds = append(cfg.Thresholds, gate.Threshold{

@@ -109,6 +109,8 @@ type Position struct {
 type CrossBlock struct {
 	// Kind is what the block is made of, as DupBlock.Kind.
 	Kind string
+	// Tokens is the block's length in normalized tokens; 0 when unknown.
+	Tokens int
 	// Occurrences are the block's occurrences, at least two, in order of
 	// package identifier, then file, then line.
 	Occurrences []Occurrence
@@ -129,7 +131,7 @@ func MapPackages(blocks []CrossBlock, rename func(string) string) []CrossBlock {
 			o.Package = rename(o.Package)
 			occ[j] = o
 		}
-		out[i] = CrossBlock{Kind: blocks[i].Kind, Occurrences: occ}
+		out[i] = CrossBlock{Kind: blocks[i].Kind, Tokens: blocks[i].Tokens, Occurrences: occ}
 	}
 	return out
 }

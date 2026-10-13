@@ -245,7 +245,23 @@ history.
   a commit whose check selected a package that does not load as not
   loaded, with the skip's reason, as it records a module that does not
   load.
-
+- `dup_blocks_cross_pkg` ratchets on the cross-package blocks a change
+  added instead of on the module's count. Against a git baseline the rule
+  judges the baseline's count plus the new blocks of at least
+  `duplication.min_tokens_cross` normalized tokens (a new key, default 80)
+  that no rename moved: a block whose every package came out of one rename,
+  as a split leaves its halves sharing code, is moved, not copied. A short
+  preamble repeated across packages, or a package split in two, no longer
+  fails a module already over the ceiling, while a copied function still
+  does; the finding names only the added blocks and the row keeps the full
+  count. A check of named packages (the MCP `check_package` tool) judges the
+  same blocks. Against a baseline file, which stores only the count, the
+  count is judged as before and the suggestion says so. Each cross-package
+  block in the extractor's details now carries its length in tokens. The
+  fixture's `a.Checksum`/`b.Digest` copy grew from 65 to 90 tokens so it
+  still clears the floor, which moves `a` and `b`'s goldens. The floor was
+  swept on a sample of 20 replay commits
+  (`calibration/notes/cross-blocks-added-2026-10-14.md`).
 - The duplicate locations an extractor's `Details` lists, and so the one a
   duplication suggestion cites and `details.duplicates` leads with, are
   ordered by the block's length in tokens, longest first, ties in file

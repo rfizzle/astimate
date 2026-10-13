@@ -30,6 +30,11 @@ chars_per_token: 3.2
 duplication:
   # Minimum normalized token run that counts as a duplicate block.
   min_tokens: 40
+  # Shortest cross-package block, in normalized tokens, that
+  # dup_blocks_cross_pkg fails a change for adding; shorter repeats of a
+  # preamble across packages are reported but not gated. 80 is near where
+  # golangci-lint's dupl starts reporting copies.
+  min_tokens_cross: 80
   # Drop a duplicate block made only of literals and the punctuation of a
   # literal table, so repeated runs of data tables are not duplication.
   ignore_literal_only: true

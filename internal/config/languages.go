@@ -26,6 +26,10 @@ type Effective struct {
 	// every language: an override carries none. Callers must not modify
 	// it.
 	Exemptions []gate.Exemption
+	// MinTokensCross is duplication.min_tokens_cross, the same for every
+	// language: the shortest added cross-package block
+	// dup_blocks_cross_pkg judges (SPEC.md 8.1).
+	MinTokensCross int
 }
 
 // fileLanguage mirrors one entry of the languages section.
@@ -81,9 +85,11 @@ func (c *Config) Languages() []string {
 func (c *Config) ForLanguage(lang string) Effective {
 	o, ok := c.languages[lang]
 	if !ok || o.empty() {
-		return Effective{Version: c.Version, Rebuild: c.Rebuild, Thresholds: c.Thresholds, Exemptions: c.Exemptions}
+		return Effective{Version: c.Version, Rebuild: c.Rebuild, Thresholds: c.Thresholds, Exemptions: c.Exemptions,
+			MinTokensCross: c.Duplication.MinTokensCross}
 	}
-	eff := Effective{Version: c.Version + "+" + lang, Rebuild: c.Rebuild, Exemptions: c.Exemptions}
+	eff := Effective{Version: c.Version + "+" + lang, Rebuild: c.Rebuild, Exemptions: c.Exemptions,
+		MinTokensCross: c.Duplication.MinTokensCross}
 	if o.rebuild != nil {
 		for _, f := range o.rebuild.fields(&eff.Rebuild) {
 			if f.src != nil {

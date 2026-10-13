@@ -596,8 +596,8 @@ func TestCheckJSONModuleLocation(t *testing.T) {
 		t.Errorf("module finding location = %+v, want a/a.go line 7", l)
 	}
 	want := []report.CrossOccurrence{
-		{Package: "a", File: "a/a.go", StartLine: 7, EndLine: 19},
-		{Package: "b", File: "b/b.go", StartLine: 13, EndLine: 25},
+		{Package: "a", File: "a/a.go", StartLine: 7, EndLine: 23},
+		{Package: "b", File: "b/b.go", StartLine: 13, EndLine: 29},
 	}
 	if m.Details == nil || len(m.Details.CrossBlocks) != 1 || !slices.Equal(m.Details.CrossBlocks[0].Occurrences, want) {
 		t.Errorf("module details = %+v, want the one block %+v", m.Details, want)

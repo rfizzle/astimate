@@ -167,50 +167,56 @@ One file, `trivial.go`, 151 bytes.
 
 ## a
 
-One file, `a.go`, 431 bytes. Imports `example.com/fixture/hub` only.
+One file, `a.go`, 510 bytes. Imports `example.com/fixture/hub` only.
 
-- `sloc=18`: package, import, `Checksum` (lines 7-19, 13 lines), `Label`
+- `sloc=22`: package, import, `Checksum` (lines 7-23, 17 lines), `Label`
   (3 lines).
-- `tokens_est = 431 / 3.2 = 134.7 -> 134`.
-- Functions: `Checksum` 4 (`for` +1 at nesting 0, `if` +2 at nesting 1,
-  top-level `if` +1), `Label` 0. Sorted `[0, 4]`, rank `ceil(1.8) = 2` ->
-  p90 4. Total 4. `func_count=2`, `max_nesting=2` (`for` then `if`).
+- `tokens_est = 510 / 3.2 = 159.4 -> 159`.
+- Functions: `Checksum` 5 (`for` +1 at nesting 0, `if` +2 at nesting 1,
+  two top-level `if`s +1 each), `Label` 0. Sorted `[0, 5]`, rank
+  `ceil(1.8) = 2` -> p90 5. Total 5. `func_count=2`, `max_nesting=2`
+  (`for` then `if`).
 - `exported_symbols=2`, `untested_exports=2`, `internal_imports=1`.
 - `dup_blocks=0` (one copy in the package), `dup_blocks_cross_pkg=1`.
 
 ## b
 
-One file, `b.go`, 494 bytes. Imports `example.com/fixture/hub` only.
+One file, `b.go`, 574 bytes. Imports `example.com/fixture/hub` only.
 
-- `sloc=18`: package, import, `Limit` (3 lines), `Digest` (lines 13-25,
-  13 lines).
-- `tokens_est = 494 / 3.2 = 154.4 -> 154`.
-- Functions: `Limit` 0, `Digest` 4, scored as `Checksum`. Sorted `[0, 4]`
-  -> p90 4. Total 4. `func_count=2`, `max_nesting=2`.
+- `sloc=22`: package, import, `Limit` (3 lines), `Digest` (lines 13-29,
+  17 lines).
+- `tokens_est = 574 / 3.2 = 179.4 -> 179`.
+- Functions: `Limit` 0, `Digest` 5, scored as `Checksum`. Sorted `[0, 5]`
+  -> p90 5. Total 5. `func_count=2`, `max_nesting=2`.
 - `exported_symbols=2`, `untested_exports=2`, `internal_imports=1`.
 - `dup_blocks=0`, `dup_blocks_cross_pkg=1`.
 
 ### Cross-package duplication
 
 `Digest` in `b` is `Checksum` from `a` with every identifier and literal
-renamed, so both normalize to the same 65-token sequence:
+renamed, so both normalize to the same 90-token sequence:
 
 ```
 func ID ( ID ID ) ID { ID := LIT for ID := LIT ; ID < ID ( ID ) ; ID ++ {
 ID = ( ID * LIT + ID ( ID [ ID ] ) ) % LIT if ID < LIT { ID = - ID } }
+ID = ( ID * LIT + ID ( ID ) ) % LIT if ID > LIT { ID = LIT - ID }
 if ID == LIT { return LIT } return ID }
 ```
 
-well over the 40-token minimum. The neighbours differ on both sides:
+well over the 40-token minimum, and over the 80-token
+`duplication.min_tokens_cross` floor, so a change that made this copy is
+failed for it against a baseline that records its blocks. The neighbours differ on both sides:
 `Checksum` follows `import LIT` and precedes `func` (`Label`), `Digest`
 follows `LIT ) }` (the end of `Limit`) and ends the file, so the maximal
-repeat is exactly one function long: one block, covering `a.go` lines 7-19
-and `b.go` lines 13-25. Each package holds one occurrence, so neither has a
+repeat is exactly one function long: one block, covering `a.go` lines 7-23
+and `b.go` lines 13-29. Each package holds one occurrence, so neither has a
 `dup_blocks` repeat of its own, and each counts the block once in
 `dup_blocks_cross_pkg`. A throwaway `go/scanner` script comparing every
 pair of non-test, non-generated files in different packages found no other
-shared run of 40 or more tokens: after `a.go` and `b.go` (65), the
-longest is 17 tokens, between `a.go` and `tested/count.go`. `dupes`' three
+shared run of 40 or more tokens: after `a.go` and `b.go` (65 then), the
+longest was 17 tokens, between `a.go` and `tested/count.go`; the copy grew
+by its last two statements since, and the module row still counts one
+block. `dupes`' three
 copies lie in one package and are not cross-package.
 
 ## hub

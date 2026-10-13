@@ -147,8 +147,8 @@ $ astimate assess testdata/go/fixture/dupes --json | head -25
 ```
 $ astimate rank testdata/go/fixture
 PATH      PASSES  DAYS  TIER      FAN_IN  TOKENS  DUP%
-a            0.0   1.0  ONE_PASS       0     134   0.0
-b            0.0   1.0  ONE_PASS       0     154   0.0
+a            0.0   1.3  ONE_PASS       0     159   0.0
+b            0.0   1.3  ONE_PASS       0     179   0.0
 consumer     0.0   0.1  ONE_PASS       0      45   0.0
 dupes        0.0   0.7  ONE_PASS       0     506  80.6
 errs         0.0   0.2  ONE_PASS       0     178   0.0

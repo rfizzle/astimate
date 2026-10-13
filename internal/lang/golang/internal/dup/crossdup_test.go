@@ -157,7 +157,7 @@ func TestCrossPackageAttribution(t *testing.T) {
 }
 
 // TestCrossDuplicationFixture checks the module pass on the fixture: a and
-// b share Checksum and Digest, one 65-token block, and nothing else is
+// b share Checksum and Digest, one 90-token block, and nothing else is
 // shared across packages. dupes' three copies are within one package.
 func TestCrossDuplicationFixture(t *testing.T) {
 	l := loadFixture(t)
@@ -169,6 +169,12 @@ func TestCrossDuplicationFixture(t *testing.T) {
 	want := map[string]int{"example.com/fixture/a": 1, "example.com/fixture/b": 1}
 	if len(got.Blocks) != 1 || len(got.PerPkg) != len(want) {
 		t.Fatalf("blocks, perPkg = %d, %v, want 1, %v", len(got.Blocks), got.PerPkg, want)
+	}
+	if n := got.Blocks[0].Tokens; n != 90 {
+		t.Errorf("block tokens = %d, want 90", n)
+	}
+	if n := got.BlocksOf("example.com/fixture/a")[0].Tokens; n != 90 {
+		t.Errorf("BlocksOf tokens = %d, want 90 carried over", n)
 	}
 	for path, n := range want {
 		if got.PerPkg[path] != n {

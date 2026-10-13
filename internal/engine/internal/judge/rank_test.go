@@ -203,7 +203,8 @@ func TestCheckerModuleCitesAdded(t *testing.T) {
 		t.Fatalf("violations = %+v, want dup_blocks_cross_pkg", r.Violations)
 	}
 	v := r.Violations[0]
-	if !strings.Contains(v.Suggestion, "c/x.go:20-29 and d/x.go:20-29, added in this change") {
+	if !strings.HasPrefix(v.Suggestion, "The change added 1 duplicate block shared") ||
+		!strings.Contains(v.Suggestion, "c/x.go:20-29 and d/x.go:20-29") {
 		t.Errorf("suggestion %q, want the added block cited and said to be added", v.Suggestion)
 	}
 	if v.Location == nil || v.Location.File != "c/x.go" || v.Location.Line != 20 {

@@ -35,7 +35,7 @@ func TestParseDefault(t *testing.T) {
 	if cfg.CharsPerToken != 3.2 {
 		t.Errorf("CharsPerToken = %v, want 3.2", cfg.CharsPerToken)
 	}
-	if want := (Duplication{MinTokens: 40, IgnoreLiteralOnly: true, FoldSigns: true}); cfg.Duplication != want {
+	if want := (Duplication{MinTokens: 40, MinTokensCross: 80, IgnoreLiteralOnly: true, FoldSigns: true}); cfg.Duplication != want {
 		t.Errorf("Duplication = %+v, want %+v", cfg.Duplication, want)
 	}
 	if len(cfg.Warnings) != 0 {
@@ -246,6 +246,7 @@ func TestParseErrors(t *testing.T) {
 		{name: "missing chars_per_token", old: "chars_per_token: 3.2\n", repl: "", wantErr: "chars_per_token is required"},
 		{name: "zero chars_per_token", old: "chars_per_token: 3.2", repl: "chars_per_token: 0", wantErr: "chars_per_token must be > 0"},
 		{name: "zero min_tokens", old: "min_tokens: 40", repl: "min_tokens: 0", wantErr: "duplication.min_tokens must be > 0"},
+		{name: "negative min_tokens_cross", old: "min_tokens_cross: 80", repl: "min_tokens_cross: -1", wantErr: "duplication.min_tokens_cross must be >= 0"},
 		{name: "ignore_literal_only not a bool", old: "ignore_literal_only: true", repl: "ignore_literal_only: maybe", wantErr: "`maybe` into bool"},
 		{name: "unknown duplication key", old: "  min_tokens: 40\n", repl: "  min_tokens: 40\n  min_tokenz: 40\n", wantErr: "min_tokenz"},
 		{name: "empty version", old: "config_version: rebuild-2026-09-28-claude-code-opus", repl: "config_version: \"\"", wantErr: "config_version is required"},
@@ -290,6 +291,11 @@ func TestParseErrors(t *testing.T) {
 const defaultDupSection = `duplication:
   # Minimum normalized token run that counts as a duplicate block.
   min_tokens: 40
+  # Shortest cross-package block, in normalized tokens, that
+  # dup_blocks_cross_pkg fails a change for adding; shorter repeats of a
+  # preamble across packages are reported but not gated. 80 is near where
+  # golangci-lint's dupl starts reporting copies.
+  min_tokens_cross: 80
   # Drop a duplicate block made only of literals and the punctuation of a
   # literal table, so repeated runs of data tables are not duplication.
   ignore_literal_only: true
@@ -306,7 +312,7 @@ const defaultDupSection = `duplication:
 func TestParseDuplication(t *testing.T) {
 	t.Parallel()
 
-	defaults := Duplication{MinTokens: 40, IgnoreLiteralOnly: true, FoldSigns: true}
+	defaults := Duplication{MinTokens: 40, MinTokensCross: 80, IgnoreLiteralOnly: true, FoldSigns: true}
 	tests := []struct {
 		name         string
 		section      string
@@ -317,19 +323,23 @@ func TestParseDuplication(t *testing.T) {
 		{name: "absent section", section: "", want: defaults},
 		{name: "empty section", section: "duplication: {}\n", want: defaults},
 		{name: "only min_tokens", section: "duplication:\n  min_tokens: 25\n",
-			want: Duplication{MinTokens: 25, IgnoreLiteralOnly: true, FoldSigns: true}},
+			want: Duplication{MinTokens: 25, MinTokensCross: 80, IgnoreLiteralOnly: true, FoldSigns: true}},
+		{name: "only min_tokens_cross", section: "duplication:\n  min_tokens_cross: 120\n",
+			want: Duplication{MinTokens: 40, MinTokensCross: 120, IgnoreLiteralOnly: true, FoldSigns: true}},
+		{name: "min_tokens_cross off", section: "duplication:\n  min_tokens_cross: 0\n",
+			want: Duplication{MinTokens: 40, IgnoreLiteralOnly: true, FoldSigns: true}},
 		{name: "only fold_signs", section: "duplication:\n  fold_signs: false\n",
-			want: Duplication{MinTokens: 40, IgnoreLiteralOnly: true, FoldSigns: false}},
+			want: Duplication{MinTokens: 40, MinTokensCross: 80, IgnoreLiteralOnly: true, FoldSigns: false}},
 		{name: "split_literal_runs on", section: "duplication:\n  split_literal_runs: true\n",
-			want: Duplication{MinTokens: 40, IgnoreLiteralOnly: true, FoldSigns: true, SplitLiteralRuns: true}},
+			want: Duplication{MinTokens: 40, MinTokensCross: 80, IgnoreLiteralOnly: true, FoldSigns: true, SplitLiteralRuns: true}},
 		{name: "split_literal_runs off", section: "duplication:\n  split_literal_runs: false\n", want: defaults},
 		{name: "full section with split_literal_runs", section: "duplication:\n  min_tokens: 30\n  ignore_literal_only: true\n" +
 			"  fold_signs: false\n  split_literal_runs: true\n",
-			want: Duplication{MinTokens: 30, IgnoreLiteralOnly: true, SplitLiteralRuns: true}},
+			want: Duplication{MinTokens: 30, MinTokensCross: 80, IgnoreLiteralOnly: true, SplitLiteralRuns: true}},
 		{name: "old keys", section: "dup_min_tokens: 30\ndup_ignore_literal_only: false\ndup_fold_signs: false\n",
-			want: Duplication{MinTokens: 30}, wantWarnings: 1},
+			want: Duplication{MinTokens: 30, MinTokensCross: 80}, wantWarnings: 1},
 		{name: "one old key", section: "dup_min_tokens: 30\n",
-			want: Duplication{MinTokens: 30, IgnoreLiteralOnly: true, FoldSigns: true}, wantWarnings: 1},
+			want: Duplication{MinTokens: 30, MinTokensCross: 80, IgnoreLiteralOnly: true, FoldSigns: true}, wantWarnings: 1},
 		{name: "both forms", section: "dup_min_tokens: 30\ndup_fold_signs: false\nduplication:\n  min_tokens: 25\n",
 			wantErr: []string{"dup_min_tokens and duplication.min_tokens", "dup_fold_signs and duplication.fold_signs"}},
 	}

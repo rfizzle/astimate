@@ -12,6 +12,10 @@ func Checksum(s string) int {
 			sum = -sum
 		}
 	}
+	sum = (sum*31 + len(s)) % 1000003
+	if sum > 500000 {
+		sum = 1000003 - sum
+	}
 	if sum == 0 {
 		return 1
 	}

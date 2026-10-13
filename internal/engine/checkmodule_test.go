@@ -283,10 +283,12 @@ func TestCheckCrossPackageCopyOneFinding(t *testing.T) {
 		t.Fatalf("violations = %v, want exactly %v", got, want)
 	}
 	// The finding names both copies, a.Checksum and b.Digest, and is
-	// located on the first for the GitHub annotation.
+	// located on the first for the GitHub annotation; against a baseline
+	// file, which records no blocks, it says the count was judged.
 	v := c.Module.Report.Violations[0]
 	const suggestion = "1 duplicate block is shared with other packages; " +
-		"extract the shared block in a/a.go:7-19 and b/b.go:13-25 into one package."
+		"extract the shared block in a/a.go:7-23 and b/b.go:13-29 into one package. " +
+		"The baseline records no cross-package blocks, so the whole count is judged rather than the blocks this change added."
 	if v.Suggestion != suggestion {
 		t.Errorf("suggestion = %q, want %q", v.Suggestion, suggestion)
 	}

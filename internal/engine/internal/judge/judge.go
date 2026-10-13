@@ -133,15 +133,23 @@ func (c *Checker) Package(ctx context.Context, pkg string, m metrics.RawMetrics)
 // suggestion names where the first shared block lives and its findings
 // are located on the block's first occurrence; otherwise the row's
 // suggestions name no locations. When the baseline recorded its blocks,
-// the blocks the change added come first (score.RankCrossBlocks) and the
-// suggestion says the first was added; the row's details list them in that
-// order. It carries no baseline agent passes,
-// since its rebuild estimate is of an empty package.
+// the blocks the change added come first (score.RankCrossBlocks); the
+// row's details list them in that order. It carries no baseline agent
+// passes, since its rebuild estimate is of an empty package.
+//
+// When the baseline recorded its blocks and has the row, the rules judge
+// dup_blocks_cross_pkg as the baseline's value plus the blocks the change
+// added (judgeCross): new ones of at least duplication.min_tokens_cross
+// tokens that a rename did not move (score.AddedCrossBlocks), so a short
+// repeated preamble or the code a split left shared between its halves is
+// not a rise. The finding names and is located on the added blocks only,
+// while the row reports the full count. Against a baseline file, which
+// records no blocks, the full count is judged and the suggestion says so.
 //
 // named are the packages a check of named packages checks; empty for any
 // other check. When it is set and the extractor implements
 // metrics.ModuleDetailer, the rules judge dup_blocks_cross_pkg on the
-// blocks blamed on those packages only (blameNamed), so a copy between two
+// added blocks blamed on those packages only (blameNamed), so a copy between two
 // other packages neither fails the check nor appears in its findings; the
 // row still reports the full count, and the suggestion names the packages
 // sharing each blamed block.
@@ -183,25 +191,25 @@ func (c *Checker) Module(ctx context.Context, mm metrics.ModuleMetrics, fromFile
 		names.CrossBlocks, added = score.RankCrossBlocks(det.CrossBlocks, baseBlocks)
 		names.CrossAdded = added > 0
 	}
-	gm, blame := m, (*crossBlame)(nil)
+	cj := c.judgeCross(det.CrossBlocks, baseBlocks, known)
+	gm, blame, cited := cj.gated(m, bm), (*crossBlame)(nil), cj.added
 	if _, detailed := o.Ext.(metrics.ModuleDetailer); detailed && len(named) > 0 && len(rules) > 0 && m.DupBlocksCrossPkg != nil {
-		gm, blame = blameNamed(m, bm, baseBlocks, known, det.CrossBlocks, named)
+		gm, blame = blameNamed(m, bm, cj, det.CrossBlocks, named)
+		cited = blame.blocks
 	}
 	// The details list the cross-package blocks in the order the suggestion
 	// cites them.
 	det.CrossBlocks = names.CrossBlocks
 	suggest := func(metric string, h float64, hm metrics.RawMetrics) string {
-		if blame != nil && metric == "dup_blocks_cross_pkg" {
-			if s := blame.suggestion(hm, o.Mod.ModulePath); s != "" {
-				return s
-			}
+		if metric != "dup_blocks_cross_pkg" {
+			return score.MetricSuggestion(metric, h, hm, names)
 		}
-		return score.MetricSuggestion(metric, h, hm, names)
+		return cj.suggestion(blame, hm, o.Mod.ModulePath, score.MetricSuggestion(metric, h, hm, names))
 	}
 	r, _ := c.row(metrics.ModuleRowID, m, gm, bm, rules, suggest, score.Names{})
 	located := names.CrossBlocks
-	if blame != nil && len(blame.blocks) > 0 {
-		located = blame.blocks
+	if len(cited) > 0 {
+		located = cited
 	}
 	locateCross(&r, located)
 	r.Details = c.details(&det)
