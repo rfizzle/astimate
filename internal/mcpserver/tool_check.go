@@ -32,7 +32,8 @@ const checkToolDescription = "Run the astimate quality gate on one Go package yo
 	"rule the configuration reports without failing, worth fixing while you are in the code. " +
 	"Findings under exemptions were silenced by " +
 	"an exemption a person recorded in the configuration, with its reason; they do not fail the gate, " +
-	"and you must not add or widen exemptions to make a check pass. Do not call it on " +
+	"and you must not add or widen exemptions to make a check pass. A package that does not load, such as one importing a module that is not available, is reported " +
+	"under skipped with its first error instead of being judged. Do not call it on " +
 	"packages you did not touch. The baseline is the merge-base of HEAD and the default branch " +
 	"unless base or baseline_file says otherwise. Before a partial commit, pass staged: true to " +
 	"judge what the git index holds rather than the working tree."
@@ -111,17 +112,18 @@ func withOutputSchema[T any](t *mcp.Tool, logger *slog.Logger) *mcp.Tool {
 
 // addCheckTool registers check_package on srv, backed by s.
 func addCheckTool(srv *mcp.Server, s *session) {
-	mcp.AddTool(srv, withOutputSchema[CheckResult](&mcp.Tool{
+	mcp.AddTool(srv, withSkippedBranch(withOutputSchema[CheckResult](&mcp.Tool{
 		Name:        checkToolName,
 		Title:       "Check a package against its baseline",
 		Description: checkToolDescription,
-	}, s.opts.logger()), s.checkPackage)
+	}, s.opts.logger()), s.opts.logger()), s.checkPackage)
 }
 
 // checkPackage handles a check_package call. A gate failure is a normal
 // result with passed false; an input, resolution or extraction failure is
-// a result with isError set. Either way the result carries text content and
-// structured content: a CheckResult, or {"error": ...}.
+// a result with isError set, and a package that does not load a normal
+// result saying so. Either way the result carries text content and
+// structured content: a CheckResult, a SkippedResult, or {"error": ...}.
 func (s *session) checkPackage(ctx context.Context, _ *mcp.CallToolRequest, in CheckInput) (*mcp.CallToolResult, any, error) {
 	r, text, err := s.runCheck(ctx, in)
 	if err != nil {
@@ -139,8 +141,9 @@ func (s *session) checkPackage(ctx context.Context, _ *mcp.CallToolRequest, in C
 }
 
 // runCheck gates the package in.Path and the module row and returns the
-// result and the text rendering for the agent.
-func (s *session) runCheck(ctx context.Context, in CheckInput) (*CheckResult, string, error) {
+// result, a *CheckResult or, for a package that does not load, a
+// *SkippedResult, and the text rendering for the agent.
+func (s *session) runCheck(ctx context.Context, in CheckInput) (any, string, error) {
 	if in.Base != "" && in.BaselineFile != "" {
 		return nil, "", errors.New("base and baseline_file are mutually exclusive; pass one")
 	}
@@ -170,6 +173,9 @@ func (s *session) runCheck(ctx context.Context, in CheckInput) (*CheckResult, st
 	})
 	if err != nil {
 		return nil, "", err
+	}
+	if r, text, ok := skippedResult(c, failed, t.Dir); ok {
+		return r, text, nil
 	}
 	if len(failed) > 0 {
 		return nil, "", errors.Join(failed...)

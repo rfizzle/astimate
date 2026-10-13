@@ -54,15 +54,18 @@ func (g *Graph) Importers(m *load.Module, importPath string) []string {
 
 // build fills the graphs from every module package of m on its first call
 // and does nothing afterwards, so the graphs are built once per load however
-// many packages are measured. The non-test edges come from the source files
-// of each package (load.Module.SourceSyntax), and the test-only edges from
-// the _test.go files of its test variants, so neither sees an import that
-// only cgo-generated files hold.
+// many packages are measured. A package the load skipped because it fails
+// to load still contributes its edges (load.Module.GraphPackages), so
+// skipping it leaves its neighbours' fan-in unchanged. The non-test edges
+// come from the source files of each package (load.Module.SourceSyntax),
+// and the test-only edges from the _test.go files of its test variants, so
+// neither sees an import that only cgo-generated files hold.
 func (g *Graph) build(m *load.Module) {
 	g.once.Do(func() {
 		reverse := make(map[string][]string, len(m.Pkgs))
 		tests := make(map[string][]string)
-		for from, q := range m.Pkgs {
+		for from, gp := range m.GraphPackages() {
+			q := gp.Pkg
 			direct := make(map[string]bool, len(q.Imports))
 			for _, imp := range Imported(q, m.SourceSyntax(q)) {
 				direct[imp.PkgPath] = true
@@ -70,7 +73,7 @@ func (g *Graph) build(m *load.Module) {
 					reverse[imp.PkgPath] = append(reverse[imp.PkgPath], from)
 				}
 			}
-			for _, tp := range m.TestPackages(q) {
+			for _, tp := range gp.Tests {
 				for _, imp := range Imported(tp, testFiles(m, tp)) {
 					path := imp.PkgPath
 					if path == from || direct[path] || Classify(m, imp) != Internal {

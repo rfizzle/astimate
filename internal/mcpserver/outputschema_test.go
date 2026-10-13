@@ -27,7 +27,8 @@ func resolveSchema(t *testing.T, s any) *jsonschema.Resolved {
 }
 
 // TestToolOutputSchemas lists the tools and, for each, checks that its
-// output schema is a oneOf of the result and {"error": string}, and that a
+// output schema is a oneOf of the result and {"error": string}, plus the
+// skipped result for check_package, and that a
 // successful call's and a failed call's structured content each validate
 // against the listed schema and match exactly the branch of their kind.
 func TestToolOutputSchemas(t *testing.T) {
@@ -83,10 +84,19 @@ func TestToolOutputSchemas(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err := json.Unmarshal(data, &shape); err != nil || shape.Type != "object" || len(shape.OneOf) != 2 {
-				t.Fatalf("output schema = %s, want an object with a two-branch oneOf", data)
+			// check_package has a third branch, for a package that does not
+			// load (TestCheckSkippedPackage).
+			wantBranches := 2
+			if tool.Name == checkToolName {
+				wantBranches = 3
 			}
-			branches := []*jsonschema.Resolved{resolveSchema(t, shape.OneOf[0]), resolveSchema(t, shape.OneOf[1])}
+			if err := json.Unmarshal(data, &shape); err != nil || shape.Type != "object" || len(shape.OneOf) != wantBranches {
+				t.Fatalf("output schema = %.200s..., want an object with a %d-branch oneOf", data, wantBranches)
+			}
+			branches := make([]*jsonschema.Resolved, 0, len(shape.OneOf))
+			for _, b := range shape.OneOf {
+				branches = append(branches, resolveSchema(t, b))
+			}
 
 			for _, kind := range []struct {
 				name    string

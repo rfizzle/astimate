@@ -70,6 +70,10 @@ type Module struct {
 	// matching no file, sorted by package then pattern, one per pair (see
 	// EmbedWarning). The package is extracted normally.
 	Warnings []EmbedWarning
+	// SkippedPackages lists the module packages that fail to load, sorted
+	// by import path (see SkippedPackage). They are not in Paths, Pkgs,
+	// Tests or XTests; GraphPackages still holds their imports.
+	SkippedPackages []SkippedPackage
 
 	// sources maps the import path of each non-test module package whose
 	// Syntax is not its source files, a cgo package, to its source files
@@ -80,13 +84,19 @@ type Module struct {
 	// load kept: go list lists them in "./..." for their tests alone. index
 	// drops them and findSkipped names them test-only.
 	testOnly map[string]bool
+	// skipped maps the import path of each skipped package to the packages
+	// go list returned for it (see GraphPackages).
+	skipped map[string]skippedLoad
 }
 
 // Load loads every package under cfg.Dir, which must be an absolute module
 // root, including test variants, and indexes the module's packages. It sets
 // the mode, tests flag and file set on cfg. A load that matched no package
 // of the module and reported no error returns a Module with no Paths and a
-// nil error, so the caller names the empty module in its own terms.
+// nil error, so the caller names the empty module in its own terms. A
+// package that fails to load is skipped (Module.SkippedPackages) and the
+// rest are loaded; when every package fails, Load returns the first
+// failure.
 func Load(cfg *packages.Config, load Func) (*Module, error) {
 	root := cfg.Dir
 	modPath, err := ReadModulePath(root)
@@ -105,6 +115,11 @@ func Load(cfg *packages.Config, load Func) (*Module, error) {
 		return nil, err
 	}
 	if len(m.Paths) == 0 {
+		// A module none of whose packages loads has nothing to measure; its
+		// first failure is the error.
+		if len(m.SkippedPackages) > 0 {
+			return nil, m.SkippedPackages[0].Err
+		}
 		// go list reports some failures, among them a build cache it cannot
 		// write to, on a pseudo-package named after the pattern instead of
 		// exiting non-zero; without this they would read as an empty module.
@@ -119,7 +134,7 @@ func Load(cfg *packages.Config, load Func) (*Module, error) {
 	if err := m.parseSources(); err != nil {
 		return nil, fmt.Errorf("loading %s: %w", root, err)
 	}
-	if m.Skipped, err = findSkipped(root, modPath, m.Pkgs, m.testOnly); err != nil {
+	if m.Skipped, err = findSkipped(root, modPath, m.listed, m.testOnly); err != nil {
 		return nil, fmt.Errorf("loading %s: %w", root, err)
 	}
 	return m, nil
@@ -132,8 +147,10 @@ func Load(cfg *packages.Config, load Func) (*Module, error) {
 // only for its test files, and it fails to build, while the same package
 // without tests drops out of "./..." silently. findSkipped reports both,
 // and index records the first kind in testOnly so the report can say so.
-// It returns the first error reported on a module package, in package ID
-// order, so the failing package is named deterministically.
+// A module package that fails to load, in its non-test files or a test
+// variant, is left out with its test variants and listed in
+// SkippedPackages (classifyFailures); only a build cache go list could not
+// use fails the whole index.
 func index(modulePath string, roots []*packages.Package) (*Module, error) {
 	excluded := make(map[string]bool)
 	for _, p := range roots {
@@ -165,21 +182,60 @@ func index(modulePath string, roots []*packages.Package) (*Module, error) {
 		}
 	}
 	slices.SortFunc(mod, byID)
-	var warnings []EmbedWarning
+	tested := make(map[string]bool)
 	for _, p := range mod {
-		var fatal bool
-		if warnings, fatal = tolerateEmbeds(warnings, p); fatal {
-			return nil, packageError(withoutEmbedErrors(p))
+		if under, _ := forTest(p); under != "" {
+			tested[under] = true
 		}
+	}
+	testMain := func(path string) bool {
+		under, ok := strings.CutSuffix(path, ".test")
+		return ok && tested[under]
+	}
+	failed, warnings, err := classifyFailures(mod, nil, testMain)
+	if err != nil {
+		return nil, err
 	}
 	m := newModule(modulePath, len(mod))
 	m.testOnly = testOnly
 	m.Warnings = sortWarnings(warnings)
-	m.fill(mod, func(string) bool { return false }, func(path string) bool {
-		under, ok := strings.CutSuffix(path, ".test")
-		return ok && m.hasTests(under)
-	})
+	m.SkippedPackages = sortSkipped(failed)
+	drop := func(path string) bool {
+		_, ok := failed[path]
+		return ok
+	}
+	m.fill(mod, drop, testMain)
+	m.keepSkipped(mod, failed, testMain)
 	return m, nil
+}
+
+// keepSkipped records, for each package of failed, the packages of mod
+// that belong to it, so GraphPackages can still read their imports.
+func (m *Module) keepSkipped(mod []*packages.Package, failed map[string]SkippedPackage, testMain func(string) bool) {
+	if len(failed) == 0 {
+		return
+	}
+	m.skipped = make(map[string]skippedLoad, len(failed))
+	for _, p := range mod {
+		under, _ := forTest(p)
+		variant := under != ""
+		if !variant {
+			if testMain(p.PkgPath) {
+				continue
+			}
+			under = p.PkgPath
+		}
+		if _, ok := failed[under]; !ok {
+			continue
+		}
+		s := m.skipped[under]
+		if variant {
+			s.tests = append(s.tests, p)
+		} else {
+			s.pkg = p
+		}
+		m.skipped[under] = s
+	}
 }
 
 // newModule returns an empty Module for modulePath with room for n
@@ -224,6 +280,16 @@ func (m *Module) fill(pkgs []*packages.Package, drop, testMain func(path string)
 	slices.Sort(m.Paths)
 }
 
+// listed reports whether the load returned the module package at path,
+// loaded or skipped because it fails to load, so findSkipped reports
+// neither as a directory the load left out.
+func (m *Module) listed(path string) bool {
+	if _, ok := m.Pkgs[path]; ok {
+		return true
+	}
+	return slices.ContainsFunc(m.SkippedPackages, func(s SkippedPackage) bool { return s.Package == path })
+}
+
 // byID orders packages by ID.
 func byID(a, b *packages.Package) int { return strings.Compare(a.ID, b.ID) }
 
@@ -251,14 +317,6 @@ func forTest(p *packages.Package) (under string, external bool) {
 	}
 	under = strings.TrimSuffix(strings.TrimPrefix(p.ID[i+1:], "["), ".test]")
 	return under, p.PkgPath != under
-}
-
-// hasTests reports whether the package at importPath has an internal or
-// external test package.
-func (m *Module) hasTests(importPath string) bool {
-	_, internal := m.Tests[importPath]
-	_, external := m.XTests[importPath]
-	return internal || external
 }
 
 // TestPackages returns the in-package test variant and the external test

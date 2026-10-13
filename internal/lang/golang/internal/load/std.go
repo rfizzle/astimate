@@ -39,6 +39,9 @@ func StdPackage(ctx context.Context, load Func, importPath string) (*Module, err
 	if err != nil {
 		return nil, err
 	}
+	if len(m.SkippedPackages) > 0 {
+		return nil, m.SkippedPackages[0].Err
+	}
 	m.Path = StdModulePath
 	m.Fset = fset
 	if err := m.parseSources(); err != nil {

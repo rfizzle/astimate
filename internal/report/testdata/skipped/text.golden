@@ -1,0 +1,4 @@
+<module>: 0 violations, 0 warnings, 0 exempted
+app: 0 violations, 0 warnings, 0 exempted
+remote skipped, it does not load (missing module): loading example.com/app/remote: remote.go:4:2: no required module provides package example.com/absent/client; to add it: go get example.com/absent/client; it is among the packages this check judges, so the verdict is incomplete
+tools skipped, it does not load (type error in test files): loading example.com/app/tools: tools_test.go:3:9: undefined: missing

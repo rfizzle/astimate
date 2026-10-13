@@ -97,7 +97,8 @@ func TestLoadCgo(t *testing.T) {
 		// toolchain skips the case when cgo cannot run on this machine.
 		toolchain bool
 		// want is the packages the load returns; when empty, the load must
-		// fail with an error containing each of wantErr.
+		// fail with an error containing each of wantErr. With want set,
+		// wantErr is what the error of the one skipped package contains.
 		want    []string
 		wantErr []string
 	}{
@@ -107,6 +108,7 @@ func TestLoadCgo(t *testing.T) {
 		},
 		{
 			name: "no C compiler", root: cgoRoot, cgo: "1", cc: noCC,
+			want: []string{"example.com/cgo/user"},
 			wantErr: []string{
 				"loading example.com/cgo/native: cgo package example.com/cgo/native needs a C compiler (CC=" + noCC + "): ",
 				"could not import C",
@@ -138,6 +140,15 @@ func TestLoadCgo(t *testing.T) {
 				t.Setenv("CC", tc.cc)
 			}
 			l, err := Load(&packages.Config{Dir: root}, packages.Load)
+			if len(tc.want) > 0 && len(tc.wantErr) > 0 {
+				if err != nil {
+					t.Fatalf("Load: %v", err)
+				}
+				if len(l.SkippedPackages) != 1 {
+					t.Fatalf("skipped = %+v, want one package", l.SkippedPackages)
+				}
+				err = l.SkippedPackages[0].Err
+			}
 			if len(tc.wantErr) > 0 {
 				if err == nil {
 					t.Fatalf("loaded %v, want an error", l.Paths)
@@ -151,9 +162,11 @@ func TestLoadCgo(t *testing.T) {
 				if !errors.As(err, &pe) {
 					t.Errorf("error %v does not wrap the packages.Error", err)
 				}
-				return
+				if len(tc.want) == 0 {
+					return
+				}
 			}
-			if err != nil {
+			if len(tc.wantErr) == 0 && err != nil {
 				t.Fatalf("Load: %v", err)
 			}
 			if !slices.Equal(l.Paths, tc.want) {

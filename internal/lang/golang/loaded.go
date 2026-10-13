@@ -22,6 +22,8 @@ var ErrNoPackages = errors.New("no Go packages in module")
 // for every package in the module; ModuleContext.Cache holds it.
 type loaded struct {
 	*load.Module
+	// root is the absolute module root the load was made from.
+	root string
 	// graph is the reverse import graph behind fan_in and fan_in_tests,
 	// built on first use.
 	graph imports.Graph
@@ -73,7 +75,7 @@ func loadModule(cfg *packages.Config, fn load.Func) (*loaded, error) {
 	if len(m.Paths) == 0 {
 		return nil, fmt.Errorf("loading %s: %w", cfg.Dir, ErrNoPackages)
 	}
-	return &loaded{Module: m}, nil
+	return &loaded{Module: m, root: cfg.Dir}, nil
 }
 
 // setDetails records d as the most recent details of the package at

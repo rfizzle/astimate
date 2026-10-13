@@ -32,6 +32,10 @@ var ErrBaseAndBaselineFile = errors.New("a base ref and a baseline file are mutu
 // inputs (flags for the CLI, tool arguments for the MCP server).
 var ErrNoBaseline = errors.New("no baseline")
 
+// IsSkipped reports whether err, from Check's failed, is that of a
+// selected package the extractor skipped because it does not load.
+func IsSkipped(err error) bool { return errors.Is(err, judge.ErrSkipped) }
+
 // noBaselineError carries the reason no baseline resolved and matches
 // ErrNoBaseline, keeping the reason's text as its own.
 type noBaselineError struct {
@@ -141,6 +145,12 @@ func (c *BaselineCache) get(key string, load func() (baseline.Baseline, error)) 
 // is logged, left out of the result and returned as a *PackageError in
 // failed.
 //
+// A package the extractor skipped because it does not load
+// (metrics.Skipper) is listed in the result's Skipped, every one of them,
+// and is selected like any other package; one that is selected cannot be
+// judged, so it is logged and returned in failed with an error IsSkipped
+// reports. The rest are gated as usual.
+//
 // When t's extractor implements metrics.ModuleMetrics and at least one
 // package is selected, the result also carries the module-level row
 // (judge.Checker.Module), gated against the baseline's row of the same id.
@@ -216,6 +226,10 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 			return nil, nil, baseline.TreeRelative(err, tmp)
 		}
 	}
+	skipped, err := judge.SkippedIn(ht.Ext, ht.Mod.Root)
+	if err != nil {
+		return nil, nil, baseline.TreeRelative(err, tmp)
+	}
 	logger := t.logger()
 	src, err := resolveBaselineSource(ctx, t, opts)
 	if err != nil {
@@ -239,7 +253,7 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 	}
 	selected, deleted := opts.Packages, []string(nil)
 	if len(selected) == 0 {
-		selected, deleted, err = selectPackages(ctx, t, ht.Mod, head, src, opts.All, headOf(ht, opts), loadBase)
+		selected, deleted, err = selectPackages(ctx, t, ht.Mod, skipped.With(head), src, opts.All, headOf(ht, opts), loadBase)
 		if err != nil {
 			return nil, nil, baseline.TreeRelative(err, tmp)
 		}
@@ -259,6 +273,7 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 		Deleted:   deleted,
 		ModuleDir: baseline.RepoDir(ctx, t.Mod.Root),
 		Tokenizer: t.tokenizer(),
+		Skipped:   skipped.Report(t.Mod.ModulePath, selected),
 	}
 	now := opts.Now
 	if now.IsZero() {
@@ -277,6 +292,10 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 	extracted := make(map[string]*metrics.RawMetrics, len(selected))
 	order := make([]string, 0, len(selected))
 	for _, pkg := range selected {
+		if err := skipped.Failure(pkg); err != nil {
+			fail(pkg, err)
+			continue
+		}
 		m, err := ht.Ext.Extract(ctx, ht.Mod, pkg)
 		if err != nil {
 			fail(pkg, err)

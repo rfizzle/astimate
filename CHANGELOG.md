@@ -12,6 +12,17 @@ history.
 
 ### Added
 
+- A Go package that does not load, such as one whose test imports a
+  private module missing from the module cache, is skipped instead of
+  failing the whole module: `check`, `rank` and `assess` measure and gate
+  every other package. Each skipped package is logged on stderr with its
+  reason and first error, listed by `check` in every format (a `skipped`
+  array on the JSON module row, a `::warning` per package in `github`), and
+  `check` exits 2 only when a skipped package is among those it judges.
+  The import graph keeps the skipped package's edges, so its neighbours'
+  `fan_in` is unchanged. `check_package` on a skipped package returns a
+  result saying so, not an error.
+
 - Hand labels for the five 2026-10-13 replays (go-starter, ztp, shhh,
   crush, ai-shell): `calibration/replay/labels/<name>-hand.yaml`, drafted
   by reading every failed commit's diff and 60 sampled passed ones, with

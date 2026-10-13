@@ -60,9 +60,10 @@ func assertNoTempPath(t *testing.T, what, text string) {
 	}
 }
 
-// TestCheckTempTreeErrorPaths checks that an extraction error from a
-// temporary tree, the staged index copy or the baseline worktree, names
-// paths relative to the module rather than the temporary directory.
+// TestCheckTempTreeErrorPaths checks that an extraction error or skipped
+// package from a temporary tree, the staged index copy or the baseline
+// worktree, names paths relative to the module rather than the temporary
+// directory.
 func TestCheckTempTreeErrorPaths(t *testing.T) {
 	if testing.Short() {
 		t.Skip("integration test: runs git and loads Go packages")
@@ -123,18 +124,19 @@ func TestCheckTempTreeErrorPaths(t *testing.T) {
 		gitIn(t, root, "commit", "-q", "-m", "broken base")
 		writeFiles(t, root, map[string]string{"bad/bad.go": "package bad\n"})
 
-		tg, err := LoadTarget(root, TargetOptions{})
+		var logs bytes.Buffer
+		tg, err := LoadTarget(root, TargetOptions{Logger: slog.New(slog.NewTextHandler(&logs, nil))})
 		if err != nil {
 			t.Fatalf("LoadTarget: %v", err)
 		}
-		tg.Logger = slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil))
-		_, _, err = Check(t.Context(), tg, CheckOptions{Base: "master", All: true})
-		if err == nil {
-			t.Fatal("Check succeeded against a broken baseline, want an extraction error")
+		// The baseline's broken package is skipped there, and logged.
+		if _, _, err = Check(t.Context(), tg, CheckOptions{Base: "master", All: true}); err != nil {
+			t.Fatalf("Check: %v", err)
 		}
-		if !strings.Contains(err.Error(), filepath.Join("bad", "bad.go")) {
-			t.Errorf("error does not name bad/bad.go relative to the module: %v", err)
+		text := logs.String()
+		if !strings.Contains(text, "skipped package") || !strings.Contains(text, filepath.Join("bad", "bad.go")) {
+			t.Errorf("logs do not name bad/bad.go relative to the module:\n%s", text)
 		}
-		assertNoTempPath(t, "baseline error", err.Error())
+		assertNoTempPath(t, "baseline skip log", text)
 	})
 }

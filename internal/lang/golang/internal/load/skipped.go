@@ -8,8 +8,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-
-	"golang.org/x/tools/go/packages"
 )
 
 // SkippedDir is a module directory with Go files that a load returned no
@@ -24,15 +22,15 @@ type SkippedDir struct {
 }
 
 // findSkipped walks the module at root, whose module path is modulePath, for
-// directories holding Go files that have no package in pkgs, and returns
-// them sorted by directory. It skips what "./..." skips: testdata and vendor
-// directories, directories whose names start with "_" or ".", and nested
-// modules; it ignores files whose names start with "_" or ".", as the go
+// directories holding Go files whose import path listed does not report as
+// a package the load returned, and returns them sorted by directory. It
+// skips what "./..." skips: testdata and vendor directories, directories
+// whose names start with "_" or ".", and nested modules; it ignores files whose names start with "_" or ".", as the go
 // command does. go list drops a directory from "./..." without a word when
 // build constraints exclude all of its Go files, as they do a package made
 // only of cgo files when cgo is disabled. testOnly holds the import paths
 // of packages the load listed for their test files alone; see skipReason.
-func findSkipped(root, modulePath string, pkgs map[string]*packages.Package, testOnly map[string]bool) ([]SkippedDir, error) {
+func findSkipped(root, modulePath string, listed func(string) bool, testOnly map[string]bool) ([]SkippedDir, error) {
 	var skipped []SkippedDir
 	var files []string // Go files of the directory being walked
 	dir := ""          // slash path of that directory
@@ -44,7 +42,7 @@ func findSkipped(root, modulePath string, pkgs map[string]*packages.Package, tes
 		if dir != "." {
 			path += "/" + dir
 		}
-		if _, ok := pkgs[path]; !ok {
+		if !listed(path) {
 			skipped = append(skipped, SkippedDir{Dir: dir, ImportPath: path, Reason: skipReason(files, testOnly[path])})
 		}
 		files = files[:0]

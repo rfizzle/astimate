@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 
 	"github.com/rfizzle/astimate/internal/lang/golang/internal/dup"
@@ -105,8 +106,9 @@ func WithDupSplitLiteralRuns(on bool) Option {
 
 // WithLogger sets the logger that receives, at info level, one record per
 // module directory whose Go files build constraints exclude entirely, such
-// as a package made only of cgo files when cgo is disabled. Each is logged
-// once per module load. Nil, the default, discards them.
+// as a package made only of cgo files when cgo is disabled, and at warn
+// level one per package skipped because it fails to load (Skipped). Each
+// is logged once per module load. Nil, the default, discards them.
 func WithLogger(logger *slog.Logger) Option {
 	return func(e *Extractor) { e.logger = logger }
 }
@@ -136,9 +138,10 @@ func (e *Extractor) Detect(root string) bool {
 }
 
 // Packages returns the sorted import paths of the non-test packages of the
-// module at root. Dependencies and test packages are not included. It
-// returns an error naming the first package that failed to load or
-// type-check.
+// module at root that load. Dependencies and test packages are not
+// included, nor is a package that fails to load or type-check, in its own
+// files or its tests (Skipped). It returns an error when the module cannot
+// be loaded at all, naming the first failing package when none loads.
 func (e *Extractor) Packages(root string) ([]string, error) {
 	l, err := e.module(context.Background(), root)
 	if err != nil {
@@ -152,7 +155,8 @@ func (e *Extractor) Packages(root string) ([]string, error) {
 // changed_func_cognitive_max are left nil. The module is loaded on the
 // first call for its root and cached in mod.Cache. An import path that is not
 // a non-test package of the module yields an error wrapping
-// metrics.ErrUnknownPackage, and an unknown tokenizer one wrapping
+// metrics.ErrUnknownPackage, saying so with its first error when the
+// package was skipped because it fails to load, and an unknown tokenizer one wrapping
 // metrics.ErrUnknownTokenizer.
 func (e *Extractor) Extract(ctx context.Context, mod *metrics.ModuleContext, pkg string) (metrics.RawMetrics, error) {
 	l, err := e.cached(ctx, mod)
@@ -164,6 +168,10 @@ func (e *Extractor) Extract(ctx context.Context, mod *metrics.ModuleContext, pkg
 	}
 	p, ok := l.Pkgs[pkg]
 	if !ok {
+		if s, skipped := l.skipped(pkg); skipped {
+			return metrics.RawMetrics{}, fmt.Errorf("extracting %s: %w: skipped, it does not load (%s): %w",
+				pkg, metrics.ErrUnknownPackage, s.Reason, s.Err)
+		}
 		return metrics.RawMetrics{}, fmt.Errorf("extracting %s: %w", pkg, metrics.ErrUnknownPackage)
 	}
 	counter, err := e.counter()
@@ -281,14 +289,21 @@ func (e *Extractor) Forget(root string) {
 	m.l.detailsMu.Unlock()
 }
 
-// logSkipped logs each module directory l skipped at info level, and each
-// embed pattern that matched no file at warn level, when e has a logger.
+// logSkipped logs each module directory l skipped at info level, each
+// package skipped because it fails to load and each embed pattern that
+// matched no file at warn level, when e has a logger. A skipped package's
+// error names files relative to l's module root, which may be a temporary
+// copy whose name means nothing to the user.
 func (e *Extractor) logSkipped(l *loaded) {
 	if e.logger == nil {
 		return
 	}
 	for _, s := range l.Skipped {
 		e.logger.Info("skipped package", "package", s.ImportPath, "dir", s.Dir, "reason", s.Reason)
+	}
+	for _, s := range l.SkippedPackages {
+		e.logger.Warn("skipped package; it does not load and is not measured",
+			"package", s.Package, "reason", s.Reason, "err", relativeTo(s.Err.Error(), l.root))
 	}
 	for _, w := range l.Warnings {
 		e.logger.Warn("embed pattern matches no files; metrics do not read embedded files",
@@ -338,4 +353,44 @@ func (e *Extractor) module(ctx context.Context, root string) (*loaded, error) {
 		}
 		return m.l, m.err
 	}
+}
+
+// relativeTo returns msg with every path below root, in its given or
+// symlink-resolved form, made relative to it.
+func relativeTo(msg, root string) string {
+	prefixes := []string{root}
+	if resolved, err := filepath.EvalSymlinks(root); err == nil && resolved != root {
+		prefixes = append(prefixes, resolved)
+	}
+	slices.SortFunc(prefixes, func(a, b string) int { return len(b) - len(a) })
+	for _, p := range prefixes {
+		msg = strings.ReplaceAll(msg, p+string(filepath.Separator), "")
+	}
+	return msg
+}
+
+// skipped returns the skipped package with import path importPath, and
+// whether the load skipped it.
+func (l *loaded) skipped(importPath string) (load.SkippedPackage, bool) {
+	i := slices.IndexFunc(l.SkippedPackages, func(s load.SkippedPackage) bool { return s.Package == importPath })
+	if i < 0 {
+		return load.SkippedPackage{}, false
+	}
+	return l.SkippedPackages[i], true
+}
+
+// Skipped returns the packages of the module at root that Packages leaves
+// out because they fail to load, sorted by import path, each with the kind
+// of failure and its first error (metrics.Skipper). It shares Packages'
+// load.
+func (e *Extractor) Skipped(root string) ([]metrics.SkippedPackage, error) {
+	l, err := e.module(context.Background(), root)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]metrics.SkippedPackage, 0, len(l.SkippedPackages))
+	for _, s := range l.SkippedPackages {
+		out = append(out, metrics.SkippedPackage{Package: s.Package, Reason: s.Reason, Error: s.Err.Error()})
+	}
+	return out, nil
 }

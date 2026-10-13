@@ -39,6 +39,11 @@ type Check struct {
 	// Tokenizer is the tokenizer the check counted tokens with, named in
 	// the line saying a baseline's token counts are not comparable.
 	Tokenizer string
+	// Skipped are the module's packages that do not load, sorted by
+	// package, each marked Selected when the check would have judged it.
+	// Every format lists them after the rows' findings; JSON carries them
+	// on the module row.
+	Skipped []Skipped
 }
 
 // CheckedPackage is one checked package: its report with the gate outcome
@@ -161,8 +166,8 @@ func finding(v *gate.Violation) Finding {
 // under its package (the module row's first, under its id,
 // metrics.ModuleRowID), then one summary line for the module row and one
 // per package with its finding counts (writeSummary says when the agent
-// passes, tier and change from the baseline join them), and a final line
-// naming deleted packages.
+// passes, tier and change from the baseline join them), a line naming
+// deleted packages and one line per skipped package (skippedText).
 func WriteCheckText(w io.Writer, c *Check) error {
 	bw := bufio.NewWriter(w)
 	writeFindings(bw, c)
@@ -175,7 +180,8 @@ func WriteCheckText(w io.Writer, c *Check) error {
 	if len(c.Deleted) > 0 {
 		_, _ = bw.WriteString("deleted since baseline: " + strings.Join(c.Deleted, ", ") + "\n")
 	}
-	if len(c.Packages) == 0 && len(c.Deleted) == 0 {
+	writeSkippedLines(bw, c, "")
+	if len(c.Packages) == 0 && len(c.Deleted) == 0 && !c.incomplete() {
 		_, _ = bw.WriteString("no changed packages\n")
 	}
 	if err := bw.Flush(); err != nil {
@@ -367,13 +373,17 @@ func plural(n int, one, many string) string {
 // WriteCheckJSON writes the reports of the module row, when there is one,
 // and the packages as an indented JSON array followed by a newline; the
 // module row is an ordinary entry whose package_path is
-// metrics.ModuleRowID, "<module>", written without HTML escaping. No rows
-// yields "[]".
+// metrics.ModuleRowID, "<module>", written without HTML escaping, and it
+// alone carries the skipped packages, under "skipped". No rows yields "[]".
 func WriteCheckJSON(w io.Writer, c *Check) error {
 	rows := c.rows()
-	reports := make([]Report, 0, len(rows))
+	reports := make([]jsonRow, 0, len(rows))
 	for _, p := range rows {
-		reports = append(reports, p.Report)
+		row := jsonRow{Report: p.Report}
+		if p == c.Module {
+			row.Skipped = c.Skipped
+		}
+		reports = append(reports, row)
 	}
 	enc := newEncoder(w, "  ")
 	if err := enc.Encode(reports); err != nil {
@@ -395,7 +405,8 @@ type hookBlock struct {
 // the last with its reason, as text, and {} otherwise. When the check
 // passes, any warnings and exempted violations are written as text to
 // warnings instead, so w carries exactly one JSON object and nothing else. A baseline whose
-// token counts are not comparable adds a "warning: " line saying so.
+// token counts are not comparable adds a "warning: " line saying so, and
+// each skipped package one more (skippedText).
 func WriteHook(w, warnings io.Writer, c *Check) error {
 	var text strings.Builder
 	bw := bufio.NewWriter(&text)
@@ -403,6 +414,7 @@ func WriteHook(w, warnings io.Writer, c *Check) error {
 	if note := tokenizerNote(c); note != "" {
 		_, _ = bw.WriteString("warning: " + note + "\n")
 	}
+	writeSkippedLines(bw, c, "warning: ")
 	_ = bw.Flush() // a strings.Builder never fails a write
 
 	if !c.Failed() {
@@ -444,7 +456,8 @@ const githubModuleLead = "module: "
 // "module: "; the module row has no directory, so one of its findings
 // without a location carries no file. A baseline whose token counts are
 // not comparable adds one "::warning title=astimate::" line saying so,
-// before the findings.
+// before the findings. Each skipped package adds one "::warning" on its
+// directory after them (skippedText).
 func WriteGitHub(w io.Writer, c *Check) error {
 	bw := bufio.NewWriter(w)
 	if note := tokenizerNote(c); note != "" {
@@ -468,6 +481,10 @@ func WriteGitHub(w io.Writer, c *Check) error {
 			e := &r.Exemptions[j]
 			_, _ = bw.WriteString("::notice" + c.findingProperty(prop, &e.Finding) + "::" + escapeData(lead+exemptedText(e)) + "\n")
 		}
+	}
+	for i := range c.Skipped {
+		s := &c.Skipped[i]
+		_, _ = bw.WriteString("::warning file=" + escapeProperty(c.repoPath(s.Package)) + "::" + escapeData(skippedText(s)) + "\n")
 	}
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("writing github annotations: %w", err)

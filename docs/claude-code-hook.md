@@ -18,7 +18,7 @@ The contract below is the Claude Code hooks reference as known when this integra
 | --- | --- | --- | --- |
 | A package has a violation | `{"decision":"block","reason":"violations:\n  ..."}` | 0 | Blocks the stop; the agent sees the violations and warnings |
 | No violation | `{}` (warnings, if any, go to stderr) | 0 | Lets the agent stop |
-| Analysis failed (the module does not type-check, the base ref does not exist) | empty; the error is on stderr | 2 | Blocks the stop; the agent sees the error |
+| Analysis failed (a changed package does not load, the base ref does not exist; a package that does not load and did not change is only a warning on stderr) | empty; the error is on stderr | 2 | Blocks the stop; the agent sees the error |
 | The hook input has `stop_hook_active: true` | `{}`, without running the check | 0 | Lets the agent stop |
 
 In the hook format, and only when stdin is not a terminal, `astimate check` reads the hook input from stdin and applies the loop rule itself, so the snippet below needs no shell guard.
