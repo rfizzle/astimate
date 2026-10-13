@@ -15,10 +15,11 @@ import (
 // which are relative to the module root.
 type Details struct {
 	// Duplicates are the occurrences of the blocks counted by dup_blocks,
-	// block by block in order of first occurrence.
+	// block by block, longest block first; in a check, the blocks the
+	// change added come first (SPEC.md 10.2).
 	Duplicates []Span `json:"duplicates,omitempty"`
 	// UntestedExports are the exports counted by untested_exports, sorted
-	// by name.
+	// by name; in a check, those the change added come first.
 	UntestedExports []Declaration `json:"untested_exports,omitempty"`
 	// ExcludedUntested names the exports left out of untested_exports by
 	// an //astimate:untested directive, sorted.

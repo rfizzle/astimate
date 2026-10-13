@@ -409,7 +409,7 @@ func TestExtractRecordsDetails(t *testing.T) {
 	if !ok {
 		t.Fatal("no details for dupes")
 	}
-	if len(dupes.dupLocations) != 3 || dupes.tokensMethod != inspect.MethodEst {
+	if len(dupes.dupBlocks) != 1 || len(dupes.dupBlocks[0].Locations) != 3 || dupes.tokensMethod != inspect.MethodEst {
 		t.Errorf("dupes details = %+v, want 3 duplicate locations and method %q", dupes, inspect.MethodEst)
 	}
 	hub, ok := l.detailsOf("example.com/fixture/hub")

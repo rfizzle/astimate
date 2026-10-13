@@ -31,9 +31,13 @@ type Func struct {
 }
 
 // Tokens is the normalized token stream of one file, parallel slices: the
-// token code, its duplication class, and its first and last 1-based lines.
+// token code, its fingerprint code, its duplication class, and its first
+// and last 1-based lines. Codes are interned per module load; Keys, the
+// fingerprint codes, are the same in every load, so a duplicate block's
+// fingerprint (duptok.Stream.AddKeyed) matches across commits.
 type Tokens struct {
 	Codes      []int32
+	Keys       []uint64
 	Class      []duptok.Class
 	Line, Last []int32
 }
@@ -338,6 +342,7 @@ func (w *Walker) leaf(n *sitter.Node, typ string, st state, sign bool) {
 	}
 	t := &w.Tokens
 	t.Codes = append(t.Codes, code)
+	t.Keys = append(t.Keys, fp)
 	t.Class = append(t.Class, class)
 	t.Line = append(t.Line, int32(n.StartPoint().Row)+1)
 	t.Last = append(t.Last, int32(n.EndPoint().Row)+1)

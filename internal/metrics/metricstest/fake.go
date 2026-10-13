@@ -206,6 +206,7 @@ func cloneDetails(d metrics.Details) metrics.Details {
 
 		UntestedRules:     d.UntestedRules.Clone(),
 		DupLocations:      slices.Clone(d.DupLocations),
+		DupBlocks:         cloneDupBlocks(d.DupBlocks),
 		CrossBlocks:       cloneCrossBlocks(d.CrossBlocks),
 		UntestedPositions: slices.Clone(d.UntestedPositions),
 		GlobalPositions:   slices.Clone(d.GlobalPositions),
@@ -215,14 +216,30 @@ func cloneDetails(d metrics.Details) metrics.Details {
 	}
 }
 
+// cloneDupBlocks returns a deep copy of bs, nil when bs is.
+func cloneDupBlocks(bs []metrics.DupBlock) []metrics.DupBlock {
+	return cloneEach(bs, func(b metrics.DupBlock) metrics.DupBlock {
+		b.Locations = slices.Clone(b.Locations)
+		return b
+	})
+}
+
 // cloneCrossBlocks returns a deep copy of bs, nil when bs is.
 func cloneCrossBlocks(bs []metrics.CrossBlock) []metrics.CrossBlock {
-	if bs == nil {
+	return cloneEach(bs, func(b metrics.CrossBlock) metrics.CrossBlock {
+		return metrics.CrossBlock{Occurrences: slices.Clone(b.Occurrences)}
+	})
+}
+
+// cloneEach returns a copy of xs with each element passed through clone,
+// nil when xs is.
+func cloneEach[T any](xs []T, clone func(T) T) []T {
+	if xs == nil {
 		return nil
 	}
-	out := make([]metrics.CrossBlock, len(bs))
-	for i, b := range bs {
-		out[i] = metrics.CrossBlock{Occurrences: slices.Clone(b.Occurrences)}
+	out := make([]T, 0, len(xs))
+	for _, x := range xs {
+		out = append(out, clone(x))
 	}
 	return out
 }

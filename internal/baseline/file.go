@@ -51,6 +51,14 @@ type fileRow struct {
 	// PackagePath is the package's directory relative to the module root,
 	// in slash form, the key the baseline matches packages by.
 	PackagePath string `json:"package_path"`
+	// DupBlocks are the anchors of the package's duplicate blocks
+	// (Named.DupBlocks), 16 hexadecimal digits each, and UntestedExports
+	// the names of its untested exports. Both are absent from files
+	// written before they existed, whose rows record no details
+	// (Row.HasNamed false); a pointer keeps a recorded empty list apart
+	// from an absent one.
+	DupBlocks       *[]string `json:"dup_blocks,omitempty"`
+	UntestedExports *[]string `json:"untested_exports,omitempty"`
 }
 
 // fileFunction is one function in a baseline file: the matching key, the
@@ -82,12 +90,17 @@ type Contents struct {
 	// CollectFunctions returns them; nil records none, so a check against
 	// the file leaves changed_func_cognitive_max null.
 	Functions map[string][]metrics.FunctionInfo
+	// Named are each package's duplicate blocks and untested exports keyed
+	// by import path, as CollectNamed returns them; nil records none, so a
+	// check against the file cannot tell which of them a change added.
+	Named map[string]Named
 }
 
 // FromFile reads a baseline file written by Write or WriteContents. Its Ref
 // and Tokenizer are the ones recorded in the file; a file that records no
 // tokenizer reports DefaultTokenizer, and one that records no functions
-// serves rows without them (Row.HasFunctions false). A file written before metrics.ModuleRowID
+// serves rows without them (Row.HasFunctions false), likewise details
+// (Row.HasNamed false). A file written before metrics.ModuleRowID
 // was reserved stores the module row under "module"; FromFile serves that
 // row under metrics.ModuleRowID when the file has no row under the new key
 // and every v0 field of the row is zero, as on the module row and on no
@@ -133,7 +146,11 @@ func FromFile(path string) (Baseline, error) {
 			}
 		}
 	}
-	c := collected{pkgs: f.Packages, funcs: funcs, dir: dir}
+	named, err := decodeNamed(f.PackageRows)
+	if err != nil {
+		return nil, fmt.Errorf("decoding baseline %s: %w", path, err)
+	}
+	c := collected{pkgs: f.Packages, funcs: funcs, named: named, dir: dir}
 	return &snapshot{
 		ref: f.Ref, tokenizer: f.Tokenizer, rows: c.rows(), migrated: migrated, importPathOnly: importPathOnly,
 	}, nil
@@ -203,7 +220,7 @@ func decodeFunctions(in map[string][]fileFunction) (map[string][]metrics.Functio
 	for pkg, ffs := range in {
 		fns := make([]metrics.FunctionInfo, len(ffs))
 		for i, ff := range ffs {
-			fp, err := strconv.ParseUint(ff.Fingerprint, 16, 64)
+			fp, err := parseHex16(ff.Fingerprint)
 			if err != nil {
 				return nil, fmt.Errorf("function %s of %s: fingerprint %q: %w", ff.Name, pkg, ff.Fingerprint, err)
 			}
@@ -223,24 +240,83 @@ func encodeFunctions(in map[string][]metrics.FunctionInfo) map[string][]fileFunc
 	for pkg, fns := range in {
 		ffs := make([]fileFunction, len(fns))
 		for i := range fns {
-			fp := strconv.FormatUint(fns[i].Fingerprint, 16)
-			fp = strings.Repeat("0", 16-len(fp)) + fp
-			ffs[i] = fileFunction{Receiver: fns[i].Receiver, Name: fns[i].Name, Fingerprint: fp, Cognitive: fns[i].Cognitive}
+			ffs[i] = fileFunction{Receiver: fns[i].Receiver, Name: fns[i].Name, Fingerprint: hex16(fns[i].Fingerprint), Cognitive: fns[i].Cognitive}
 		}
 		out[pkg] = ffs
 	}
 	return out
 }
 
+// hex16 renders fp as 16 hexadecimal digits.
+func hex16(fp uint64) string {
+	s := strconv.FormatUint(fp, 16)
+	return strings.Repeat("0", 16-len(s)) + s
+}
+
+// parseHex16 parses a fingerprint hex16 rendered.
+func parseHex16(s string) (uint64, error) {
+	return strconv.ParseUint(s, 16, 64)
+}
+
+// parseAnchors parses each of hex, an anchor hex16 rendered.
+func parseAnchors(hex []string) ([]uint64, error) {
+	out := make([]uint64, len(hex))
+	for i, s := range hex {
+		a, err := parseHex16(s)
+		if err != nil {
+			return nil, fmt.Errorf("anchor %q: %w", s, err)
+		}
+		out[i] = a
+	}
+	return out, nil
+}
+
+// decodeNamed returns the details the file's per-package records hold,
+// keyed like them, or nil when none records any.
+func decodeNamed(rows map[string]fileRow) (map[string]Named, error) {
+	var out map[string]Named
+	for id, r := range rows {
+		if r.DupBlocks == nil && r.UntestedExports == nil {
+			continue
+		}
+		var n Named
+		if r.DupBlocks != nil {
+			var err error
+			if n.DupBlocks, err = parseAnchors(*r.DupBlocks); err != nil {
+				return nil, fmt.Errorf("duplicate block of %s: %w", id, err)
+			}
+		}
+		if r.UntestedExports != nil {
+			n.UntestedExports = *r.UntestedExports
+		}
+		if out == nil {
+			out = make(map[string]Named, len(rows))
+		}
+		out[id] = n
+	}
+	return out, nil
+}
+
 // packageRows returns the file's per-package records of pkgs, a module of
-// path modulePath, keyed like pkgs; the module row has none. Never nil, so
-// the file says it records them.
-func packageRows(modulePath string, pkgs map[string]metrics.RawMetrics) map[string]fileRow {
+// path modulePath, keyed like pkgs, with each package's details from named
+// when it has an entry there; the module row has none. Never nil, so the
+// file says it records them.
+func packageRows(modulePath string, pkgs map[string]metrics.RawMetrics, named map[string]Named) map[string]fileRow {
 	rows := make(map[string]fileRow, len(pkgs))
 	for id := range pkgs {
-		if id != metrics.ModuleRowID {
-			rows[id] = fileRow{PackagePath: PackageDir(modulePath, id)}
+		if id == metrics.ModuleRowID {
+			continue
 		}
+		r := fileRow{PackagePath: PackageDir(modulePath, id)}
+		if n, ok := named[id]; ok {
+			blocks := make([]string, len(n.DupBlocks))
+			for i, fp := range n.DupBlocks {
+				blocks[i] = hex16(fp)
+			}
+			untested := append([]string{}, n.UntestedExports...)
+			r.DupBlocks, r.UntestedExports = &blocks, &untested
+		}
+		rows[id] = r
 	}
 	return rows
 }
@@ -278,7 +354,7 @@ func WriteContents(path string, c Contents) (err error) {
 		Tokenizer:   tokenizer,
 		Packages:    pkgs,
 		Functions:   encodeFunctions(c.Functions),
-		PackageRows: packageRows(c.ModulePath, pkgs),
+		PackageRows: packageRows(c.ModulePath, pkgs, c.Named),
 	})
 	if err != nil {
 		return fmt.Errorf("encoding baseline: %w", err)

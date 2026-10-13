@@ -190,16 +190,17 @@ func (e *Extractor) Details(ctx context.Context, mod *metrics.ModuleContext, pkg
 		}
 		d, _ = m.detailsOf(pkg)
 	}
-	return metrics.Details{
+	det := metrics.Details{
 		UntestedExports:   slices.Clone(d.untested),
 		UntestedExcluded:  slices.Clone(d.excluded),
-		DupLocations:      slices.Clone(d.dupLocations),
 		UntestedPositions: slices.Clone(d.untestedPos),
 		GlobalPositions:   slices.Clone(d.globalPos),
 		GlobalNames:       slices.Clone(d.globalNames),
 		LargestFile:       d.largestFile,
 		SourceFiles:       slices.Clone(d.sourceFiles),
-	}, nil
+	}
+	det.DupLocations, det.DupBlocks = duptok.Details(d.dupGroups, nil)
+	return det, nil
 }
 
 // Functions returns the functions of package pkg's non-test files, in file

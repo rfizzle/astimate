@@ -36,6 +36,36 @@ func TestFingerprintStableAcrossLoads(t *testing.T) {
 	}
 }
 
+// TestDupBlockAnchorsStableAcrossLoads checks that a duplicate block
+// has the same anchors whatever order the load interned its token kinds
+// in, so a check can match it against the baseline's blocks.
+func TestDupBlockAnchorsStableAcrossLoads(t *testing.T) {
+	const fold = "(xs: number[]): number {\n  let total = 0;\n  for (const x of xs) {\n    if (x > 10) {\n" +
+		"      total += x * 2;\n    } else {\n      total -= x;\n    }\n  }\n  return total;\n}\n"
+	const src = "export function f1" + fold + "const gap = 1;\nexport function f2" + fold
+	lone, crowded := t.TempDir(), t.TempDir()
+	writeTree(t, lone, map[string]string{"package.json": "{}", "p/p.ts": src})
+	writeTree(t, crowded, map[string]string{
+		"package.json": "{}",
+		"a/a.ts":       "export class C { x = [1, 2]; y?: string; }\nexport function g() { try { throw new Error(); } catch { return; } }\n",
+		"p/p.ts":       src,
+	})
+	var got []uint64
+	for _, root := range []string{lone, crowded} {
+		d, err := New().Details(t.Context(), &metrics.ModuleContext{Root: root}, "p")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(d.DupBlocks) != 1 || len(d.DupBlocks[0].Locations) != 2 {
+			t.Fatalf("DupBlocks = %+v, want one block occurring twice", d.DupBlocks)
+		}
+		got = append(got, d.DupBlocks[0].Anchors[0], d.DupBlocks[0].Anchors[1])
+	}
+	if got[0] != got[2] || got[1] != got[3] {
+		t.Errorf("anchors = %x and %x, want equal", got[:2], got[2:])
+	}
+}
+
 func TestFunctionsList(t *testing.T) {
 	root := t.TempDir()
 	writeTree(t, root, map[string]string{

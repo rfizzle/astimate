@@ -25,16 +25,22 @@ type Names struct {
 	// references.
 	UntestedExports []string
 	// DupLocations lists duplicate block locations, for example
-	// "parse.go:40-58", first occurrence first.
+	// "parse.go:40-58", the one to cite first.
 	DupLocations []string
+	// DupAdded reports that the change added the block DupLocations
+	// starts with (RankDupBlocks), so the suggestion says so.
+	DupAdded bool
 	// ChangedFunction names the most complex function added or modified
 	// since the baseline, the one changed_func_cognitive_max reports, with
 	// its location when known, for example "Parser.next (parse.go:40)".
 	ChangedFunction string
 	// CrossBlocks lists the cross-package duplicate blocks behind
-	// dup_blocks_cross_pkg, first occurrence first, with files relative to
+	// dup_blocks_cross_pkg, the one to cite first, with files relative to
 	// the module root.
 	CrossBlocks []metrics.CrossBlock
+	// CrossAdded reports that the change added the first of CrossBlocks
+	// (RankCrossBlocks), so the suggestion says so.
+	CrossAdded bool
 	// Globals names the package-level variables counted by globals, in
 	// declaration order.
 	Globals []string
@@ -103,9 +109,9 @@ func MetricSuggestion(metric string, head float64, m metrics.RawMetrics, n Names
 	v := formatNum(head)
 	switch metric {
 	case "dup_blocks":
-		return dupSentence(int(head), formatPct(m.DuplicationPct), n.DupLocations)
+		return dupSentence(int(head), formatPct(m.DuplicationPct), n.DupLocations, n.DupAdded)
 	case "duplication_pct":
-		return dupSentence(m.DupBlocks, formatPct(head), n.DupLocations)
+		return dupSentence(m.DupBlocks, formatPct(head), n.DupLocations, n.DupAdded)
 	case "untested_exports":
 		return untestedSentence(int(head), n.UntestedExports)
 	case "globals":
@@ -135,7 +141,7 @@ func MetricSuggestion(metric string, head float64, m metrics.RawMetrics, n Names
 	case "has_tests":
 		return "The package has " + strconv.Itoa(m.SLOC) + " source lines and no tests; add tests that pin its behavior."
 	case "dup_blocks_cross_pkg":
-		return crossSentence(int(head), n.CrossBlocks)
+		return crossSentence(int(head), n.CrossBlocks, n.CrossAdded)
 	case "uses_cgo":
 		return "The package imports \"C\"; cgo code is opaque to Go analysis and needs a C toolchain to build, so keep it behind a narrow Go API."
 	case "uses_reflect":
@@ -149,12 +155,18 @@ func MetricSuggestion(metric string, head float64, m metrics.RawMetrics, n Names
 	}
 }
 
+// addedNote follows a cited block the change added.
+const addedNote = ", added in this change"
+
 // dupSentence renders the duplication template, citing the first location
-// when one is known.
-func dupSentence(blocks int, pct string, locations []string) string {
+// when one is known, and saying the change added its block when added.
+func dupSentence(blocks int, pct string, locations []string, added bool) string {
 	s := count(blocks, "duplicate block covers", "duplicate blocks cover") + " " + pct + "% of lines; extract shared helpers"
 	if len(locations) > 0 {
 		s += ", starting with " + locations[0]
+		if added {
+			s += addedNote
+		}
 	}
 	return s + "."
 }
@@ -162,15 +174,21 @@ func dupSentence(blocks int, pct string, locations []string) string {
 // crossSentence renders the cross-package duplication template for n
 // blocks. When blocks names any, it cites the first block's first
 // occurrence and its first occurrence in another package, so the sentence
-// names both sides of the copy.
-func crossSentence(n int, blocks []metrics.CrossBlock) string {
+// names both sides of the copy, and says the change added the block when
+// added.
+func crossSentence(n int, blocks []metrics.CrossBlock, added bool) string {
 	s := count(n, "duplicate block is", "duplicate blocks are") + " shared with other packages; "
 	where := crossPair(blocks)
+	if where != "" && added {
+		where += addedNote
+	}
 	switch {
 	case where == "" && n == 1:
 		return s + "extract it into one place."
 	case where == "":
 		return s + "extract them into one place."
+	case n == 1 && added:
+		return s + "extract the shared block in " + where + ", into one package."
 	case n == 1:
 		return s + "extract the shared block in " + where + " into one package."
 	default:

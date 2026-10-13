@@ -45,26 +45,19 @@ func blameNamed(m metrics.RawMetrics, bm *metrics.RawMetrics, base []metrics.Cro
 
 // blameCross returns the head blocks a check of the packages in named
 // blames. When known, base holds the baseline's blocks and a head block is
-// new when its set of packages occurs more often at head than in base;
-// blocks are matched by the packages they touch because their lines move
-// between commits. A head block is blamed when it is new, or known is
-// false, and one of its occurrences lies in a named package.
+// new as score.NewCrossBlocks tells it, by the set of packages it touches.
+// A head block is blamed when it is new, or known is false, and one of its
+// occurrences lies in a named package.
 func blameCross(head, base []metrics.CrossBlock, known bool, named map[string]bool) crossBlame {
-	var old map[string]int
+	var isNew []bool
 	if known {
-		old = make(map[string]int, len(base))
-		for i := range base {
-			old[packageSetKey(&base[i])]++
-		}
+		isNew = score.NewCrossBlocks(head, base)
 	}
 	b := crossBlame{known: known}
 	for i := range head {
 		blk := &head[i]
-		if known {
-			if k := packageSetKey(blk); old[k] > 0 {
-				old[k]--
-				continue
-			}
+		if known && !isNew[i] {
+			continue
 		}
 		if touchesAny(blk, named) {
 			b.blocks = append(b.blocks, *blk)
@@ -138,13 +131,6 @@ func blockPackages(b *metrics.CrossBlock) []string {
 		}
 	}
 	return pkgs
-}
-
-// packageSetKey identifies b by the sorted set of packages it touches.
-func packageSetKey(b *metrics.CrossBlock) string {
-	pkgs := blockPackages(b)
-	slices.Sort(pkgs)
-	return strings.Join(pkgs, "\x00")
 }
 
 // touchesAny reports whether an occurrence of b lies in a package in named.

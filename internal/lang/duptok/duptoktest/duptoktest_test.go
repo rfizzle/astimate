@@ -110,6 +110,9 @@ func TestRecorderMatchesStream(t *testing.T) {
 				t.Fatal("stream has no blocks; the test input is too weak")
 			}
 			got, per := r.Count(blocks, sloc)
+			// Anchors match blocks across commits; no measurement
+			// reads them, so Count leaves them out.
+			want.Anchors = nil
 			if !reflect.DeepEqual(got, want) {
 				t.Errorf("Count = %+v\nwant %+v", got, want)
 			}

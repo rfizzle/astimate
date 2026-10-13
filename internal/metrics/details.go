@@ -20,10 +20,13 @@ type Details struct {
 	UntestedRules UntestedRules
 	// DupLocations lists every occurrence of every duplicate block counted
 	// by dup_blocks, ordered by the length in tokens of the block, longest
-	// first, ties in file order, so the first names the copy worth
-	// extracting, each rendered "file:start-end" with file relative to the package directory
-	// and start and end the first and last lines of the occurrence.
+	// first, ties in file order, each rendered "file:start-end" with file
+	// relative to the package directory and start and end the first and
+	// last lines of the occurrence.
 	DupLocations []string
+	// DupBlocks groups DupLocations by block, in the same order. Nil when
+	// the implementation does not group them.
+	DupBlocks []DupBlock
 	// CrossBlocks lists the cross-package duplicate blocks behind
 	// dup_blocks_cross_pkg, each with all its occurrences, in whichever
 	// package they lie. For a package (Detailer) it holds the blocks that
@@ -78,6 +81,14 @@ func (r UntestedRules) Clone() UntestedRules {
 		InterfaceMethods: slices.Clone(r.InterfaceMethods),
 		TestSupport:      slices.Clone(r.TestSupport),
 	}
+}
+
+// DupBlock is one duplicate block: hashes of the first and of the last
+// duplication.min_tokens tokens of its normalized sequence, equal across
+// commits, and its occurrences as in DupLocations.
+type DupBlock struct {
+	Anchors   [2]uint64
+	Locations []string
 }
 
 // Position is a place in a package's source, for renderers that annotate

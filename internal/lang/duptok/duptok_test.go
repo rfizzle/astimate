@@ -629,3 +629,164 @@ func TestCountReportsBlockTokens(t *testing.T) {
 		t.Errorf("LargestFirst()[0] = %v, want %v", first[0], want)
 	}
 }
+
+func TestCountAnchors(t *testing.T) {
+	// The same 10-token block in two files, and a second block of another
+	// sequence in two more: one pair of anchors per block, the same at
+	// every occurrence, distinct between blocks.
+	s := streamOf(t, seq(10, 1, 2, Code, 3), seq(10, 1, 2, Code, 4), seq(10, 5, 6, Code, 7), seq(10, 5, 6, Code, 8))
+	got, err := s.Count(Options{MinTokens: 5}, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := got.Anchors
+	if len(a) != 4 || a[0] != a[1] || a[2] != a[3] || a[0] == a[2] {
+		t.Fatalf("Anchors = %x, want one pair per block, distinct", a)
+	}
+	// The same sequence in another stream, behind other files, has the
+	// same anchors.
+	again, err := streamOf(t, seq(12, 9, 9, Code, 10), seq(10, 5, 6, Code, 11), seq(10, 5, 6, Code, 12)).Count(Options{MinTokens: 5}, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if i := slices.Index(again.Locations, Location{"f1", 1, 10}); i < 0 || again.Anchors[i] != a[2] {
+		t.Errorf("anchors in another stream = %x at %v, want %x", again.Anchors, again.Locations, a[2])
+	}
+}
+
+// distinct returns n tokens with the codes 10 to 9+n, one per line from
+// line 1, followed by a closing token with code end.
+func distinct(n int, end int32) []tok {
+	out := make([]tok, 0, n+1)
+	for i := range n {
+		out = append(out, tok{int32(10 + i), Code, i + 1})
+	}
+	return append(out, tok{end, Code, n + 1})
+}
+
+func TestCountAnchorsSurviveOneEnd(t *testing.T) {
+	// A 10-token block, first ending at a distinct token in each file,
+	// then lengthened by one token when both copies come to be followed
+	// by the same token, keeps its first anchor; one shortened by an edit
+	// to its first token keeps its last.
+	block := func(r Result) [2]uint64 {
+		t.Helper()
+		if len(r.Anchors) != 2 {
+			t.Fatalf("Anchors = %x, want one block of two occurrences", r.Anchors)
+		}
+		return r.Anchors[0]
+	}
+	opts := Options{MinTokens: 5}
+	count := func(files ...[]tok) Result {
+		t.Helper()
+		r, err := streamOf(t, files...).Count(opts, 100)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return r
+	}
+	before := block(count(distinct(10, 3), distinct(10, 4)))
+	longer := block(count(distinct(10, 99), distinct(10, 99)))
+	if longer[0] != before[0] || longer[1] == before[1] {
+		t.Errorf("lengthened block anchors = %x, want the first of %x kept and the last changed", longer, before)
+	}
+	cut := distinct(10, 4)
+	cut[0].code = 98
+	shorter := block(count(distinct(10, 3), cut))
+	if shorter[1] != before[1] || shorter[0] == before[0] {
+		t.Errorf("shortened block anchors = %x, want the last of %x kept and the first changed", shorter, before)
+	}
+}
+
+func TestAddKeyedAnchorsKeys(t *testing.T) {
+	// Two loads intern the same sequence to different codes; keyed by a
+	// load-independent key, their blocks have the same anchors.
+	build := func(a, b int32) Result {
+		t.Helper()
+		var s Stream
+		for f := range 2 {
+			for i := range 10 {
+				code, key := a, uint64(100)
+				if i%2 == 1 {
+					code, key = b, 200
+				}
+				if err := s.AddKeyed(code, Code, i+1, i+1, key); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := s.Add(int32(50+f), Code, 11, 11); err != nil {
+				t.Fatal(err)
+			}
+			code := make([]bool, 12)
+			for ln := 1; ln <= 11; ln++ {
+				code[ln] = true
+			}
+			s.EndFile("f"+strconv.Itoa(f), code)
+		}
+		r, err := s.Count(Options{MinTokens: 5}, 22)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return r
+	}
+	x, y := build(1, 2), build(7, 3)
+	if len(x.Anchors) != 2 || len(y.Anchors) != 2 || x.Anchors[0] != y.Anchors[0] {
+		t.Errorf("anchors = %x and %x, want the same", x.Anchors, y.Anchors)
+	}
+	if err := new(Stream).AddKeyed(-1, Code, 1, 1, 0); err == nil {
+		t.Error("AddKeyed accepted a negative code")
+	}
+}
+
+func TestResultGroups(t *testing.T) {
+	r := Result{
+		Locations: []Location{{"a", 1, 5}, {"b", 1, 5}, {"a", 10, 40}, {"b", 10, 40}, {"c", 1, 5}, {"d", 1, 5}},
+		Tokens:    []int{40, 40, 120, 120, 40, 40},
+		Anchors:   [][2]uint64{{1, 1}, {1, 1}, {2, 2}, {2, 2}, {3, 4}, {3, 4}},
+	}
+	want := []Group{
+		{Anchors: [2]uint64{2, 2}, Locations: []Location{{"a", 10, 40}, {"b", 10, 40}}},
+		{Anchors: [2]uint64{1, 1}, Locations: []Location{{"a", 1, 5}, {"b", 1, 5}}},
+		{Anchors: [2]uint64{3, 4}, Locations: []Location{{"c", 1, 5}, {"d", 1, 5}}},
+	}
+	got := r.Groups()
+	if !slices.EqualFunc(got, want, func(a, b Group) bool {
+		return a.Anchors == b.Anchors && slices.Equal(a.Locations, b.Locations)
+	}) {
+		t.Errorf("Groups = %v, want %v", got, want)
+	}
+	var flat []Location
+	for _, g := range got {
+		flat = append(flat, g.Locations...)
+	}
+	if !slices.Equal(flat, r.LargestFirst()) {
+		t.Errorf("flattened Groups = %v, want LargestFirst %v", flat, r.LargestFirst())
+	}
+	if (Result{}).Groups() != nil {
+		t.Error("Groups of an empty Result is not nil")
+	}
+}
+
+func TestDetails(t *testing.T) {
+	groups := []Group{
+		{Anchors: [2]uint64{1, 2}, Locations: []Location{{"/m/p/a.go", 1, 5}, {"/m/p/b.go", 3, 7}}},
+		{Anchors: [2]uint64{3, 4}, Locations: []Location{{"/m/p/c.go", 10, 12}, {"/m/p/c.go", 20, 22}}},
+	}
+	locs, blocks := Details(groups, func(f string) string { return strings.TrimPrefix(f, "/m/p/") })
+	if want := []string{"a.go:1-5", "b.go:3-7", "c.go:10-12", "c.go:20-22"}; !slices.Equal(locs, want) {
+		t.Errorf("locations = %q, want %q", locs, want)
+	}
+	if len(blocks) != 2 || blocks[1].Anchors != [2]uint64{3, 4} || !slices.Equal(blocks[1].Locations, locs[2:]) {
+		t.Errorf("blocks = %+v, want the two groups with their own locations", blocks)
+	}
+	blocks[0].Locations[0] = "changed"
+	if locs[0] != "a.go:1-5" {
+		t.Error("a block's locations share storage with the flat list")
+	}
+	if locs, _ := Details(groups[:1], nil); locs[0] != "/m/p/a.go:1-5" {
+		t.Errorf("nil name rendered %q, want the file as it is", locs[0])
+	}
+	if locs, blocks := Details(nil, nil); locs != nil || blocks != nil {
+		t.Errorf("Details(nil) = %q, %+v; want nil, nil", locs, blocks)
+	}
+}

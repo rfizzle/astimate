@@ -142,7 +142,8 @@ func (r *Recorder) fileName(i int32) string {
 // Count counts blocks over the recorded stream as duptok.Stream.Count
 // does: the number of blocks, covered source lines over sloc as a
 // percentage, and every occurrence's location, blocks in order of first
-// occurrence. It also returns the covered source lines per file name.
+// occurrence. It also returns the covered source lines per file name. It
+// leaves Result.Anchors nil.
 func (r *Recorder) Count(blocks []Block, sloc int) (duptok.Result, map[string]int) {
 	res := duptok.Result{Blocks: len(blocks)}
 	sorted := slices.Clone(blocks)

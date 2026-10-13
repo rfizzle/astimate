@@ -70,7 +70,9 @@ func New(o Options) *Checker {
 // each against its own baseline complexity (gate.WithChangedFunctions),
 // and builds its report, its findings located where the extractor's
 // details say (locateFindings) and a changed_func_cognitive_max finding
-// named and located on the function it judged (nameJudged). The result
+// named and located on the function it judged (nameJudged). The duplicate
+// blocks and untested exports the change added lead the details, the
+// suggestions and the locations (rankNew). The result
 // carries the changed functions (report.CheckedPackage.ChangedFunctions).
 // The exemptions are applied to the result
 // (gate.Exemptions.Apply) before the report is built. unrecorded reports
@@ -88,6 +90,7 @@ func (c *Checker) Package(ctx context.Context, pkg string, m metrics.RawMetrics)
 	if inBase {
 		bm = &row.Metrics
 	}
+	lead := rankNew(&det, &names, &row, inBase)
 	changed, listed, unrecorded, err := c.changedFunctions(ctx, pkg, row, inBase)
 	if err != nil {
 		return report.CheckedPackage{}, false, err
@@ -105,7 +108,7 @@ func (c *Checker) Package(ctx context.Context, pkg string, m metrics.RawMetrics)
 	}
 	r, res := c.row(path, m, m, bm, c.pkgRules, suggest, names, opts...)
 	r.BaselineFrom = row.From
-	locateFindings(&r, &det, nameJudged(&r, &res, worst, m, names))
+	locateFindings(&r, &det, nameJudged(&r, &res, worst, m, names), lead)
 	r.Details = c.details(&det)
 	p = report.CheckedPackage{Report: r, ChangedFunctions: changed}
 	if bm != nil {
@@ -129,7 +132,10 @@ func (c *Checker) Package(ctx context.Context, pkg string, m metrics.RawMetrics)
 // extractor implements metrics.ModuleDetailer, the dup_blocks_cross_pkg
 // suggestion names where the first shared block lives and its findings
 // are located on the block's first occurrence; otherwise the row's
-// suggestions name no locations. It carries no baseline agent passes,
+// suggestions name no locations. When the baseline recorded its blocks,
+// the blocks the change added come first (score.RankCrossBlocks) and the
+// suggestion says the first was added; the row's details list them in that
+// order. It carries no baseline agent passes,
 // since its rebuild estimate is of an empty package.
 //
 // named are the packages a check of named packages checks; empty for any
@@ -168,14 +174,22 @@ func (c *Checker) Module(ctx context.Context, mm metrics.ModuleMetrics, fromFile
 	if err != nil {
 		return report.CheckedPackage{}, false, err
 	}
+	baseBlocks, known := o.Base.CrossBlocks()
+	// The baseline names packages by directory; head by identifier.
+	baseBlocks = metrics.MapPackages(baseBlocks, func(dir string) string { return ImportPath(o.Mod.ModulePath, dir) })
 	names := score.Names{CrossBlocks: det.CrossBlocks}
+	if known {
+		var added int
+		names.CrossBlocks, added = score.RankCrossBlocks(det.CrossBlocks, baseBlocks)
+		names.CrossAdded = added > 0
+	}
 	gm, blame := m, (*crossBlame)(nil)
 	if _, detailed := o.Ext.(metrics.ModuleDetailer); detailed && len(named) > 0 && len(rules) > 0 && m.DupBlocksCrossPkg != nil {
-		baseBlocks, known := o.Base.CrossBlocks()
-		// The baseline names packages by directory; head by identifier.
-		baseBlocks = metrics.MapPackages(baseBlocks, func(dir string) string { return ImportPath(o.Mod.ModulePath, dir) })
-		gm, blame = blameNamed(m, bm, baseBlocks, known, names.CrossBlocks, named)
+		gm, blame = blameNamed(m, bm, baseBlocks, known, det.CrossBlocks, named)
 	}
+	// The details list the cross-package blocks in the order the suggestion
+	// cites them.
+	det.CrossBlocks = names.CrossBlocks
 	suggest := func(metric string, h float64, hm metrics.RawMetrics) string {
 		if blame != nil && metric == "dup_blocks_cross_pkg" {
 			if s := blame.suggestion(hm, o.Mod.ModulePath); s != "" {

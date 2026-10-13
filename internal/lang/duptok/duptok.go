@@ -62,6 +62,18 @@
 // starts or ends on it, or lies between, and counts only when the language
 // marked it as a source line. duplication_pct is covered lines over the
 // package SLOC, times 100, rounded to one decimal.
+//
+// Anchors. Each block carries two anchors, the FNV-1a hashes of its first
+// and of its last MinTokens normalized tokens, one key per token: the
+// token's code, or the key the language gave it (Stream.AddKeyed) when its
+// codes are interned per load. Equal sequences have equal anchors across
+// loads, which is how a check tells a block the change added from one its
+// baseline already had. Hashing the ends rather than the whole sequence
+// keeps a block recognizable when a change moves one of its ends: a
+// maximal repeat grows by a token when an edit makes the tokens after (or
+// before) its occurrences agree, as appending a function after the last
+// copy does, and shrinks when an edit cuts into one copy, while the other
+// end, at least MinTokens long, stays as it was.
 package duptok
 
 import (
@@ -69,6 +81,9 @@ import (
 	"fmt"
 	"math"
 	"slices"
+	"strconv"
+
+	"github.com/rfizzle/astimate/internal/metrics"
 )
 
 // SeparatorBase is the code of the separator after the first file; the
@@ -139,6 +154,21 @@ type Result struct {
 	// Tokens holds, for each entry of Locations, the length in tokens of
 	// the block that occurrence belongs to.
 	Tokens []int
+	// Anchors holds, for each entry of Locations, the anchors of the block
+	// that occurrence belongs to (Group.Anchors).
+	Anchors [][2]uint64
+}
+
+// Group is one duplicate block of a Result with its occurrences.
+type Group struct {
+	// Anchors identify the block across loads: the hashes of the keys
+	// (Stream.AddKeyed) of its first and of its last Options.MinTokens
+	// tokens, so a block can be matched against the blocks of another
+	// commit even when a change moved one of its ends (see the package
+	// comment).
+	Anchors [2]uint64
+	// Locations are the block's occurrences in stream order.
+	Locations []Location
 }
 
 // LargestFirst returns r.Locations ordered by the length in tokens of
@@ -147,16 +177,62 @@ type Result struct {
 // longest block is the copy worth extracting, so the first location is
 // the one to cite. r is not modified.
 func (r Result) LargestFirst() []Location {
-	idx := make([]int, len(r.Locations))
-	for i := range idx {
-		idx[i] = i
-	}
-	slices.SortStableFunc(idx, r.compareLength)
+	idx := r.largestFirst()
 	out := make([]Location, len(idx))
 	for i, j := range idx {
 		out[i] = r.Locations[j]
 	}
 	return out
+}
+
+// Groups returns the blocks of r in the order of LargestFirst, each with
+// its occurrences, so flattening them gives LargestFirst. Occurrences are
+// grouped by anchors, so two blocks with the same anchors, as parts that
+// Options.SplitLiteralRuns cuts from different blocks can be, form one
+// group when they are adjacent in that order. r is not modified.
+func (r Result) Groups() []Group {
+	var out []Group
+	for _, j := range r.largestFirst() {
+		a := r.Anchors[j]
+		if n := len(out); n == 0 || out[n-1].Anchors != a {
+			out = append(out, Group{Anchors: a})
+		}
+		g := &out[len(out)-1]
+		g.Locations = append(g.Locations, r.Locations[j])
+	}
+	return out
+}
+
+// Details returns the occurrences of groups in order, each rendered
+// "file:start-end" with file passed through name (kept as it is when name
+// is nil), and the groups as metrics.DupBlock with the same renderings, as
+// metrics.Details lists them. Both are nil when groups is empty.
+func Details(groups []Group, name func(string) string) ([]string, []metrics.DupBlock) {
+	var locs []string
+	var blocks []metrics.DupBlock
+	for _, g := range groups {
+		start := len(locs)
+		for _, l := range g.Locations {
+			file := l.File
+			if name != nil {
+				file = name(file)
+			}
+			locs = append(locs, file+":"+strconv.Itoa(l.StartLine)+"-"+strconv.Itoa(l.EndLine))
+		}
+		blocks = append(blocks, metrics.DupBlock{Anchors: g.Anchors, Locations: slices.Clone(locs[start:])})
+	}
+	return locs, blocks
+}
+
+// largestFirst returns the indexes of r.Locations in the order
+// LargestFirst lists them.
+func (r Result) largestFirst() []int {
+	idx := make([]int, len(r.Locations))
+	for i := range idx {
+		idx[i] = i
+	}
+	slices.SortStableFunc(idx, r.compareLength)
+	return idx
 }
 
 // compareLength orders the occurrences i and j of r by block length in
@@ -176,7 +252,10 @@ type file struct {
 // Stream is the normalized token stream of a package. The zero value is
 // empty and ready to use. It is not safe for concurrent use.
 type Stream struct {
-	codes      []int32
+	codes []int32
+	// keys holds each token's anchor key, nil while every token was added
+	// with Add, whose key is its code.
+	keys       []uint64
 	class      []Class
 	file       []int32
 	line, last []int32
@@ -192,10 +271,32 @@ func (s *Stream) Add(code int32, class Class, line, last int) error {
 		return fmt.Errorf("adding code %d: outside [0, %d)", code, SeparatorBase)
 	}
 	s.codes = append(s.codes, code)
+	if s.keys != nil {
+		s.keys = append(s.keys, uint64(code))
+	}
 	s.class = append(s.class, class)
 	s.file = append(s.file, int32(len(s.files)))
 	s.line = append(s.line, int32(line))
 	s.last = append(s.last, int32(max(last, line)))
+	return nil
+}
+
+// AddKeyed appends one token as Add does, with key standing for it in the
+// anchors of a block (Group.Anchors) in place of its code. A
+// language whose codes are interned per load, and so differ between the
+// loads of two commits, passes a key that is the same in every load; a
+// token added with Add has its code as its key.
+func (s *Stream) AddKeyed(code int32, class Class, line, last int, key uint64) error {
+	if err := s.Add(code, class, line, last); err != nil {
+		return err
+	}
+	if s.keys == nil {
+		s.keys = make([]uint64, len(s.codes), cap(s.codes))
+		for i, c := range s.codes {
+			s.keys[i] = uint64(c)
+		}
+	}
+	s.keys[len(s.keys)-1] = key
 	return nil
 }
 
@@ -205,6 +306,9 @@ func (s *Stream) EndFile(name string, code []bool) {
 	fi := int32(len(s.files))
 	s.files = append(s.files, file{name: name, code: code})
 	s.codes = append(s.codes, SeparatorBase+fi)
+	if s.keys != nil {
+		s.keys = append(s.keys, uint64(SeparatorBase+fi))
+	}
 	s.class = append(s.class, Code)
 	s.file = append(s.file, -1)
 	s.line = append(s.line, 0)
@@ -224,7 +328,7 @@ func (s *Stream) Count(opts Options, sloc int) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	return s.count(sa, reps, sloc), nil
+	return s.count(sa, reps, sloc, opts.MinTokens), nil
 }
 
 // Block is one duplicate block as Blocks reports it.
@@ -296,6 +400,9 @@ func (s *Stream) trim() {
 		n--
 	}
 	s.codes, s.class, s.file = s.codes[:n], s.class[:n], s.file[:n]
+	if s.keys != nil {
+		s.keys = s.keys[:n]
+	}
 	s.line, s.last = s.line[:n], s.last[:n]
 }
 
@@ -381,8 +488,8 @@ func (s *Stream) splitLiteralRuns(sa []int32, reps []repeat, signs bool, minToke
 
 // count turns the repeats found in the stream, as intervals of its suffix
 // array sa, into block count, coverage percentage over sloc, and occurrence
-// locations.
-func (s *Stream) count(sa []int32, reps []repeat, sloc int) Result {
+// locations, with each block's anchors over minTokens tokens.
+func (s *Stream) count(sa []int32, reps []repeat, sloc, minTokens int) Result {
 	if len(reps) == 0 {
 		return Result{}
 	}
@@ -439,7 +546,37 @@ func (s *Stream) count(sa []int32, reps []repeat, sloc int) Result {
 		}
 	}
 	res.Pct = Percent(lines, sloc)
+	res.Anchors = make([][2]uint64, 0, len(res.Locations))
+	for _, b := range blocks {
+		a := s.anchors(b.pos[0], b.n, int32(minTokens))
+		for range b.pos {
+			res.Anchors = append(res.Anchors, a)
+		}
+	}
 	return res
+}
+
+// anchors returns the anchors of the block of n tokens whose occurrence
+// starts at stream position p: the hashes (hash) of its first and of its
+// last k tokens, or of all n when n is shorter.
+func (s *Stream) anchors(p, n, k int32) [2]uint64 {
+	k = min(k, n)
+	return [2]uint64{s.hash(p, k), s.hash(p+n-k, k)}
+}
+
+// hash returns the 64-bit FNV-1a hash, taken a key at a time, of the keys
+// of the n tokens starting at stream position p.
+func (s *Stream) hash(p, n int32) uint64 {
+	const offset, prime = 14695981039346656037, 1099511628211
+	h := uint64(offset)
+	for i := p; i < p+n; i++ {
+		k := uint64(s.codes[i])
+		if s.keys != nil {
+			k = s.keys[i]
+		}
+		h = (h ^ k) * prime
+	}
+	return h
 }
 
 // location returns the location of the occurrence of n tokens starting at

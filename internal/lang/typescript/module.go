@@ -7,6 +7,7 @@ import (
 	"slices"
 	"sync"
 
+	"github.com/rfizzle/astimate/internal/lang/duptok"
 	"github.com/rfizzle/astimate/internal/lang/typescript/internal/inspect"
 	"github.com/rfizzle/astimate/internal/lang/typescript/internal/resolve"
 	"github.com/rfizzle/astimate/internal/metrics"
@@ -54,13 +55,13 @@ type pkg struct {
 
 // details is the per-package record Details serves: the names behind
 // untested_exports, those the untested directive left out, and the
-// duplicate block locations; the declarations of the untested names, index
+// duplicate blocks with their locations; the declarations of the untested names, index
 // for index, and of the globals, in the order the count reads them, with
 // the globals' names index for index; the largest file; and the source files, sorted. Files are relative to the
 // package directory in slash form.
 type details struct {
 	untested, excluded []string
-	dupLocations       []string
+	dupGroups          []duptok.Group
 	untestedPos        []metrics.Position
 	globalPos          []metrics.Position
 	globalNames        []string

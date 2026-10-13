@@ -45,14 +45,15 @@ type loaded struct {
 
 // details is the per-package debug record the metric functions produce
 // beside the counts: the names and declarations behind untested_exports
-// and globals, the duplicate block locations, the blank and dot imports,
+// and globals, the duplicate blocks with their locations, the blank and
+// dot imports,
 // the token counting method, and every function's complexity and
 // fingerprint for the baseline diff.
 type details struct {
 	untested     tests.UntestedCounts
 	globals      inspect.GlobalCounts
 	imp          imports.Counts
-	dupLocations []duptok.Location
+	dupBlocks    []duptok.Group
 	tokensMethod string
 	functions    []inspect.Func
 	// largestFile is the absolute filename of the largest non-test file.

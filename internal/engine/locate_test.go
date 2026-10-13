@@ -3,6 +3,7 @@ package engine
 import (
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/baseline"
@@ -14,8 +15,10 @@ const degradedDir = "../../testdata/go/fixture-degraded"
 
 // TestCheckLocatesDegradedFindings checks the degraded fixture against a
 // baseline of the pristine one: each violation of its tested package is
-// located on the line the degraded copy added, module-relative, and the
-// check carries the module root's directory in its repository.
+// located on the line the degraded copy added, module-relative, the
+// duplicate block it cites is said to be added in this change and the
+// untested export it added is named first, and the check carries the
+// module root's directory in its repository.
 func TestCheckLocatesDegradedFindings(t *testing.T) {
 	if testing.Short() {
 		t.Skip("integration test: loads Go packages")
@@ -34,9 +37,13 @@ func TestCheckLocatesDegradedFindings(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	named, err := baseline.CollectNamed(t.Context(), fx.Ext, fx.Mod, pkgs)
+	if err != nil {
+		t.Fatal(err)
+	}
 	path := filepath.Join(t.TempDir(), "baseline.json")
 	if err := baseline.WriteContents(path, baseline.Contents{
-		Ref: "fixture", ModulePath: fx.Mod.ModulePath, Tokenizer: TokenizerEst, Packages: pkgs, Functions: funcs,
+		Ref: "fixture", ModulePath: fx.Mod.ModulePath, Tokenizer: TokenizerEst, Packages: pkgs, Functions: funcs, Named: named,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -68,6 +75,10 @@ func TestCheckLocatesDegradedFindings(t *testing.T) {
 		"globals":                    "tested/degraded.go:9",
 		"untested_exports":           "tested/degraded.go:13",
 	}
+	wantText := map[string]string{
+		"dup_blocks":       "starting with degraded.go:15-20, added in this change.",
+		"untested_exports": "no test (JoinAgain)",
+	}
 	seen := 0
 	for _, v := range r.Violations {
 		if v.Location == nil || v.Location.File == "" || v.Location.Line == 0 {
@@ -75,6 +86,9 @@ func TestCheckLocatesDegradedFindings(t *testing.T) {
 			continue
 		}
 		loc := v.Location.File + ":" + strconv.Itoa(v.Location.Line)
+		if s, ok := wantText[v.Metric]; ok && !strings.Contains(v.Suggestion, s) {
+			t.Errorf("%s suggestion %q, want it to contain %q", v.Metric, v.Suggestion, s)
+		}
 		if w, ok := want[v.Metric]; ok {
 			seen++
 			if loc != w {

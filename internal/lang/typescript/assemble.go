@@ -5,7 +5,6 @@ import (
 	"math"
 	"path/filepath"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/rfizzle/astimate/internal/lang/duptok"
@@ -140,20 +139,22 @@ func assemble(m *module, p *pkg, opts assembleOptions) (metrics.RawMetrics, erro
 	r.Instability = metrics.RoundRatio(instability)
 	r.Abstractness = metrics.RoundRatio(abstractness)
 
-	locs := make([]string, 0, len(dup.Locations))
-	for _, l := range dup.LargestFirst() {
-		locs = append(locs, relLocation(p.dir, l))
+	groups := dup.Groups()
+	for _, g := range groups {
+		for i := range g.Locations {
+			g.Locations[i].File = relFile(p.dir, g.Locations[i].File)
+		}
 	}
 	slices.Sort(files)
 	m.setDetails(p.id, details{
-		untested:     untested,
-		excluded:     excluded,
-		dupLocations: locs,
-		untestedPos:  untestedPos,
-		globalPos:    globalPos,
-		globalNames:  globalNames,
-		largestFile:  largest,
-		sourceFiles:  files,
+		untested:    untested,
+		excluded:    excluded,
+		dupGroups:   groups,
+		untestedPos: untestedPos,
+		globalPos:   globalPos,
+		globalNames: globalNames,
+		largestFile: largest,
+		sourceFiles: files,
 	})
 	return r, nil
 }
@@ -172,19 +173,13 @@ func duplication(p *pkg, sloc int, opts duptok.Options) (duptok.Result, error) {
 	for _, f := range p.src {
 		t := &f.Tokens
 		for i, c := range t.Codes {
-			if err := s.Add(c, t.Class[i], int(t.Line[i]), int(t.Last[i])); err != nil {
+			if err := s.AddKeyed(c, t.Class[i], int(t.Line[i]), int(t.Last[i]), t.Keys[i]); err != nil {
 				return duptok.Result{}, err
 			}
 		}
 		s.EndFile(f.Abs, f.CodeLines)
 	}
 	return s.Count(opts, sloc)
-}
-
-// relLocation renders loc as "file:start-end" with file relative to dir, in
-// slash form, falling back to the base name.
-func relLocation(dir string, loc duptok.Location) string {
-	return relFile(dir, loc.File) + ":" + strconv.Itoa(loc.StartLine) + "-" + strconv.Itoa(loc.EndLine)
 }
 
 // relFile returns file relative to dir in slash form, falling back to the

@@ -1,0 +1,2 @@
+::error file=p/z.go,line=6::dup_blocks: 1 -> 2, max_delta +0. 2 duplicate blocks cover 93.5%25 of lines; extract shared helpers, starting with z.go:6-12, added in this change.
+::error file=p/z.go,line=6::untested_exports: 2 -> 4, max_delta +0. 4 exported functions have no test (Zeta1, Zeta2, Legacy1, Legacy2); a rebuild would have to reverse-engineer their behavior.

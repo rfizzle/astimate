@@ -201,7 +201,7 @@ $ astimate check testdata/go/fixture-degraded --baseline /tmp/fixture-baseline.j
 violations:
   tested
     changed_func_cognitive_max: 51 (changed since baseline), max 50. Changed function grade (grade.go:8) has cognitive complexity 51; split it into smaller functions or flatten its branching.
-    dup_blocks: 0 -> 1, max_delta +0; duplication_pct 0 -> 12.2, max_delta +6. 1 duplicate block covers 12.2% of lines; extract shared helpers, starting with degraded.go:15-20.
+    dup_blocks: 0 -> 1, max_delta +0; duplication_pct 0 -> 12.2, max_delta +6. 1 duplicate block covers 12.2% of lines; extract shared helpers, starting with degraded.go:15-20, added in this change.
     globals: 0 -> 1, max_delta +0. 1 mutable package-level variable holds state no signature reveals (joins); pass it explicitly or move it into a struct.
     untested_exports: 0 -> 1, max_delta +0. 1 exported function has no test (JoinAgain); a rebuild would have to reverse-engineer its behavior.
 <module>: dup_blocks_cross_pkg 1, 0 violations, 0 warnings, 0 exempted

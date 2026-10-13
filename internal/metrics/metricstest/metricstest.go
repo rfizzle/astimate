@@ -76,7 +76,9 @@ type Fixture struct {
 // also implements the optional metrics.Detailer, it checks that Details
 // succeeds for every package after Extract and names as many untested
 // exports as untested_exports counts; that recorded positions number one
-// per untested export and one per global; and that recorded CrossBlocks
+// per untested export and one per global; that recorded DupBlocks list
+// DupLocations block by block, each block occurring at least twice; and
+// that recorded CrossBlocks
 // number dup_blocks_cross_pkg, each block with at least two occurrences in
 // at least two packages of the fixture, the package itself among them,
 // files slash-separated and relative, and line ranges positive with start
@@ -458,6 +460,27 @@ func checkDetails(t *testing.T, d metrics.Detailer, mod *metrics.ModuleContext, 
 				pkg, n, det.UntestedExports, want)
 		}
 		checkDetailsConsistency(t, pkg, det, got[pkg], pkgs)
+		checkDupBlocks(t, pkg, &det)
+	}
+}
+
+// checkDupBlocks checks that det's DupBlocks, when recorded, list
+// DupLocations block by block in the same order, each block with at least
+// two occurrences.
+func checkDupBlocks(t *testing.T, pkg string, det *metrics.Details) {
+	t.Helper()
+	if det.DupBlocks == nil {
+		return
+	}
+	var flat []string
+	for _, b := range det.DupBlocks {
+		if len(b.Locations) < 2 {
+			t.Errorf("%s: duplicate block %x has %d occurrences, want at least 2", pkg, b.Anchors, len(b.Locations))
+		}
+		flat = append(flat, b.Locations...)
+	}
+	if !slices.Equal(flat, det.DupLocations) {
+		t.Errorf("%s: DupBlocks list %q, want DupLocations %q", pkg, flat, det.DupLocations)
 	}
 }
 

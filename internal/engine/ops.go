@@ -214,7 +214,9 @@ func Rank(ctx context.Context, t *Target, opts RankOptions) (rows []report.Row, 
 // are not comparable. When t's extractor implements metrics.ModuleMetrics
 // the file also holds the module-level row under metrics.ModuleRowID, and
 // when it implements metrics.FunctionLister each package's functions, so a
-// check against the file can compute changed_func_cognitive_max. It
+// check against the file can compute changed_func_cognitive_max, and when
+// it implements metrics.Detailer each package's duplicate blocks and
+// untested exports, so the check can name what the change added first. It
 // returns the path written and the number of packages, not counting that
 // row.
 func WriteBaseline(ctx context.Context, t *Target, out string) (path string, n int, err error) {
@@ -223,6 +225,10 @@ func WriteBaseline(ctx context.Context, t *Target, out string) (path string, n i
 		return "", 0, err
 	}
 	funcs, err := baseline.CollectFunctions(ctx, t.Ext, t.Mod, pkgs)
+	var named map[string]baseline.Named
+	if err == nil {
+		named, err = baseline.CollectNamed(ctx, t.Ext, t.Mod, pkgs)
+	}
 	if err != nil {
 		return "", 0, err
 	}
@@ -242,6 +248,7 @@ func WriteBaseline(ctx context.Context, t *Target, out string) (path string, n i
 		Tokenizer:  t.tokenizer(),
 		Packages:   pkgs,
 		Functions:  funcs,
+		Named:      named,
 	})
 	if err != nil {
 		return "", 0, err

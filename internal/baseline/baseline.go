@@ -3,6 +3,8 @@ package baseline
 import (
 	"context"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/rfizzle/astimate/internal/metrics"
@@ -67,6 +69,35 @@ type Row struct {
 	// package's files were renamed from them; nil for a row the baseline
 	// recorded.
 	From []string
+	// Named is what the baseline recorded of the package's details, so a
+	// check can tell the duplicate blocks and untested exports a change
+	// added from those the baseline had; meaningful only when HasNamed.
+	Named Named
+	// HasNamed is false when the baseline recorded no details for the
+	// package: the extractor does not implement metrics.Detailer, or the
+	// baseline file predates them.
+	HasNamed bool
+}
+
+// Named is the part of a package's metrics.Details a baseline records.
+type Named struct {
+	// DupBlocks are the anchors of the package's duplicate blocks
+	// (metrics.DupBlock), both of each block's, sorted and distinct.
+	DupBlocks []uint64
+	// UntestedExports names the package's untested exports, sorted.
+	UntestedExports []string
+}
+
+// namedOf returns the part of d a baseline records.
+func namedOf(d *metrics.Details) Named {
+	n := Named{UntestedExports: slices.Clone(d.UntestedExports)}
+	for _, b := range d.DupBlocks {
+		n.DupBlocks = append(n.DupBlocks, b.Anchors[:]...)
+	}
+	slices.Sort(n.DupBlocks)
+	n.DupBlocks = slices.Compact(n.DupBlocks)
+	slices.Sort(n.UntestedExports)
+	return n
 }
 
 // snapshot is the map-backed Baseline shared by the git and file sources.
@@ -99,19 +130,23 @@ type snapshot struct {
 type collected struct {
 	pkgs  map[string]metrics.RawMetrics
 	funcs map[string][]metrics.FunctionInfo
+	// named holds each package's recorded details; nil when none were
+	// recorded.
+	named map[string]Named
 	// dir maps an identifier to its module-relative directory.
 	dir func(id string) string
 }
 
 // rows returns c's rows keyed by module-relative directory. A package with
 // no entry in c.funcs, and every package when c.funcs is nil, records no
-// functions.
+// functions; likewise c.named and details.
 func (c *collected) rows() map[string]Row {
 	rows := make(map[string]Row, len(c.pkgs))
 	for id, m := range c.pkgs {
 		r := Row{Metrics: m}
 		if id != metrics.ModuleRowID {
 			r.Functions, r.HasFunctions = c.funcs[id]
+			r.Named, r.HasNamed = c.named[id]
 		}
 		rows[c.dir(id)] = r
 	}
@@ -198,24 +233,31 @@ func CollectFunctions(ctx context.Context, ext metrics.Extractor, mod *metrics.M
 	if !ok {
 		return nil, nil
 	}
-	funcs := make(map[string][]metrics.FunctionInfo, len(pkgs))
-	for name := range pkgs {
-		if name == metrics.ModuleRowID {
-			continue
-		}
-		if err := ctx.Err(); err != nil {
-			return nil, fmt.Errorf("listing functions of %s: %w", name, err)
-		}
+	return collectEach(ctx, pkgs, "listing functions of", func(name string) ([]metrics.FunctionInfo, error) {
 		fns, err := fl.Functions(ctx, mod, name)
-		if err != nil {
-			return nil, fmt.Errorf("listing functions of %s: %w", name, err)
-		}
 		if fns == nil {
 			fns = []metrics.FunctionInfo{}
 		}
-		funcs[name] = fns
+		return fns, err
+	})
+}
+
+// CollectNamed records, with ext's metrics.Detailer, the duplicate blocks
+// and untested exports of every package in pkgs except the module row,
+// keyed like pkgs. Call it after Collect on the same mod, so ext answers
+// from the extraction it just did. It returns nil, and no error, when ext
+// is not a Detailer, and stops at the first error or when ctx is done.
+func CollectNamed(ctx context.Context, ext metrics.Extractor, mod *metrics.ModuleContext,
+	pkgs map[string]metrics.RawMetrics,
+) (map[string]Named, error) {
+	d, ok := ext.(metrics.Detailer)
+	if !ok {
+		return nil, nil
 	}
-	return funcs, nil
+	return collectEach(ctx, pkgs, "naming the details of", func(name string) (Named, error) {
+		det, err := d.Details(ctx, mod, name)
+		return namedOf(&det), err
+	})
 }
 
 // CollectImporters lists, with ext's metrics.ImporterLister, the importers
@@ -231,23 +273,37 @@ func CollectImporters(ctx context.Context, ext metrics.Extractor, mod *metrics.M
 	if !ok {
 		return nil, false, nil
 	}
-	importers := make(map[string][]string, len(pkgs))
+	importers, err := collectEach(ctx, pkgs, "listing the importers of", func(name string) ([]string, error) {
+		return il.Importers(ctx, mod, name)
+	})
+	if err != nil {
+		return nil, false, err
+	}
+	maps.DeleteFunc(importers, func(_ string, from []string) bool { return len(from) == 0 })
+	return importers, true, nil
+}
+
+// collectEach returns what each returns for every package in pkgs except
+// the module row, keyed like pkgs. It stops at the first error or when ctx
+// is done, wrapping the error with what and the package's name.
+func collectEach[T any](ctx context.Context, pkgs map[string]metrics.RawMetrics, what string,
+	each func(name string) (T, error),
+) (map[string]T, error) {
+	out := make(map[string]T, len(pkgs))
 	for name := range pkgs {
 		if name == metrics.ModuleRowID {
 			continue
 		}
 		if err := ctx.Err(); err != nil {
-			return nil, false, fmt.Errorf("listing the importers of %s: %w", name, err)
+			return nil, fmt.Errorf("%s %s: %w", what, name, err)
 		}
-		from, err := il.Importers(ctx, mod, name)
+		v, err := each(name)
 		if err != nil {
-			return nil, false, fmt.Errorf("listing the importers of %s: %w", name, err)
+			return nil, fmt.Errorf("%s %s: %w", what, name, err)
 		}
-		if len(from) > 0 {
-			importers[name] = from
-		}
+		out[name] = v
 	}
-	return importers, true, nil
+	return out, nil
 }
 
 // CollectCrossBlocks returns, with ext's metrics.ModuleDetailer, every

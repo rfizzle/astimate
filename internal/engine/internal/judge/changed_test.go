@@ -35,7 +35,7 @@ func TestNameJudged(t *testing.T) {
 		if got.file != "f.go" || got.line != 4 || !got.files["ui.go"] {
 			t.Errorf("exempted %v: nameJudged = %+v, want fresh at f.go:4 with worst's files", exempted, got)
 		}
-		locateFindings(&r, &metrics.Details{}, got)
+		locateFindings(&r, &metrics.Details{}, got, leads{})
 		f := r.AllFindings()[0]
 		if want := "Changed function fresh (f.go:4) has cognitive complexity 60"; !strings.HasPrefix(f.Suggestion, want) {
 			t.Errorf("exempted %v: suggestion = %q, want it to start %q", exempted, f.Suggestion, want)

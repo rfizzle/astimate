@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"go/token"
 	"slices"
-	"strconv"
 
 	"github.com/rfizzle/astimate/internal/lang/duptok"
 	"github.com/rfizzle/astimate/internal/lang/golang/internal/dup"
@@ -38,6 +37,7 @@ func (e *Extractor) Details(ctx context.Context, mod *metrics.ModuleContext, pkg
 	}
 	files := relFiles(dir, d.files)
 	slices.Sort(files)
+	locs, blocks := duptok.Details(d.dupBlocks, func(f string) string { return load.RelFile(dir, f) })
 	return metrics.Details{
 		UntestedExports:  slices.Clone(d.untested.Names),
 		UntestedExcluded: slices.Clone(d.untested.Excluded),
@@ -47,7 +47,8 @@ func (e *Extractor) Details(ctx context.Context, mod *metrics.ModuleContext, pkg
 			InterfaceMethods: d.untested.InterfaceMethods,
 			TestSupport:      d.untested.TestSupport,
 		}.Clone(),
-		DupLocations:      relLocations(dir, d.dupLocations),
+		DupLocations:      locs,
+		DupBlocks:         blocks,
 		CrossBlocks:       cross,
 		UntestedPositions: positions(l.Fset, dir, d.untested.Pos),
 		GlobalPositions:   positions(l.Fset, dir, d.globals.Pos),
@@ -138,17 +139,6 @@ func relFiles(dir string, files []string) []string {
 	out := make([]string, len(files))
 	for i, f := range files {
 		out[i] = load.RelFile(dir, f)
-	}
-	return out
-}
-
-// relLocations renders each of locs as "file:start-end" with file relative
-// to dir, in slash form. It falls back to the base name when dir is empty
-// or the file cannot be related to it.
-func relLocations(dir string, locs []duptok.Location) []string {
-	out := make([]string, len(locs))
-	for i, loc := range locs {
-		out[i] = load.RelFile(dir, loc.File) + ":" + strconv.Itoa(loc.StartLine) + "-" + strconv.Itoa(loc.EndLine)
 	}
 	return out
 }

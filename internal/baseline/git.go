@@ -49,7 +49,9 @@ type ModulePathFunc func(root string) (string, error)
 // counts tokens with.
 // When ext implements metrics.FunctionLister, each Row carries the
 // package's functions at the merge-base (CollectFunctions); when it
-// implements metrics.ModuleMetrics and metrics.ModuleDetailer, CrossBlocks
+// implements metrics.Detailer, each Row carries its duplicate blocks and
+// untested exports there (CollectNamed); when it implements
+// metrics.ModuleMetrics and metrics.ModuleDetailer, CrossBlocks
 // reports the module's cross-package blocks there (CollectCrossBlocks);
 // when it implements metrics.ImporterLister, Importers reports each
 // package's importers there (CollectImporters).
@@ -97,6 +99,10 @@ func FromGit(ctx context.Context, root, ref string, ext metrics.Extractor, modul
 	if err == nil {
 		funcs, err = CollectFunctions(ctx, ext, mod, pkgs)
 	}
+	var named map[string]Named
+	if err == nil {
+		named, err = CollectNamed(ctx, ext, mod, pkgs)
+	}
 	var cross []metrics.CrossBlock
 	crossKnown := false
 	if _, isModule := ext.(metrics.ModuleMetrics); err == nil && isModule {
@@ -116,7 +122,7 @@ func FromGit(ctx context.Context, root, ref string, ext metrics.Extractor, modul
 		return nil, fmt.Errorf("extracting baseline at %s: %w", sha, TreeRelative(err, modRoot))
 	}
 	dir := func(id string) string { return PackageDir(baseModPath, id) }
-	c := collected{pkgs: pkgs, funcs: funcs, dir: dir}
+	c := collected{pkgs: pkgs, funcs: funcs, named: named, dir: dir}
 	byDir := make(map[string][]string, len(importers))
 	for id, from := range importers {
 		for _, imp := range from {

@@ -12,6 +12,17 @@ history.
 
 ### Added
 
+- `check` now cites what the change added first. A `dup_blocks` or
+  `duplication_pct` suggestion names the first duplicate block the change
+  added, ahead of every legacy block, and says `added in this change`;
+  `untested_exports` names the exports the change left untested first;
+  `dup_blocks_cross_pkg` ranks its new blocks first against a git
+  baseline. The GitHub annotation and the report's `details` follow the
+  same order. Baselines record each package's duplicate blocks, as two
+  hashes of each block's ends that survive an edit at one end, and its
+  untested exports, under `package_rows` in a baseline file; a file
+  written before keeps the previous order until it is rewritten. `assess`
+  is unchanged.
 - `changed_func_cognitive_max` now judges each changed function against
   its own baseline complexity. A function over `max` fails when it is new,
   crossed `max`, or rose by more than the rule's new `over_max_delta`

@@ -73,7 +73,7 @@ func assemble(ctx context.Context, l *loaded, p *packages.Package, opts assemble
 		untested:     r.untested,
 		globals:      r.globals,
 		imp:          r.imp,
-		dupLocations: r.dup.LargestFirst(),
+		dupBlocks:    r.dup.Groups(),
 		tokensMethod: r.tokens.Method,
 		functions:    r.cx.PerFunc,
 		largestFile:  r.size.LargestFile,

@@ -207,6 +207,15 @@ func TestDuplicationNamesFirstLocation(t *testing.T) {
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
+	n.DupAdded = true
+	got = MetricSuggestion("duplication_pct", 9.23, m, n)
+	want = "4 duplicate blocks cover 9.2% of lines; extract shared helpers, starting with parse.go:40, added in this change."
+	if got != want {
+		t.Errorf("added: got  %q\nwant %q", got, want)
+	}
+	if got := MetricSuggestion("dup_blocks", 4, m, Names{DupAdded: true}); got != "4 duplicate blocks cover 9.2% of lines; extract shared helpers." {
+		t.Errorf("added without locations: got %q, want no citation", got)
+	}
 }
 
 func TestDriverSuggestionEveryTerm(t *testing.T) {
@@ -422,22 +431,27 @@ func TestMetricSuggestionCrossBlocks(t *testing.T) {
 		name   string
 		head   float64
 		blocks []metrics.CrossBlock
+		added  bool
 		want   string
 	}{
-		{"one block", 1, pair[:1],
+		{"one block", 1, pair[:1], false,
 			"1 duplicate block is shared with other packages; extract the shared block in a/a.go:12-40 and b/b.go:8-36 into one package."},
-		{"several blocks cite the first", 2, pair,
+		{"several blocks cite the first", 2, pair, false,
 			"2 duplicate blocks are shared with other packages; extract each into one package, starting with the block in a/a.go:12-40 and b/b.go:8-36."},
+		{"one added block", 1, pair[:1], true,
+			"1 duplicate block is shared with other packages; extract the shared block in a/a.go:12-40 and b/b.go:8-36, added in this change, into one package."},
+		{"several blocks cite the added one", 2, pair, true,
+			"2 duplicate blocks are shared with other packages; extract each into one package, starting with the block in a/a.go:12-40 and b/b.go:8-36, added in this change."},
 		{"second copy in the same package is skipped", 1, []metrics.CrossBlock{{Occurrences: []metrics.Occurrence{
 			occ("m/a", "a/a.go", 12, 40), occ("m/a", "a/z.go", 3, 31), occ("m/b", "b/b.go", 8, 36),
-		}}},
+		}}}, false,
 			"1 duplicate block is shared with other packages; extract the shared block in a/a.go:12-40 and b/b.go:8-36 (and 1 more) into one package."},
-		{"no names", 1, nil, "1 duplicate block is shared with other packages; extract it into one place."},
+		{"no names", 1, nil, true, "1 duplicate block is shared with other packages; extract it into one place."},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := MetricSuggestion("dup_blocks_cross_pkg", tt.head, metrics.RawMetrics{}, Names{CrossBlocks: tt.blocks})
+			got := MetricSuggestion("dup_blocks_cross_pkg", tt.head, metrics.RawMetrics{}, Names{CrossBlocks: tt.blocks, CrossAdded: tt.added})
 			if got != tt.want {
 				t.Errorf("MetricSuggestion = %q, want %q", got, tt.want)
 			}

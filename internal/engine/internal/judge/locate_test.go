@@ -24,11 +24,16 @@ func TestFindingPosition(t *testing.T) {
 		metric string
 		d      *metrics.Details
 		worst  *changedFunction
+		lead   leads
 		want   metrics.Position
 	}{
 		{name: "duplicate in a changed file", metric: "dup_blocks", d: d, worst: worst, want: metrics.Position{File: "b.go", Line: 12}},
 		{name: "first duplicate without changes", metric: "duplication_pct", d: d, want: metrics.Position{File: "a.go", Line: 3}},
 		{name: "untested export in a changed file", metric: "untested_exports", d: d, worst: worst, want: metrics.Position{File: "b.go", Line: 20}},
+		{name: "added duplicate over a changed file", metric: "dup_blocks", d: d, worst: worst, lead: leads{dup: true},
+			want: metrics.Position{File: "a.go", Line: 3}},
+		{name: "added untested export over a changed file", metric: "untested_exports", d: d, worst: worst,
+			lead: leads{untested: true}, want: metrics.Position{File: "a.go", Line: 4}},
 		{name: "global in no changed file", metric: "globals", d: d, worst: worst, want: metrics.Position{File: "a.go", Line: 1}},
 		{name: "largest file", metric: "tokens_est", d: d, want: metrics.Position{File: "a.go", Line: 1}},
 		{name: "changed function", metric: "changed_func_cognitive_max", d: d, worst: worst, want: metrics.Position{File: "b.go", Line: 11}},
@@ -41,7 +46,7 @@ func TestFindingPosition(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			if got := findingPosition(tt.metric, tt.d, tt.worst); got != tt.want {
+			if got := findingPosition(tt.metric, tt.d, tt.worst, tt.lead); got != tt.want {
 				t.Errorf("findingPosition(%s) = %+v, want %+v", tt.metric, got, tt.want)
 			}
 		})
@@ -57,7 +62,7 @@ func TestLocateFindingsJoinsPackagePath(t *testing.T) {
 		Warnings:    []report.Finding{{Metric: "tokens_est"}},
 	}
 	d := &metrics.Details{GlobalPositions: []metrics.Position{{File: "state.go", Line: 7}}}
-	locateFindings(&r, d, nil)
+	locateFindings(&r, d, nil, leads{})
 	if l := r.Violations[0].Location; l == nil || *l != (report.Location{File: "internal/billing/state.go", Line: 7}) {
 		t.Errorf("globals located at %+v, want internal/billing/state.go:7", l)
 	}

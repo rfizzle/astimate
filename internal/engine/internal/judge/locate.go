@@ -64,9 +64,9 @@ func describeChanged(f *metrics.FunctionInfo) *changedFunction {
 }
 
 // locateFindings locates each of r's findings, exempted ones included, on
-// the file and line that
-// caused it, as far as d, the package's details, and worst, its most
-// complex changed function (nil when unknown), can say:
+// the file and line that caused it, as far as d, the package's details,
+// and worst, its most complex changed function (nil when unknown), can
+// say:
 //
 //   - dup_blocks and duplication_pct on a duplicate block's occurrence,
 //   - untested_exports on an untested export's declaration,
@@ -78,13 +78,15 @@ func describeChanged(f *metrics.FunctionInfo) *changedFunction {
 //     package's doc.go, else its first source file.
 //
 // Among several candidates it takes the first in a file holding a changed
-// function, so the annotation lands on the diff, else the first. Files are
-// made module-relative by joining r's package path. A finding with no
+// function, so the annotation lands on the diff, else the first; but when
+// lead says the change added the first duplicate block or untested export,
+// which d then lists first (rankNew), that finding takes the first. Files
+// are made module-relative by joining r's package path. A finding with no
 // candidate keeps no location, and renderers fall back to the package
 // directory.
-func locateFindings(r *report.Report, d *metrics.Details, worst *changedFunction) {
+func locateFindings(r *report.Report, d *metrics.Details, worst *changedFunction, lead leads) {
 	for _, f := range r.AllFindings() {
-		if pos := findingPosition(f.Metric, d, worst); pos.File != "" {
+		if pos := findingPosition(f.Metric, d, worst, lead); pos.File != "" {
 			f.Location = &report.Location{File: path.Join(r.PackagePath, pos.File), Line: pos.Line}
 		}
 	}
@@ -107,7 +109,7 @@ func locateCross(r *report.Report, blocks []metrics.CrossBlock) {
 
 // findingPosition returns the package-relative position locateFindings
 // puts a finding on metric at; its File is empty when there is none.
-func findingPosition(metric string, d *metrics.Details, worst *changedFunction) metrics.Position {
+func findingPosition(metric string, d *metrics.Details, worst *changedFunction, lead leads) metrics.Position {
 	var changed map[string]bool
 	if worst != nil {
 		changed = worst.files
@@ -115,9 +117,9 @@ func findingPosition(metric string, d *metrics.Details, worst *changedFunction) 
 	var pos metrics.Position
 	switch metric {
 	case "dup_blocks", "duplication_pct":
-		pos = pickPosition(dupPositions(d.DupLocations), changed)
+		pos = pickPosition(dupPositions(d.DupLocations), preferred(changed, lead.dup))
 	case "untested_exports":
-		pos = pickPosition(d.UntestedPositions, changed)
+		pos = pickPosition(d.UntestedPositions, preferred(changed, lead.untested))
 	case "globals":
 		pos = pickPosition(d.GlobalPositions, changed)
 	case "sloc", "largest_file_sloc", "tokens_est", "tokens_est_with_tests":
@@ -137,6 +139,15 @@ func findingPosition(metric string, d *metrics.Details, worst *changedFunction) 
 		return metrics.Position{File: d.SourceFiles[0], Line: 1}
 	}
 	return metrics.Position{}
+}
+
+// preferred returns changed, the files pickPosition prefers, or nil when
+// added says the first candidate is what the change added.
+func preferred(changed map[string]bool, added bool) map[string]bool {
+	if added {
+		return nil
+	}
+	return changed
 }
 
 // pickPosition returns the first of ps in a file of changed, else the first
