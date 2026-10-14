@@ -88,6 +88,29 @@ func pct(v float64) string { return strconv.FormatFloat(100*v, 'f', 1, 64) + "%"
 // pts formats a difference of shares as signed percentage points.
 func pts(v float64) string { return fmt.Sprintf("%+.1f pts", 100*v) }
 
+// ruleName is rules[i]'s name for a report row. Rules on one metric that
+// judge different roles or sizes, such as the two has_tests rules, share a
+// Name, so a rule whose Name another rule repeats gets its roles and its
+// when condition appended, which tell the rows apart.
+func ruleName(rules []measure.Rule, i int) string {
+	r := rules[i]
+	name := r.Name()
+	shared := false
+	for j := range rules {
+		shared = shared || (j != i && rules[j].Name() == name)
+	}
+	if !shared {
+		return name
+	}
+	if len(r.Threshold.Roles) > 0 {
+		name += " [roles " + strings.Join(r.Threshold.Roles, ", ") + "]"
+	}
+	if w := r.Threshold.When; w != nil {
+		name += " [when " + w.Metric + " > " + strconv.FormatFloat(w.Value, 'f', -1, 64) + "]"
+	}
+	return name
+}
+
 // met is the word for whether a target is met.
 func met(ok bool) string {
 	if ok {

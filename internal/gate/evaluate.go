@@ -343,15 +343,19 @@ func (e *evaluator) overMax(r Threshold, b, h float64, hasBase bool) {
 // ceiling limit, with allowed the growth one change may make there: its
 // limit reads "over max by N, allowed M", N being how far h is over the
 // ceiling, and its suggestion says how much it grew against the allowance
-// and to split the package, followed by the Suggester's sentence. A warning
-// and a violation share it.
+// and to split the package (on the module row, to extract the shared code),
+// followed by the Suggester's sentence. A warning and a violation share it.
 func (e *evaluator) overMaxFinding(metric string, b, h, limit, allowed float64) Violation {
 	f := e.finding(metric, b, h, true, "over max by "+num(h-limit)+", allowed "+num(allowed))
+	fix := "split the package"
+	if metrics.ModuleWide(metric) {
+		fix = "extract the shared code"
+	}
 	text := "grew " + num(h-b) + " while over the " + num(limit) + " ceiling, "
 	if h-b <= allowed+epsilon {
-		text += "within the " + num(allowed) + " one change may add there; split the package before it grows further."
+		text += "within the " + num(allowed) + " one change may add there; " + fix + " before it grows further."
 	} else {
-		text += "more than the " + num(allowed) + " one change may add there; split the package."
+		text += "more than the " + num(allowed) + " one change may add there; " + fix + "."
 	}
 	f.Suggestion = joinSentences(text, f.Suggestion)
 	return f

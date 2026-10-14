@@ -245,12 +245,12 @@ func perRule(b *strings.Builder, in *Input) {
 	for _, v := range in.Views {
 		fmt.Fprintf(b, "### %s\n\n", v.Name)
 		rows := make([][]string, 0, len(in.Rules)+2)
-		for i, r := range in.Rules {
+		for i := range in.Rules {
 			if v.Judged[i] == 0 {
-				rows = append(rows, []string{code(r.Name()), "no rows", "", "", "", ""})
+				rows = append(rows, []string{code(ruleName(in.Rules, i)), "no rows", "", "", "", ""})
 				continue
 			}
-			rows = append(rows, rateRow(code(r.Name()), v.Rules[i]))
+			rows = append(rows, rateRow(code(ruleName(in.Rules, i)), v.Rules[i]))
 		}
 		rows = append(rows, rateRow(gateRow, v.Gate), rateRow("size-only, "+code("sloc_delta > "+strconv.Itoa(in.SizeT)), v.Size))
 		table(b, []string{"Rule", "Fired on `block`", "Fired on `allow`", "Precision", "Recall", "False-failure share"}, rows)
@@ -284,8 +284,8 @@ func size(b *strings.Builder, in *Input) {
 // sweeps writes each rule's tradeoff tables.
 func sweeps(b *strings.Builder, in *Input) {
 	fmt.Fprintf(b, "## Sweeps\n\nOn the %s view. Recall and false-failure contribution are the rule's own; the gate columns hold every other rule as shipped. The shipped setting is marked with *.\n\n", in.basis().Name)
-	for i, r := range in.Rules {
-		fmt.Fprintf(b, "### %s\n\n", code(r.Name()))
+	for i := range in.Rules {
+		fmt.Fprintf(b, "### %s\n\n", code(ruleName(in.Rules, i)))
 		if len(in.Curves[i]) == 0 || in.basis().Judged[i] == 0 {
 			b.WriteString("Nothing to sweep: no limit, or no row it judges.\n\n")
 			continue
@@ -315,7 +315,7 @@ func legacy(b *strings.Builder, in *Input) {
 	rows := make([][]string, 0, len(in.Legacy))
 	for _, l := range in.Legacy {
 		counts := ints(l.Fired.Block, l.Fired.Allow, l.Over.Block, l.Over.Allow)
-		rows = append(rows, append(append([]string{code(in.Rules[l.Rule].Name())}, counts...), frac(l.Over.Failed(), l.Fired.Failed())))
+		rows = append(rows, append(append([]string{code(ruleName(in.Rules, l.Rule))}, counts...), frac(l.Over.Failed(), l.Fired.Failed())))
 	}
 	table(b, []string{"Rule", "Fired on `block`", "Fired on `allow`", "Already over, `block`", "Already over, `allow`", "Already over, share"}, rows)
 }
@@ -324,7 +324,7 @@ func legacy(b *strings.Builder, in *Input) {
 func advice(b *strings.Builder, in *Input) {
 	fmt.Fprintf(b, "## Recommendations\n\n"+adviceText, in.basis().Name, in.Criteria.MinFired, pct(in.Criteria.Budget), pts(in.Criteria.MinJ))
 	rows := make([][]string, 0, len(in.Rules))
-	for i, r := range in.Rules {
+	for i := range in.Rules {
 		a := in.Advice[i]
 		to, why := "", a.Why
 		if a.Action == measure.Retune {
@@ -335,7 +335,7 @@ func advice(b *strings.Builder, in *Input) {
 				why += "; " + pct(share(l.Over.Failed(), l.Fired.Failed())) + " of the commits it fired on only grew a package already over its max, which no retuned max prevents"
 			}
 		}
-		rows = append(rows, []string{code(r.Name()), string(a.Action), to, why})
+		rows = append(rows, []string{code(ruleName(in.Rules, i)), string(a.Action), to, why})
 	}
 	table(b, []string{"Rule", "Action", "To", "Why"}, rows)
 }

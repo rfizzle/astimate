@@ -68,6 +68,8 @@ Local simulation of a failing pull request: a throwaway commit on a branch from 
 ::error file=internal/score/dupsim.go,line=9::duplication_pct: 8 -> 26.3, max_delta +6. 3 duplicate blocks cover 26.3%25 of lines; extract shared helpers, starting with dupsim.go:9-43.
 ```
 
+That is the output of 2026-09-28, kept as the record of the run. The gate has since merged findings with one cause, so the `dup_blocks` and `duplication_pct` lines would now be one annotation, `dup_blocks: 2 -> 3, max_delta +0; duplication_pct 8 -> 26.3, max_delta +6.`, ending `, added in this change.` (the README's `check` sample is generated from the current output).
+
 `action/run.sh` with `ASTIMATE_BASE=master` printed the same three lines, then `astimate: the gate failed (exit 3); see the annotations`, and exited 3; `make selfcheck` failed with `Error 3`. The throwaway commit was then dropped.
 
 | Check | Status |

@@ -170,7 +170,7 @@ func (r explainResult) thresholdLines(b *strings.Builder) {
 	for _, t := range r.Thresholds {
 		b.WriteString("  " + t.Kind)
 		if t.MaxDelta != nil {
-			b.WriteString(" max_delta +" + formatFloat(*t.MaxDelta))
+			b.WriteString(" max_delta " + signedFloat(*t.MaxDelta))
 		}
 		if t.Max != nil {
 			b.WriteString(" max " + formatFloat(*t.Max))
@@ -230,6 +230,14 @@ func (t explainThreshold) rolesText() string {
 		return ""
 	}
 	return "; judges " + strings.Join(t.Roles, ", ") + " packages only"
+}
+
+// signedFloat renders a delta with an explicit sign: "+2", "-1".
+func signedFloat(v float64) string {
+	if v < 0 {
+		return formatFloat(v)
+	}
+	return "+" + formatFloat(v)
 }
 
 // formatFloat renders v in its shortest exact form.

@@ -912,6 +912,30 @@ func TestEvaluateOverMaxDeltaText(t *testing.T) {
 	}
 }
 
+// TestEvaluateOverMaxDeltaModuleText checks that growth past a ceiling on a
+// module-wide metric says to extract the shared code, not to split a
+// package, since the module row has no package to split.
+func TestEvaluateOverMaxDeltaModuleText(t *testing.T) {
+	t.Parallel()
+
+	suggest := func(metric string, _ float64, _ metrics.RawMetrics) string { return "Fix " + metric + "." }
+	rule := capacity("dup_blocks_cross_pkg", 10, 0.75)
+	rule.OverMaxDelta = ptr(2.0)
+	base := metrics.RawMetrics{DupBlocksCrossPkg: ptr(12)}
+
+	got := gate.Evaluate(metrics.RawMetrics{DupBlocksCrossPkg: ptr(15)}, &base, []gate.Threshold{rule}, suggest)
+	want := "grew 3 while over the 10 ceiling, more than the 2 one change may add there; extract the shared code. Fix dup_blocks_cross_pkg."
+	if len(got.Violations) != 1 || got.Violations[0].Suggestion != want {
+		t.Errorf("past: Evaluate() = %+v, want one violation with suggestion %q", got, want)
+	}
+
+	got = gate.Evaluate(metrics.RawMetrics{DupBlocksCrossPkg: ptr(14)}, &base, []gate.Threshold{rule}, suggest)
+	want = "grew 2 while over the 10 ceiling, within the 2 one change may add there; extract the shared code before it grows further. Fix dup_blocks_cross_pkg."
+	if len(got.Warnings) != 1 || got.Warnings[0].Suggestion != want {
+		t.Errorf("within: Evaluate() = %+v, want one warning with suggestion %q", got, want)
+	}
+}
+
 // TestEvaluateIdenticalTreesNeverFail checks the SPEC.md 8.1 invariant that
 // a head identical to its baseline passes whatever its values, under the
 // default rules and under every capacity rule with and without an

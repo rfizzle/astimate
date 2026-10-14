@@ -482,6 +482,17 @@ history.
   plain text before the row read its package, so `package` was always
   empty. A commit recorded as not loaded because a package it changed does
   not load now lists that package there too.
+- A finding for growth past a ceiling on the module row (a module-wide
+  metric) now says to extract the shared code instead of to split the
+  package, since the module row has no package to split.
+- `explain_metric` writes a negative `max_delta` as `-1`, not `+-1`.
+- The `calibration/validate` report tells rules on one metric apart: the two
+  `has_tests` rules, for library and for main packages, are no longer two
+  identical rows but carry their roles and `when` condition in the row name.
+- The hook and reading-violations docs show the current finding text, with
+  the merged `dup_blocks` line and `added in this change`, and say what both
+  mark. The repository's `astimate.yaml` drops a stale `dup_blocks`
+  exemption that the self-check warned about on every run.
 - `check --base` no longer runs the repository's git hooks: every git
   command astimate starts gets `-c core.hooksPath=/dev/null`, so a
   `post-checkout` hook that needs `git-lfs`, absent on the host, no longer

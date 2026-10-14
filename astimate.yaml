@@ -356,14 +356,3 @@ languages:
 #       metric: globals
 #       reason: the registry is process-wide by design; see ADR 12
 #       expires: 2026-12-31
-#       expires: 2026-12-31
-
-exemptions:
-  - package: internal/lang/golang/internal/inspect
-    metric: dup_blocks
-    reason: >-
-      the fingerprint dispatch table in fingerprint.go, about fifty
-      case *ast.X: return fpX arms and their iota constants, is scored by
-      duptok as self-duplication; it is not copy-paste, and a Go type switch
-      has no non-periodic form without reflection, which the per-node hot
-      path forbids

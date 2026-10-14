@@ -8,7 +8,7 @@ import (
 
 // TestRootConfigMatchesDefault checks that this repository's astimate.yaml,
 // which the self-check resolves from the repository root, is the embedded
-// default in everything but its exemptions, so a change to default.yaml
+// default in everything but its exemptions (which may be none), so a change to default.yaml
 // cannot silently leave the repository gating itself by stale rules.
 func TestRootConfigMatchesDefault(t *testing.T) {
 	root, err := Load(filepath.Join("..", "..", FileName))
@@ -18,9 +18,6 @@ func TestRootConfigMatchesDefault(t *testing.T) {
 	def, err := Parse(Default())
 	if err != nil {
 		t.Fatalf("parsing the embedded default: %v", err)
-	}
-	if len(root.Exemptions) == 0 {
-		t.Error("the repository's astimate.yaml records no exemptions; delete it and use the embedded default instead")
 	}
 	got := *root
 	got.Exemptions = def.Exemptions

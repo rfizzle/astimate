@@ -73,6 +73,19 @@ func TestExplainMetricEveryName(t *testing.T) {
 	}
 }
 
+func TestSignedFloat(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		v    float64
+		want string
+	}{{0, "+0"}, {2, "+2"}, {1.5, "+1.5"}, {-1, "-1"}} {
+		if got := signedFloat(tt.v); got != tt.want {
+			t.Errorf("signedFloat(%v) = %q, want %q", tt.v, got, tt.want)
+		}
+	}
+}
+
 func TestExplainMetricThresholdsFollowConfig(t *testing.T) {
 	t.Parallel()
 
