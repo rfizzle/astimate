@@ -20,7 +20,9 @@ history.
   prints them, every JSON report carries them with each function's
   cognitive and cyclomatic complexity in `details.functions`, baseline
   files record them per function, and replay and corpus rows carry them
-  from the next run.
+  from the next run. On this repository the count equals gocyclo's on all
+  1,659 functions and its Spearman correlation with cognitive complexity
+  is 0.96 (`calibration/notes/cyclomatic-2026-10-14.md`).
 - Replay rows record, on the module row, the cross-package blocks each
   commit may have added (`cross_added`): per set of packages, the blocks'
   lengths, kinds, packages and occurrences with the parent's block lengths
