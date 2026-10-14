@@ -27,22 +27,22 @@ The size-only rule is `sloc_delta > 100`.
 | go-starter | 0 of 0 (0.0%) | not met | 4 of 36 (11.1%) | not met | 0 of 0 (0.0%) | 0 of 36 (0.0%) | 0.0% | 8.3% |
 | ztp | 9 of 9 (100.0%) | met | 17 of 44 (38.6%) | not met | 7 of 9 (77.8%) | 5 of 44 (11.4%) | 100.0% | 31.8% |
 | ztp, capacity-only set aside | 8 of 8 (100.0%) | met | 17 of 44 (38.6%) | not met | 6 of 8 (75.0%) | 5 of 44 (11.4%) | 100.0% | 31.8% |
-| shhh | 8 of 8 (100.0%) | met | 16 of 52 (30.8%) | not met | 4 of 8 (50.0%) | 3 of 52 (5.8%) | 75.0% | 26.9% |
-| shhh, capacity-only set aside | 7 of 7 (100.0%) | met | 16 of 52 (30.8%) | not met | 3 of 7 (42.9%) | 3 of 52 (5.8%) | 71.4% | 26.9% |
+| shhh | 7 of 7 (100.0%) | met | 17 of 53 (32.1%) | not met | 4 of 7 (57.1%) | 3 of 53 (5.7%) | 71.4% | 28.3% |
+| shhh, capacity-only set aside | 6 of 6 (100.0%) | met | 17 of 53 (32.1%) | not met | 3 of 6 (50.0%) | 3 of 53 (5.7%) | 66.7% | 28.3% |
 | crush | 0 of 0 (0.0%) | not met | 2 of 2 (100.0%) | not met | 0 of 0 (0.0%) | 0 of 2 (0.0%) | 0.0% | 100.0% |
 | ai-shell | 0 of 0 (0.0%) | not met | 0 of 0 (0.0%) | met | 0 of 0 (0.0%) | 0 of 0 (0.0%) | 0.0% | 0.0% |
-| all corpora pooled | 17 of 17 (100.0%) | met | 39 of 134 (29.1%) | not met | 11 of 17 (64.7%) | 8 of 134 (6.0%) | 88.2% | 24.6% |
-| all corpora pooled, capacity-only set aside | 15 of 15 (100.0%) | met | 39 of 134 (29.1%) | not met | 9 of 15 (60.0%) | 8 of 134 (6.0%) | 86.7% | 24.6% |
+| all corpora pooled | 16 of 16 (100.0%) | met | 40 of 135 (29.6%) | not met | 11 of 16 (68.8%) | 8 of 135 (5.9%) | 87.5% | 25.2% |
+| all corpora pooled, capacity-only set aside | 14 of 14 (100.0%) | met | 40 of 135 (29.6%) | not met | 9 of 14 (64.3%) | 8 of 135 (5.9%) | 85.7% | 25.2% |
 
 Advised is the gate re-evaluated with every recommendation of this report applied (Recommendations), the other rules as recorded.
 
-On the all corpora pooled, capacity-only set aside view the gate fails 100.0% of `block` commits against a target of at least 80.0% (met) and 29.1% of `allow` commits against a target of at most 10.0% (not met). The size-only rule at 100 SLOC fails 60.0% and 6.0%. With every recommendation below applied, the gate would fail 86.7% and 24.6%.
+On the all corpora pooled, capacity-only set aside view the gate fails 100.0% of `block` commits against a target of at least 80.0% (met) and 29.6% of `allow` commits against a target of at most 10.0% (not met). The size-only rule at 100 SLOC fails 64.3% and 5.9%. With every recommendation below applied, the gate would fail 85.7% and 25.2%.
 
-What the metrics add over the size of the change: the gate's J (recall minus false-failure rate) is +70.9 pts; the size-only rule's best J is +72.4 pts, at `sloc_delta > 25` (93.3% and 20.9%).
+What the metrics add over the size of the change: the gate's J (recall minus false-failure rate) is +70.4 pts; the size-only rule's best J is +71.4 pts, at `sloc_delta > 25` (92.9% and 21.5%).
 
 `ztp` has 1 capacity-only `block` labels. Its honest numbers are the view with them set aside, since the gate reads the same sizes those labels were drawn from; 8 `block` labels remain there, so one commit moves its recall by 12.5 points.
 
-`shhh` has 1 capacity-only `block` labels. Its honest numbers are the view with them set aside, since the gate reads the same sizes those labels were drawn from; 7 `block` labels remain there, so one commit moves its recall by 14.3 points.
+`shhh` has 1 capacity-only `block` labels. Its honest numbers are the view with them set aside, since the gate reads the same sizes those labels were drawn from; 6 `block` labels remain there, so one commit moves its recall by 16.7 points.
 
 ## Label sets
 
@@ -64,17 +64,17 @@ Every view scored under both label sets. The first is each corpus's first labels
 | ztp | second | 4 of 4 (100.0%) | met | 22 of 49 (44.9%) | not met | 2 of 4 (50.0%) | 10 of 49 (20.4%) | 75.0% | 40.8% |
 | ztp, capacity-only set aside | first | 8 of 8 (100.0%) | met | 17 of 44 (38.6%) | not met | 6 of 8 (75.0%) | 5 of 44 (11.4%) | 100.0% | 31.8% |
 | ztp, capacity-only set aside | second | 4 of 4 (100.0%) | met | 21 of 48 (43.8%) | not met | 2 of 4 (50.0%) | 9 of 48 (18.8%) | 75.0% | 39.6% |
-| shhh | first | 8 of 8 (100.0%) | met | 16 of 52 (30.8%) | not met | 4 of 8 (50.0%) | 3 of 52 (5.8%) | 75.0% | 26.9% |
+| shhh | first | 7 of 7 (100.0%) | met | 17 of 53 (32.1%) | not met | 4 of 7 (57.1%) | 3 of 53 (5.7%) | 71.4% | 28.3% |
 | shhh | second | 4 of 4 (100.0%) | met | 20 of 56 (35.7%) | not met | 1 of 4 (25.0%) | 6 of 56 (10.7%) | 75.0% | 30.4% |
-| shhh, capacity-only set aside | first | 7 of 7 (100.0%) | met | 16 of 52 (30.8%) | not met | 3 of 7 (42.9%) | 3 of 52 (5.8%) | 71.4% | 26.9% |
+| shhh, capacity-only set aside | first | 6 of 6 (100.0%) | met | 17 of 53 (32.1%) | not met | 3 of 6 (50.0%) | 3 of 53 (5.7%) | 66.7% | 28.3% |
 | shhh, capacity-only set aside | second | 4 of 4 (100.0%) | met | 19 of 55 (34.5%) | not met | 1 of 4 (25.0%) | 5 of 55 (9.1%) | 75.0% | 29.1% |
 | crush | first | 0 of 0 (0.0%) | not met | 2 of 2 (100.0%) | not met | 0 of 0 (0.0%) | 0 of 2 (0.0%) | 0.0% | 100.0% |
 | crush | second | 0 of 0 (0.0%) | not met | 2 of 2 (100.0%) | not met | 0 of 0 (0.0%) | 0 of 2 (0.0%) | 0.0% | 100.0% |
 | ai-shell | first | 0 of 0 (0.0%) | not met | 0 of 0 (0.0%) | met | 0 of 0 (0.0%) | 0 of 0 (0.0%) | 0.0% | 0.0% |
 | ai-shell | second | 0 of 0 (0.0%) | not met | 0 of 0 (0.0%) | met | 0 of 0 (0.0%) | 0 of 0 (0.0%) | 0.0% | 0.0% |
-| all corpora pooled | first | 17 of 17 (100.0%) | met | 39 of 134 (29.1%) | not met | 11 of 17 (64.7%) | 8 of 134 (6.0%) | 88.2% | 24.6% |
+| all corpora pooled | first | 16 of 16 (100.0%) | met | 40 of 135 (29.6%) | not met | 11 of 16 (68.8%) | 8 of 135 (5.9%) | 87.5% | 25.2% |
 | all corpora pooled | second | 8 of 8 (100.0%) | met | 48 of 143 (33.6%) | not met | 3 of 8 (37.5%) | 16 of 143 (11.2%) | 75.0% | 29.4% |
-| all corpora pooled, capacity-only set aside | first | 15 of 15 (100.0%) | met | 39 of 134 (29.1%) | not met | 9 of 15 (60.0%) | 8 of 134 (6.0%) | 86.7% | 24.6% |
+| all corpora pooled, capacity-only set aside | first | 14 of 14 (100.0%) | met | 40 of 135 (29.6%) | not met | 9 of 14 (64.3%) | 8 of 135 (5.9%) | 85.7% | 25.2% |
 | all corpora pooled, capacity-only set aside | second | 8 of 8 (100.0%) | met | 46 of 141 (32.6%) | not met | 3 of 8 (37.5%) | 14 of 141 (9.9%) | 75.0% | 28.4% |
 
 ## Corpora
@@ -83,7 +83,7 @@ Every view scored under both label sets. The first is each corpus's first labels
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | go-starter | hand | 60 | 0 | 24 | 0 | 36 | 0 |
 | ztp | hand | 60 | 7 | 0 | 9 | 44 | 1 |
-| shhh | hand | 60 | 0 | 0 | 8 | 52 | 1 |
+| shhh | hand | 60 | 0 | 0 | 7 | 53 | 1 |
 | crush | hand | 60 | 0 | 58 | 0 | 2 | 0 |
 | ai-shell | hand | 60 | 0 | 60 | 0 | 0 | 0 |
 
@@ -188,20 +188,20 @@ One table for each of the 9 views. Fired counts commits, not rows. A rule that j
 
 | Rule | Fired on `block` | Fired on `allow` | Precision | Recall | False-failure share |
 | --- | --- | --- | --- | --- | --- |
-| `dup_blocks` | 6 | 7 | 46.2% | 75.0% | 13.5% |
+| `dup_blocks` | 5 | 8 | 38.5% | 71.4% | 15.1% |
 | `duplication_pct` | 0 | 2 | 0.0% | 0.0% | 3.8% |
-| `untested_exports` | 4 | 6 | 40.0% | 50.0% | 11.5% |
-| `globals` | 0 | 3 | 0.0% | 0.0% | 5.8% |
+| `untested_exports` | 3 | 7 | 30.0% | 42.9% | 13.2% |
+| `globals` | 0 | 3 | 0.0% | 0.0% | 5.7% |
 | `init_funcs` | 0 | 0 | none fired | 0.0% | 0.0% |
 | `max_nesting` | 0 | 0 | none fired | 0.0% | 0.0% |
 | `cognitive_p90` | 0 | 0 | none fired | 0.0% | 0.0% |
 | `changed_func_cognitive_max` | 0 | 0 | none fired | 0.0% | 0.0% |
-| `dup_blocks_cross_pkg` | 5 | 5 | 50.0% | 62.5% | 9.6% |
-| `tokens_est` | 4 | 4 | 50.0% | 50.0% | 7.7% |
-| `largest_file_sloc` | 3 | 2 | 60.0% | 37.5% | 3.8% |
-| `exported_symbols` | 5 | 7 | 41.7% | 62.5% | 13.5% |
-| `internal_imports` | 0 | 4 | 0.0% | 0.0% | 7.7% |
-| `sloc` | 4 | 2 | 66.7% | 50.0% | 3.8% |
+| `dup_blocks_cross_pkg` | 5 | 5 | 50.0% | 71.4% | 9.4% |
+| `tokens_est` | 4 | 4 | 50.0% | 57.1% | 7.5% |
+| `largest_file_sloc` | 3 | 2 | 60.0% | 42.9% | 3.8% |
+| `exported_symbols` | 4 | 8 | 33.3% | 57.1% | 15.1% |
+| `internal_imports` | 0 | 4 | 0.0% | 0.0% | 7.5% |
+| `sloc` | 4 | 2 | 66.7% | 57.1% | 3.8% |
 | `has_tests` | 0 | 0 | none fired | 0.0% | 0.0% |
 | `duplication_pct (typescript)` | no rows |  |  |  |  |
 | `max_nesting (typescript)` | no rows |  |  |  |  |
@@ -212,27 +212,27 @@ One table for each of the 9 views. Fired counts commits, not rows. A rule that j
 | `exported_symbols (typescript)` | no rows |  |  |  |  |
 | `internal_imports (typescript)` | no rows |  |  |  |  |
 | `sloc (typescript)` | no rows |  |  |  |  |
-| gate (any rule) | 8 | 16 | 33.3% | 100.0% | 30.8% |
-| size-only, `sloc_delta > 100` | 4 | 3 | 57.1% | 50.0% | 5.8% |
+| gate (any rule) | 7 | 17 | 29.2% | 100.0% | 32.1% |
+| size-only, `sloc_delta > 100` | 4 | 3 | 57.1% | 57.1% | 5.7% |
 
 ### shhh, capacity-only set aside
 
 | Rule | Fired on `block` | Fired on `allow` | Precision | Recall | False-failure share |
 | --- | --- | --- | --- | --- | --- |
-| `dup_blocks` | 6 | 7 | 46.2% | 85.7% | 13.5% |
+| `dup_blocks` | 5 | 8 | 38.5% | 83.3% | 15.1% |
 | `duplication_pct` | 0 | 2 | 0.0% | 0.0% | 3.8% |
-| `untested_exports` | 3 | 6 | 33.3% | 42.9% | 11.5% |
-| `globals` | 0 | 3 | 0.0% | 0.0% | 5.8% |
+| `untested_exports` | 2 | 7 | 22.2% | 33.3% | 13.2% |
+| `globals` | 0 | 3 | 0.0% | 0.0% | 5.7% |
 | `init_funcs` | 0 | 0 | none fired | 0.0% | 0.0% |
 | `max_nesting` | 0 | 0 | none fired | 0.0% | 0.0% |
 | `cognitive_p90` | 0 | 0 | none fired | 0.0% | 0.0% |
 | `changed_func_cognitive_max` | 0 | 0 | none fired | 0.0% | 0.0% |
-| `dup_blocks_cross_pkg` | 4 | 5 | 44.4% | 57.1% | 9.6% |
-| `tokens_est` | 3 | 4 | 42.9% | 42.9% | 7.7% |
-| `largest_file_sloc` | 2 | 2 | 50.0% | 28.6% | 3.8% |
-| `exported_symbols` | 4 | 7 | 36.4% | 57.1% | 13.5% |
-| `internal_imports` | 0 | 4 | 0.0% | 0.0% | 7.7% |
-| `sloc` | 3 | 2 | 60.0% | 42.9% | 3.8% |
+| `dup_blocks_cross_pkg` | 4 | 5 | 44.4% | 66.7% | 9.4% |
+| `tokens_est` | 3 | 4 | 42.9% | 50.0% | 7.5% |
+| `largest_file_sloc` | 2 | 2 | 50.0% | 33.3% | 3.8% |
+| `exported_symbols` | 3 | 8 | 27.3% | 50.0% | 15.1% |
+| `internal_imports` | 0 | 4 | 0.0% | 0.0% | 7.5% |
+| `sloc` | 3 | 2 | 60.0% | 50.0% | 3.8% |
 | `has_tests` | 0 | 0 | none fired | 0.0% | 0.0% |
 | `duplication_pct (typescript)` | no rows |  |  |  |  |
 | `max_nesting (typescript)` | no rows |  |  |  |  |
@@ -243,8 +243,8 @@ One table for each of the 9 views. Fired counts commits, not rows. A rule that j
 | `exported_symbols (typescript)` | no rows |  |  |  |  |
 | `internal_imports (typescript)` | no rows |  |  |  |  |
 | `sloc (typescript)` | no rows |  |  |  |  |
-| gate (any rule) | 7 | 16 | 30.4% | 100.0% | 30.8% |
-| size-only, `sloc_delta > 100` | 3 | 3 | 50.0% | 42.9% | 5.8% |
+| gate (any rule) | 6 | 17 | 26.1% | 100.0% | 32.1% |
+| size-only, `sloc_delta > 100` | 3 | 3 | 50.0% | 50.0% | 5.7% |
 
 ### crush
 
@@ -312,21 +312,21 @@ One table for each of the 9 views. Fired counts commits, not rows. A rule that j
 
 | Rule | Fired on `block` | Fired on `allow` | Precision | Recall | False-failure share |
 | --- | --- | --- | --- | --- | --- |
-| `dup_blocks` | 14 | 17 | 45.2% | 82.4% | 12.7% |
-| `duplication_pct` | 4 | 7 | 36.4% | 23.5% | 5.2% |
-| `untested_exports` | 10 | 15 | 40.0% | 58.8% | 11.2% |
-| `globals` | 2 | 5 | 28.6% | 11.8% | 3.7% |
+| `dup_blocks` | 13 | 18 | 41.9% | 81.2% | 13.3% |
+| `duplication_pct` | 4 | 7 | 36.4% | 25.0% | 5.2% |
+| `untested_exports` | 9 | 16 | 36.0% | 56.2% | 11.9% |
+| `globals` | 2 | 5 | 28.6% | 12.5% | 3.7% |
 | `init_funcs` | 0 | 0 | none fired | 0.0% | 0.0% |
-| `max_nesting` | 3 | 2 | 60.0% | 17.6% | 1.5% |
-| `cognitive_p90` | 2 | 4 | 33.3% | 11.8% | 3.0% |
-| `changed_func_cognitive_max` | 1 | 0 | 100.0% | 5.9% | 0.0% |
-| `dup_blocks_cross_pkg` | 14 | 17 | 45.2% | 82.4% | 12.7% |
-| `tokens_est` | 4 | 4 | 50.0% | 23.5% | 3.0% |
-| `largest_file_sloc` | 3 | 3 | 50.0% | 17.6% | 2.2% |
-| `exported_symbols` | 9 | 8 | 52.9% | 52.9% | 6.0% |
+| `max_nesting` | 3 | 2 | 60.0% | 18.8% | 1.5% |
+| `cognitive_p90` | 2 | 4 | 33.3% | 12.5% | 3.0% |
+| `changed_func_cognitive_max` | 1 | 0 | 100.0% | 6.2% | 0.0% |
+| `dup_blocks_cross_pkg` | 14 | 17 | 45.2% | 87.5% | 12.6% |
+| `tokens_est` | 4 | 4 | 50.0% | 25.0% | 3.0% |
+| `largest_file_sloc` | 3 | 3 | 50.0% | 18.8% | 2.2% |
+| `exported_symbols` | 8 | 9 | 47.1% | 50.0% | 6.7% |
 | `internal_imports` | 0 | 5 | 0.0% | 0.0% | 3.7% |
-| `sloc` | 6 | 2 | 75.0% | 35.3% | 1.5% |
-| `has_tests` | 1 | 0 | 100.0% | 5.9% | 0.0% |
+| `sloc` | 6 | 2 | 75.0% | 37.5% | 1.5% |
+| `has_tests` | 1 | 0 | 100.0% | 6.2% | 0.0% |
 | `duplication_pct (typescript)` | no rows |  |  |  |  |
 | `max_nesting (typescript)` | no rows |  |  |  |  |
 | `cognitive_p90 (typescript)` | no rows |  |  |  |  |
@@ -336,28 +336,28 @@ One table for each of the 9 views. Fired counts commits, not rows. A rule that j
 | `exported_symbols (typescript)` | no rows |  |  |  |  |
 | `internal_imports (typescript)` | no rows |  |  |  |  |
 | `sloc (typescript)` | no rows |  |  |  |  |
-| gate (any rule) | 17 | 39 | 30.4% | 100.0% | 29.1% |
-| size-only, `sloc_delta > 100` | 11 | 8 | 57.9% | 64.7% | 6.0% |
+| gate (any rule) | 16 | 40 | 28.6% | 100.0% | 29.6% |
+| size-only, `sloc_delta > 100` | 11 | 8 | 57.9% | 68.8% | 5.9% |
 
 ### all corpora pooled, capacity-only set aside
 
 | Rule | Fired on `block` | Fired on `allow` | Precision | Recall | False-failure share |
 | --- | --- | --- | --- | --- | --- |
-| `dup_blocks` | 13 | 17 | 43.3% | 86.7% | 12.7% |
-| `duplication_pct` | 4 | 7 | 36.4% | 26.7% | 5.2% |
-| `untested_exports` | 8 | 15 | 34.8% | 53.3% | 11.2% |
-| `globals` | 1 | 5 | 16.7% | 6.7% | 3.7% |
+| `dup_blocks` | 12 | 18 | 40.0% | 85.7% | 13.3% |
+| `duplication_pct` | 4 | 7 | 36.4% | 28.6% | 5.2% |
+| `untested_exports` | 7 | 16 | 30.4% | 50.0% | 11.9% |
+| `globals` | 1 | 5 | 16.7% | 7.1% | 3.7% |
 | `init_funcs` | 0 | 0 | none fired | 0.0% | 0.0% |
-| `max_nesting` | 3 | 2 | 60.0% | 20.0% | 1.5% |
-| `cognitive_p90` | 1 | 4 | 20.0% | 6.7% | 3.0% |
-| `changed_func_cognitive_max` | 1 | 0 | 100.0% | 6.7% | 0.0% |
-| `dup_blocks_cross_pkg` | 12 | 17 | 41.4% | 80.0% | 12.7% |
-| `tokens_est` | 3 | 4 | 42.9% | 20.0% | 3.0% |
-| `largest_file_sloc` | 2 | 3 | 40.0% | 13.3% | 2.2% |
-| `exported_symbols` | 7 | 8 | 46.7% | 46.7% | 6.0% |
+| `max_nesting` | 3 | 2 | 60.0% | 21.4% | 1.5% |
+| `cognitive_p90` | 1 | 4 | 20.0% | 7.1% | 3.0% |
+| `changed_func_cognitive_max` | 1 | 0 | 100.0% | 7.1% | 0.0% |
+| `dup_blocks_cross_pkg` | 12 | 17 | 41.4% | 85.7% | 12.6% |
+| `tokens_est` | 3 | 4 | 42.9% | 21.4% | 3.0% |
+| `largest_file_sloc` | 2 | 3 | 40.0% | 14.3% | 2.2% |
+| `exported_symbols` | 6 | 9 | 40.0% | 42.9% | 6.7% |
 | `internal_imports` | 0 | 5 | 0.0% | 0.0% | 3.7% |
-| `sloc` | 5 | 2 | 71.4% | 33.3% | 1.5% |
-| `has_tests` | 1 | 0 | 100.0% | 6.7% | 0.0% |
+| `sloc` | 5 | 2 | 71.4% | 35.7% | 1.5% |
+| `has_tests` | 1 | 0 | 100.0% | 7.1% | 0.0% |
 | `duplication_pct (typescript)` | no rows |  |  |  |  |
 | `max_nesting (typescript)` | no rows |  |  |  |  |
 | `cognitive_p90 (typescript)` | no rows |  |  |  |  |
@@ -367,8 +367,8 @@ One table for each of the 9 views. Fired counts commits, not rows. A rule that j
 | `exported_symbols (typescript)` | no rows |  |  |  |  |
 | `internal_imports (typescript)` | no rows |  |  |  |  |
 | `sloc (typescript)` | no rows |  |  |  |  |
-| gate (any rule) | 15 | 39 | 27.8% | 100.0% | 29.1% |
-| size-only, `sloc_delta > 100` | 9 | 8 | 52.9% | 60.0% | 6.0% |
+| gate (any rule) | 14 | 40 | 25.9% | 100.0% | 29.6% |
+| size-only, `sloc_delta > 100` | 9 | 8 | 52.9% | 64.3% | 5.9% |
 
 ## Size-only baseline
 
@@ -376,14 +376,14 @@ One rule on the change's size, swept on the all corpora pooled, capacity-only se
 
 | t | Recall | False failures | J |
 | --- | --- | --- | --- |
-| 0 | 100.0% | 41.8% | +58.2 pts |
-| 25 | 93.3% | 20.9% | +72.4 pts |
-| 50 | 73.3% | 11.9% | +61.4 pts |
-| 100 | 60.0% | 6.0% | +54.0 pts |
-| 150 | 46.7% | 0.7% | +45.9 pts |
-| 200 | 40.0% | 0.7% | +39.3 pts |
-| 300 | 6.7% | 0.0% | +6.7 pts |
-| 400 | 6.7% | 0.0% | +6.7 pts |
+| 0 | 100.0% | 42.2% | +57.8 pts |
+| 25 | 92.9% | 21.5% | +71.4 pts |
+| 50 | 71.4% | 12.6% | +58.8 pts |
+| 100 | 64.3% | 5.9% | +58.4 pts |
+| 150 | 50.0% | 0.7% | +49.3 pts |
+| 200 | 42.9% | 0.7% | +42.1 pts |
+| 300 | 7.1% | 0.0% | +7.1 pts |
+| 400 | 7.1% | 0.0% | +7.1 pts |
 | 500 | 0.0% | 0.0% | +0.0 pts |
 | 750 | 0.0% | 0.0% | +0.0 pts |
 | 1000 | 0.0% | 0.0% | +0.0 pts |
@@ -400,307 +400,307 @@ On the all corpora pooled, capacity-only set aside view. Recall and false-failur
 
 | Setting | Recall contribution | False-failure contribution | J | Gate recall | Gate false failures |
 | --- | --- | --- | --- | --- | --- |
-| max_delta 0 * | 86.7% | 12.7% | +74.0 pts | 100.0% | 29.1% |
-| max_delta 1 | 46.7% | 4.5% | +42.2 pts | 93.3% | 27.6% |
-| max_delta 2 | 40.0% | 0.7% | +39.3 pts | 93.3% | 27.6% |
-| max_delta 3 | 26.7% | 0.7% | +25.9 pts | 93.3% | 27.6% |
-| max_delta 5 | 13.3% | 0.7% | +12.6 pts | 93.3% | 27.6% |
-| max_delta 10 | 6.7% | 0.0% | +6.7 pts | 93.3% | 27.6% |
-| max_delta 20 | 0.0% | 0.0% | +0.0 pts | 93.3% | 27.6% |
-| rule dropped |  |  |  | 93.3% | 27.6% |
+| max_delta 0 * | 85.7% | 13.3% | +72.4 pts | 100.0% | 29.6% |
+| max_delta 1 | 50.0% | 4.4% | +45.6 pts | 92.9% | 28.1% |
+| max_delta 2 | 42.9% | 0.7% | +42.1 pts | 92.9% | 28.1% |
+| max_delta 3 | 28.6% | 0.7% | +27.8 pts | 92.9% | 28.1% |
+| max_delta 5 | 14.3% | 0.7% | +13.5 pts | 92.9% | 28.1% |
+| max_delta 10 | 7.1% | 0.0% | +7.1 pts | 92.9% | 28.1% |
+| max_delta 20 | 0.0% | 0.0% | +0.0 pts | 92.9% | 28.1% |
+| rule dropped |  |  |  | 92.9% | 28.1% |
 
 ### `duplication_pct`
 
 | Setting | Recall contribution | False-failure contribution | J | Gate recall | Gate false failures |
 | --- | --- | --- | --- | --- | --- |
-| max 20 | 26.7% | 5.2% | +21.4 pts | 100.0% | 29.1% |
-| max 30 | 26.7% | 6.0% | +20.7 pts | 100.0% | 29.9% |
-| max 40 * | 26.7% | 5.2% | +21.4 pts | 100.0% | 29.1% |
-| max 50 | 26.7% | 4.5% | +22.2 pts | 100.0% | 29.1% |
-| max 60 | 13.3% | 4.5% | +8.9 pts | 100.0% | 29.1% |
-| max 80 | 13.3% | 3.7% | +9.6 pts | 100.0% | 29.1% |
-| max 120 | 13.3% | 3.0% | +10.3 pts | 100.0% | 29.1% |
-| max 200 | 13.3% | 3.0% | +10.3 pts | 100.0% | 29.1% |
-| max none | 13.3% | 3.0% | +10.3 pts | 100.0% | 29.1% |
-| max_delta 0 | 66.7% | 20.1% | +46.5 pts | 100.0% | 38.1% |
-| max_delta 1 | 40.0% | 9.0% | +31.0 pts | 100.0% | 32.1% |
-| max_delta 2 | 33.3% | 7.5% | +25.9 pts | 100.0% | 31.3% |
-| max_delta 3 | 26.7% | 6.0% | +20.7 pts | 100.0% | 29.9% |
-| max_delta 5 | 26.7% | 6.0% | +20.7 pts | 100.0% | 29.9% |
-| max_delta 6 * | 26.7% | 5.2% | +21.4 pts | 100.0% | 29.1% |
-| max_delta 10 | 20.0% | 3.7% | +16.3 pts | 100.0% | 29.1% |
-| max_delta 12 | 13.3% | 3.7% | +9.6 pts | 100.0% | 29.1% |
-| max_delta 20 | 13.3% | 3.0% | +10.3 pts | 100.0% | 29.1% |
-| max_delta none | 13.3% | 3.0% | +10.3 pts | 100.0% | 29.1% |
-| rule dropped |  |  |  | 100.0% | 29.1% |
+| max 20 | 28.6% | 5.2% | +23.4 pts | 100.0% | 29.6% |
+| max 30 | 28.6% | 5.9% | +22.6 pts | 100.0% | 30.4% |
+| max 40 * | 28.6% | 5.2% | +23.4 pts | 100.0% | 29.6% |
+| max 50 | 28.6% | 4.4% | +24.1 pts | 100.0% | 29.6% |
+| max 60 | 14.3% | 4.4% | +9.8 pts | 100.0% | 29.6% |
+| max 80 | 14.3% | 3.7% | +10.6 pts | 100.0% | 29.6% |
+| max 120 | 14.3% | 3.0% | +11.3 pts | 100.0% | 29.6% |
+| max 200 | 14.3% | 3.0% | +11.3 pts | 100.0% | 29.6% |
+| max none | 14.3% | 3.0% | +11.3 pts | 100.0% | 29.6% |
+| max_delta 0 | 64.3% | 20.7% | +43.5 pts | 100.0% | 38.5% |
+| max_delta 1 | 42.9% | 8.9% | +34.0 pts | 100.0% | 32.6% |
+| max_delta 2 | 35.7% | 7.4% | +28.3 pts | 100.0% | 31.9% |
+| max_delta 3 | 28.6% | 5.9% | +22.6 pts | 100.0% | 30.4% |
+| max_delta 5 | 28.6% | 5.9% | +22.6 pts | 100.0% | 30.4% |
+| max_delta 6 * | 28.6% | 5.2% | +23.4 pts | 100.0% | 29.6% |
+| max_delta 10 | 21.4% | 3.7% | +17.7 pts | 100.0% | 29.6% |
+| max_delta 12 | 14.3% | 3.7% | +10.6 pts | 100.0% | 29.6% |
+| max_delta 20 | 14.3% | 3.0% | +11.3 pts | 100.0% | 29.6% |
+| max_delta none | 14.3% | 3.0% | +11.3 pts | 100.0% | 29.6% |
+| rule dropped |  |  |  | 100.0% | 29.6% |
 
 ### `untested_exports`
 
 | Setting | Recall contribution | False-failure contribution | J | Gate recall | Gate false failures |
 | --- | --- | --- | --- | --- | --- |
-| max_delta 0 * | 53.3% | 11.2% | +42.1 pts | 100.0% | 29.1% |
-| max_delta 1 | 40.0% | 6.7% | +33.3 pts | 100.0% | 27.6% |
-| max_delta 2 | 13.3% | 3.7% | +9.6 pts | 100.0% | 26.9% |
-| max_delta 3 | 13.3% | 3.0% | +10.3 pts | 100.0% | 26.9% |
-| max_delta 5 | 6.7% | 0.7% | +5.9 pts | 100.0% | 26.9% |
-| max_delta 10 | 0.0% | 0.0% | +0.0 pts | 100.0% | 26.9% |
-| max_delta 20 | 0.0% | 0.0% | +0.0 pts | 100.0% | 26.9% |
-| rule dropped |  |  |  | 100.0% | 26.9% |
+| max_delta 0 * | 50.0% | 11.9% | +38.1 pts | 100.0% | 29.6% |
+| max_delta 1 | 42.9% | 6.7% | +36.2 pts | 100.0% | 28.1% |
+| max_delta 2 | 14.3% | 3.7% | +10.6 pts | 100.0% | 27.4% |
+| max_delta 3 | 14.3% | 3.0% | +11.3 pts | 100.0% | 27.4% |
+| max_delta 5 | 7.1% | 0.7% | +6.4 pts | 100.0% | 27.4% |
+| max_delta 10 | 0.0% | 0.0% | +0.0 pts | 100.0% | 27.4% |
+| max_delta 20 | 0.0% | 0.0% | +0.0 pts | 100.0% | 27.4% |
+| rule dropped |  |  |  | 100.0% | 27.4% |
 
 ### `globals`
 
 | Setting | Recall contribution | False-failure contribution | J | Gate recall | Gate false failures |
 | --- | --- | --- | --- | --- | --- |
-| max_delta 0 * | 6.7% | 3.7% | +2.9 pts | 100.0% | 29.1% |
-| max_delta 1 | 0.0% | 1.5% | -1.5 pts | 100.0% | 27.6% |
-| max_delta 2 | 0.0% | 0.0% | +0.0 pts | 100.0% | 27.6% |
-| max_delta 3 | 0.0% | 0.0% | +0.0 pts | 100.0% | 27.6% |
-| max_delta 5 | 0.0% | 0.0% | +0.0 pts | 100.0% | 27.6% |
-| max_delta 10 | 0.0% | 0.0% | +0.0 pts | 100.0% | 27.6% |
-| max_delta 20 | 0.0% | 0.0% | +0.0 pts | 100.0% | 27.6% |
-| rule dropped |  |  |  | 100.0% | 27.6% |
+| max_delta 0 * | 7.1% | 3.7% | +3.4 pts | 100.0% | 29.6% |
+| max_delta 1 | 0.0% | 1.5% | -1.5 pts | 100.0% | 28.1% |
+| max_delta 2 | 0.0% | 0.0% | +0.0 pts | 100.0% | 28.1% |
+| max_delta 3 | 0.0% | 0.0% | +0.0 pts | 100.0% | 28.1% |
+| max_delta 5 | 0.0% | 0.0% | +0.0 pts | 100.0% | 28.1% |
+| max_delta 10 | 0.0% | 0.0% | +0.0 pts | 100.0% | 28.1% |
+| max_delta 20 | 0.0% | 0.0% | +0.0 pts | 100.0% | 28.1% |
+| rule dropped |  |  |  | 100.0% | 28.1% |
 
 ### `init_funcs`
 
 | Setting | Recall contribution | False-failure contribution | J | Gate recall | Gate false failures |
 | --- | --- | --- | --- | --- | --- |
-| max_delta 0 * | 0.0% | 0.0% | +0.0 pts | 100.0% | 29.1% |
-| max_delta 1 | 0.0% | 0.0% | +0.0 pts | 100.0% | 29.1% |
-| max_delta 2 | 0.0% | 0.0% | +0.0 pts | 100.0% | 29.1% |
-| max_delta 3 | 0.0% | 0.0% | +0.0 pts | 100.0% | 29.1% |
-| max_delta 5 | 0.0% | 0.0% | +0.0 pts | 100.0% | 29.1% |
-| max_delta 10 | 0.0% | 0.0% | +0.0 pts | 100.0% | 29.1% |
-| max_delta 20 | 0.0% | 0.0% | +0.0 pts | 100.0% | 29.1% |
-| rule dropped |  |  |  | 100.0% | 29.1% |
+| max_delta 0 * | 0.0% | 0.0% | +0.0 pts | 100.0% | 29.6% |
+| max_delta 1 | 0.0% | 0.0% | +0.0 pts | 100.0% | 29.6% |
+| max_delta 2 | 0.0% | 0.0% | +0.0 pts | 100.0% | 29.6% |
+| max_delta 3 | 0.0% | 0.0% | +0.0 pts | 100.0% | 29.6% |
+| max_delta 5 | 0.0% | 0.0% | +0.0 pts | 100.0% | 29.6% |
+| max_delta 10 | 0.0% | 0.0% | +0.0 pts | 100.0% | 29.6% |
+| max_delta 20 | 0.0% | 0.0% | +0.0 pts | 100.0% | 29.6% |
+| rule dropped |  |  |  | 100.0% | 29.6% |
 
 ### `max_nesting`
 
 | Setting | Recall contribution | False-failure contribution | J | Gate recall | Gate false failures |
 | --- | --- | --- | --- | --- | --- |
-| max 3 | 20.0% | 2.2% | +17.8 pts | 100.0% | 29.1% |
-| max 4 | 20.0% | 1.5% | +18.5 pts | 100.0% | 29.1% |
-| max 5 * | 20.0% | 1.5% | +18.5 pts | 100.0% | 29.1% |
-| max 6 | 20.0% | 1.5% | +18.5 pts | 100.0% | 29.1% |
-| max 8 | 20.0% | 1.5% | +18.5 pts | 100.0% | 29.1% |
-| max 10 | 20.0% | 1.5% | +18.5 pts | 100.0% | 29.1% |
-| max 15 | 20.0% | 1.5% | +18.5 pts | 100.0% | 29.1% |
-| max 25 | 20.0% | 1.5% | +18.5 pts | 100.0% | 29.1% |
-| max none | 20.0% | 1.5% | +18.5 pts | 100.0% | 29.1% |
-| max_delta 0 * | 20.0% | 1.5% | +18.5 pts | 100.0% | 29.1% |
-| max_delta 1 | 6.7% | 0.0% | +6.7 pts | 100.0% | 28.4% |
-| max_delta 2 | 0.0% | 0.0% | +0.0 pts | 100.0% | 28.4% |
-| max_delta 3 | 0.0% | 0.0% | +0.0 pts | 100.0% | 28.4% |
-| max_delta 5 | 0.0% | 0.0% | +0.0 pts | 100.0% | 28.4% |
-| max_delta 10 | 0.0% | 0.0% | +0.0 pts | 100.0% | 28.4% |
-| max_delta 20 | 0.0% | 0.0% | +0.0 pts | 100.0% | 28.4% |
-| max_delta none | 0.0% | 0.0% | +0.0 pts | 100.0% | 28.4% |
-| rule dropped |  |  |  | 100.0% | 28.4% |
+| max 3 | 21.4% | 2.2% | +19.2 pts | 100.0% | 29.6% |
+| max 4 | 21.4% | 1.5% | +19.9 pts | 100.0% | 29.6% |
+| max 5 * | 21.4% | 1.5% | +19.9 pts | 100.0% | 29.6% |
+| max 6 | 21.4% | 1.5% | +19.9 pts | 100.0% | 29.6% |
+| max 8 | 21.4% | 1.5% | +19.9 pts | 100.0% | 29.6% |
+| max 10 | 21.4% | 1.5% | +19.9 pts | 100.0% | 29.6% |
+| max 15 | 21.4% | 1.5% | +19.9 pts | 100.0% | 29.6% |
+| max 25 | 21.4% | 1.5% | +19.9 pts | 100.0% | 29.6% |
+| max none | 21.4% | 1.5% | +19.9 pts | 100.0% | 29.6% |
+| max_delta 0 * | 21.4% | 1.5% | +19.9 pts | 100.0% | 29.6% |
+| max_delta 1 | 7.1% | 0.0% | +7.1 pts | 100.0% | 28.9% |
+| max_delta 2 | 0.0% | 0.0% | +0.0 pts | 100.0% | 28.9% |
+| max_delta 3 | 0.0% | 0.0% | +0.0 pts | 100.0% | 28.9% |
+| max_delta 5 | 0.0% | 0.0% | +0.0 pts | 100.0% | 28.9% |
+| max_delta 10 | 0.0% | 0.0% | +0.0 pts | 100.0% | 28.9% |
+| max_delta 20 | 0.0% | 0.0% | +0.0 pts | 100.0% | 28.9% |
+| max_delta none | 0.0% | 0.0% | +0.0 pts | 100.0% | 28.9% |
+| rule dropped |  |  |  | 100.0% | 28.9% |
 
 ### `cognitive_p90`
 
 | Setting | Recall contribution | False-failure contribution | J | Gate recall | Gate false failures |
 | --- | --- | --- | --- | --- | --- |
-| max 10 | 6.7% | 5.2% | +1.4 pts | 100.0% | 29.1% |
-| max 15 | 6.7% | 3.0% | +3.7 pts | 100.0% | 29.1% |
-| max 20 * | 6.7% | 3.0% | +3.7 pts | 100.0% | 29.1% |
-| max 25 | 6.7% | 3.0% | +3.7 pts | 100.0% | 29.1% |
-| max 30 | 6.7% | 3.0% | +3.7 pts | 100.0% | 29.1% |
-| max 40 | 6.7% | 3.0% | +3.7 pts | 100.0% | 29.1% |
-| max 60 | 6.7% | 3.0% | +3.7 pts | 100.0% | 29.1% |
-| max 100 | 6.7% | 3.0% | +3.7 pts | 100.0% | 29.1% |
-| max none | 6.7% | 3.0% | +3.7 pts | 100.0% | 29.1% |
-| max_delta 0 | 46.7% | 7.5% | +39.2 pts | 100.0% | 29.9% |
-| max_delta 1 | 20.0% | 5.2% | +14.8 pts | 100.0% | 29.1% |
-| max_delta 2 | 6.7% | 3.0% | +3.7 pts | 100.0% | 29.1% |
-| max_delta 3 * | 6.7% | 3.0% | +3.7 pts | 100.0% | 29.1% |
-| max_delta 5 | 0.0% | 1.5% | -1.5 pts | 100.0% | 29.1% |
-| max_delta 6 | 0.0% | 0.7% | -0.7 pts | 100.0% | 29.1% |
-| max_delta 10 | 0.0% | 0.0% | +0.0 pts | 100.0% | 28.4% |
-| max_delta 20 | 0.0% | 0.0% | +0.0 pts | 100.0% | 28.4% |
-| max_delta none | 0.0% | 0.7% | -0.7 pts | 100.0% | 29.1% |
-| rule dropped |  |  |  | 100.0% | 28.4% |
+| max 10 | 7.1% | 5.2% | +2.0 pts | 100.0% | 29.6% |
+| max 15 | 7.1% | 3.0% | +4.2 pts | 100.0% | 29.6% |
+| max 20 * | 7.1% | 3.0% | +4.2 pts | 100.0% | 29.6% |
+| max 25 | 7.1% | 3.0% | +4.2 pts | 100.0% | 29.6% |
+| max 30 | 7.1% | 3.0% | +4.2 pts | 100.0% | 29.6% |
+| max 40 | 7.1% | 3.0% | +4.2 pts | 100.0% | 29.6% |
+| max 60 | 7.1% | 3.0% | +4.2 pts | 100.0% | 29.6% |
+| max 100 | 7.1% | 3.0% | +4.2 pts | 100.0% | 29.6% |
+| max none | 7.1% | 3.0% | +4.2 pts | 100.0% | 29.6% |
+| max_delta 0 | 42.9% | 8.1% | +34.7 pts | 100.0% | 30.4% |
+| max_delta 1 | 21.4% | 5.2% | +16.2 pts | 100.0% | 29.6% |
+| max_delta 2 | 7.1% | 3.0% | +4.2 pts | 100.0% | 29.6% |
+| max_delta 3 * | 7.1% | 3.0% | +4.2 pts | 100.0% | 29.6% |
+| max_delta 5 | 0.0% | 1.5% | -1.5 pts | 100.0% | 29.6% |
+| max_delta 6 | 0.0% | 0.7% | -0.7 pts | 100.0% | 29.6% |
+| max_delta 10 | 0.0% | 0.0% | +0.0 pts | 100.0% | 28.9% |
+| max_delta 20 | 0.0% | 0.0% | +0.0 pts | 100.0% | 28.9% |
+| max_delta none | 0.0% | 0.7% | -0.7 pts | 100.0% | 29.6% |
+| rule dropped |  |  |  | 100.0% | 28.9% |
 
 ### `changed_func_cognitive_max`
 
 | Setting | Recall contribution | False-failure contribution | J | Gate recall | Gate false failures |
 | --- | --- | --- | --- | --- | --- |
-| max 25 | 26.7% | 1.5% | +25.2 pts | 100.0% | 29.9% |
-| max 38 | 6.7% | 0.7% | +5.9 pts | 100.0% | 29.1% |
-| max 50 * | 6.7% | 0.0% | +6.7 pts | 100.0% | 29.1% |
-| max 63 | 6.7% | 0.0% | +6.7 pts | 100.0% | 29.1% |
-| max 75 | 0.0% | 0.0% | +0.0 pts | 100.0% | 29.1% |
-| max 100 | 0.0% | 0.0% | +0.0 pts | 100.0% | 29.1% |
-| max 150 | 0.0% | 0.0% | +0.0 pts | 100.0% | 29.1% |
-| max 250 | 0.0% | 0.0% | +0.0 pts | 100.0% | 29.1% |
-| over_max_delta 0 | 6.7% | 0.0% | +6.7 pts | 100.0% | 29.1% |
-| over_max_delta 1 | 6.7% | 0.0% | +6.7 pts | 100.0% | 29.1% |
-| over_max_delta 2 | 6.7% | 0.0% | +6.7 pts | 100.0% | 29.1% |
-| over_max_delta 3 | 6.7% | 0.0% | +6.7 pts | 100.0% | 29.1% |
-| over_max_delta 5 * | 6.7% | 0.0% | +6.7 pts | 100.0% | 29.1% |
-| over_max_delta 10 | 0.0% | 0.0% | +0.0 pts | 100.0% | 29.1% |
-| over_max_delta 20 | 0.0% | 0.0% | +0.0 pts | 100.0% | 29.1% |
-| over_max_delta 25 | 0.0% | 0.0% | +0.0 pts | 100.0% | 29.1% |
-| rule dropped |  |  |  | 100.0% | 29.1% |
+| max 25 | 21.4% | 2.2% | +19.2 pts | 100.0% | 30.4% |
+| max 38 | 7.1% | 0.7% | +6.4 pts | 100.0% | 29.6% |
+| max 50 * | 7.1% | 0.0% | +7.1 pts | 100.0% | 29.6% |
+| max 63 | 7.1% | 0.0% | +7.1 pts | 100.0% | 29.6% |
+| max 75 | 0.0% | 0.0% | +0.0 pts | 100.0% | 29.6% |
+| max 100 | 0.0% | 0.0% | +0.0 pts | 100.0% | 29.6% |
+| max 150 | 0.0% | 0.0% | +0.0 pts | 100.0% | 29.6% |
+| max 250 | 0.0% | 0.0% | +0.0 pts | 100.0% | 29.6% |
+| over_max_delta 0 | 7.1% | 0.0% | +7.1 pts | 100.0% | 29.6% |
+| over_max_delta 1 | 7.1% | 0.0% | +7.1 pts | 100.0% | 29.6% |
+| over_max_delta 2 | 7.1% | 0.0% | +7.1 pts | 100.0% | 29.6% |
+| over_max_delta 3 | 7.1% | 0.0% | +7.1 pts | 100.0% | 29.6% |
+| over_max_delta 5 * | 7.1% | 0.0% | +7.1 pts | 100.0% | 29.6% |
+| over_max_delta 10 | 0.0% | 0.0% | +0.0 pts | 100.0% | 29.6% |
+| over_max_delta 20 | 0.0% | 0.0% | +0.0 pts | 100.0% | 29.6% |
+| over_max_delta 25 | 0.0% | 0.0% | +0.0 pts | 100.0% | 29.6% |
+| rule dropped |  |  |  | 100.0% | 29.6% |
 
 ### `dup_blocks_cross_pkg`
 
 | Setting | Recall contribution | False-failure contribution | J | Gate recall | Gate false failures |
 | --- | --- | --- | --- | --- | --- |
-| max 225 | 80.0% | 12.7% | +67.3 pts | 100.0% | 29.1% |
-| max 338 | 80.0% | 12.7% | +67.3 pts | 100.0% | 29.1% |
-| max 450 * | 80.0% | 12.7% | +67.3 pts | 100.0% | 29.1% |
-| max 563 | 80.0% | 12.7% | +67.3 pts | 100.0% | 29.1% |
-| max 675 | 80.0% | 12.7% | +67.3 pts | 100.0% | 29.1% |
-| max 900 | 80.0% | 12.7% | +67.3 pts | 100.0% | 29.1% |
-| max 1350 | 80.0% | 12.7% | +67.3 pts | 100.0% | 29.1% |
-| max 2250 | 80.0% | 12.7% | +67.3 pts | 100.0% | 29.1% |
-| max none | 80.0% | 12.7% | +67.3 pts | 100.0% | 29.1% |
-| max_delta 0 * | 80.0% | 12.7% | +67.3 pts | 100.0% | 29.1% |
-| max_delta 1 | 60.0% | 9.0% | +51.0 pts | 93.3% | 28.4% |
-| max_delta 2 | 46.7% | 4.5% | +42.2 pts | 93.3% | 27.6% |
-| max_delta 3 | 40.0% | 4.5% | +35.5 pts | 93.3% | 27.6% |
-| max_delta 5 | 20.0% | 1.5% | +18.5 pts | 93.3% | 27.6% |
-| max_delta 10 | 6.7% | 0.7% | +5.9 pts | 93.3% | 27.6% |
-| max_delta 20 | 0.0% | 0.0% | +0.0 pts | 93.3% | 27.6% |
-| max_delta none | 26.7% | 3.7% | +22.9 pts | 100.0% | 27.6% |
-| rule dropped |  |  |  | 93.3% | 27.6% |
+| max 225 | 85.7% | 12.6% | +73.1 pts | 100.0% | 29.6% |
+| max 338 | 85.7% | 12.6% | +73.1 pts | 100.0% | 29.6% |
+| max 450 * | 85.7% | 12.6% | +73.1 pts | 100.0% | 29.6% |
+| max 563 | 85.7% | 12.6% | +73.1 pts | 100.0% | 29.6% |
+| max 675 | 85.7% | 12.6% | +73.1 pts | 100.0% | 29.6% |
+| max 900 | 85.7% | 12.6% | +73.1 pts | 100.0% | 29.6% |
+| max 1350 | 85.7% | 12.6% | +73.1 pts | 100.0% | 29.6% |
+| max 2250 | 85.7% | 12.6% | +73.1 pts | 100.0% | 29.6% |
+| max none | 85.7% | 12.6% | +73.1 pts | 100.0% | 29.6% |
+| max_delta 0 * | 85.7% | 12.6% | +73.1 pts | 100.0% | 29.6% |
+| max_delta 1 | 64.3% | 8.9% | +55.4 pts | 92.9% | 28.9% |
+| max_delta 2 | 50.0% | 4.4% | +45.6 pts | 92.9% | 28.1% |
+| max_delta 3 | 42.9% | 4.4% | +38.4 pts | 92.9% | 28.1% |
+| max_delta 5 | 21.4% | 1.5% | +19.9 pts | 92.9% | 28.1% |
+| max_delta 10 | 7.1% | 0.7% | +6.4 pts | 92.9% | 28.1% |
+| max_delta 20 | 0.0% | 0.0% | +0.0 pts | 92.9% | 28.1% |
+| max_delta none | 28.6% | 3.7% | +24.9 pts | 100.0% | 28.1% |
+| rule dropped |  |  |  | 92.9% | 28.1% |
 
 ### `tokens_est`
 
 | Setting | Recall contribution | False-failure contribution | J | Gate recall | Gate false failures |
 | --- | --- | --- | --- | --- | --- |
-| max 8000 | 33.3% | 4.5% | +28.9 pts | 100.0% | 29.9% |
-| max 12000 | 26.7% | 3.7% | +22.9 pts | 100.0% | 29.1% |
-| max 16000 * | 20.0% | 3.0% | +17.0 pts | 100.0% | 29.1% |
-| max 20000 | 20.0% | 3.0% | +17.0 pts | 100.0% | 29.1% |
-| max 24000 | 20.0% | 3.0% | +17.0 pts | 100.0% | 29.1% |
-| max 32000 | 20.0% | 3.0% | +17.0 pts | 100.0% | 29.1% |
-| max 48000 | 20.0% | 2.2% | +17.8 pts | 100.0% | 29.1% |
-| max 80000 | 20.0% | 2.2% | +17.8 pts | 100.0% | 29.1% |
-| over_max_delta 0 | 46.7% | 22.4% | +24.3 pts | 100.0% | 39.6% |
-| over_max_delta 20 | 46.7% | 20.1% | +26.5 pts | 100.0% | 38.8% |
-| over_max_delta 25 | 46.7% | 20.1% | +26.5 pts | 100.0% | 38.8% |
-| over_max_delta 50 | 46.7% | 18.7% | +28.0 pts | 100.0% | 37.3% |
-| over_max_delta 100 | 40.0% | 17.2% | +22.8 pts | 100.0% | 35.8% |
-| over_max_delta 150 | 40.0% | 16.4% | +23.6 pts | 100.0% | 35.1% |
-| over_max_delta 200 | 40.0% | 15.7% | +24.3 pts | 100.0% | 35.1% |
-| over_max_delta 300 | 40.0% | 11.9% | +28.1 pts | 100.0% | 32.8% |
-| over_max_delta 500 | 33.3% | 8.2% | +25.1 pts | 100.0% | 31.3% |
-| over_max_delta 1000 * | 20.0% | 3.0% | +17.0 pts | 100.0% | 29.1% |
-| over_max_delta 1500 | 20.0% | 0.7% | +19.3 pts | 100.0% | 29.1% |
-| over_max_delta 2000 | 20.0% | 0.0% | +20.0 pts | 100.0% | 29.1% |
-| over_max_delta 3000 | 13.3% | 0.0% | +13.3 pts | 100.0% | 29.1% |
-| over_max_delta 5000 | 13.3% | 0.0% | +13.3 pts | 100.0% | 29.1% |
-| rule dropped |  |  |  | 100.0% | 29.1% |
+| max 8000 | 35.7% | 4.4% | +31.3 pts | 100.0% | 30.4% |
+| max 12000 | 28.6% | 3.7% | +24.9 pts | 100.0% | 29.6% |
+| max 16000 * | 21.4% | 3.0% | +18.5 pts | 100.0% | 29.6% |
+| max 20000 | 21.4% | 3.0% | +18.5 pts | 100.0% | 29.6% |
+| max 24000 | 21.4% | 3.0% | +18.5 pts | 100.0% | 29.6% |
+| max 32000 | 21.4% | 3.0% | +18.5 pts | 100.0% | 29.6% |
+| max 48000 | 21.4% | 2.2% | +19.2 pts | 100.0% | 29.6% |
+| max 80000 | 21.4% | 2.2% | +19.2 pts | 100.0% | 29.6% |
+| over_max_delta 0 | 42.9% | 23.0% | +19.9 pts | 100.0% | 40.0% |
+| over_max_delta 20 | 42.9% | 20.7% | +22.1 pts | 100.0% | 39.3% |
+| over_max_delta 25 | 42.9% | 20.7% | +22.1 pts | 100.0% | 39.3% |
+| over_max_delta 50 | 42.9% | 19.3% | +23.6 pts | 100.0% | 37.8% |
+| over_max_delta 100 | 35.7% | 17.8% | +17.9 pts | 100.0% | 36.3% |
+| over_max_delta 150 | 35.7% | 17.0% | +18.7 pts | 100.0% | 35.6% |
+| over_max_delta 200 | 35.7% | 16.3% | +19.4 pts | 100.0% | 35.6% |
+| over_max_delta 300 | 35.7% | 12.6% | +23.1 pts | 100.0% | 33.3% |
+| over_max_delta 500 | 28.6% | 8.9% | +19.7 pts | 100.0% | 31.9% |
+| over_max_delta 1000 * | 21.4% | 3.0% | +18.5 pts | 100.0% | 29.6% |
+| over_max_delta 1500 | 21.4% | 0.7% | +20.7 pts | 100.0% | 29.6% |
+| over_max_delta 2000 | 21.4% | 0.0% | +21.4 pts | 100.0% | 29.6% |
+| over_max_delta 3000 | 14.3% | 0.0% | +14.3 pts | 100.0% | 29.6% |
+| over_max_delta 5000 | 14.3% | 0.0% | +14.3 pts | 100.0% | 29.6% |
+| rule dropped |  |  |  | 100.0% | 29.6% |
 
 ### `largest_file_sloc`
 
 | Setting | Recall contribution | False-failure contribution | J | Gate recall | Gate false failures |
 | --- | --- | --- | --- | --- | --- |
-| max 300 | 40.0% | 6.0% | +34.0 pts | 100.0% | 29.9% |
-| max 450 | 13.3% | 2.2% | +11.1 pts | 100.0% | 29.1% |
-| max 600 * | 13.3% | 2.2% | +11.1 pts | 100.0% | 29.1% |
-| max 750 | 6.7% | 2.2% | +4.4 pts | 100.0% | 29.1% |
-| max 900 | 6.7% | 2.2% | +4.4 pts | 100.0% | 29.1% |
-| max 1200 | 0.0% | 0.0% | +0.0 pts | 100.0% | 27.6% |
-| max 1800 | 0.0% | 0.0% | +0.0 pts | 100.0% | 27.6% |
-| max 3000 | 0.0% | 0.0% | +0.0 pts | 100.0% | 27.6% |
-| over_max_delta 0 | 20.0% | 3.0% | +17.0 pts | 100.0% | 29.1% |
-| over_max_delta 1 | 20.0% | 3.0% | +17.0 pts | 100.0% | 29.1% |
-| over_max_delta 2 | 13.3% | 2.2% | +11.1 pts | 100.0% | 29.1% |
-| over_max_delta 3 | 13.3% | 2.2% | +11.1 pts | 100.0% | 29.1% |
-| over_max_delta 5 * | 13.3% | 2.2% | +11.1 pts | 100.0% | 29.1% |
-| over_max_delta 10 | 13.3% | 1.5% | +11.8 pts | 100.0% | 28.4% |
-| over_max_delta 20 | 13.3% | 0.0% | +13.3 pts | 100.0% | 27.6% |
-| over_max_delta 25 | 13.3% | 0.0% | +13.3 pts | 100.0% | 27.6% |
-| over_max_delta 50 | 13.3% | 0.0% | +13.3 pts | 100.0% | 27.6% |
-| over_max_delta 100 | 6.7% | 0.0% | +6.7 pts | 100.0% | 27.6% |
-| over_max_delta 150 | 6.7% | 0.0% | +6.7 pts | 100.0% | 27.6% |
-| over_max_delta 200 | 6.7% | 0.0% | +6.7 pts | 100.0% | 27.6% |
-| over_max_delta 300 | 6.7% | 0.0% | +6.7 pts | 100.0% | 27.6% |
-| rule dropped |  |  |  | 100.0% | 27.6% |
+| max 300 | 42.9% | 5.9% | +36.9 pts | 100.0% | 30.4% |
+| max 450 | 14.3% | 2.2% | +12.1 pts | 100.0% | 29.6% |
+| max 600 * | 14.3% | 2.2% | +12.1 pts | 100.0% | 29.6% |
+| max 750 | 7.1% | 2.2% | +4.9 pts | 100.0% | 29.6% |
+| max 900 | 7.1% | 2.2% | +4.9 pts | 100.0% | 29.6% |
+| max 1200 | 0.0% | 0.0% | +0.0 pts | 100.0% | 28.1% |
+| max 1800 | 0.0% | 0.0% | +0.0 pts | 100.0% | 28.1% |
+| max 3000 | 0.0% | 0.0% | +0.0 pts | 100.0% | 28.1% |
+| over_max_delta 0 | 21.4% | 3.0% | +18.5 pts | 100.0% | 29.6% |
+| over_max_delta 1 | 21.4% | 3.0% | +18.5 pts | 100.0% | 29.6% |
+| over_max_delta 2 | 14.3% | 2.2% | +12.1 pts | 100.0% | 29.6% |
+| over_max_delta 3 | 14.3% | 2.2% | +12.1 pts | 100.0% | 29.6% |
+| over_max_delta 5 * | 14.3% | 2.2% | +12.1 pts | 100.0% | 29.6% |
+| over_max_delta 10 | 14.3% | 1.5% | +12.8 pts | 100.0% | 28.9% |
+| over_max_delta 20 | 14.3% | 0.0% | +14.3 pts | 100.0% | 28.1% |
+| over_max_delta 25 | 14.3% | 0.0% | +14.3 pts | 100.0% | 28.1% |
+| over_max_delta 50 | 14.3% | 0.0% | +14.3 pts | 100.0% | 28.1% |
+| over_max_delta 100 | 7.1% | 0.0% | +7.1 pts | 100.0% | 28.1% |
+| over_max_delta 150 | 7.1% | 0.0% | +7.1 pts | 100.0% | 28.1% |
+| over_max_delta 200 | 7.1% | 0.0% | +7.1 pts | 100.0% | 28.1% |
+| over_max_delta 300 | 7.1% | 0.0% | +7.1 pts | 100.0% | 28.1% |
+| rule dropped |  |  |  | 100.0% | 28.1% |
 
 ### `exported_symbols`
 
 | Setting | Recall contribution | False-failure contribution | J | Gate recall | Gate false failures |
 | --- | --- | --- | --- | --- | --- |
-| max 30 | 53.3% | 10.4% | +42.9 pts | 100.0% | 29.9% |
-| max 45 | 53.3% | 9.0% | +44.4 pts | 100.0% | 29.1% |
-| max 60 * | 46.7% | 6.0% | +40.7 pts | 100.0% | 29.1% |
-| max 75 | 33.3% | 6.0% | +27.4 pts | 100.0% | 29.1% |
-| max 90 | 33.3% | 6.0% | +27.4 pts | 100.0% | 29.1% |
-| max 120 | 26.7% | 6.0% | +20.7 pts | 100.0% | 29.1% |
-| max 180 | 26.7% | 3.0% | +23.7 pts | 100.0% | 29.1% |
-| max 300 | 26.7% | 2.2% | +24.4 pts | 100.0% | 29.1% |
-| over_max_delta 0 * | 46.7% | 6.0% | +40.7 pts | 100.0% | 29.1% |
-| over_max_delta 1 | 33.3% | 3.7% | +29.6 pts | 100.0% | 29.1% |
-| over_max_delta 2 | 33.3% | 1.5% | +31.8 pts | 100.0% | 29.1% |
-| over_max_delta 3 | 33.3% | 1.5% | +31.8 pts | 100.0% | 29.1% |
-| over_max_delta 5 | 26.7% | 0.7% | +25.9 pts | 100.0% | 29.1% |
-| over_max_delta 10 | 20.0% | 0.7% | +19.3 pts | 100.0% | 29.1% |
-| over_max_delta 20 | 20.0% | 0.7% | +19.3 pts | 100.0% | 29.1% |
-| over_max_delta 25 | 6.7% | 0.7% | +5.9 pts | 100.0% | 29.1% |
-| rule dropped |  |  |  | 100.0% | 29.1% |
+| max 30 | 50.0% | 11.1% | +38.9 pts | 100.0% | 30.4% |
+| max 45 | 50.0% | 9.6% | +40.4 pts | 100.0% | 29.6% |
+| max 60 * | 42.9% | 6.7% | +36.2 pts | 100.0% | 29.6% |
+| max 75 | 28.6% | 6.7% | +21.9 pts | 100.0% | 29.6% |
+| max 90 | 28.6% | 6.7% | +21.9 pts | 100.0% | 29.6% |
+| max 120 | 21.4% | 6.7% | +14.8 pts | 100.0% | 29.6% |
+| max 180 | 21.4% | 3.7% | +17.7 pts | 100.0% | 29.6% |
+| max 300 | 21.4% | 3.0% | +18.5 pts | 100.0% | 29.6% |
+| over_max_delta 0 * | 42.9% | 6.7% | +36.2 pts | 100.0% | 29.6% |
+| over_max_delta 1 | 35.7% | 3.7% | +32.0 pts | 100.0% | 29.6% |
+| over_max_delta 2 | 35.7% | 1.5% | +34.2 pts | 100.0% | 29.6% |
+| over_max_delta 3 | 35.7% | 1.5% | +34.2 pts | 100.0% | 29.6% |
+| over_max_delta 5 | 28.6% | 0.7% | +27.8 pts | 100.0% | 29.6% |
+| over_max_delta 10 | 21.4% | 0.7% | +20.7 pts | 100.0% | 29.6% |
+| over_max_delta 20 | 21.4% | 0.7% | +20.7 pts | 100.0% | 29.6% |
+| over_max_delta 25 | 7.1% | 0.7% | +6.4 pts | 100.0% | 29.6% |
+| rule dropped |  |  |  | 100.0% | 29.6% |
 
 ### `internal_imports`
 
 | Setting | Recall contribution | False-failure contribution | J | Gate recall | Gate false failures |
 | --- | --- | --- | --- | --- | --- |
-| max 5 | 20.0% | 6.0% | +14.0 pts | 100.0% | 29.9% |
-| max 8 | 13.3% | 3.7% | +9.6 pts | 100.0% | 29.1% |
-| max 10 * | 0.0% | 3.7% | -3.7 pts | 100.0% | 29.1% |
-| max 13 | 0.0% | 2.2% | -2.2 pts | 100.0% | 29.1% |
-| max 15 | 0.0% | 2.2% | -2.2 pts | 100.0% | 29.1% |
-| max 20 | 0.0% | 2.2% | -2.2 pts | 100.0% | 29.1% |
-| max 30 | 0.0% | 1.5% | -1.5 pts | 100.0% | 29.1% |
-| max 50 | 0.0% | 1.5% | -1.5 pts | 100.0% | 29.1% |
-| over_max_delta 0 * | 0.0% | 3.7% | -3.7 pts | 100.0% | 29.1% |
-| over_max_delta 1 | 0.0% | 0.0% | +0.0 pts | 100.0% | 28.4% |
-| over_max_delta 2 | 0.0% | 0.0% | +0.0 pts | 100.0% | 28.4% |
-| over_max_delta 3 | 0.0% | 0.0% | +0.0 pts | 100.0% | 28.4% |
-| over_max_delta 5 | 0.0% | 0.0% | +0.0 pts | 100.0% | 28.4% |
-| rule dropped |  |  |  | 100.0% | 28.4% |
+| max 5 | 21.4% | 5.9% | +15.5 pts | 100.0% | 30.4% |
+| max 8 | 14.3% | 3.7% | +10.6 pts | 100.0% | 29.6% |
+| max 10 * | 0.0% | 3.7% | -3.7 pts | 100.0% | 29.6% |
+| max 13 | 0.0% | 2.2% | -2.2 pts | 100.0% | 29.6% |
+| max 15 | 0.0% | 2.2% | -2.2 pts | 100.0% | 29.6% |
+| max 20 | 0.0% | 2.2% | -2.2 pts | 100.0% | 29.6% |
+| max 30 | 0.0% | 1.5% | -1.5 pts | 100.0% | 29.6% |
+| max 50 | 0.0% | 1.5% | -1.5 pts | 100.0% | 29.6% |
+| over_max_delta 0 * | 0.0% | 3.7% | -3.7 pts | 100.0% | 29.6% |
+| over_max_delta 1 | 0.0% | 0.0% | +0.0 pts | 100.0% | 28.9% |
+| over_max_delta 2 | 0.0% | 0.0% | +0.0 pts | 100.0% | 28.9% |
+| over_max_delta 3 | 0.0% | 0.0% | +0.0 pts | 100.0% | 28.9% |
+| over_max_delta 5 | 0.0% | 0.0% | +0.0 pts | 100.0% | 28.9% |
+| rule dropped |  |  |  | 100.0% | 28.9% |
 
 ### `sloc`
 
 | Setting | Recall contribution | False-failure contribution | J | Gate recall | Gate false failures |
 | --- | --- | --- | --- | --- | --- |
-| max 500 | 33.3% | 1.5% | +31.8 pts | 100.0% | 29.1% |
-| max 750 | 33.3% | 1.5% | +31.8 pts | 100.0% | 29.1% |
-| max 1000 * | 33.3% | 1.5% | +31.8 pts | 100.0% | 29.1% |
-| max 1250 | 20.0% | 1.5% | +18.5 pts | 100.0% | 29.1% |
-| max 1500 | 20.0% | 1.5% | +18.5 pts | 100.0% | 29.1% |
-| max 2000 | 20.0% | 1.5% | +18.5 pts | 100.0% | 29.1% |
-| max 3000 | 20.0% | 1.5% | +18.5 pts | 100.0% | 29.1% |
-| max 5000 | 20.0% | 1.5% | +18.5 pts | 100.0% | 29.1% |
-| over_max_delta 0 | 60.0% | 21.6% | +38.4 pts | 100.0% | 38.1% |
-| over_max_delta 1 | 60.0% | 19.4% | +40.6 pts | 100.0% | 36.6% |
-| over_max_delta 2 | 60.0% | 18.7% | +41.3 pts | 100.0% | 35.8% |
-| over_max_delta 3 | 60.0% | 16.4% | +43.6 pts | 100.0% | 34.3% |
-| over_max_delta 5 | 60.0% | 16.4% | +43.6 pts | 100.0% | 34.3% |
-| over_max_delta 10 | 53.3% | 12.7% | +40.6 pts | 100.0% | 32.1% |
-| over_max_delta 20 | 53.3% | 8.2% | +45.1 pts | 100.0% | 30.6% |
-| over_max_delta 25 | 53.3% | 6.7% | +46.6 pts | 100.0% | 30.6% |
-| over_max_delta 50 | 40.0% | 3.0% | +37.0 pts | 100.0% | 29.1% |
-| over_max_delta 100 * | 33.3% | 1.5% | +31.8 pts | 100.0% | 29.1% |
-| over_max_delta 150 | 33.3% | 0.0% | +33.3 pts | 100.0% | 29.1% |
-| over_max_delta 200 | 26.7% | 0.0% | +26.7 pts | 100.0% | 29.1% |
-| over_max_delta 300 | 26.7% | 0.0% | +26.7 pts | 100.0% | 29.1% |
-| over_max_delta 500 | 20.0% | 0.0% | +20.0 pts | 100.0% | 29.1% |
-| rule dropped |  |  |  | 100.0% | 29.1% |
+| max 500 | 35.7% | 1.5% | +34.2 pts | 100.0% | 29.6% |
+| max 750 | 35.7% | 1.5% | +34.2 pts | 100.0% | 29.6% |
+| max 1000 * | 35.7% | 1.5% | +34.2 pts | 100.0% | 29.6% |
+| max 1250 | 21.4% | 1.5% | +19.9 pts | 100.0% | 29.6% |
+| max 1500 | 21.4% | 1.5% | +19.9 pts | 100.0% | 29.6% |
+| max 2000 | 21.4% | 1.5% | +19.9 pts | 100.0% | 29.6% |
+| max 3000 | 21.4% | 1.5% | +19.9 pts | 100.0% | 29.6% |
+| max 5000 | 21.4% | 1.5% | +19.9 pts | 100.0% | 29.6% |
+| over_max_delta 0 | 57.1% | 22.2% | +34.9 pts | 100.0% | 38.5% |
+| over_max_delta 1 | 57.1% | 20.0% | +37.1 pts | 100.0% | 37.0% |
+| over_max_delta 2 | 57.1% | 19.3% | +37.9 pts | 100.0% | 36.3% |
+| over_max_delta 3 | 57.1% | 17.0% | +40.1 pts | 100.0% | 34.8% |
+| over_max_delta 5 | 57.1% | 17.0% | +40.1 pts | 100.0% | 34.8% |
+| over_max_delta 10 | 50.0% | 13.3% | +36.7 pts | 100.0% | 32.6% |
+| over_max_delta 20 | 50.0% | 8.9% | +41.1 pts | 100.0% | 31.1% |
+| over_max_delta 25 | 50.0% | 7.4% | +42.6 pts | 100.0% | 31.1% |
+| over_max_delta 50 | 35.7% | 3.7% | +32.0 pts | 100.0% | 29.6% |
+| over_max_delta 100 * | 35.7% | 1.5% | +34.2 pts | 100.0% | 29.6% |
+| over_max_delta 150 | 35.7% | 0.0% | +35.7 pts | 100.0% | 29.6% |
+| over_max_delta 200 | 28.6% | 0.0% | +28.6 pts | 100.0% | 29.6% |
+| over_max_delta 300 | 28.6% | 0.0% | +28.6 pts | 100.0% | 29.6% |
+| over_max_delta 500 | 21.4% | 0.0% | +21.4 pts | 100.0% | 29.6% |
+| rule dropped |  |  |  | 100.0% | 29.6% |
 
 ### `has_tests`
 
 | Setting | Recall contribution | False-failure contribution | J | Gate recall | Gate false failures |
 | --- | --- | --- | --- | --- | --- |
-| when > 0 | 13.3% | 2.2% | +11.1 pts | 100.0% | 29.1% |
-| when > 50 | 13.3% | 1.5% | +11.8 pts | 100.0% | 29.1% |
-| when > 100 * | 6.7% | 0.0% | +6.7 pts | 100.0% | 29.1% |
-| when > 200 | 0.0% | 0.0% | +0.0 pts | 100.0% | 29.1% |
-| when > 500 | 0.0% | 0.0% | +0.0 pts | 100.0% | 29.1% |
-| when > 1000 | 0.0% | 0.0% | +0.0 pts | 100.0% | 29.1% |
-| no guard | 13.3% | 2.2% | +11.1 pts | 100.0% | 29.1% |
-| rule dropped |  |  |  | 100.0% | 29.1% |
+| when > 0 | 14.3% | 2.2% | +12.1 pts | 100.0% | 29.6% |
+| when > 50 | 14.3% | 1.5% | +12.8 pts | 100.0% | 29.6% |
+| when > 100 * | 7.1% | 0.0% | +7.1 pts | 100.0% | 29.6% |
+| when > 200 | 0.0% | 0.0% | +0.0 pts | 100.0% | 29.6% |
+| when > 500 | 0.0% | 0.0% | +0.0 pts | 100.0% | 29.6% |
+| when > 1000 | 0.0% | 0.0% | +0.0 pts | 100.0% | 29.6% |
+| no guard | 14.3% | 2.2% | +12.1 pts | 100.0% | 29.6% |
+| rule dropped |  |  |  | 100.0% | 29.6% |
 
 ### `duplication_pct (typescript)`
 
@@ -746,7 +746,7 @@ On the all corpora pooled, capacity-only set aside view: the commits each capaci
 | --- | --- | --- | --- | --- | --- |
 | `tokens_est` | 3 | 4 | 2 | 4 | 6 of 7 (85.7%) |
 | `largest_file_sloc` | 2 | 3 | 1 | 3 | 4 of 5 (80.0%) |
-| `exported_symbols` | 7 | 8 | 6 | 7 | 13 of 15 (86.7%) |
+| `exported_symbols` | 6 | 9 | 5 | 8 | 13 of 15 (86.7%) |
 | `internal_imports` | 0 | 5 | 0 | 5 | 5 of 5 (100.0%) |
 | `sloc` | 5 | 2 | 2 | 2 | 4 of 7 (57.1%) |
 
@@ -756,21 +756,21 @@ Judged on the all corpora pooled, capacity-only set aside view. A rule that fire
 
 | Rule | Action | To | Why |
 | --- | --- | --- | --- |
-| `dup_blocks` | retune | max_delta 1 | shipped fails 86.7% of block and 12.7% of allow (J +74.0 pts), over 10.0% of allow; max_delta 1 fails 46.7% of block and 4.5% of allow (J +42.2 pts) |
-| `duplication_pct` | keep |  | shipped fails 26.7% of block and 5.2% of allow (J +21.4 pts), within 10.0% of allow |
-| `untested_exports` | retune | max_delta 1 | shipped fails 53.3% of block and 11.2% of allow (J +42.1 pts), over 10.0% of allow; max_delta 1 fails 40.0% of block and 6.7% of allow (J +33.3 pts) |
-| `globals` | keep |  | fired on 6 labeled commits, fewer than 10, too thin to judge; shipped fails 6.7% of block and 3.7% of allow (J +2.9 pts) |
+| `dup_blocks` | retune | max_delta 1 | shipped fails 85.7% of block and 13.3% of allow (J +72.4 pts), over 10.0% of allow; max_delta 1 fails 50.0% of block and 4.4% of allow (J +45.6 pts) |
+| `duplication_pct` | keep |  | shipped fails 28.6% of block and 5.2% of allow (J +23.4 pts), within 10.0% of allow |
+| `untested_exports` | retune | max_delta 1 | shipped fails 50.0% of block and 11.9% of allow (J +38.1 pts), over 10.0% of allow; max_delta 1 fails 42.9% of block and 6.7% of allow (J +36.2 pts) |
+| `globals` | keep |  | fired on 6 labeled commits, fewer than 10, too thin to judge; shipped fails 7.1% of block and 3.7% of allow (J +3.4 pts) |
 | `init_funcs` | keep |  | fired on 0 labeled commits, fewer than 10, too thin to judge; shipped fails 0.0% of block and 0.0% of allow (J +0.0 pts) |
-| `max_nesting` | keep |  | fired on 5 labeled commits, fewer than 10, too thin to judge; shipped fails 20.0% of block and 1.5% of allow (J +18.5 pts) |
-| `cognitive_p90` | keep |  | fired on 5 labeled commits, fewer than 10, too thin to judge; shipped fails 6.7% of block and 3.0% of allow (J +3.7 pts) |
-| `changed_func_cognitive_max` | keep |  | fired on 1 labeled commits, fewer than 10, too thin to judge; shipped fails 6.7% of block and 0.0% of allow (J +6.7 pts) |
-| `dup_blocks_cross_pkg` | retune | max_delta 1 | shipped fails 80.0% of block and 12.7% of allow (J +67.3 pts), over 10.0% of allow; max_delta 1 fails 60.0% of block and 9.0% of allow (J +51.0 pts) |
-| `tokens_est` | keep |  | fired on 7 labeled commits, fewer than 10, too thin to judge; shipped fails 20.0% of block and 3.0% of allow (J +17.0 pts) |
-| `largest_file_sloc` | keep |  | fired on 5 labeled commits, fewer than 10, too thin to judge; shipped fails 13.3% of block and 2.2% of allow (J +11.1 pts) |
-| `exported_symbols` | keep |  | shipped fails 46.7% of block and 6.0% of allow (J +40.7 pts), within 10.0% of allow |
+| `max_nesting` | keep |  | fired on 5 labeled commits, fewer than 10, too thin to judge; shipped fails 21.4% of block and 1.5% of allow (J +19.9 pts) |
+| `cognitive_p90` | keep |  | fired on 5 labeled commits, fewer than 10, too thin to judge; shipped fails 7.1% of block and 3.0% of allow (J +4.2 pts) |
+| `changed_func_cognitive_max` | keep |  | fired on 1 labeled commits, fewer than 10, too thin to judge; shipped fails 7.1% of block and 0.0% of allow (J +7.1 pts) |
+| `dup_blocks_cross_pkg` | retune | max_delta 1 | shipped fails 85.7% of block and 12.6% of allow (J +73.1 pts), over 10.0% of allow; max_delta 1 fails 64.3% of block and 8.9% of allow (J +55.4 pts) |
+| `tokens_est` | keep |  | fired on 7 labeled commits, fewer than 10, too thin to judge; shipped fails 21.4% of block and 3.0% of allow (J +18.5 pts) |
+| `largest_file_sloc` | keep |  | fired on 5 labeled commits, fewer than 10, too thin to judge; shipped fails 14.3% of block and 2.2% of allow (J +12.1 pts) |
+| `exported_symbols` | keep |  | shipped fails 42.9% of block and 6.7% of allow (J +36.2 pts), within 10.0% of allow |
 | `internal_imports` | keep |  | fired on 5 labeled commits, fewer than 10, too thin to judge; shipped fails 0.0% of block and 3.7% of allow (J -3.7 pts) |
-| `sloc` | keep |  | fired on 7 labeled commits, fewer than 10, too thin to judge; shipped fails 33.3% of block and 1.5% of allow (J +31.8 pts) |
-| `has_tests` | keep |  | fired on 1 labeled commits, fewer than 10, too thin to judge; shipped fails 6.7% of block and 0.0% of allow (J +6.7 pts) |
+| `sloc` | keep |  | fired on 7 labeled commits, fewer than 10, too thin to judge; shipped fails 35.7% of block and 1.5% of allow (J +34.2 pts) |
+| `has_tests` | keep |  | fired on 1 labeled commits, fewer than 10, too thin to judge; shipped fails 7.1% of block and 0.0% of allow (J +7.1 pts) |
 | `duplication_pct (typescript)` | keep |  | no row it judges in these corpora; nothing measured |
 | `max_nesting (typescript)` | keep |  | no row it judges in these corpora; nothing measured |
 | `cognitive_p90 (typescript)` | keep |  | no row it judges in these corpora; nothing measured |

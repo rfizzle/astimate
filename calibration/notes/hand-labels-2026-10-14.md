@@ -126,3 +126,7 @@ Close behind are:
 - go-starter 96d2cff (`allow`): the new cross-package block in the 546-line ratelimit rewrite could not be pinned down.
 - ztp f430f2f (`block`): `exported_symbols` rises from 47 to 82 because K8s-specific code landed in a generic package, but many of the new symbols are getters.
 - ai-shell 2d2c6bd (`block`): `has_tests` in a repository that never had tests, blocked because the new `shell-history.ts` appends to the user's real shell history without tests.
+
+## Confirmation 2026-10-14
+
+The user delegated the confirmation to the orchestrating session ("you make the decision with the information you have"). Every label's provenance is now `confirmed`. Of the five labels listed above, one was overturned: shhh 3ffa8f43 is `allow`, because the second scanner is a deliberate variant with a stated reason a reviewer accepts. ztp edd3a53 stays `block` (a new subsystem that takes a package past the ceiling is what the capacity rule is for), shhh 504a1c76 stays `block` (a re-typed helper is a copy a reviewer asks to reuse, however short), crush 8661a1c4 stays `allow` (a one-line fix applied to existing copies does not create the pattern), ai-shell c0738a5 stays `block` (the next change rewrote the function). The three "close behind" labels stand as drafted.

@@ -7,302 +7,302 @@ commits:
   - hash: dc0a9149309b539cd1e03267b2265e9f14e4e9c9
     verdict: allow
     reason: "sampled pass, read: Version bump 0.1.22; only package.json and package-lock.json change, no source. Evidence: package.json:4."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: fa50e037815a351bb1da2a5220c8f46e87ce6ad5
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: 87ab8f6cd35fe965b292555c02ce687d1cca59ad
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: ecad56c534e037adbb2e74ffbb58ce505719d3fd
     verdict: allow
     reason: "passed, outside the hand sample: the diff was not read and allow is assumed."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: c334cbb939ed8194a0a462535b4b728d0c8aa4e4
     verdict: allow
     reason: "sampled pass, read: Version bump 0.1.23; no source changed. Evidence: package.json:4."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: 6ba9357762cadf6430b95a60a5cfb80fa7b43a38
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: 064db6e6bb1e7359d1efd3cafb57610334f2c706
     verdict: allow
     reason: "boilerplate-dup + other: legacy has_tests false->false: Adds the Indonesian locale: a JSON file and three registration lines in i18n.ts; the duplicate is the per-locale resource stanza nobody would extract and there is no logic to test. Evidence: src/helpers/i18n.ts:14, src/helpers/i18n.ts:75, src/locales/id.json:1."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: 2d274661f15f14b6658e50189c73f9b4d321a416
     verdict: allow
     reason: "passed, outside the hand sample: the diff was not read and allow is assumed."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: 35b6ba8f46e045ab48f31685a1a3bddaed7defff
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: 4304a55367f4ab7e3c9eabd732031dbd5c7e8fd8
     verdict: allow
     reason: "sampled pass, read: Typo fix 'me to to' in two prompt strings and the matching locale keys; no logic. Evidence: src/prompt.ts:53, src/prompt.ts:77."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: a517a37fcc7b81146ca52358714f6af19ee11e75
     verdict: allow
     reason: "sampled pass, read: Version bump 1.0.1; no source changed. Evidence: package.json:4."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: e3750eb7f457f00fe37741cbbdcc4b223d83f026
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: 0ba6522a85eaf38cbbecc4e9fc94a818d9495eb0
     verdict: allow
     reason: "other: legacy has_tests false->false: A one-branch error for `ai config get <unknown key>` in a package that never had tests; not substantial new logic. Evidence: src/commands/config.ts:42."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: fe4e223ffee837ec3ce64e2e2a318ec4ab29d35d
     verdict: allow
     reason: "passed, outside the hand sample: the diff was not read and allow is assumed."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: 62095befa5cb2b7e471cf14f9b55413227c50835
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: 9b1ff82688a02ca5cb808fbe18ce20a9ee51b214
     verdict: allow
     reason: "sampled pass, read: Adds missing `await` on five setConfigs calls in showConfigUI; a bug fix with no new logic or structure. Evidence: src/helpers/config.ts:175."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: 651337d92eccbb523c330e35f49ecc1a5ecc3413
     verdict: allow
     reason: "passed, outside the hand sample: the diff was not read and allow is assumed."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: 8248357c8395598e166c6a0a4656d8a2b2e00e3f
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: 2768ec2de007dc776dc0d941efd6ccdf3eecea1e
     verdict: allow
     reason: "other: legacy has_tests false->false: Renames the `model` config key to MODEL and threads it into the chat request; plumbing only, no logic a reviewer would demand tests for. Evidence: src/commands/chat.ts:20, src/helpers/config.ts:39."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: 653f6060ff3eda48321e70bbc7bdb04c3e06a58a
     verdict: allow
     reason: "sampled pass, read: Version bump 1.0.3; no source changed. Evidence: package.json:4."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: 8ed65d24619cc1eef50388bbc4aa7197cfa47208
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: 77114d362cbd4d53c4ec38552f1d6d1a163a1f30
     verdict: allow
     reason: "other: legacy has_tests false->false: Help-text restructuring and registering an already-existing command; no new logic. Evidence: src/commands/chat.ts:13, src/commands/config.ts:16, src/cli.ts:27."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: b46e4e882ab911f981eef54639c5ecd1248cbc0e
     verdict: allow
     reason: "sampled pass, read: Version bump 1.0.4; no source changed. Evidence: package.json:4."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: 250b61b9d4cebc0be4d6226457815586c6eb936d
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: b25500ff75ce6600ccb91a9406289f468d2d00eb
     verdict: allow
     reason: "other: legacy has_tests false->false: Parameter plumbing so the configured model is used in every request; nothing new to test. Evidence: src/prompt.ts:102, src/prompt.ts:148."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: a56baf9527f3a2b6b2cea21c5b888c238f69a0ca
     verdict: allow
     reason: "passed, outside the hand sample: the diff was not read and allow is assumed."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: 28e19f0530d3a609c98a751ba4abd2ea7289d343
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: c0738a5a533544381e804ce30278db995ee00dba
     verdict: block
     reason: "real (with other: legacy has_tests false->false): readData, already the hardest function in the repo, gains an interleaved second flag and a skip-until-newline continue inside a three-deep streaming loop (+21 cognitive); a reviewer would ask for this state machine to be simplified or extracted, and the next PR (#98) did rewrite it. Evidence: src/helpers/completion.ts:198, src/helpers/completion.ts:215, src/helpers/completion.ts:220."
     metrics: [changed_func_cognitive_max]
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: 78e23f9bb60311cc2bbe24b4cdfda49e64e2d564
     verdict: allow
     reason: "sampled pass, read: Version bump 1.0.6; no source changed. Evidence: package.json:4."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: 83e73ac54dc60a6e7d0fd61000555dbf9ffed137
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: 89ba88f77173ead3625e9fac477a1c6bf5cdc5f6
     verdict: allow
     reason: "other: legacy has_tests false->false + other: rewrite of already-deep readData, not harder + other: trivial pure helper in testless repo: Replaces the previous commit's waitUntilNewline hack with a start buffer and a variadic exclusion list; nesting rises by one in an already 7-deep closure but the function is no harder to follow, and the new export is a trivial reduce. Evidence: src/helpers/completion.ts:211, src/helpers/strip-regex-patterns.ts:1."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: 618feb993750a824ad7f95420d622dc56c680612
     verdict: allow
     reason: "passed, outside the hand sample: the diff was not read and allow is assumed."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: f3e015e2ce1396b84d73c45173b4a1d467c8d633
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: e7c8e79c27fe23b3cee7a8b51f129643e085965a
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: 35a71c51d2d9b8f1c4d575595e6c8cce71e60c53
     verdict: allow
     reason: "other: +5 cognitive, not materially harder + other: legacy has_tests false->false: Lets q/escape stop the stream with one flag and one extra condition; cognitive 51->56 crosses the 55 ceiling but the function is not materially harder to follow. Evidence: src/helpers/completion.ts:191, src/helpers/completion.ts:206, src/helpers/completion.ts:214."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: 6fac82b6a38445082eaa4910c1cb89dfd6207927
     verdict: allow
     reason: "other: pre-existing duplicate re-detected after line shift + other: legacy has_tests false->false: No code was copied: the cited block is the old getPrompt/promptForRevision clack prompt pair, now counted as one more block after a line was inserted; the stray `console.log('script', script)` (src/prompt.ts:123) is a real nit but no metric covers it and 62ec0f9 removed it. Evidence: src/prompt.ts:51, src/prompt.ts:57, src/prompt.ts:76."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: ea0f69b5b042a392bd2975a5956c5cc656ab0444
     verdict: allow
     reason: "sampled pass, read: Version bump 1.0.8; no source changed. Evidence: package.json:4."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: bfba248061641373bc65de399d4777f4f84c4986
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: 70ff00fb5a83755bbb66dfb44db72ac8f7804508
     verdict: allow
     reason: "other: revert restores prior code + other: legacy has_tests false->false: An exact revert of the previous commit's readData edit (diff is the inverse of 6fac82b); the numbers only return to what they were before and nothing new was introduced. Evidence: src/helpers/completion.ts:195, src/helpers/completion.ts:222."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: acdb7cd563b2ad4f515002591be12e8ea3e80a36
     verdict: allow
     reason: "passed, outside the hand sample: the diff was not read and allow is assumed."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: f1d1b1c1d8c54ed6f7bec2d86b75f4a8f11e0a51
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: ce1fcfba66cacf33221e8bad4b1151a3d57a155d
     verdict: allow
     reason: "other: legacy has_tests false->false + other: thin SDK wrapper in testless repo: Replaces free-text model entry with a select populated from the OpenAI models list; the new export is a three-line API wrapper with no logic worth a unit test. Evidence: src/helpers/completion.ts:322, src/helpers/config.ts:191."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: 2d2c6bd037fafdc2c6045c8e583f024aa4158da9
     verdict: block
     reason: "real (with other: legacy has_tests false->false): Adds a new exported helper that writes into the user's shell history files using a per-shell path table and last-line de-dup, with no tests; the de-dup and append are wrong for fish and extended-zsh formats, exactly the logic a reviewer would want tested before merge. Evidence: src/helpers/shell-history.ts:10, src/helpers/shell-history.ts:40, src/prompt.ts:47."
     metrics: [has_tests, untested_exports]
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: 62ec0f90947e98befbe84a23db99c39b4967399c
     verdict: allow
     reason: "sampled pass, read: Deletion-only: removes the debug `console.log('script', script)` added in 6fac82b. Evidence: src/prompt.ts:127."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: c5157dbf7fccb7b55771976e30ce3b2189b13bfe
     verdict: allow
     reason: "passed, outside the hand sample: the diff was not read and allow is assumed."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: f5787e382e57e51b69c82608644b1ba09b4fba32
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: 625ad5c7cd8f2c81a909bf0c71536da3d008c7c6
     verdict: allow
     reason: "other: legacy has_tests false->false: A one-line fix passing the configured model to the explanation request. Evidence: src/prompt.ts:137."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: 6a2afb72cf52778ef8c53a6c466f3033c61aae1d
     verdict: allow
     reason: "sampled pass, read: Changes the default model string from gpt-3.5-turbo to gpt-4o-mini in two places; no logic change. Evidence: src/helpers/completion.ts:75, src/helpers/config.ts:43."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: e89f1c9934845a61043e85c0959bb2c2aafe6fd6
     verdict: allow
     reason: "sampled pass, read: Version bump 1.0.11; no source changed. Evidence: package.json:4."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: fa2eafba1cafa3002df1bf17476513654bbea369
     verdict: allow
     reason: "passed, outside the hand sample: the diff was not read and allow is assumed."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: ee266ed3453295c62facd8afa2841bcaae88ebae
     verdict: allow
     reason: "sampled pass, read: Version bump 1.0.12; no source changed. Evidence: package.json:4."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: 39b09ffee58712268a4eb141d94e43847e95769b
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: 2a46a63f3e58133792f9f595d86aa968203b87d3
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: 56a03401af9a12bed190d7248ddc8fd53e6bba22
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: cd0306b5b621828fd7a6f25986e04724e1105dbb
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: 0ef7ec43af71ad82d8ddaeb21a3358f01060fc64
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: eaf37b301dc56fbee414ada758f31d19d1642045
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: e3f5913a6cae493984d1162fcc4aaf2f1de6f849
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: fcd6ce63f4211638fe0fbaf5525b51103743b38c
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: false
   - hash: 8e4a29b2defabc191d9ae9e117c96b78f6f9de6b
     verdict: allow
     reason: "other: legacy has_tests false->false: Locale addition only; no logic. Evidence: src/helpers/i18n.ts:15, src/helpers/i18n.ts:81."
-    provenance: proposed
+    provenance: confirmed
     agent: false

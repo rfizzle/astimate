@@ -7,309 +7,309 @@ commits:
   - hash: 59b3318550e87acd9e46b47555d1dde8a63c63d5
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: b1093b9e7ae0fc8ced0548d3e064b96f554389c4
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 9acd4eda37af7b3fbe208a20c341c6800dd8cc2a
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 05e136542bfe10476d495bed15406b4209d1001a
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 88abdc4c0964af5058aab8197b3fddf672af67c7
     verdict: allow
     reason: "sampled pass, read: New K8s request classifier (134 lines) with a 330-line test; small functions, no copy, no package state. Evidence: internal/protocol/kubernetes/classify.go:22, internal/protocol/kubernetes/classify_test.go:1."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: ac00641792e2351ff83e417e8f72fc5e853c4b8a
     verdict: allow
     reason: "boilerplate-dup + tiny-ratchet: Access-session grouping adds one well-tested 50-line function and a small filter loop; no copy-paste and nothing a reviewer would ask to split. Evidence: internal/web/grouper.go:14, internal/web/server.go:102, internal/web/sessions.go:56."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 4c07cb00d62b28364fbbdc47e485f22a173ff5a1
     verdict: allow
     reason: "boilerplate-dup + covered-export: Policy engine plus interface accessors; every duplicate is accessor/option/guard-chain scaffolding and the flagged exports are trivial getters. Evidence: internal/protocol/kubernetes/classify.go:129, internal/recording/policy/policy.go:129, internal/recording/policy/policy.go:75."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 8fa49ecedffeb03449bd88a317fbf517b0ee40de
     verdict: allow
     reason: "boilerplate-dup: Self-contained, tested filter package; cross-package matches are constructor and lock/closed-guard idioms. Evidence: internal/recording/filter/filter.go:22, internal/recording/filter/filter.go:53."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: fb59d3ab7a97d1238af42923a673fcf1b2503e49
     verdict: allow
     reason: "sampled pass, read: Package move of logutil/audit/session to pkg/ with import rewrites and README deletions (+130/-228); no new logic. Evidence: pkg/logutil/logutil.go:1, pkg/session/manager.go:1."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: a33321bf8b8b3827b0c7e5a566a9bae9930fdd42
     verdict: allow
     reason: "other: moved duplicates: Package move with import rewrites only; no code added, so no new copy. Evidence: pkg/recording/filter/filter.go:13, pkg/recording/recordingtest/fake_recorder.go:1."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 006bfffb67df7851cc8c2ec2d7aced048bbe2298
     verdict: allow
     reason: "sampled pass, read: Rename internal/web -> pkg/compliance, one package-clause line per file; nothing added. Evidence: pkg/compliance/server.go:1, cmd/compliance-ui/main.go:14."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: e9eac7151473c2be9c5ae95dff2864dd7e208627
     verdict: allow
     reason: "boilerplate-dup: A 54-line net.Conn recording wrapper; the duplicates are the Read/Write mirror pair every conn wrapper has. Evidence: pkg/recording/connwrap/conn.go:24, pkg/recording/pcap/recording_conn.go:47."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: bb794c0f3fd0b66e849d9c9aad9b559e190412d9
     verdict: allow
     reason: "boilerplate-dup: Symmetric io.Reader/io.Writer wrappers; the duplication is the unavoidable mirror pair, not extractable logic. Evidence: pkg/recording/iowrap/iowrap.go:11, pkg/recording/iowrap/iowrap.go:31."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 92ce90255325f21e4c6d5c2ec201dab055c42bb5
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 0a8b69b2e7313909e249ff88caaff0cc0a97f492
     verdict: block
     reason: "real (with boilerplate-dup): The RoundTripper copies the policy redaction/truncation logic and marker format from the filter package instead of sharing it; a reviewer would ask for one policy.Apply helper. Evidence: pkg/recording/httprecord/recorder.go:157, pkg/recording/filter/filter.go:136."
     metrics: [dup_blocks_cross_pkg]
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: f312542f63bbb1a8196611f2f25fd0129d0ef6e7
     verdict: block
     reason: "real: New package triplicates the dissector relay body and copies two helpers from internal/protocol/ssh; b098ecc later had to collapse the triplication. Evidence: pkg/recording/sshrecord/recorder.go:203, pkg/recording/sshrecord/recorder.go:252, pkg/recording/sshrecord/recorder.go:301."
     metrics: [dup_blocks, duplication_pct, dup_blocks_cross_pkg]
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 6b9cbe65009ba394b8f05be86f53106e4416b686
     verdict: block
     reason: "real (with covered-export): Moves channel classification into sshrecord by copying ~100 lines of peeker/classifier code from internal/protocol/ssh without deleting the original. Evidence: pkg/recording/sshrecord/recorder.go:88, internal/protocol/ssh/channel_relay.go:481, pkg/recording/sshrecord/recorder.go:133."
     metrics: [dup_blocks_cross_pkg]
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 151091518408143232b04478b1db69353e6f96cf
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 2efbd012b6c2a9ebee6a23b25122f416a807b2c9
     verdict: allow
     reason: "sampled pass, read: Deletes the duplicated relay/peeker code from internal/protocol/ssh (channel_relay.go -238, handler.go -65) by delegating to sshrecord; HandleChannel gains a dir-empty fast path and stderr recording, modest complexity. Evidence: internal/protocol/ssh/channel_relay.go:1, pkg/recording/sshrecord/recorder.go:238."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: b098eccfcf7e6be78fdb0f7f72e4cf31037142f9
     verdict: allow
     reason: "boilerplate-dup + covered-export: A de-duplication refactor: relayWithDissector replaces three copies; the flagged items are adapter shells on unexported types. Evidence: pkg/recording/sshrecord/recorder.go:384, pkg/recording/sshrecord/recorder.go:428."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 51ef8c34698a33dd5b0ca6239c2f4de114c65c4f
     verdict: allow
     reason: "immutable-global + other: moved duplicates: Directory restructure; globals are never-written Direction aliases and the wrap duplicates are the pre-existing conn/io mirror pairs merged into one file. Evidence: pkg/recording/dissect/scp/message.go:59, pkg/recording/dissect/sftp/tracker.go:13, pkg/recording/wrap/wrap.go:54."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 7c96483bd6024143c0aa6a725264b347f6906ab2
     verdict: allow
     reason: "sampled pass, read: Adds bounded waits (select with time.After) to two shutdown paths and one const; nothing the gate measures regressed. Evidence: internal/tunnel/relay.go:118, pkg/recording/format/pcapng/recording_conn.go:13."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 4539a1d05caa706b5c7fe4aa928e70d1b41762ff
     verdict: allow
     reason: "not loaded: the replay could not load the module at this commit, so it has no verdict and the validation leaves it out."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: c4af29e520731c3b51f62f84ec781616c7255f1b
     verdict: allow
     reason: "not loaded: the replay could not load the module at this commit, so it has no verdict and the validation leaves it out."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: f430f2f0375f37974b2f76ad0486cbce36044523
     verdict: block
     reason: "real (with boilerplate-dup, tiny-ratchet, immutable-global, other: sync.Pool, covered-export): The generic pkg/recording/http package jumps from 47 to 82 exported symbols by absorbing the K8s classifier and a middleware layer; the other findings are accessor scaffolding, a pool, or a deletion-driven p90. Evidence: pkg/recording/http/classifier.go:18, pkg/recording/http/handler.go:35, pkg/recording/http/classifier.go:143."
     metrics: [exported_symbols]
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 2e5d7808610cb9ec0f10bd04c09992d7e6a16670
     verdict: allow
     reason: "sampled pass, read: One-line go:embed pattern change. Evidence: web/embed.go:10."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: edd3a530b0bff4c6948343afae7c2010ca8c97b4
     verdict: block
     reason: "real (with boilerplate-dup, double-report, immutable-global, tiny-ratchet): Second large feature in a row lands K8s-specific watch recording in the generic HTTP recording package, pushing it past the sloc ceiling, and copies Close/Snapshot logic in metadata.go. Evidence: pkg/recording/http/metadata.go:137, pkg/recording/http/metadata.go:206, pkg/recording/http/watch_counter.go:86."
     metrics: [sloc, dup_blocks]
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 3bbc90984ec1f443169092687766b9c2bb680e39
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 2579fee0ce473fb20cc562651e43f0d5daa2728f
     verdict: allow
     reason: "boilerplate-dup + covered-export: Interface plus in-memory store plus fake; duplicates are constructor/field scaffolding and the untested exports are a test fake. Evidence: pkg/storage/memory_metadata.go:94, pkg/storage/storagetest/fake_metadata.go:29."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 7aa15397bb24902992742cd445c8eedec0cc3de0
     verdict: allow
     reason: "boilerplate-dup + tiny-ratchet + covered-export: LocalFileStore plus fake; all findings are scaffolding, a nesting step of one, or a test fake. Evidence: pkg/storage/filestore/local.go:21, pkg/storage/storagetest/fake_filestore.go:45."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 4d185e95ca5aad181782c028fa6d8b75df10764c
     verdict: allow
     reason: "boilerplate-dup + covered-export: Manager, scoped-store adapter and fake; duplicates are delegation and fake scaffolding. Evidence: pkg/storage/default_manager.go:114, pkg/storage/storagetest/fake_manager.go:44."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 9a26236f0d4f49eb6206a87ec9652d44ea62fbd4
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 2c55ac6631ab4731cff0a1f4928ed59b3e7b4754
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 5015ee36a5cee9ba894c943c116980f07df385dc
     verdict: block
     reason: "real (with boilerplate-dup, covered-export, other: legacy has_tests false->false): Wiring the session manager copies the whole HAR recorder into internal/protocol/http and inlines recording setup into an already 60-cognitive K8s Handle. Evidence: internal/protocol/http/recording.go:103, pkg/recording/format/har/har_recorder.go:263, internal/protocol/kubernetes/handler.go:82."
     metrics: [dup_blocks_cross_pkg, dup_blocks, changed_func_cognitive_max]
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 4e962dfc1a34a36c021f4cbc099608a0cadcc693
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 056cf0d5881147e53a66fc557d226a0f82a241b5
     verdict: allow
     reason: "not loaded: the replay could not load the module at this commit, so it has no verdict and the validation leaves it out."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: bb7f0cdc77057422e10ad32bfa3a4fc694c0ab1a
     verdict: allow
     reason: "not loaded: the replay could not load the module at this commit, so it has no verdict and the validation leaves it out."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: c0373bb6f02191c91dcce8932c3521657d4e1d7c
     verdict: allow
     reason: "not loaded: the replay could not load the module at this commit, so it has no verdict and the validation leaves it out."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 9a006d6f5a1358f75426c32cd04476d6e566e9e9
     verdict: allow
     reason: "not loaded: the replay could not load the module at this commit, so it has no verdict and the validation leaves it out."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 130d2c8de2a07fd51fe13a806384f2425ca00240
     verdict: allow
     reason: "not loaded: the replay could not load the module at this commit, so it has no verdict and the validation leaves it out."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: e1ed3c7095cb190847ba923643a4178e5ce81233
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 2910d8dba52bab225d85cd5b0f37f558edbb34ad
     verdict: allow
     reason: "sampled pass, read: Changes the router default to PCAPNG and adds one-entry catch-all rule tables; trivial and tested. Evidence: pkg/recording/protocol/tcp/rules.go:9, pkg/recording/pipeline/router.go:45."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 5ded0c26b31d121d8602db84f3cd534e9838852e
     verdict: allow
     reason: "covered-export + tiny-ratchet + boilerplate-dup: Half-close hang fix; findings are a covered one-line export, a few-function p90 and the symmetric goroutine pair. Evidence: internal/tunnel/stream_readwriter.go:38, pkg/recording/protocol/tcp/orchestrator.go:106, pkg/recording/protocol/tcp/orchestrator.go:144."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 33851d1675f59c7f7fb2a06859436fbcf0ee42d1
     verdict: allow
     reason: "boilerplate-dup: Deterministic session IDs; the only finding is a self-overlapping HMAC write sequence. Evidence: internal/broker/server.go:192, internal/broker/options.go:24."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 5b3c3eaa88fbbfbe1d43f778ae03894a42abb82d
     verdict: allow
     reason: "sampled pass, read: Swaps a sequence counter for random stream UIDs (removes a mutable field); the ignored rand.Read error is not a gate metric. Evidence: pkg/recording/session/manager.go:183, pkg/recording/pipeline/plan.go:46."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: e2697546c6e5325700f81b1e4662652a24a2308b
     verdict: allow
     reason: "sampled pass, read: Moves hijack relay ownership from ResponseWriter to the K8s OnUpgrade callback; small, removes a field and an import. Evidence: internal/protocol/httpproxy/response_writer.go:81, internal/protocol/kubernetes/handler.go:66."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 3feff9a4f5e226dffa0f59b94355f68b3ab0cd33
     verdict: allow
     reason: "boilerplate-dup + tiny-ratchet: Chunked re-encoding fix; a read-loop idiom and a small p90 move, nothing a reviewer would split (the real defect, ignored write errors in writeChunked, is not a metric issue). Evidence: internal/protocol/httpproxy/forward.go:64, internal/protocol/httpproxy/forward.go:87."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 383d367f9206d4e6b9a4453211a57affd7a75d9a
     verdict: allow
     reason: "covered-export + boilerplate-dup: SSH dissector output fix; exports are reached through production delegation and the dup is pre-existing case arms. Evidence: pkg/recording/pipeline/plan.go:65, pkg/recording/session/manager.go:85, pkg/recording/protocol/ssh/orchestrator.go:304."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: a3a053ea4572e4d12a4fd0192be4f7faf423100e
     verdict: block
     reason: "real (with covered-export, boilerplate-dup): Wires format-aware recorders by pasting the same format switch and wrapper type into three orchestrators instead of one shared factory. Evidence: pkg/recording/protocol/ssh/orchestrator.go:366, pkg/recording/protocol/tcp/orchestrator.go:204, pkg/recording/protocol/http/orchestrator.go:344."
     metrics: [dup_blocks_cross_pkg, dup_blocks, duplication_pct, max_nesting]
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 84cbe776365f469f672df17e586f2716b2549ebd
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 878d5f0681fb8ef4428338556ad715e41c113808
     verdict: allow
     reason: "boilerplate-dup + over-ceiling-growth: SFTP/SCP capture upload fix; an I/O idiom and one export on a constants-heavy package already far over the ceiling. Evidence: pkg/recording/protocol/ssh/orchestrator.go:476, pkg/recording/protocol/ssh/sftp/message.go:114."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 76bf62131daaa1b7d8d91a4af9bd5e5b33405572
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 8b196c26979a7ee6a2327589ed931d81f72d8f44
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: c3c459d9d76dcf4996f39f65d75fc42418f12470
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 73df8cbf558ca36b84992aad3d63dba216ff475f
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: fbb05c060075dd73b4c1f73b50947b74ac3dd27a
     verdict: allow
     reason: "boilerplate-dup + over-ceiling-growth + covered-export: Adds a one-rule table and registers it in main; nothing to fix. Evidence: pkg/recording/protocol/http/rules.go:8, cmd/broker/main.go:200."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: c4a7ec7d6ca72ff3a23e1bb3ad400f43bd78f831
     verdict: allow
     reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 9fbbe74f426a6eb5ea5fa69f3bd7fa321543d00f
     verdict: block
     reason: "real (with boilerplate-dup): The SQLite store is fine, but compliance gains a third parallel stream struct and an untested concrete sqlite adapter that push it over the export ceiling. Evidence: pkg/compliance/sessions.go:114, pkg/compliance/sqlite_streams.go:18, pkg/compliance/store_sessions_test.go:288."
     metrics: [exported_symbols, untested_exports]
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: da4d686e60f8530fb7371650c14c3eaa3d148830
     verdict: block
     reason: "real (with tiny-ratchet, over-ceiling-growth, other: marginal ceiling crossing, boilerplate-dup): Copies the 84-line WebSocket frame extractor into a new package without moving its tests or deleting the original, and adds an untested per-stream recording lookup. Evidence: pkg/recording/wsframe/extractor.go:33, internal/protocol/kubernetes/wsframe.go:32, pkg/compliance/store_sessions.go:161."
     metrics: [dup_blocks_cross_pkg, untested_exports]
-    provenance: proposed
+    provenance: confirmed
     agent: true
   - hash: 6fe1121a16c08addd4c411296f7adb3b7d9a7211
     verdict: allow
     reason: "sampled pass, read: Swaps Read/Write recording directions in orchRecConn; same code reordered. Evidence: pkg/recording/protocol/http/orchestrator.go:404, pkg/recording/protocol/http/orchestrator.go:418."
-    provenance: proposed
+    provenance: confirmed
     agent: true
