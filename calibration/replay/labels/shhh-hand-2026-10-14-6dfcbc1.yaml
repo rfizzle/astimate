@@ -1,0 +1,314 @@
+source:
+  repository: "github.com:rfizzle/shhh.git"
+  range: "HEAD~60..HEAD"
+  data: calibration/data/replay-shhh-2026-10-14-min80
+rule: "none: hand-drafted judgments awaiting the user's confirmation (provenance proposed), made by reading each diff against the replay's findings as calibration/notes/field-adjudication-2026-10-13.md did. A failed commit is block when it introduced something a careful reviewer would ask to fix before merging, or that measurably makes a package harder to maintain, and one of the gate's findings names it; allow otherwise. Each reason starts with the cause (real, or for allow boilerplate-dup, covered-export, over-ceiling-growth, tiny-ratchet, no-baseline, double-report, immutable-global or other) and ends with file:line evidence; the per-finding causes are in <name>-hand-notes.md. A stratified sample of passed commits that touched a package was read too and is block only where the gate missed a regression of a kind it claims to catch; the other passed commits were not read and are allow by assumption, which their reason says. agent follows the Co-Authored-By and author rule of calibration/corpus-commits.yaml."
+commits:
+  - hash: 6f84361cbdf562022be987eef59131907ea4c5f1
+    verdict: allow
+    reason: "other: deletion-only change exposed a match: The commit removes rail rows (+474/-1081 overall, chat source is deletion-only); a duplicate count rising on pure deletion is not a regression. Evidence: internal/ui/chat/todo.go:143, internal/ui/chat/inspector.go:216."
+    provenance: confirmed
+    agent: true
+  - hash: fe415c4ecccfe34d595d09a81eb65b3f5111614f
+    verdict: block
+    reason: "real: The fix pastes a 14-line temp-and-rename write from pricing into update instead of extracting the atomic-write helper the repository now needs in three places. Evidence: internal/update/check.go:212, internal/pricing/pricing.go:441, internal/todo/run/sprint.go:223."
+    metrics: [dup_blocks_cross_pkg]
+    provenance: confirmed
+    agent: true
+  - hash: fdb5f71fc04d7438e6588bb5c7b8bf591443c4f0
+    verdict: allow
+    reason: "immutable-global: The only new package-level var is a compiled regexp. Evidence: internal/agent/readonlyrules.go:156, internal/agent/readonlyrules.go:17."
+    provenance: confirmed
+    agent: true
+  - hash: 6fe20cbffa8ff2e32d57fec2c3fae308a9084e91
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: confirmed
+    agent: true
+  - hash: 3102b86c5562ebca7e7286bd2fa1d6d17ce82fe9
+    verdict: allow
+    reason: "boilerplate-dup + over-ceiling-growth + covered-export: A tri-state config option with its accessors and doctor wording; the duplicates are accessor and switch shapes, the exports are covered via callers. Evidence: internal/cli/doctorsandbox.go:37, internal/config/config.go:1198, internal/cli/sandbox.go:174."
+    provenance: confirmed
+    agent: true
+  - hash: a645302a01a7d87fe89b819a71f10f4976d8b1c9
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: confirmed
+    agent: true
+  - hash: 3d0e73b45c708ae8f68ef9a90e6f0314f6a388e8
+    verdict: allow
+    reason: "sampled pass, read: CI pins and a 10-line test in docker/ci; no package logic added. Evidence: docker/ci/ci_image_test.go:1."
+    provenance: confirmed
+    agent: true
+  - hash: c0fe546143967391d1b94ffe0ea646cea5610f5b
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: confirmed
+    agent: true
+  - hash: a41e88517c85a3772b2b6d67822d86a16e2c7e7a
+    verdict: allow
+    reason: "passed, outside the hand sample: the diff was not read and allow is assumed."
+    provenance: confirmed
+    agent: true
+  - hash: da6dd12645b4c4722976e0a0cf74ade2d45cb7af
+    verdict: allow
+    reason: "sampled pass, read: Five lines wrapping the inbox Listen in the existing tightenUmask helper. Evidence: internal/cli/send.go:69."
+    provenance: confirmed
+    agent: true
+  - hash: de482b4ab87772005f995e340949ea2157d18b5a
+    verdict: allow
+    reason: "sampled pass, read: Test-only commit. Evidence: internal/cli/toolbytes_test.go:1."
+    provenance: confirmed
+    agent: true
+  - hash: 50a4857217c60d90e1c1408aeaa1176b9352d527
+    verdict: allow
+    reason: "passed, outside the hand sample: the diff was not read and allow is assumed."
+    provenance: confirmed
+    agent: true
+  - hash: ff3ef767e1a1430d8ba85631d9da587866ef2021
+    verdict: block
+    reason: "real (with boilerplate-dup, over-ceiling-growth, double-report, covered-export): The new /ps screen copies the tools screen's account-field renderer and skeleton instead of sharing it (+18 dup blocks), and Snapshot re-copies List's sorted gather. Evidence: internal/ui/components/managerscreen.go:433, internal/ui/components/toolsscreen.go:274, internal/process/process.go:978."
+    metrics: [dup_blocks]
+    provenance: confirmed
+    agent: true
+  - hash: 0b74b67bc68ad080004a0d19fa1211c1d6f221c0
+    verdict: allow
+    reason: "boilerplate-dup + over-ceiling-growth + covered-export: Ordinary feature growth in over-ceiling packages with the new export reached through ExecuteCalls; the duplicate is lock-prologue boilerplate. Evidence: internal/agent/agent.go:506, internal/ui/chat/stream.go:147, internal/ui/chat/calls.go:1."
+    provenance: confirmed
+    agent: true
+  - hash: 228d31aed34f4f674d7965ac0d655e5aaaf317d4
+    verdict: allow
+    reason: "boilerplate-dup + over-ceiling-growth: Two new rail blocks in their own file; nothing a maintainer would move or extract. Evidence: internal/ui/chat/inspector.go:218, internal/ui/components/inspectorprocesses.go:16."
+    provenance: confirmed
+    agent: true
+  - hash: a778f781c502395b7aaf9faebafa140abe47acf1
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: confirmed
+    agent: true
+  - hash: fa9c930d0dbf05125808a55cd707ef81ff34ed74
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: confirmed
+    agent: true
+  - hash: 92bcefb23fef8cf734c280be83105a407ea7beff
+    verdict: allow
+    reason: "sampled pass, read: Help text change of six lines. Evidence: internal/ui/chat/help.go:1."
+    provenance: confirmed
+    agent: true
+  - hash: c0293d80a42884af9f0fd2afc6581c0b0b6132f5
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: confirmed
+    agent: true
+  - hash: 2b865b7b9a6ea2907cea77f51375688024eae15c
+    verdict: allow
+    reason: "sampled pass, read: frame.go +23 makes two hint rows shed rungs by width using the existing givesUp ladder; no copy, no new complexity of note. Evidence: internal/ui/chat/frame.go:381."
+    provenance: confirmed
+    agent: true
+  - hash: 0198952541bce4d53295e4027c2a877f11a38516
+    verdict: block
+    reason: "real: The commit pastes the block's meta-building lines a second time for the collapsed heading instead of reusing them. Evidence: internal/ui/components/inspectorprocesses.go:81, internal/ui/components/inspectorprocesses.go:72."
+    metrics: [dup_blocks]
+    provenance: confirmed
+    agent: true
+  - hash: 4104fb250d7684b78f913123fa1f6fc6dbda8dd2
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: confirmed
+    agent: true
+  - hash: c146fed562adc9ec48d72effe0ffc00a9575121e
+    verdict: allow
+    reason: "passed, outside the hand sample: the diff was not read and allow is assumed."
+    provenance: confirmed
+    agent: true
+  - hash: 759f9adb5436c59f3b5134037ea745eb69b7a3ab
+    verdict: allow
+    reason: "over-ceiling-growth + boilerplate-dup: A small feature in the config screen and its host; the file was already over 1000 lines and no new copy-paste was added. Evidence: internal/cli/config.go:928, internal/ui/components/configscreen.go:570."
+    provenance: confirmed
+    agent: true
+  - hash: 69446ff53c26e585680e284affac2560f0a5c3d7
+    verdict: allow
+    reason: "sampled pass, read: Rename of user-facing words (98 lines in, 98 out); no logic added. Evidence: internal/config/project.go:1, internal/cli/config.go:1."
+    provenance: confirmed
+    agent: true
+  - hash: 823777ccc8befa19ab92cdade57d55be2cc00624
+    verdict: allow
+    reason: "sampled pass, read: Comment and scaffold-text change only. Evidence: internal/config/scaffold.go:1."
+    provenance: confirmed
+    agent: true
+  - hash: bad6327ce7313888432bb3cb25f829a07dd84138
+    verdict: allow
+    reason: "passed, outside the hand sample: the diff was not read and allow is assumed."
+    provenance: confirmed
+    agent: true
+  - hash: ce64275caae4bf5ce0b3c548078820dc072212a6
+    verdict: block
+    reason: "real (with boilerplate-dup): The dry run re-pastes the real run's execution and outcome mapping instead of sharing it, so the two will drift. Evidence: internal/ui/chat/run.go:399, internal/ui/chat/run.go:276."
+    metrics: [dup_blocks]
+    provenance: confirmed
+    agent: true
+  - hash: 3251a6e9e0123a1b5ab8e253499fcf099db50fdb
+    verdict: allow
+    reason: "covered-export: The new exports are a wrapper and an equality helper whose behaviour is tested through their callers. Evidence: internal/subagent/worktree/merge.go:314, internal/subagent/worktree/unreconciled.go:23, internal/subagent/integrate.go:368."
+    provenance: confirmed
+    agent: true
+  - hash: 6b8a51f58cb69c1eec8fd135bb1826af3f52fb6a
+    verdict: allow
+    reason: "sampled pass, read: landUncommitted reuses catchUpLocked and verifyAfterCarry like laneCommit does; the parallel shape returns different outcomes and is tested by a new 77-line test. Evidence: internal/cli/todorunlanes.go:897, internal/cli/todorunlanes.go:801."
+    provenance: confirmed
+    agent: true
+  - hash: a48724402a0eeed07d290d4aa58542d6b8d9dd5f
+    verdict: allow
+    reason: "covered-export: The new export is tested through Unreconciled and Integrate rather than by name. Evidence: internal/subagent/worktree/unreconciled.go:66, internal/subagent/integrate.go:423."
+    provenance: confirmed
+    agent: true
+  - hash: 7dd5de43e03a4c20e88997ab68bf646103b89add
+    verdict: allow
+    reason: "over-ceiling-growth: An intentional decoupling refactor that adds one import edge to an already over-ceiling package; not a regression. Evidence: internal/cli/printapprover.go:23, internal/cli/printapprover.go:256."
+    provenance: confirmed
+    agent: true
+  - hash: 0d137dc2738f982b6d9bf1d7164914ed70176b40
+    verdict: allow
+    reason: "other: moved duplicates + no-baseline: A package extraction of an existing constant vocabulary; every finding is moved code. Evidence: internal/observe/record/record.go:31, internal/observe/record/record.go:684."
+    provenance: confirmed
+    agent: true
+  - hash: dfee87dc83edf02b8d77c689dc7989d76381c2b9
+    verdict: allow
+    reason: "boilerplate-dup + immutable-global + other: split adds edge + covered-export + over-ceiling-growth: A refactor that moves tier declarations beside each tool; the new global is an init-time registry, the exports run on every agent test, and the duplicates are the declaration idiom. Evidence: internal/agent/tier.go:174, internal/tools/tiers.go:13, internal/web/tool.go:205."
+    provenance: confirmed
+    agent: true
+  - hash: e7413b9e6a3f26719b7a642196dd59eb1c468ecb
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: confirmed
+    agent: true
+  - hash: c448b2c51573abb99f2b2fd0aa5895f88cb3c946
+    verdict: allow
+    reason: "sampled pass, read: Refactor that gathers pending decisions behind one value; stream.go loses 15 lines. Evidence: internal/ui/chat/decision.go:1, internal/ui/chat/stream.go:1."
+    provenance: confirmed
+    agent: true
+  - hash: e4fa0c1f54700499e1551d0bf515e6764be5af80
+    verdict: allow
+    reason: "passed, outside the hand sample: the diff was not read and allow is assumed."
+    provenance: confirmed
+    agent: true
+  - hash: 3216a3344406c90d124f48848d6a3b1133ca28a5
+    verdict: allow
+    reason: "sampled pass, read: A --wording flag with two small helpers (wordingKeyList, builtinWording) and tests in configinit_test.go and the report golden. Evidence: internal/cli/configinit.go:82, internal/cli/prompts.go:195."
+    provenance: confirmed
+    agent: true
+  - hash: a6b273b2dc76e5aa0caffda9f6429329be5cce7c
+    verdict: allow
+    reason: "sampled pass, read: Package doc comments only. Evidence: internal/cli/doc.go:1, internal/ui/chat/doc.go:1."
+    provenance: confirmed
+    agent: true
+  - hash: 4336e4d121717e729f4f38b35772e14f2b563a3c
+    verdict: allow
+    reason: "passed, outside the hand sample: the diff was not read and allow is assumed."
+    provenance: confirmed
+    agent: true
+  - hash: a1d84dfc8ca3a4e981e2cc5202492922dbecd984
+    verdict: allow
+    reason: "other: moved duplicates + no-baseline + other: split adds edge: A package extraction that shrinks agent; every finding is moved code or an edge to the split-off package. Evidence: internal/agent/sidejobs/summary.go:218, internal/agent/classifier.go:193."
+    provenance: confirmed
+    agent: true
+  - hash: 20c9388467f2f3e08b4171240b641f23817971b0
+    verdict: allow
+    reason: "other: moved duplicates + covered-export: A package extraction; the duplicates are moved and the exported helpers were made shareable for the split and are covered through cli. Evidence: internal/cli/report/report.go:578, internal/cli/doctor/store.go:39."
+    provenance: confirmed
+    agent: true
+  - hash: cc9e590fd89b62269f09e5583fc3543a1879da20
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: confirmed
+    agent: true
+  - hash: 73a268275cf9580f5a268533527cbfbe09bec183
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: confirmed
+    agent: true
+  - hash: c63a2cf07a57949d0f2f3af3b1fae3addd3743b8
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: confirmed
+    agent: true
+  - hash: 428e4c9e8ca3a7da614591c01afc93b7fd80d382
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: confirmed
+    agent: true
+  - hash: de2261b2c8c0f45baa926e976fa176a58b9188a4
+    verdict: allow
+    reason: "over-ceiling-growth + boilerplate-dup: An ordinary feature (list age on the rail, close and check-in) spread across the files that own each surface. Evidence: internal/ui/chat/worksteps.go:93, internal/ui/components/turnclose.go:1."
+    provenance: confirmed
+    agent: true
+  - hash: 9c2bea46cd700b640dfc796368590f079ffa3a21
+    verdict: allow
+    reason: "sampled pass, read: Built-in skills in a new builtin.go with an 85-line test; LoadFile's parse was extracted rather than copied. The embed.FS var is immutable. Evidence: internal/skill/builtin.go:33, internal/skill/skill.go:206."
+    provenance: confirmed
+    agent: true
+  - hash: d5a4b9d19cd759cd6822d1730363dcb13fb5341e
+    verdict: allow
+    reason: "sampled pass, read: Extracts skillSearchLines and adds hasFileSkill in cli/skills.go with 91 lines of tests. Evidence: internal/cli/skills.go:96."
+    provenance: confirmed
+    agent: true
+  - hash: 9b59018927d38360c648af51fa8f698c300f2f10
+    verdict: allow
+    reason: "over-ceiling-growth: Seven lines added to the card code that already lives in approval.go; not worth a split. Evidence: internal/ui/chat/approval.go:1."
+    provenance: confirmed
+    agent: true
+  - hash: 504a1c76df028f7e2f6652403c3df5ca75510a50
+    verdict: block
+    reason: "real (with over-ceiling-growth): The new recogniser writes its own copy of the package's underDir path-containment check instead of calling it; the rest is ordinary growth. Evidence: internal/tools/shelledit.go:199, internal/tools/gitpaths.go:163."
+    metrics: [dup_blocks]
+    provenance: confirmed
+    agent: true
+  - hash: 3ffa8f4335386141ab3d4d6391a6de1b55e1a17f
+    verdict: allow
+    reason: "other (deliberate variant; with boilerplate-dup, over-ceiling-growth, covered-export): heredocDelimiters is a second shell quote scanner beside splitSegments on purpose, reading whole lines so an apostrophe inside a here-document cannot join lines; a reviewer accepts the stated reason. Overturned from block at confirmation on 2026-10-14. Evidence: internal/tools/shelledit.go:108, internal/tools/longrunning.go:72."
+    metrics: []
+    provenance: confirmed
+    agent: true
+  - hash: 13e5c704143a9ca39cfd7f0e3ca16183d474b0c7
+    verdict: block
+    reason: "real (with over-ceiling-growth, boilerplate-dup, covered-export): The feature copies keptRows from driftRows, re-copies the path-set loop and a rel helper across structural and chat, and grows gitwrite.go and changeset.go past their ceilings in one go. Evidence: internal/ui/components/undo.go:123, internal/structural/gitwrite.go:404, internal/structural/gitwrite.go:579."
+    metrics: [dup_blocks, dup_blocks_cross_pkg, largest_file_sloc, sloc]
+    provenance: confirmed
+    agent: true
+  - hash: c5f3c628dac06a744a58f317d8d939e0500b6981
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: confirmed
+    agent: true
+  - hash: ac1110f4e05b34352d1bdb1e027ae248898169f3
+    verdict: block
+    reason: "real (with boilerplate-dup, over-ceiling-growth, covered-export): The new multi-file edit card's code went into the already-oversized approval.go rather than a file of its own; everything else is ordinary growth. Evidence: internal/ui/chat/approval.go:1930, internal/ui/chat/approval.go:1960, internal/tools/editacross.go:1."
+    metrics: [largest_file_sloc]
+    provenance: confirmed
+    agent: true
+  - hash: d22ee6b098469db1b2c7a5432b03f025f997e570
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: confirmed
+    agent: true
+  - hash: 12b5c978c21b92955a6f476160bc1c6569798b57
+    verdict: allow
+    reason: "touched no package: the commit changed no source file of a gated package, so there was nothing to gate."
+    provenance: confirmed
+    agent: true
+  - hash: 73d0c97855587e190d025965bc1a71e462c74087
+    verdict: allow
+    reason: "passed, outside the hand sample: the diff was not read and allow is assumed. New in the 2026-10-14 range, not in shhh-hand.yaml."
+    provenance: proposed
+    agent: true
+  - hash: af246d631fe5a2dddac592dad831b04954dde754
+    verdict: allow
+    reason: "passed, outside the hand sample: the diff was not read and allow is assumed; it changes only scripts/tui/readme-pictures.sh and carries no Co-Authored-By trailer. New in the 6dfcbc1 range of the min_tokens replays, not in shhh-hand-2026-10-14.yaml."
+    provenance: proposed
+    agent: false
+  - hash: 6dfcbc1bdb445b3380c91978a9dc6fa15ae4fde8
+    verdict: allow
+    reason: "passed, outside the hand sample: the diff was not read and allow is assumed; it changes only GIFs under docs/readme and carries no Co-Authored-By trailer. New in the 6dfcbc1 range of the min_tokens replays, not in shhh-hand-2026-10-14.yaml."
+    provenance: proposed
+    agent: false

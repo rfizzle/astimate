@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-14",
+  "totals": {
+    "commits": 60,
+    "loaded": 58,
+    "not_loaded": 2,
+    "passed": 35,
+    "failed": 23,
+    "package_rows": 203,
+    "wall_seconds": 72.599,
+    "written": 60,
+    "skipped": 0
+  },
+  "parallel": 1,
+  "source": {
+    "first": "59b3318550e87acd9e46b47555d1dde8a63c63d5",
+    "last": "6fe1121a16c08addd4c411296f7adb3b7d9a7211",
+    "module_dir": ".",
+    "range": "HEAD",
+    "remote": "git@gitlab.agodadev.io:Security/Architecture/ztp.git",
+    "repository": "ztp"
+  },
+  "tool": {
+    "astimate_commit": "astimate v0.3.0-34-g2f4a136",
+    "config": "/Users/copierson/Projects/astimate/.claude/worktrees/agent-ad9721aa6525e3b53/calibration/thresholds/astimate-min-tokens-120-2026-10-14.yaml",
+    "config_version": "min-tokens-120-2026-10-14",
+    "go": "go1.27.1-X:nodwarf5 linux/arm64",
+    "tokenizer": "est"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-14",
+  "totals": {
+    "commits": 60,
+    "loaded": 60,
+    "not_loaded": 0,
+    "passed": 43,
+    "failed": 17,
+    "package_rows": 171,
+    "wall_seconds": 999.876,
+    "written": 60,
+    "skipped": 0
+  },
+  "parallel": 1,
+  "source": {
+    "first": "6f84361cbdf562022be987eef59131907ea4c5f1",
+    "last": "6dfcbc1bdb445b3380c91978a9dc6fa15ae4fde8",
+    "module_dir": ".",
+    "range": "HEAD",
+    "remote": "github.com:rfizzle/shhh.git",
+    "repository": "shhh"
+  },
+  "tool": {
+    "astimate_commit": "astimate v0.3.0-34-g2f4a136",
+    "config": "/Users/copierson/Projects/astimate/.claude/worktrees/agent-ad9721aa6525e3b53/calibration/thresholds/astimate-min-tokens-120-2026-10-14.yaml",
+    "config_version": "min-tokens-120-2026-10-14",
+    "go": "go1.27.1-X:nodwarf5 linux/arm64",
+    "tokenizer": "est"
+  }
+}

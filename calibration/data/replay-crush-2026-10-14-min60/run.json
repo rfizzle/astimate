@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-14",
+  "totals": {
+    "commits": 60,
+    "loaded": 60,
+    "not_loaded": 0,
+    "passed": 43,
+    "failed": 17,
+    "package_rows": 84,
+    "wall_seconds": 413.295,
+    "written": 60,
+    "skipped": 0
+  },
+  "parallel": 1,
+  "source": {
+    "first": "63d73f7b4804453c39014040fba3ce188f6f2bf9",
+    "last": "6d14dd93a9e526505f7de54ae5999431bc32a793",
+    "module_dir": ".",
+    "range": "HEAD",
+    "remote": "https://github.com/charmbracelet/crush.git",
+    "repository": "crush"
+  },
+  "tool": {
+    "astimate_commit": "astimate v0.3.0-34-g2f4a136",
+    "config": "/Users/copierson/Projects/astimate/.claude/worktrees/agent-ad9721aa6525e3b53/calibration/thresholds/astimate-min-tokens-60-2026-10-14.yaml",
+    "config_version": "min-tokens-60-2026-10-14",
+    "go": "go1.27.1-X:nodwarf5 linux/arm64",
+    "tokenizer": "est"
+  }
+}
