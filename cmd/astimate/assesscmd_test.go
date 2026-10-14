@@ -12,6 +12,7 @@ import (
 	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/report"
+	"github.com/rfizzle/astimate/internal/report/details"
 	"github.com/rfizzle/astimate/internal/score"
 )
 
@@ -234,7 +235,7 @@ func TestAssessJSONDetails(t *testing.T) {
 	}
 	// The three copies of one block in dupes.go, files relative to the
 	// package directory.
-	wantDups := []report.Span{
+	wantDups := []details.Span{
 		{File: "dupes.go", StartLine: 9, EndLine: 26},
 		{File: "dupes.go", StartLine: 31, EndLine: 48},
 		{File: "dupes.go", StartLine: 53, EndLine: 70},
@@ -245,7 +246,7 @@ func TestAssessJSONDetails(t *testing.T) {
 	if r.Metrics.DupBlocks == 0 {
 		t.Error("dup_blocks = 0, want the fixture's duplicate block counted")
 	}
-	wantUntested := []report.Declaration{
+	wantUntested := []details.Declaration{
 		{Name: "CountVisits", File: "dupes.go", Line: 53},
 		{Name: "SumOrders", File: "dupes.go", Line: 9},
 		{Name: "TallyScores", File: "dupes.go", Line: 31},

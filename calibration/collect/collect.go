@@ -19,7 +19,7 @@ import (
 	"github.com/rfizzle/astimate/internal/engine"
 	"github.com/rfizzle/astimate/internal/lang/golang"
 	"github.com/rfizzle/astimate/internal/metrics"
-	"github.com/rfizzle/astimate/internal/report"
+	"github.com/rfizzle/astimate/internal/report/rows"
 )
 
 // Row is one pooled package: a line of packages.jsonl.
@@ -50,10 +50,10 @@ type Row struct {
 }
 
 // newRow estimates m under cfg and returns its pooled row, rounded the way
-// report.NewRow rounds the rank output, with fns counted into
+// rows.NewRow rounds the rank output, with fns counted into
 // FuncCognitive.
 func newRow(module, commit, pkg string, m *metrics.RawMetrics, fns []metrics.FunctionInfo, cfg *config.Config) Row {
-	r := report.NewRow(pkg, m, cfg.Rebuild)
+	r := rows.NewRow(pkg, m, cfg.Rebuild)
 	return Row{
 		Module:        module,
 		Commit:        commit,

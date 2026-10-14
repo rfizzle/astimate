@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/report"
+	"github.com/rfizzle/astimate/internal/report/rows"
 )
 
 // tsFixtureDir is the TypeScript fixture module, relative to this package's
@@ -29,18 +30,18 @@ func TestTypeScriptRank(t *testing.T) {
 	if got := run(args, &stdout, &stderr); got != exitOK {
 		t.Fatalf("run(%q) exit code = %d, want %d; stderr = %q", args, got, exitOK, stderr.String())
 	}
-	var rows []report.Row
+	var ranked []rows.Row
 	dec := json.NewDecoder(bytes.NewReader(stdout.Bytes()))
 	dec.DisallowUnknownFields()
-	if err := dec.Decode(&rows); err != nil {
+	if err := dec.Decode(&ranked); err != nil {
 		t.Fatalf("decoding rows: %v\n%s", err, stdout.String())
 	}
-	if got := sorted(rowPaths(rows)...); !slices.Equal(got, tsFixturePackages()) {
+	if got := sorted(rowPaths(ranked)...); !slices.Equal(got, tsFixturePackages()) {
 		t.Errorf("rows = %q, want one per TypeScript fixture package %q", got, tsFixturePackages())
 	}
-	for i := range rows {
-		if rows[i].Path == "hub" && rows[i].FanIn != 4 {
-			t.Errorf("hub fan_in = %d, want 4", rows[i].FanIn)
+	for i := range ranked {
+		if ranked[i].Path == "hub" && ranked[i].FanIn != 4 {
+			t.Errorf("hub fan_in = %d, want 4", ranked[i].FanIn)
 		}
 	}
 }

@@ -10,7 +10,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/rfizzle/astimate/internal/engine"
-	"github.com/rfizzle/astimate/internal/report"
+	"github.com/rfizzle/astimate/internal/report/rows"
 )
 
 // callRank calls rank_packages with in and returns the result.
@@ -56,14 +56,14 @@ func TestRankPackagesTool(t *testing.T) {
 		in        map[string]any
 		wantRows  int
 		wantFirst string
-		sorted    func(a, b report.Row) bool
+		sorted    func(a, b rows.Row) bool
 	}{
 		{name: "default sort", in: map[string]any{}, wantRows: 12,
-			sorted: func(a, b report.Row) bool { return a.AgentPasses >= b.AgentPasses }},
+			sorted: func(a, b rows.Row) bool { return a.AgentPasses >= b.AgentPasses }},
 		{name: "duplication", in: map[string]any{"sort": "duplication"}, wantRows: 12, wantFirst: "dupes",
-			sorted: func(a, b report.Row) bool { return a.DuplicationPct >= b.DuplicationPct }},
+			sorted: func(a, b rows.Row) bool { return a.DuplicationPct >= b.DuplicationPct }},
 		{name: "top two", in: map[string]any{"top": 2, "module_root": "."}, wantRows: 2,
-			sorted: func(a, b report.Row) bool { return a.AgentPasses >= b.AgentPasses }},
+			sorted: func(a, b rows.Row) bool { return a.AgentPasses >= b.AgentPasses }},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -141,12 +141,12 @@ func TestRankPackagesToolErrors(t *testing.T) {
 func TestRankOutputPartialFailure(t *testing.T) {
 	t.Parallel()
 
-	rows := []report.Row{{Path: "a", AgentPasses: 1.5, Tier: "ONE_PASS"}}
+	ranked := []rows.Row{{Path: "a", AgentPasses: 1.5, Tier: "ONE_PASS"}}
 	failed := []error{
 		&engine.PackageError{Path: "broken", Err: errors.New("type-checking: undefined: x")},
 		errors.New("bare failure"),
 	}
-	text, res, err := rankOutput(rows, failed)
+	text, res, err := rankOutput(ranked, failed)
 	if err != nil {
 		t.Fatal(err)
 	}

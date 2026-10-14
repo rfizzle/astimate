@@ -12,6 +12,8 @@ import (
 	"github.com/rfizzle/astimate/internal/engine/internal/judge"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/report"
+	"github.com/rfizzle/astimate/internal/report/details"
+	"github.com/rfizzle/astimate/internal/report/rows"
 )
 
 // DefaultBaselinePath is where WriteBaseline writes, relative to the module
@@ -52,7 +54,7 @@ type AssessOptions struct {
 
 // RankOptions shape Rank's rows.
 type RankOptions struct {
-	// Sort is the sort key, one of report.SortKeys.
+	// Sort is the sort key, one of rows.SortKeys.
 	Sort string
 	// Top keeps only the first Top rows; 0 or less keeps every row.
 	Top int
@@ -105,19 +107,19 @@ func Assess(ctx context.Context, t *Target, opts AssessOptions) (*report.Report,
 
 // details returns the report details block of d, with cross-package
 // occurrences named by their module-relative package path.
-func (t *Target) details(d *metrics.Details) *report.Details {
-	return report.NewDetails(d, func(pkg string) string { return judge.Rel(t.Mod.ModulePath, pkg) })
+func (t *Target) details(d *metrics.Details) *details.Details {
+	return details.NewDetails(d, func(pkg string) string { return judge.Rel(t.Mod.ModulePath, pkg) })
 }
 
 // Rank lists the packages of t's module with one Packages call, extracts
 // and estimates each, then sorts and truncates the rows. It returns an
 // error when listing fails or opts.Sort is not a sort key (wrapping
-// report.ErrUnknownSortKey). A package that fails to extract is logged,
+// rows.ErrUnknownSortKey). A package that fails to extract is logged,
 // left out of the rows and returned as a *PackageError in failed. With
 // opts.Coverage every extracted package's coverage is measured in one run
 // (measureCoverage) before the rows are estimated; every package's churn
 // is read from one history walk (MeasureChurn), for the CHURN column.
-func Rank(ctx context.Context, t *Target, opts RankOptions) (rows []report.Row, failed []error, err error) {
+func Rank(ctx context.Context, t *Target, opts RankOptions) (ranked []rows.Row, failed []error, err error) {
 	pkgs, err := t.Ext.Packages(t.Mod.Root)
 	if err != nil {
 		return nil, nil, err
@@ -139,17 +141,17 @@ func Rank(ctx context.Context, t *Target, opts RankOptions) (rows []report.Row, 
 	}
 	measureCoverage(ctx, t, opts.Coverage, extracted, order)
 	fillChurn(ctx, t, extracted)
-	rows = make([]report.Row, 0, len(order))
+	ranked = make([]rows.Row, 0, len(order))
 	for _, pkg := range order {
-		rows = append(rows, report.NewRow(judge.Rel(t.Mod.ModulePath, pkg), extracted[pkg], params))
+		ranked = append(ranked, rows.NewRow(judge.Rel(t.Mod.ModulePath, pkg), extracted[pkg], params))
 	}
-	if err := report.SortRows(rows, opts.Sort); err != nil {
+	if err := rows.SortRows(ranked, opts.Sort); err != nil {
 		return nil, failed, err
 	}
-	if opts.Top > 0 && opts.Top < len(rows) {
-		rows = rows[:opts.Top]
+	if opts.Top > 0 && opts.Top < len(ranked) {
+		ranked = ranked[:opts.Top]
 	}
-	return rows, failed, nil
+	return ranked, failed, nil
 }
 
 // WriteBaseline extracts every package of t's module and writes them as a

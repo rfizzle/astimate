@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/rfizzle/astimate/internal/engine"
-	"github.com/rfizzle/astimate/internal/report"
+	"github.com/rfizzle/astimate/internal/report/rows"
 )
 
 // runRank ranks every package of a module: `rank [<module-root>] [--json]
@@ -25,16 +25,16 @@ func runRank(args []string, stdout, stderr io.Writer) int {
 		"[--coverage] [--coverage-timeout 2m]", stderr)
 	asJSON := fs.Bool("json", false, "print a JSON array instead of the table")
 	top := fs.Int("top", 0, "print only the first N rows (0 prints all)")
-	sortKey := fs.String("sort", report.SortPasses, "sort key: "+strings.Join(report.SortKeys(), ", "))
+	sortKey := fs.String("sort", rows.SortPasses, "sort key: "+strings.Join(rows.SortKeys(), ", "))
 	var tf targetFlags
 	tf.register(fs, true)
 	dir, ok := parseModuleArgs("rank", fs, args, stderr)
 	if !ok {
 		return exitUsage
 	}
-	if !slices.Contains(report.SortKeys(), *sortKey) {
+	if !slices.Contains(rows.SortKeys(), *sortKey) {
 		_, _ = fmt.Fprintf(stderr, "astimate: rank: unknown sort key %q: want one of %s\n",
-			*sortKey, strings.Join(report.SortKeys(), ", "))
+			*sortKey, strings.Join(rows.SortKeys(), ", "))
 		return exitUsage
 	}
 	if *top < 0 {
@@ -63,8 +63,8 @@ func runRank(args []string, stdout, stderr io.Writer) int {
 func rankTarget(ctx context.Context, t *engine.Target, opts engine.RankOptions, asJSON bool,
 	stdout io.Writer, logger *slog.Logger,
 ) int {
-	rows, failed, err := engine.Rank(ctx, t, opts)
-	if errors.Is(err, report.ErrUnknownSortKey) {
+	ranked, failed, err := engine.Rank(ctx, t, opts)
+	if errors.Is(err, rows.ErrUnknownSortKey) {
 		logger.Error("rank failed", "err", err)
 		return exitUsage
 	}
@@ -75,9 +75,9 @@ func rankTarget(ctx context.Context, t *engine.Target, opts engine.RankOptions, 
 
 	err = writeBuffered(stdout, func(w io.Writer) error {
 		if asJSON {
-			return report.WriteRowsJSON(w, rows)
+			return rows.WriteRowsJSON(w, ranked)
 		}
-		return report.WriteRowsTable(w, rows)
+		return rows.WriteRowsTable(w, ranked)
 	})
 	if err != nil {
 		logger.Error("rank failed", "root", t.Mod.Root, "err", err)

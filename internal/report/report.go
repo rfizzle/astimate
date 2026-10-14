@@ -7,6 +7,7 @@ import (
 	"math"
 
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/report/details"
 	"github.com/rfizzle/astimate/internal/score"
 )
 
@@ -61,7 +62,7 @@ type Report struct {
 	// Details names and locates what some of the metrics count, from the
 	// extractor's metrics.Details (see NewDetails); nil (omitted) when the
 	// extractor records none or the row has nothing to show.
-	Details *Details `json:"details,omitempty"`
+	Details *details.Details `json:"details,omitempty"`
 	// AstimateVersion is the version of the binary that produced the report.
 	AstimateVersion string `json:"astimate_version"`
 	// ConfigVersion is the config_version of the configuration used.

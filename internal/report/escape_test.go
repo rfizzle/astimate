@@ -8,6 +8,7 @@ import (
 
 	"github.com/rfizzle/astimate/internal/gate"
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/report/rows"
 )
 
 // arrow is a suggestion that HTML escaping would turn into
@@ -40,7 +41,7 @@ func TestJSONWritersDoNotEscapeHTML(t *testing.T) {
 			return WriteJSON(w, &r)
 		}},
 		{"WriteRowsJSON", func(w io.Writer) error {
-			return WriteRowsJSON(w, []Row{{Path: arrow}})
+			return rows.WriteRowsJSON(w, []rows.Row{{Path: arrow}})
 		}},
 		{"WriteCheckJSON", func(w io.Writer) error {
 			return WriteCheckJSON(w, arrowCheck())

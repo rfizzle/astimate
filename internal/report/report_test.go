@@ -8,6 +8,8 @@ import (
 
 	"github.com/rfizzle/astimate/internal/gate"
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/report/details"
+	"github.com/rfizzle/astimate/internal/report/rows"
 	"github.com/rfizzle/astimate/internal/score"
 )
 
@@ -79,7 +81,7 @@ func TestReportOptionalKeys(t *testing.T) {
 			mutate: func(r *Report) {
 				r.Violations = []Finding{{Metric: "dup_blocks", Head: 4, Limit: "max_delta +0",
 					Location: &Location{File: "internal/billing/dupes.go", Line: 12}}}
-				r.Details = &Details{LargestFile: "billing.go"}
+				r.Details = &details.Details{LargestFile: "billing.go"}
 			},
 			wantKeys: []string{`"location": {`, `"file": "internal/billing/dupes.go"`, `"line": 12`,
 				`"details": {`, `"largest_file": "billing.go"`},
@@ -174,7 +176,7 @@ func TestTextEmptyModulePath(t *testing.T) {
 		}},
 		{name: "rows table empty", write: func(b *bytes.Buffer, r Report) error {
 			m := workedExample()
-			return WriteRowsTable(b, []Row{NewRow(r.PackagePath, &m, params())})
+			return rows.WriteRowsTable(b, []rows.Row{rows.NewRow(r.PackagePath, &m, params())})
 		}},
 	}
 	for _, tt := range tests {

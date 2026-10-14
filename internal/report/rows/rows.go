@@ -1,11 +1,13 @@
-package report
+package rows
 
 import (
 	"bufio"
 	"cmp"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"slices"
 	"strconv"
 	"strings"
@@ -60,7 +62,7 @@ func NewRow(path string, m *metrics.RawMetrics, p score.RebuildParams) Row {
 	return Row{
 		Path:           path,
 		AgentPasses:    est.AgentPassesRounded(),
-		HumanDays:      round1(est.HumanDays),
+		HumanDays:      math.Round(est.HumanDays*10) / 10,
 		Tier:           score.TierOf(est.AgentPasses, p.Tiers),
 		FanIn:          m.FanIn,
 		TokensEst:      m.TokensEst,
@@ -117,7 +119,9 @@ func WriteRowsJSON(w io.Writer, rows []Row) error {
 	if rows == nil {
 		rows = []Row{}
 	}
-	enc := newEncoder(w, "  ")
+	enc := json.NewEncoder(w)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
 	if err := enc.Encode(rows); err != nil {
 		return fmt.Errorf("writing json ranking: %w", err)
 	}

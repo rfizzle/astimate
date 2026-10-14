@@ -19,6 +19,7 @@ import (
 	"github.com/rfizzle/astimate/internal/gate"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/report"
+	"github.com/rfizzle/astimate/internal/report/details"
 	"github.com/rfizzle/astimate/internal/score"
 )
 
@@ -268,8 +269,8 @@ func (c *Checker) row(path string, m, gm metrics.RawMetrics, bm, gb *metrics.Raw
 
 // details returns d as the report's details block, with package
 // identifiers made module-relative.
-func (c *Checker) details(d *metrics.Details) *report.Details {
-	return report.NewDetails(d, func(pkg string) string { return Rel(c.o.Mod.ModulePath, pkg) })
+func (c *Checker) details(d *metrics.Details) *details.Details {
+	return details.NewDetails(d, func(pkg string) string { return Rel(c.o.Mod.ModulePath, pkg) })
 }
 
 // changedFunctions diffs pkg's functions at head against those of row, its

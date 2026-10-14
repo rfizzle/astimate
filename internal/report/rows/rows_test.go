@@ -1,4 +1,4 @@
-package report
+package rows
 
 import (
 	"bytes"
@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/score"
 )
 
@@ -130,5 +131,20 @@ func TestWriteRowsTable(t *testing.T) {
 	}, "\n")
 	if got := buf.String(); got != want {
 		t.Errorf("WriteRowsTable =\n%s\nwant:\n%s", got, want)
+	}
+}
+
+func params() score.RebuildParams {
+	return score.RebuildParams{
+		ContextBudget: 25000, TokensPerExport: 40, TokensPerUntestedExport: 800, TokensPerHiddenState: 400,
+		SuperlinearExponent: 1.3, CocomoA: 2.4, CocomoB: 1.05, DaysPerMonth: 19,
+		Tiers: score.Tiers{OnePassMax: 1, FewPassesMax: 3},
+	}
+}
+
+func workedExample() metrics.RawMetrics {
+	return metrics.RawMetrics{
+		SLOC: 1200, TokensEst: 10000, TokensEstWithTests: 16000, DuplicationPct: 20,
+		ExportedSymbols: 30, UntestedExports: 15, Globals: 2, InitFuncs: 1,
 	}
 }

@@ -1,4 +1,4 @@
-package report
+package details
 
 import (
 	"strconv"

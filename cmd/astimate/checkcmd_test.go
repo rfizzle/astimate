@@ -24,6 +24,7 @@ import (
 	"github.com/rfizzle/astimate/internal/lang/golang"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/report"
+	"github.com/rfizzle/astimate/internal/report/details"
 )
 
 // Fixture copies relative to this package's directory; see testdata/go.
@@ -225,7 +226,7 @@ func TestCheckFixtures(t *testing.T) {
 						t.Errorf("tested: changed_func_cognitive_max %d with cognitive_p90 %d", *got, r.Metrics.CognitiveP90)
 					}
 					if failing {
-						want := report.Global{Name: degradedGlobal, File: "degraded.go", Line: 9}
+						want := details.Global{Name: degradedGlobal, File: "degraded.go", Line: 9}
 						if r.Details == nil || !slices.Contains(r.Details.Globals, want) {
 							t.Errorf("tested details = %+v, want globals to hold %+v", r.Details, want)
 						}
@@ -596,7 +597,7 @@ func TestCheckJSONModuleLocation(t *testing.T) {
 	if l := m.Violations[0].Location; l == nil || *l != (report.Location{File: "a/a.go", Line: 7}) {
 		t.Errorf("module finding location = %+v, want a/a.go line 7", l)
 	}
-	want := []report.CrossOccurrence{
+	want := []details.CrossOccurrence{
 		{Package: "a", File: "a/a.go", StartLine: 7, EndLine: 23},
 		{Package: "b", File: "b/b.go", StartLine: 13, EndLine: 29},
 	}

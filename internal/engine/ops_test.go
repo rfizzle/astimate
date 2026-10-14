@@ -14,7 +14,7 @@ import (
 	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/metrics/metricstest"
-	"github.com/rfizzle/astimate/internal/report"
+	"github.com/rfizzle/astimate/internal/report/rows"
 	"github.com/rfizzle/astimate/internal/score"
 )
 
@@ -66,10 +66,10 @@ func fakeTarget(fail string) *Target {
 	}
 }
 
-func rowPaths(rows []report.Row) []string {
-	out := make([]string, 0, len(rows))
-	for i := range rows {
-		out = append(out, rows[i].Path)
+func rowPaths(ranked []rows.Row) []string {
+	out := make([]string, 0, len(ranked))
+	for i := range ranked {
+		out = append(out, ranked[i].Path)
 	}
 	return out
 }
@@ -94,11 +94,11 @@ func TestRank(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			rows, failed, err := Rank(t.Context(), fakeTarget(tt.fail), RankOptions{Sort: report.SortPasses, Top: tt.top})
+			ranked, failed, err := Rank(t.Context(), fakeTarget(tt.fail), RankOptions{Sort: rows.SortPasses, Top: tt.top})
 			if err != nil {
 				t.Fatalf("Rank: %v", err)
 			}
-			if got := rowPaths(rows); !slices.Equal(got, tt.wantPaths) {
+			if got := rowPaths(ranked); !slices.Equal(got, tt.wantPaths) {
 				t.Errorf("rows = %q, want %q", got, tt.wantPaths)
 			}
 			var gotFailed []string
@@ -118,8 +118,8 @@ func TestRank(t *testing.T) {
 	t.Run("unknown sort key", func(t *testing.T) {
 		t.Parallel()
 
-		if _, _, err := Rank(t.Context(), fakeTarget(""), RankOptions{Sort: "nope"}); !errors.Is(err, report.ErrUnknownSortKey) {
-			t.Errorf("Rank error = %v, want report.ErrUnknownSortKey", err)
+		if _, _, err := Rank(t.Context(), fakeTarget(""), RankOptions{Sort: "nope"}); !errors.Is(err, rows.ErrUnknownSortKey) {
+			t.Errorf("Rank error = %v, want rows.ErrUnknownSortKey", err)
 		}
 	})
 	t.Run("list failure", func(t *testing.T) {
@@ -127,8 +127,8 @@ func TestRank(t *testing.T) {
 
 		tg := fakeTarget("")
 		tg.Mod.Root = "/elsewhere"
-		if rows, _, err := Rank(t.Context(), tg, RankOptions{Sort: report.SortPasses}); err == nil || rows != nil {
-			t.Errorf("Rank = (%v, %v), want no rows and an error", rows, err)
+		if ranked, _, err := Rank(t.Context(), tg, RankOptions{Sort: rows.SortPasses}); err == nil || ranked != nil {
+			t.Errorf("Rank = (%v, %v), want no rows and an error", ranked, err)
 		}
 	})
 }
@@ -265,7 +265,7 @@ func TestGoExtractorBoundary(t *testing.T) {
 	if err != nil {
 		t.Fatalf("go list: %v", err)
 	}
-	forbidden := []string{"/internal/engine", "/internal/report", "/internal/gate", "/internal/score", "/internal/config"}
+	forbidden := []string{"/internal/engine", "/internal/report", "/internal/report/rows", "/internal/report/details", "/internal/gate", "/internal/score", "/internal/config"}
 	for dep := range strings.FieldsSeq(string(out)) {
 		for _, f := range forbidden {
 			if strings.HasSuffix(dep, f) {

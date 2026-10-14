@@ -9,12 +9,13 @@ import (
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/report"
+	"github.com/rfizzle/astimate/internal/report/details"
 )
 
 // wantDupesFunctions are the functions of the fixture's dupes package with
 // the cyclomatic complexity gocyclo gives each (testdata/go/fixture/golden/COUNTING.md).
-func wantDupesFunctions() []report.Function {
-	return []report.Function{
+func wantDupesFunctions() []details.Function {
+	return []details.Function{
 		{Name: "SumOrders", File: "dupes.go", Line: 9, Cyclomatic: 5},
 		{Name: "TallyScores", File: "dupes.go", Line: 31, Cyclomatic: 5},
 		{Name: "CountVisits", File: "dupes.go", Line: 53, Cyclomatic: 5},

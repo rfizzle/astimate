@@ -429,6 +429,8 @@ internal/gate/                  Thresholds and evaluation
 internal/baseline/              Git-ref and file baselines
 internal/churn/                 Churn per package from one git log over a window of commits
 internal/report/                Output formats
+internal/report/rows/           Rank rows and their writers
+internal/report/details/        The details block of a report
 internal/replay/                The gate over a repository's history (dryrun and the calibration replay)
 internal/gocache/               A per-run Go build cache (dryrun and the calibration commands)
 internal/mcpserver/             MCP server

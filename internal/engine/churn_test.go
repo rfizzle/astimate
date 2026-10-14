@@ -10,7 +10,7 @@ import (
 	"github.com/rfizzle/astimate/internal/baseline"
 	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/metrics"
-	"github.com/rfizzle/astimate/internal/report"
+	"github.com/rfizzle/astimate/internal/report/rows"
 )
 
 // churnRepo is a module with two packages and three commits: the first
@@ -52,8 +52,8 @@ func churnTarget(t *testing.T, dir string, window int) *Target {
 
 // churnOf returns the churn of the row of rows at path as "commits/authors",
 // "null" when it was not measured.
-func churnOf(rows []report.Row, path string) string {
-	for _, r := range rows {
+func churnOf(ranked []rows.Row, path string) string {
+	for _, r := range ranked {
 		if r.Path == path {
 			if r.ChurnCommits == nil {
 				return "null"
@@ -88,13 +88,13 @@ func TestChurn(t *testing.T) {
 			{window: 0, wantA: "null", wantB: "null", wantFirst: "a"},
 		}
 		for _, tt := range tests {
-			rows, failed, err := Rank(t.Context(), churnTarget(t, dir, tt.window), RankOptions{Sort: report.SortChurn})
+			ranked, failed, err := Rank(t.Context(), churnTarget(t, dir, tt.window), RankOptions{Sort: rows.SortChurn})
 			if err != nil || len(failed) > 0 {
 				t.Fatalf("window %d: Rank: %v, failed %v", tt.window, err, failed)
 			}
-			if a, b := churnOf(rows, "a"), churnOf(rows, "b"); a != tt.wantA || b != tt.wantB || rows[0].Path != tt.wantFirst {
+			if a, b := churnOf(ranked, "a"), churnOf(ranked, "b"); a != tt.wantA || b != tt.wantB || ranked[0].Path != tt.wantFirst {
 				t.Errorf("window %d: churn a %s, b %s, first %s; want %s, %s, %s",
-					tt.window, a, b, rows[0].Path, tt.wantA, tt.wantB, tt.wantFirst)
+					tt.window, a, b, ranked[0].Path, tt.wantA, tt.wantB, tt.wantFirst)
 			}
 		}
 	})

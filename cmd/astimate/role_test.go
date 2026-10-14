@@ -12,6 +12,7 @@ import (
 	"github.com/rfizzle/astimate/internal/baseline"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/report"
+	"github.com/rfizzle/astimate/internal/report/rows"
 )
 
 // rolesModule writes a module of twelve leaf packages p01 to p12, a
@@ -100,12 +101,12 @@ func TestCheckRoleInternalImports(t *testing.T) {
 	if code := run([]string{"rank", root, "--json"}, &out, &errOut); code != exitOK {
 		t.Fatalf("rank exit code = %d, stderr = %q", code, errOut.String())
 	}
-	var rows []report.Row
-	if err := json.Unmarshal(out.Bytes(), &rows); err != nil {
+	var ranked []rows.Row
+	if err := json.Unmarshal(out.Bytes(), &ranked); err != nil {
 		t.Fatal(err)
 	}
 	roles := map[string]string{}
-	for _, r := range rows {
+	for _, r := range ranked {
 		roles[r.Path] = r.Role
 	}
 	if roles["cmd/app"] != "main" || roles["wire"] != "library" {

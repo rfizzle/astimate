@@ -17,48 +17,48 @@ import (
 	"github.com/rfizzle/astimate/internal/engine"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/metrics/metricstest"
-	"github.com/rfizzle/astimate/internal/report"
+	"github.com/rfizzle/astimate/internal/report/rows"
 	"github.com/rfizzle/astimate/internal/score"
 )
 
 // runRankJSON runs `astimate rank --json` on the fixture with extra args and
 // decodes the rows, failing the test on a non-zero exit.
-func runRankJSON(t *testing.T, extra ...string) []report.Row {
+func runRankJSON(t *testing.T, extra ...string) []rows.Row {
 	t.Helper()
 	args := append([]string{"rank", fixtureDir, "--json"}, extra...)
 	var stdout, stderr bytes.Buffer
 	if got := run(args, &stdout, &stderr); got != exitOK {
 		t.Fatalf("run(%q) exit code = %d, want %d; stderr = %q", args, got, exitOK, stderr.String())
 	}
-	var rows []report.Row
+	var ranked []rows.Row
 	dec := json.NewDecoder(bytes.NewReader(stdout.Bytes()))
 	dec.DisallowUnknownFields()
-	if err := dec.Decode(&rows); err != nil {
+	if err := dec.Decode(&ranked); err != nil {
 		t.Fatalf("decoding rows: %v\n%s", err, stdout.String())
 	}
-	return rows
+	return ranked
 }
 
-func rowPaths(rows []report.Row) []string {
-	out := make([]string, 0, len(rows))
-	for i := range rows {
-		out = append(out, rows[i].Path)
+func rowPaths(ranked []rows.Row) []string {
+	out := make([]string, 0, len(ranked))
+	for i := range ranked {
+		out = append(out, ranked[i].Path)
 	}
 	return out
 }
 
 // sortValue is the value --sort key orders rows by.
-func sortValue(r *report.Row, key string) float64 {
+func sortValue(r *rows.Row, key string) float64 {
 	switch key {
-	case report.SortDays:
+	case rows.SortDays:
 		return r.HumanDays
-	case report.SortFanIn:
+	case rows.SortFanIn:
 		return float64(r.FanIn)
-	case report.SortTokens:
+	case rows.SortTokens:
 		return float64(r.TokensEst)
-	case report.SortDuplication:
+	case rows.SortDuplication:
 		return r.DuplicationPct
-	case report.SortChurn:
+	case rows.SortChurn:
 		if r.ChurnCommits == nil {
 			return -1
 		}
@@ -71,22 +71,22 @@ func sortValue(r *report.Row, key string) float64 {
 func TestRankSortKeys(t *testing.T) {
 	t.Parallel()
 
-	for _, key := range report.SortKeys() {
+	for _, key := range rows.SortKeys() {
 		t.Run(key, func(t *testing.T) {
 			t.Parallel()
 
-			rows := runRankJSON(t, "--sort", key)
-			if got := rowPaths(rows); !slices.Equal(sorted(got...), fixturePackages()) {
+			ranked := runRankJSON(t, "--sort", key)
+			if got := rowPaths(ranked); !slices.Equal(sorted(got...), fixturePackages()) {
 				t.Fatalf("rows = %q, want one per fixture package %q", got, fixturePackages())
 			}
-			ordered := slices.IsSortedFunc(rows, func(a, b report.Row) int {
+			ordered := slices.IsSortedFunc(ranked, func(a, b rows.Row) int {
 				if c := cmp.Compare(sortValue(&b, key), sortValue(&a, key)); c != 0 {
 					return c
 				}
 				return strings.Compare(a.Path, b.Path)
 			})
 			if !ordered {
-				t.Errorf("rows %q are not sorted by %s descending with path ascending", rowPaths(rows), key)
+				t.Errorf("rows %q are not sorted by %s descending with path ascending", rowPaths(ranked), key)
 			}
 		})
 	}
@@ -120,13 +120,13 @@ func TestRankTop(t *testing.T) {
 		t.Run(strconv.Itoa(n), func(t *testing.T) {
 			t.Parallel()
 
-			rows := runRankJSON(t, "--top", strconv.Itoa(n))
+			ranked := runRankJSON(t, "--top", strconv.Itoa(n))
 			want := min(len(all), n)
-			if len(rows) != want {
-				t.Fatalf("--top %d returned %d rows, want %d", n, len(rows), want)
+			if len(ranked) != want {
+				t.Fatalf("--top %d returned %d rows, want %d", n, len(ranked), want)
 			}
-			if !reflect.DeepEqual(rows, all[:want]) {
-				t.Errorf("--top %d rows = %q, want the first %d of %q", n, rowPaths(rows), want, rowPaths(all))
+			if !reflect.DeepEqual(ranked, all[:want]) {
+				t.Errorf("--top %d rows = %q, want the first %d of %q", n, rowPaths(ranked), want, rowPaths(all))
 			}
 		})
 	}
@@ -232,7 +232,7 @@ func TestRankModulePartialFailure(t *testing.T) {
 			var stdout, stderr bytes.Buffer
 			logger := slog.New(slog.NewTextHandler(&stderr, nil))
 			tg := &engine.Target{Mod: mod, Ext: ext, Cfg: &config.Config{Rebuild: rankParams()}, Logger: logger}
-			got := rankTarget(context.Background(), tg, engine.RankOptions{Sort: report.SortPasses}, true, &stdout, logger)
+			got := rankTarget(context.Background(), tg, engine.RankOptions{Sort: rows.SortPasses}, true, &stdout, logger)
 			if got != tt.wantCode {
 				t.Errorf("rankTarget exit code = %d, want %d; stderr = %q", got, tt.wantCode, stderr.String())
 			}
@@ -249,11 +249,11 @@ func TestRankModulePartialFailure(t *testing.T) {
 				}
 			}
 
-			var rows []report.Row
-			if err := json.Unmarshal(stdout.Bytes(), &rows); err != nil {
+			var ranked []rows.Row
+			if err := json.Unmarshal(stdout.Bytes(), &ranked); err != nil {
 				t.Fatalf("decoding rows: %v\n%s", err, stdout.String())
 			}
-			if got := rowPaths(rows); !slices.Equal(got, tt.wantPaths) {
+			if got := rowPaths(ranked); !slices.Equal(got, tt.wantPaths) {
 				t.Errorf("rows = %q, want %q", got, tt.wantPaths)
 			}
 			if tt.fail != "" && (!strings.Contains(stderr.String(), "path=broken") ||
@@ -272,7 +272,7 @@ func TestRankModuleListFailure(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&stderr, nil))
 	tg := &engine.Target{Mod: mod, Ext: ext, Cfg: &config.Config{Rebuild: rankParams()}, Logger: logger}
-	got := rankTarget(context.Background(), tg, engine.RankOptions{Sort: report.SortPasses}, false, &stdout, logger)
+	got := rankTarget(context.Background(), tg, engine.RankOptions{Sort: rows.SortPasses}, false, &stdout, logger)
 	if got != exitAnalysis || stdout.Len() != 0 {
 		t.Errorf("rankTarget = %d with stdout %q, want %d and empty stdout", got, stdout.String(), exitAnalysis)
 	}

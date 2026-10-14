@@ -104,6 +104,8 @@ astimate/
 │   │   └── internal/diff/       # git primitives: changed packages, staged index, rename detection
 │   ├── churn/                   # Churn per package: one git log over the window, attributed by module-relative directory
 │   ├── report/                  # JSON, text and hook output shaping
+│   │   ├── rows/                # Rank rows: sort keys, JSON and table writers
+│   │   └── details/             # The details block of a report: duplicates, untested exports, globals, functions
 │   ├── gocache/                 # A per-run Go build cache for runs that build many commits (dryrun, calibration)
 │   ├── replay/                  # The gate over a repository's history in temporary worktrees (dryrun, calibration replay)
 │   │   └── summary/             # dryrun's summary, row output and suggested configuration

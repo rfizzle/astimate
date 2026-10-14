@@ -14,7 +14,7 @@ import (
 	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/metrics/metricstest"
-	"github.com/rfizzle/astimate/internal/report"
+	"github.com/rfizzle/astimate/internal/report/rows"
 )
 
 // measuringExtractor wraps an extractor with a canned CoverageMeasurer,
@@ -98,14 +98,14 @@ func TestRankCoverage(t *testing.T) {
 				me.Extractor = e
 				return me
 			})
-			rows, failed, err := Rank(t.Context(), tg, RankOptions{Sort: report.SortPasses, Coverage: tt.opts})
+			ranked, failed, err := Rank(t.Context(), tg, RankOptions{Sort: rows.SortPasses, Coverage: tt.opts})
 			if err != nil || len(failed) > 0 {
 				t.Fatalf("Rank: %v %v", err, failed)
 			}
 			if !slices.EqualFunc(me.calls, tt.wantCalls, slices.Equal) {
 				t.Errorf("Coverage calls = %v, want %v", me.calls, tt.wantCalls)
 			}
-			for _, r := range rows {
+			for _, r := range ranked {
 				if r.Path == "good" && (r.AgentPasses < tt.wantGood-1e-9 || r.AgentPasses > tt.wantGood+1e-9) {
 					t.Errorf("good agent_passes = %v, want %v", r.AgentPasses, tt.wantGood)
 				}

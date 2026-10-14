@@ -11,7 +11,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/rfizzle/astimate/internal/engine"
-	"github.com/rfizzle/astimate/internal/report"
+	"github.com/rfizzle/astimate/internal/report/rows"
 )
 
 // rankToolName is the name the rank tool is registered under (SPEC.md
@@ -32,7 +32,7 @@ type RankInput struct {
 	ModuleRoot string `json:"module_root,omitempty" jsonschema:"Directory of the module to rank (or any directory inside it), relative to the server's working directory or absolute. Defaults to the working directory."`
 	// Top keeps only the first Top rows; 0 keeps every row.
 	Top int `json:"top,omitempty" jsonschema:"Return only the first top rows after sorting. 0 or omitted returns every package."`
-	// Sort is the sort key, one of report.SortKeys.
+	// Sort is the sort key, one of rows.SortKeys.
 	Sort string `json:"sort,omitempty" jsonschema:"Sort key, descending: passes (default), days, fan_in, tokens, duplication or churn (churn_commits)."`
 	// Coverage measures coverage_pct for every package (engine.RankOptions.Coverage).
 	Coverage bool `json:"coverage,omitempty" jsonschema:"Run the module's tests with go test -cover and scale each estimate's unspecified term by the package's coverage. Slower. Defaults to false."`
@@ -46,7 +46,7 @@ type rankFailure struct {
 
 // rankResult is the structured content of a successful rank_packages call.
 type rankResult struct {
-	Rows   []report.Row  `json:"rows"`
+	Rows   []rows.Row    `json:"rows"`
 	Failed []rankFailure `json:"failed"`
 }
 
@@ -81,11 +81,11 @@ func (s *session) rankPackages(ctx context.Context, _ *mcp.CallToolRequest, in R
 func (s *session) runRank(ctx context.Context, in RankInput) (string, rankResult, error) {
 	key := in.Sort
 	if key == "" {
-		key = report.SortPasses
+		key = rows.SortPasses
 	}
-	if !slices.Contains(report.SortKeys(), key) {
+	if !slices.Contains(rows.SortKeys(), key) {
 		return "", rankResult{}, fmt.Errorf("%w %q: want one of %s",
-			report.ErrUnknownSortKey, key, strings.Join(report.SortKeys(), ", "))
+			rows.ErrUnknownSortKey, key, strings.Join(rows.SortKeys(), ", "))
 	}
 	if in.Top < 0 {
 		return "", rankResult{}, fmt.Errorf("top is %d; want 0 (every package) or more", in.Top)
@@ -99,25 +99,25 @@ func (s *session) runRank(ctx context.Context, in RankInput) (string, rankResult
 		return "", rankResult{}, err
 	}
 	defer rc.mu.Unlock()
-	rows, failed, err := engine.Rank(ctx, t, engine.RankOptions{
+	ranked, failed, err := engine.Rank(ctx, t, engine.RankOptions{
 		Sort: key, Top: in.Top, Coverage: engine.CoverageOptions{Enabled: in.Coverage},
 	})
 	if err != nil {
 		return "", rankResult{}, err
 	}
-	return rankOutput(rows, failed)
+	return rankOutput(ranked, failed)
 }
 
 // rankOutput builds the text and structured content of a ranking: the
 // table, then, when any package failed, a "skipped N packages:" list with
 // each error.
-func rankOutput(rows []report.Row, failed []error) (string, rankResult, error) {
-	res := rankResult{Rows: rows, Failed: make([]rankFailure, 0, len(failed))}
+func rankOutput(ranked []rows.Row, failed []error) (string, rankResult, error) {
+	res := rankResult{Rows: ranked, Failed: make([]rankFailure, 0, len(failed))}
 	if res.Rows == nil {
-		res.Rows = []report.Row{}
+		res.Rows = []rows.Row{}
 	}
 	var b strings.Builder
-	if err := report.WriteRowsTable(&b, rows); err != nil {
+	if err := rows.WriteRowsTable(&b, ranked); err != nil {
 		return "", rankResult{}, err
 	}
 	if len(failed) > 0 {
