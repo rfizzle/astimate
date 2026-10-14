@@ -671,3 +671,23 @@ S-195 to S-204 landed (allowances 5 and 5, `metrics/explain` split, hand labels 
 | total | 194 | 113 | 103 |
 
 `astimate dryrun --last 60` with the final binary: go-starter fails 10 of 42 package-touching commits (24%, was 37% at the start); ztp 30 of 41 (73%, was 78% of 18; 41 now load). ztp's remaining failures are `dup_blocks` (19), `dup_blocks_cross_pkg` (15), `untested_exports` (15), `duplication_pct` (7): the duplication rules still decide most of them, which is S-158 and S-180's territory, and `untested_exports` wants `source: coverage` where the tests run. Under the hand labels (S-198, draft) 43 of 287 findings on failed commits were real.
+
+## After the third run (2026-10-14, master b67fb2d)
+
+S-205 to S-211, S-158 and S-146 landed: standard-interface and syntactic-test exclusions, engine split, carved-out package seeding, five replays at 40/60/80/120 tokens, `duplicated_lines` measured and kept off, and the retune `thresholds-2026-10-14` on the confirmed hand labels (`min_tokens` 60; `untested_exports`, `globals`, `cognitive_p90` and `internal_imports` warn; allowances `sloc` 150, `tokens_est` 2000, `largest_file_sloc` 50). On the pooled hand labels the gate went from 26.8% false failures to 10.9% with recall unchanged at 85.7% (`calibration/reports/thresholds-2026-10-14.md`). Same eight windows, same base commits (`runs/*.check5.txt`):
+
+| Repo | Start | After run 1 | After run 2 | After run 3 | Warnings now |
+| --- | --- | --- | --- | --- | --- |
+| go-starter | 3 | 1 | 1 | 0 | 3 |
+| goKMS | 12 | 7 | 5 | 1 | 9 |
+| kubesentry | 11 | 7 | 7 | 7 | 5 |
+| ztp | 30 | 23 | 22 | 7 | 20 |
+| ai-orchestration | 13 | 8 | 7 | 5 | 1 |
+| mark | 51 | 20 | 18 | 10 | 12 |
+| crush | 20 | 16 | 16 | 9 | 92 |
+| shhh | 54 | 31 | 27 | 12 | 133 |
+| total | 194 | 113 | 103 | 51 | 275 |
+
+The seven true findings named above are all still violations (mark `ProcessFile` 140, `confluence`, `renderer`, kubesentry `internal/output`, ztp `wsframe`, shhh `gitwrite.go`; crush `extractRows` is reported under its package as before). The warning counts are mostly `untested_exports`, which now warns: crush and shhh carry it on most packages, which is the cost of the demotion and the reason `source: coverage` in hooks is the next step for that rule.
+
+`astimate dryrun --last 60` with the final binary: go-starter would fail 3 of 42 package-touching commits (7%, was 24% after run 2 and 37% at the start; `dup_blocks` 3, `duplication_pct` 1, `init_funcs` 1). ztp 20 of 41 (49%, was 73% and 78%; 58 of 60 commits load): `dup_blocks` 13 and `dup_blocks_cross_pkg` 13 decide it, both over the 10% budget, with `duplication_pct` 4, `exported_symbols` 3, `max_nesting` 2, `sloc` 2. ztp's remaining failures are duplication between its `cmd/*` and protocol packages, which S-180 (self-overlap coalescing) and the parked `min_tokens_cross` 60 measurement address, not thresholds.
