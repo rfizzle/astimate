@@ -20,7 +20,10 @@ history.
   cross-package duplication stream, so a block copied between it and a
   loaded package counts in that package's `dup_blocks_cross_pkg` and on
   the module row. The skipped package still has no row.
-
+- `astimate dryrun --out <dir>` keeps the replay's `commits.jsonl`,
+  `packages.jsonl` and `run.json` in a new or empty directory, so
+  `calibration/replay/label` and `calibration/validate` read a dryrun with
+  no manual step.
 - `untested_exports` leaves out a method implementing `http.Flusher`,
   `http.Hijacker` or `http.Pusher`, which the HTTP server calls; a response
   writer's `Flush` is no longer counted as untested.
@@ -284,6 +287,15 @@ history.
 
 ### Changed
 
+- `astimate dryrun --suggest` also sets `warn` on a rule whose every
+  violation was merged into by a rule over the budget (the over-budget
+  metric is in its `also` list). Before, the over-budget rule warned and
+  the rule the finding was attributed to kept failing the commit, so the
+  suggestion did not make the commit pass.
+- `astimate dryrun` builds into a Go build cache of its own, a temporary
+  directory removed when it ends, as the calibration replay does, so
+  replaying history no longer grows the user's `GOCACHE`. The package that
+  does this moved from `calibration/internal/gocache` to `internal/gocache`.
 - The commit replay checks each commit out with no hooks run, and records
   a commit whose check selected a package that does not load as not
   loaded, with the skip's reason, as it records a module that does not
@@ -465,6 +477,11 @@ history.
 
 ### Fixed
 
+- The commit rows of a replay and of `dryrun --json` name the failed
+  package in `packages_failed`: the replay scrubbed a package's error to
+  plain text before the row read its package, so `package` was always
+  empty. A commit recorded as not loaded because a package it changed does
+  not load now lists that package there too.
 - `check --base` no longer runs the repository's git hooks: every git
   command astimate starts gets `-c core.hooksPath=/dev/null`, so a
   `post-checkout` hook that needs `git-lfs`, absent on the host, no longer

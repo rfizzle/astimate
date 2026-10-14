@@ -2,10 +2,13 @@ package summary
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -55,6 +58,7 @@ func TestSummarize(t *testing.T) {
 		},
 		Packages: []PackageCount{{Package: "a", Failed: 2}, {Package: "b", Failed: 1}},
 	}
+	s.merged = nil
 	if !reflect.DeepEqual(s, want) {
 		t.Errorf("summary = %+v\nwant      %+v", s, want)
 	}
@@ -70,6 +74,58 @@ func TestSummarize(t *testing.T) {
 	}
 	if got := s.OverBudget(0.1); !slices.Equal(got, []string{"dup_blocks", "duplication_pct", "sloc"}) {
 		t.Errorf("over a 10%% budget: %v", got)
+	}
+}
+
+// TestWarn checks that a rule whose every violation was merged into by a
+// rule over budget warns with it, and that one with a violation of its own
+// or merged with a rule under budget keeps its severity.
+func TestWarn(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	var commits, packages strings.Builder
+	// Ten commits checked: tokens_est alone fails c1 to c4; c5 and c7 fail
+	// api_surface merged with tokens_est; c6 fails dup_blocks merged with
+	// duplication_pct; c7 also fails sloc alone; c8 to c10 pass.
+	rows := map[string]string{
+		"c1": `{"metric":"tokens_est"}`, "c2": `{"metric":"tokens_est"}`,
+		"c3": `{"metric":"tokens_est"}`, "c4": `{"metric":"tokens_est"}`,
+		"c5": `{"metric":"api_surface","also":["tokens_est"]}`,
+		"c6": `{"metric":"dup_blocks","also":["duplication_pct"]}`,
+		"c7": `{"metric":"api_surface","also":["tokens_est"]},{"metric":"sloc"}`,
+	}
+	for i := 1; i <= 10; i++ {
+		hash := "c" + strconv.Itoa(i)
+		viol := rows[hash]
+		fmt.Fprintf(&commits, `{"commit":%q,"loaded":true,"packages_changed":["a"],"packages_deleted":[],"passed":%v}`+"\n", hash, viol == "")
+		fmt.Fprintf(&packages, `{"commit":%q,"package":"a","violations":[%s]}`+"\n", hash, viol)
+	}
+	for name, data := range map[string]string{commitsFile: commits.String(), packagesFile: packages.String()} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(data), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	s, err := Summarize(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// tokens_est failed 6 of 10, api_surface 2, the rest 1.
+	for _, tt := range []struct {
+		budget float64
+		want   []string
+	}{
+		// Only tokens_est is over, and every violation of api_surface is
+		// merged into by it; sloc has a violation of its own and dup_blocks
+		// is merged into by a rule under budget.
+		{0.5, []string{"api_surface", "tokens_est"}},
+		{0.1, []string{"api_surface", "tokens_est"}},
+		{0.05, []string{"api_surface", "dup_blocks", "duplication_pct", "sloc", "tokens_est"}},
+		{0.9, nil},
+	} {
+		if got := s.Warn(tt.budget); !slices.Equal(got, tt.want) {
+			t.Errorf("Warn(%v) = %v, want %v", tt.budget, got, tt.want)
+		}
 	}
 }
 

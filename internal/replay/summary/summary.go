@@ -74,6 +74,30 @@ type Summary struct {
 	// with a violation in the most commits, the most first, then by
 	// package.
 	Packages []PackageCount
+
+	// merged records, per rule, the also lists of its own violations.
+	merged map[string]*mergedUse
+}
+
+// mergedUse is how a rule's own violations were reported: whether one
+// stood alone, and the distinct also lists of the rest.
+type mergedUse struct {
+	bare  bool
+	alsos [][]string
+}
+
+// add records a violation of the rule with the also list also.
+func (m *mergedUse) add(also []string) {
+	if len(also) == 0 {
+		m.bare = true
+		return
+	}
+	for _, a := range m.alsos {
+		if slices.Equal(a, also) {
+			return
+		}
+	}
+	m.alsos = append(m.alsos, also)
 }
 
 // NotLoaded is one commit the replay could not check.
@@ -131,6 +155,30 @@ func (s *Summary) OverBudget(budget float64) []string {
 	return out
 }
 
+// Warn returns the metrics a suggestion sets to warn for budget, a share
+// between 0 and 1, sorted: those of OverBudget, and each other rule whose
+// every violation was merged into by a rule over budget (SPEC.md 8.1,
+// the over-budget metric is in its also list). A merge attributes the
+// finding to the primary rule, so the over-budget rule at warn would
+// leave the primary failing the commit; the primary has to warn too.
+func (s *Summary) Warn(budget float64) []string {
+	over := s.OverBudget(budget)
+	out := slices.Clone(over)
+	for metric, use := range s.merged {
+		if slices.Contains(over, metric) || use.bare || len(use.alsos) == 0 {
+			continue
+		}
+		if slices.ContainsFunc(use.alsos, func(also []string) bool {
+			return !slices.ContainsFunc(also, func(m string) bool { return slices.Contains(over, m) })
+		}) {
+			continue
+		}
+		out = append(out, metric)
+	}
+	slices.Sort(out)
+	return out
+}
+
 // Summarize reads the rows of the replay output directory dir and
 // summarizes them.
 func Summarize(dir string) (*Summary, error) {
@@ -146,7 +194,7 @@ func Summarize(dir string) (*Summary, error) {
 	for i := range pkgs {
 		byCommit[pkgs[i].Commit] = append(byCommit[pkgs[i].Commit], &pkgs[i])
 	}
-	s := &Summary{Commits: len(commits)}
+	s := &Summary{Commits: len(commits), merged: map[string]*mergedUse{}}
 	failed, alone, packages := map[string]int{}, map[string]int{}, map[string]int{}
 	for i := range commits {
 		c := &commits[i]
@@ -161,7 +209,7 @@ func Summarize(dir string) (*Summary, error) {
 		if c.Passed != nil && !*c.Passed {
 			s.Failed++
 		}
-		broken := countPackages(byCommit[c.Commit], packages)
+		broken := countPackages(byCommit[c.Commit], packages, s.merged)
 		for _, m := range broken {
 			failed[m]++
 		}
@@ -188,9 +236,10 @@ func mostFirst(counts map[string]int) []string {
 }
 
 // countPackages counts each of rows, one commit's rows, that has a
-// violation into packages, and returns the metrics of the rules the
+// violation into packages, records each violation's also list in merged,
+// and returns the metrics of the rules the
 // commit's violations broke, merged rules included, sorted.
-func countPackages(rows []*packageRow, packages map[string]int) []string {
+func countPackages(rows []*packageRow, packages map[string]int, merged map[string]*mergedUse) []string {
 	var metrics []string
 	for _, r := range rows {
 		if len(r.Violations) == 0 {
@@ -198,6 +247,10 @@ func countPackages(rows []*packageRow, packages map[string]int) []string {
 		}
 		packages[r.Package]++
 		for _, v := range r.Violations {
+			if merged[v.Metric] == nil {
+				merged[v.Metric] = &mergedUse{}
+			}
+			merged[v.Metric].add(v.Also)
 			metrics = append(metrics, v.Metric)
 			metrics = append(metrics, v.Also...)
 		}

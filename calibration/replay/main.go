@@ -37,8 +37,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/rfizzle/astimate/calibration/internal/gocache"
 	"github.com/rfizzle/astimate/internal/config"
+	"github.com/rfizzle/astimate/internal/gocache"
 	"github.com/rfizzle/astimate/internal/replay"
 )
 
@@ -82,7 +82,7 @@ func run(ctx context.Context, args []string, stderr io.Writer) int {
 		logger.Error("replay failed", "err", err)
 		return exitUsage
 	}
-	cleanup, err := isolateGoCache()
+	cleanup, err := gocache.Isolate("astimate-replay-gocache-")
 	if err != nil {
 		logger.Error("replay failed", "err", err)
 		return exitUsage
@@ -113,27 +113,6 @@ func newReplayer(ctx context.Context, opts options, logger, engineLogger *slog.L
 	ro.Repo, ro.Dir, ro.Range, ro.Only, ro.Out = opts.repo, opts.dir, opts.revRange, opts.only, opts.out
 	ro.ConfigPath, ro.Parallel = opts.configPath, opts.parallel
 	return replay.New(ctx, ro)
-}
-
-// isolateGoCache points GOCACHE and GOTMPDIR in the process environment,
-// which the engine's go/packages loads and the baseline's go commands
-// inherit, at a new temporary directory, so building every replayed
-// commit's packages never grows the shared Go build cache. The commits of
-// one replay share it; cleanup restores the environment and removes it.
-func isolateGoCache() (cleanup func(), err error) {
-	dir, err := os.MkdirTemp("", "astimate-replay-gocache-")
-	if err != nil {
-		return nil, fmt.Errorf("creating the replay's build cache: %w", err)
-	}
-	restore, err := gocache.Setenv(dir)
-	if err != nil {
-		_ = os.RemoveAll(dir)
-		return nil, err
-	}
-	return func() {
-		restore()
-		_ = os.RemoveAll(dir)
-	}, nil
 }
 
 // parseFlags parses the command line; the flag package reports errors on

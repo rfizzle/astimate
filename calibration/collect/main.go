@@ -46,9 +46,9 @@ import (
 	"time"
 
 	"github.com/rfizzle/astimate/calibration/collect/internal/modpass"
-	"github.com/rfizzle/astimate/calibration/internal/gocache"
 	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/engine"
+	"github.com/rfizzle/astimate/internal/gocache"
 )
 
 // Exit codes: 0 when every selected module and package was collected, 1

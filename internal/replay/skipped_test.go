@@ -1,12 +1,15 @@
 package replay
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/config"
+	"github.com/rfizzle/astimate/internal/engine"
+	"github.com/rfizzle/astimate/internal/metrics"
 )
 
 // TestReplaySkippedSelected checks that a commit whose check selected a
@@ -43,6 +46,12 @@ func TestReplaySkippedSelected(t *testing.T) {
 		t.Errorf("skipped commit: loaded %v, passed %v, error %q; want not loaded with the skip's reason",
 			skipped.Loaded, skipped.Passed, skipped.Error)
 	}
+	// The commit row names the package that kept the commit from being
+	// checked.
+	if got := skipped.PackagesFailed; len(got) != 1 || got[0].Package != "remote" ||
+		!strings.Contains(got[0].Error, "skipped, it does not load") {
+		t.Errorf("packages_failed = %+v, want the remote package with the skip's reason", got)
+	}
 	for _, p := range pkgs {
 		if p.Commit == hashes[1] {
 			t.Errorf("skipped commit has a package row for %s", p.Package)
@@ -50,6 +59,30 @@ func TestReplaySkippedSelected(t *testing.T) {
 	}
 	if c := commits[2]; !c.Loaded || c.Error != "" {
 		t.Errorf("commit beside the skipped package: loaded %v, error %q; want checked", c.Loaded, c.Error)
+	}
+}
+
+// TestScrubErrorKeepsPackage checks that scrubbing the worktree's path out
+// of a package's failure keeps it a *engine.PackageError, so the commit row
+// names the package, and that a failure of no package is scrubbed too.
+func TestScrubErrorKeepsPackage(t *testing.T) {
+	tree := filepath.Join(t.TempDir(), "wt")
+	tests := []struct {
+		name        string
+		err         error
+		wantPackage string
+	}{
+		{"package", &engine.PackageError{Path: "internal/a", Err: errors.New("reading " + tree + "/internal/a/a.go: denied")}, "internal/a"},
+		{"module row", &engine.PackageError{Path: metrics.ModuleRowID, Err: errors.New("loading " + tree)}, metrics.ModuleRowID},
+		{"no package", errors.New("failed under " + tree), ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := newPackageFailed(scrubError(tt.err, tree))
+			if got.Package != tt.wantPackage || strings.Contains(got.Error, tree) || !strings.Contains(got.Error, "<worktree>") {
+				t.Errorf("failed row %+v, want package %q and the worktree scrubbed", got, tt.wantPackage)
+			}
+		})
 	}
 }
 

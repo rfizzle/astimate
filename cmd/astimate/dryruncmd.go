@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/rfizzle/astimate/internal/config"
+	"github.com/rfizzle/astimate/internal/gocache"
 	"github.com/rfizzle/astimate/internal/replay"
 	"github.com/rfizzle/astimate/internal/replay/summary"
 )
@@ -25,6 +26,7 @@ type dryrunFlags struct {
 	last     int
 	budget   float64
 	suggest  string
+	out      string
 	asJSON   bool
 	timeout  time.Duration
 	parallel int
@@ -41,12 +43,12 @@ const (
 // runDryrun replays the last commits of the module's repository with the
 // gate and reports how often it would have failed: `dryrun [<module-root>]
 // [--last N] [--budget P] [--suggest file] [--json] [--timeout d]
-// [--parallel N] [--config path]`. It exits 0 whatever the gate would have
+// [--parallel N] [--config path] [--out dir]`. It exits 0 whatever the gate would have
 // said, 1 on a usage error, and 2 when the replay itself fails or stops at
 // --timeout or on an interrupt, after printing what it replayed.
 func runDryrun(args []string, stdout, stderr io.Writer) int {
 	fs := newFlagSet("dryrun", "usage: astimate dryrun [<module-root>] [--last N] [--budget P] [--suggest file] "+
-		"[--json] [--timeout 30m] [--parallel N] [--config path]", stderr)
+		"[--json] [--timeout 30m] [--parallel N] [--config path] [--out dir]", stderr)
 	f := dryrunFlags{last: defaultDryrunLast, budget: defaultDryrunBudget, timeout: defaultDryrunTimeout, parallel: 1}
 	f.register(fs)
 	dir, ok := parseModuleArgs("dryrun", fs, args, stderr)
@@ -76,6 +78,8 @@ func (f *dryrunFlags) register(fs *flag.FlagSet) {
 		"(0 for no limit)"+"; the summary covers the commits replayed before it")
 	fs.IntVar(&f.parallel, "parallel", f.parallel, "commits replayed at a time, "+"each in its own worktree")
 	fs.StringVar(&f.config, "config", f.config, "configuration file (default ./astimate.yaml, then the embedded default)")
+	fs.StringVar(&f.out, "out", f.out, "keep the replay's rows (commits.jsonl, packages.jsonl, run.json) in this "+
+		"new or empty directory, for the calibration tools to read")
 }
 
 // validate reports a flag value dryrun cannot run with.
@@ -89,6 +93,15 @@ func (f *dryrunFlags) validate() error {
 		return fmt.Errorf("--budget must be a percentage from 0 to 100, got %g", f.budget)
 	case f.timeout < 0:
 		return fmt.Errorf("--timeout must not be negative, got %s", f.timeout)
+	}
+	if f.out != "" {
+		entries, err := os.ReadDir(f.out)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("--out %s: %w", f.out, err)
+		}
+		if len(entries) > 0 {
+			return fmt.Errorf("--out %s must be a new or empty directory, it holds %d entries", f.out, len(entries))
+		}
 	}
 	return nil
 }
@@ -110,11 +123,16 @@ func dryrun(ctx context.Context, dir string, f *dryrunFlags, stdout, stderr io.W
 	if err != nil {
 		return fail("dryrun failed", err)
 	}
-	out, err := os.MkdirTemp("", "astimate-dryrun-")
+	out, cleanOut, err := replayDir(f.out)
 	if err != nil {
 		return fail("dryrun failed", err)
 	}
-	defer func() { _ = os.RemoveAll(out) }()
+	defer cleanOut()
+	cleanCache, err := gocache.Isolate("astimate-dryrun-gocache-")
+	if err != nil {
+		return fail("dryrun failed", err)
+	}
+	defer cleanCache()
 	if f.timeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, f.timeout)
@@ -142,6 +160,9 @@ func dryrun(ctx context.Context, dir string, f *dryrunFlags, stdout, stderr io.W
 	if err != nil {
 		return fail("dryrun failed", err)
 	}
+	if f.out != "" {
+		logger.Info("kept the replay's rows", "dir", out)
+	}
 	err = writeBuffered(stdout, func(w io.Writer) error {
 		if f.asJSON {
 			return summary.WriteRows(w, out)
@@ -152,7 +173,7 @@ func dryrun(ctx context.Context, dir string, f *dryrunFlags, stdout, stderr io.W
 		return fail("dryrun failed", err)
 	}
 	if f.suggest != "" {
-		warn := s.OverBudget(f.budget / 100)
+		warn := s.Warn(f.budget / 100)
 		data, err := summary.Suggest(src, warn)
 		if err == nil {
 			err = os.WriteFile(f.suggest, data, 0o644)
@@ -163,6 +184,20 @@ func dryrun(ctx context.Context, dir string, f *dryrunFlags, stdout, stderr io.W
 		logger.Info("wrote the suggested configuration", "file", f.suggest, "warn", strings.Join(warn, ","))
 	}
 	return code
+}
+
+// replayDir returns the directory the replay writes into and the function
+// that disposes of it: out, created when missing and kept, or when out is
+// empty a new temporary directory, removed.
+func replayDir(out string) (string, func(), error) {
+	if out != "" {
+		return out, func() {}, os.MkdirAll(out, 0o755)
+	}
+	dir, err := os.MkdirTemp("", "astimate-dryrun-")
+	if err != nil {
+		return "", nil, err
+	}
+	return dir, func() { _ = os.RemoveAll(dir) }, nil
 }
 
 // resolveConfigSource resolves the configuration as every command does

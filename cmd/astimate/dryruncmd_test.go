@@ -15,26 +15,39 @@ import (
 	"github.com/rfizzle/astimate/internal/replay/summary"
 )
 
+// scorerFunc returns the source of a function whose body is long enough
+// for the duplication rules to see a copy of it.
+func scorerFunc(name string) string {
+	return "\nfunc " + name + "(a, b, c int) (int, int, int) {\n" +
+		"\tx := a*b + c - a/b + c*c - a\n\ty := b*c + a - b/c + a*a - b\n\tz := c*a + b - c/a + b*b - c\n" +
+		"\tx, y, z = x+y*z, y+z*x, z+x*y\n\treturn x - y + z, y - z + x, z - x + y\n}\n"
+}
+
 // dryrunRepo builds a git repository holding a Go module, four commits:
 // the module with package a; a copy of a function in a, which the
 // dup_blocks ratchet fails; a README; and a small function added to a.
 func dryrunRepo(t *testing.T) string {
 	t.Helper()
-	dir := t.TempDir()
-	scorer := func(name string) string {
-		return "\nfunc " + name + "(a, b, c int) (int, int, int) {\n" +
-			"\tx := a*b + c - a/b + c*c - a\n\ty := b*c + a - b/c + a*a - b\n\tz := c*a + b - c/a + b*b - c\n" +
-			"\tx, y, z = x+y*z, y+z*x, z+x*y\n\treturn x - y + z, y - z + x, z - x + y\n}\n"
-	}
-	commits := []struct {
-		files   map[string]string
-		message string
-	}{
+	scorer := scorerFunc
+	return buildRepo(t, []repoCommit{
 		{map[string]string{"go.mod": "module example.com/fix\n\ngo 1.22\n", "a/a.go": "package a\n\nfunc sum(xs []int) int {\n\tt := 0\n\tfor _, x := range xs {\n\t\tt += x\n\t}\n\treturn t\n}\n"}, "feat: add package a"},
 		{map[string]string{"a/dup.go": "package a\n" + scorer("first") + scorer("second")}, "feat: add two scorers"},
 		{map[string]string{"README.md": "# fix\n"}, "docs: add a readme"},
 		{map[string]string{"a/one.go": "package a\n\nfunc one() int { return 1 }\n"}, "feat: add one"},
-	}
+	})
+}
+
+// repoCommit is one commit of a built repository.
+type repoCommit struct {
+	files   map[string]string
+	message string
+}
+
+// buildRepo builds a git repository with one commit per element of
+// commits, dated a day apart, and returns its directory.
+func buildRepo(t *testing.T, commits []repoCommit) string {
+	t.Helper()
+	dir := t.TempDir()
 	gitRun := func(env []string, args ...string) {
 		t.Helper()
 		cmd := exec.Command("git", args...)
@@ -69,8 +82,6 @@ func dryrunRepo(t *testing.T) string {
 // package the gate would have failed and the per-rule table, and exits 0
 // although the gate would have failed one.
 func TestDryrunLast(t *testing.T) {
-	t.Parallel()
-
 	repo := dryrunRepo(t)
 	var stdout, stderr bytes.Buffer
 	if code := run([]string{"dryrun", repo, "--last", "3"}, &stdout, &stderr); code != exitOK {
@@ -98,8 +109,6 @@ func TestDryrunLast(t *testing.T) {
 // TestDryrunSuggest checks that --suggest writes a configuration that
 // parses and sets warn on exactly the rules over --budget.
 func TestDryrunSuggest(t *testing.T) {
-	t.Parallel()
-
 	repo := dryrunRepo(t)
 	file := filepath.Join(t.TempDir(), "suggested.yaml")
 	var stdout, stderr bytes.Buffer
@@ -134,8 +143,6 @@ func TestDryrunSuggest(t *testing.T) {
 // TestDryrunJSON checks --json prints the replay's rows, each commit's
 // package rows before its commit row.
 func TestDryrunJSON(t *testing.T) {
-	t.Parallel()
-
 	repo := dryrunRepo(t)
 	var stdout, stderr bytes.Buffer
 	if code := run([]string{"dryrun", repo, "--last", "3", "--json"}, &stdout, &stderr); code != exitOK {

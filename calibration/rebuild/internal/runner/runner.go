@@ -21,11 +21,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rfizzle/astimate/calibration/internal/gocache"
 	"github.com/rfizzle/astimate/calibration/rebuild/internal/agent"
 	"github.com/rfizzle/astimate/calibration/rebuild/internal/definition"
 	"github.com/rfizzle/astimate/calibration/rebuild/internal/pin"
 	"github.com/rfizzle/astimate/calibration/rebuild/internal/stub"
+	"github.com/rfizzle/astimate/internal/gocache"
 )
 
 // Config are a Runner's settings.

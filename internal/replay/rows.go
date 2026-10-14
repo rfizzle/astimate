@@ -166,6 +166,16 @@ type packageFailed struct {
 	Error   string `json:"error"`
 }
 
+// newPackageFailed returns the failed row of err: the package of a
+// *engine.PackageError with its cause, else the error's text alone.
+func newPackageFailed(err error) packageFailed {
+	var pe *engine.PackageError
+	if errors.As(err, &pe) {
+		return packageFailed{Package: pe.Path, Error: pe.Err.Error()}
+	}
+	return packageFailed{Error: err.Error()}
+}
+
 // findings copies fs without suggestions; an empty list, never null.
 func findings(fs []report.Finding) []finding {
 	out := make([]finding, len(fs))
@@ -237,12 +247,7 @@ func checkRows(commit string, c *report.Check, failed []error, cr *commitRow) []
 	}
 	cr.PackagesDeleted = append(cr.PackagesDeleted, c.Deleted...)
 	for _, err := range failed {
-		pf := packageFailed{Error: err.Error()}
-		var pe *engine.PackageError
-		if errors.As(err, &pe) {
-			pf = packageFailed{Package: pe.Path, Error: pe.Err.Error()}
-		}
-		cr.PackagesFailed = append(cr.PackagesFailed, pf)
+		cr.PackagesFailed = append(cr.PackagesFailed, newPackageFailed(err))
 	}
 	passed := true
 	for i := range rows {

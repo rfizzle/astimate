@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rfizzle/astimate/internal/gocache"
 )
 
 func TestParseFlags(t *testing.T) {
@@ -31,14 +33,14 @@ func TestParseFlags(t *testing.T) {
 	}
 }
 
-// TestIsolateGoCache checks that a replay's go commands build into a
+// TestReplayIsolatesGoCache checks that a replay's go commands build into a
 // temporary directory of the replay's own, not the shared GOCACHE, and that
 // cleanup removes it and restores the environment.
-func TestIsolateGoCache(t *testing.T) {
+func TestReplayIsolatesGoCache(t *testing.T) {
 	shared := t.TempDir()
 	t.Setenv("GOCACHE", shared)
 	t.Setenv("GOTMPDIR", "")
-	cleanup, err := isolateGoCache()
+	cleanup, err := gocache.Isolate("astimate-replay-gocache-")
 	if err != nil {
 		t.Fatal(err)
 	}

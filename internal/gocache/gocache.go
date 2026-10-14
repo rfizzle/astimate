@@ -1,6 +1,7 @@
-// Package gocache keeps the calibration tools' builds out of the user's
-// shared Go build cache. A rebuild run, a replayed commit or a collected
-// corpus module compiles a whole module and its tests; in the shared
+// Package gocache keeps the calibration tools' and `astimate dryrun`'s
+// builds out of the user's shared Go build cache. A rebuild run, a replayed
+// commit or a collected corpus module compiles a whole module and its
+// tests; in the shared
 // GOCACHE those entries accumulate across hundreds of runs (242 GB once)
 // and are never reused. Pointing GOCACHE and GOTMPDIR into the directory
 // that already holds the clone removes them with it.
@@ -46,6 +47,27 @@ func Env(dir string) ([]string, error) {
 		return nil, err
 	}
 	return []string{s[0].key + "=" + s[0].dir, s[1].key + "=" + s[1].dir}, nil
+}
+
+// Isolate creates a new temporary directory named by prefix (as
+// os.MkdirTemp) and points GOCACHE and GOTMPDIR in the process environment
+// at directories under it, for in-process go/packages loads and go commands
+// that inherit it. The returned cleanup restores the previous environment
+// and removes the directory. Like Setenv, it must not run concurrently.
+func Isolate(prefix string) (cleanup func(), err error) {
+	dir, err := os.MkdirTemp("", prefix)
+	if err != nil {
+		return nil, fmt.Errorf("creating the build cache: %w", err)
+	}
+	restore, err := Setenv(dir)
+	if err != nil {
+		_ = os.RemoveAll(dir)
+		return nil, err
+	}
+	return func() {
+		restore()
+		_ = os.RemoveAll(dir)
+	}, nil
 }
 
 // Setenv creates a build cache and a temporary directory under dir and

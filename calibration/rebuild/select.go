@@ -14,11 +14,11 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/rfizzle/astimate/calibration/internal/gocache"
 	"github.com/rfizzle/astimate/calibration/rebuild/internal/definition"
 	"github.com/rfizzle/astimate/calibration/rebuild/internal/pin"
 	"github.com/rfizzle/astimate/calibration/rebuild/internal/selection"
 	"github.com/rfizzle/astimate/internal/config"
+	"github.com/rfizzle/astimate/internal/gocache"
 )
 
 // corpusFile is the part of calibration/corpus.yaml the selection reads.

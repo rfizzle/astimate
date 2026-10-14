@@ -276,29 +276,45 @@ func (rp *Replayer) replayCommit(ctx context.Context, c *commitInfo) (res commit
 	if err != nil {
 		return fail(err, wt)
 	}
-	if err := skippedErr(failed); err != nil {
-		return fail(err, wt)
+	if skipped := skippedErrs(failed); len(skipped) > 0 {
+		// The commit has no rows, but its row still names the packages
+		// that kept it from being checked.
+		for _, err := range skipped {
+			cr.PackagesFailed = append(cr.PackagesFailed, newPackageFailed(scrubError(err, wt)))
+		}
+		return fail(errors.Join(skipped...), wt)
 	}
 	for i := range failed {
-		failed[i] = errors.New(scrubPath(failed[i].Error(), wt))
+		failed[i] = scrubError(failed[i], wt)
 	}
 	res.rows = checkRows(c.hash, check, failed, cr)
 	cr.Loaded = true
 	return res
 }
 
-// skippedErr joins the errors of failed that are of a selected package the
-// extractor skipped because it does not load (engine.IsSkipped), nil when
-// there are none. The commit's verdict would be incomplete, so it is
-// recorded as not loaded, as a module that does not load is.
-func skippedErr(failed []error) error {
+// skippedErrs returns the errors of failed that are of a selected package
+// the extractor skipped because it does not load (engine.IsSkipped). The
+// commit's verdict would be incomplete if there are any, so it is recorded
+// as not loaded, as a module that does not load is.
+func skippedErrs(failed []error) []error {
 	var skipped []error
 	for _, err := range failed {
 		if engine.IsSkipped(err) {
 			skipped = append(skipped, err)
 		}
 	}
-	return errors.Join(skipped...)
+	return skipped
+}
+
+// scrubError returns err with the worktree's path scrubbed from its text.
+// A *engine.PackageError stays one, with its package path and a scrubbed
+// cause, so the commit row can still name the package that failed.
+func scrubError(err error, tree string) error {
+	var pe *engine.PackageError
+	if errors.As(err, &pe) {
+		return &engine.PackageError{Path: pe.Path, Err: errors.New(scrubPath(pe.Err.Error(), tree))}
+	}
+	return errors.New(scrubPath(err.Error(), tree))
 }
 
 // newCommitRow returns c's commit row before its check under the

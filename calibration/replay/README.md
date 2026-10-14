@@ -110,7 +110,7 @@ One row per commit.
 | `error` | Why, when not `loaded`; the temporary worktree's path reads `<worktree>` |
 | `packages_changed` | The packages checked, module-relative (`.` for the root package), in check order |
 | `packages_deleted` | The directories that lost their package since the parent |
-| `packages_failed` | `{package, error}` for each row that failed to extract; it has no package row |
+| `packages_failed` | `{package, error}` for each package that failed to extract, or, on a commit that is not `loaded`, that the check selected and could not load; it has no package row |
 | `passed` | The gate's verdict on the commit: no row has a violation; null when not `loaded` |
 | `violations` | The number of violations over every row |
 | `wall_ms` | The commit's replay wall time, checkout included |
