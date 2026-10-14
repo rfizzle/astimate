@@ -2,14 +2,13 @@ package engine
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/rfizzle/astimate/internal/baseline"
 	"github.com/rfizzle/astimate/internal/config"
+	"github.com/rfizzle/astimate/internal/engine/internal/coverage"
 	"github.com/rfizzle/astimate/internal/engine/internal/judge"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/report"
@@ -39,18 +38,11 @@ func (e *PackageError) Unwrap() error { return e.Err }
 
 // DefaultCoverageTimeout bounds one coverage run when CoverageOptions sets
 // no timeout.
-const DefaultCoverageTimeout = 2 * time.Minute
+const DefaultCoverageTimeout = coverage.DefaultTimeout
 
 // CoverageOptions opt an operation into measuring coverage_pct, which runs
 // the packages' tests (SPEC.md 6). The zero value measures nothing.
-type CoverageOptions struct {
-	// Enabled measures coverage after extraction, with one test run over
-	// every package the operation reports that has test files, when the
-	// target's extractor implements metrics.CoverageMeasurer.
-	Enabled bool
-	// Timeout bounds that run; 0 or less means DefaultCoverageTimeout.
-	Timeout time.Duration
-}
+type CoverageOptions = coverage.Options
 
 // AssessOptions shape Assess's report.
 type AssessOptions struct {
@@ -68,82 +60,10 @@ type RankOptions struct {
 	Coverage CoverageOptions
 }
 
-// measureCoverage sets CoveragePct and UntestedExportsCovered in ms, the
-// extracted metrics keyed by package identifier, when opts.Enabled, from
-// one metrics.CoverageMeasurer call over the packages with test files or
-// untested exports, whose tests other packages' tests may run, bounded by
-// opts.Timeout. The others keep both null: the packages with neither, and
-// every package when t's extractor cannot measure coverage, which is
-// logged once. A package whose tests fail to build or run, or that the run
-// did not reach, is logged with the reason, once per package; its other
-// metrics are unaffected.
+// measureCoverage measures the coverage of ms, keyed by package
+// identifier, as opts asks (coverage.Measure).
 func measureCoverage(ctx context.Context, t *Target, opts CoverageOptions, ms map[string]*metrics.RawMetrics, order []string) {
-	if !opts.Enabled || len(ms) == 0 {
-		return
-	}
-	logger := t.logger()
-	cm, ok := t.Ext.(metrics.CoverageMeasurer)
-	if !ok {
-		logger.Warn("coverage not measured", "language", t.Ext.Language(),
-			"reason", "the extractor cannot run tests; coverage_pct stays null")
-		return
-	}
-	pkgs := coverageCandidates(ms, order)
-	if len(pkgs) == 0 {
-		return
-	}
-	timeout := opts.Timeout
-	if timeout <= 0 {
-		timeout = DefaultCoverageTimeout
-	}
-	cctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-	res, err := cm.Coverage(cctx, t.Mod, pkgs)
-	timedOut := errors.Is(cctx.Err(), context.DeadlineExceeded) && ctx.Err() == nil
-	for _, pkg := range pkgs {
-		c := res[pkg]
-		if err != nil {
-			c = metrics.Coverage{Reason: err.Error()}
-		}
-		reason := applyCoverage(ms[pkg], c)
-		if reason == "" {
-			continue
-		}
-		attrs := []any{"path", judge.Rel(t.Mod.ModulePath, pkg), "reason", reason}
-		if timedOut {
-			attrs = append(attrs, "timeout", timeout.String())
-		}
-		logger.Warn("coverage not measured", attrs...)
-	}
-}
-
-// coverageCandidates returns, in the order of order, the packages of ms
-// a coverage run can say something about: those with test files, and
-// those with untested exports, which other packages' tests may run.
-func coverageCandidates(ms map[string]*metrics.RawMetrics, order []string) []string {
-	pkgs := make([]string, 0, len(order))
-	for _, pkg := range order {
-		if m, ok := ms[pkg]; ok && (m.TestFiles > 0 || m.UntestedExports > 0) {
-			pkgs = append(pkgs, pkg)
-		}
-	}
-	return pkgs
-}
-
-// applyCoverage sets m's coverage_pct and untested_exports_covered from c,
-// copying each value it has, and returns the reason coverage_pct stays
-// null when c gives one; empty when it was measured or nothing failed.
-func applyCoverage(m *metrics.RawMetrics, c metrics.Coverage) string {
-	if c.UntestedExports != nil {
-		n := *c.UntestedExports
-		m.UntestedExportsCovered = &n
-	}
-	if c.Pct != nil {
-		v := *c.Pct
-		m.CoveragePct = &v
-		return ""
-	}
-	return c.Reason
+	coverage.Measure(ctx, coverage.Run{Ext: t.Ext, Mod: t.Mod, Options: opts, Logger: t.logger()}, ms, order)
 }
 
 // langConfig returns the configuration t's language is evaluated with. A

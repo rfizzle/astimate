@@ -8,15 +8,15 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"slices"
 	"strconv"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/rfizzle/astimate/internal/baseline"
 	"github.com/rfizzle/astimate/internal/engine/internal/judge"
+	"github.com/rfizzle/astimate/internal/engine/internal/selection"
+	"github.com/rfizzle/astimate/internal/lang/golang"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/report"
 )
@@ -149,14 +149,11 @@ func (c *BaselineCache) get(key string, load func() (baseline.Baseline, error)) 
 // failed.
 //
 // A package the extractor skipped because it does not load
-// (metrics.Skipper) is listed in the result's Skipped, every one of them.
-// It is selected only when its own files changed since the baseline, or
-// when opts.Packages names it; a selection that covers every package
-// (opts.All, a changed file that can move every package, an extractor or
-// baseline file that cannot tell what changed) leaves out the skipped
-// ones that did not change, which are reported with Selected false. One
-// that is selected cannot be judged, so it is logged and returned in
-// failed with an error IsSkipped reports. The rest are gated as usual.
+// (metrics.Skipper) is listed in the result's Skipped, every one of them,
+// with Selected false unless its own files changed since the baseline
+// (selection.Packages) or opts.Packages names it. One that is selected
+// cannot be judged, so it is logged and returned in failed with an error
+// IsSkipped reports. The rest are gated as usual.
 //
 // When t's extractor implements metrics.ModuleMetrics and at least one
 // package is selected, the result also carries the module-level row
@@ -216,8 +213,9 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 		return nil, nil, ErrBaseAndBaselineFile
 	}
 	// tmp is the module root in the staged copy, rewritten out of error
-	// text (baseline.TreeRelative); empty for the working tree.
-	ht, tmp := t, ""
+	// text (baseline.TreeRelative); empty for the working tree. tree is
+	// the head side of the changed-package diff.
+	ht, tmp, tree := t, "", baseline.Head{}
 	if opts.Staged {
 		var stop, cleanup func()
 		ctx, stop = signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
@@ -228,6 +226,7 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 		}
 		defer cleanup()
 		tmp = ht.Mod.Root
+		tree = baseline.Head{Staged: true, IndexFile: opts.IndexFile, Tree: tmp}
 	}
 	var head []string
 	if len(opts.Packages) == 0 {
@@ -245,15 +244,15 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 	if err != nil {
 		return nil, nil, err
 	}
-	if src.file != nil {
-		warnTokenizerMismatch(t, src.file)
+	if src.File != nil {
+		warnTokenizerMismatch(t, src.File)
 	}
 	// base is loaded at most once, when selection or the comparison first
 	// needs it.
-	base := src.file
+	base := src.File
 	loadBase := func() (baseline.Baseline, error) {
 		if base == nil {
-			b, err := gitBaseline(ctx, t, src.ref, opts.Baselines)
+			b, err := gitBaseline(ctx, t, src.Ref, opts.Baselines)
 			if err != nil {
 				return nil, err
 			}
@@ -261,9 +260,14 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 		}
 		return base, nil
 	}
+	req := selection.Request{
+		Ext: t.Ext, Mod: t.Mod, Head: ht.Mod, Source: src,
+		All: opts.All, Tree: tree, Skips: skipped, LoadBase: loadBase, Logger: logger,
+	}
 	selected, deleted := opts.Packages, []string(nil)
 	if len(selected) == 0 {
-		selected, deleted, err = selectPackages(ctx, t, ht.Mod, skipped.With(head), src, opts.All, headOf(ht, opts), skipped, loadBase)
+		req.Packages = skipped.With(head)
+		selected, deleted, err = selection.Packages(ctx, req)
 		if err != nil {
 			return nil, nil, baseline.TreeRelative(err, tmp)
 		}
@@ -273,7 +277,7 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 		if _, err := loadBase(); err != nil {
 			return nil, nil, err
 		}
-		if base, err = seedRenames(ctx, t, ht, base, src, headOf(ht, opts)); err != nil {
+		if base, err = selection.Seed(ctx, req, base); err != nil {
 			return nil, nil, baseline.TreeRelative(err, tmp)
 		}
 	}
@@ -331,7 +335,7 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 	}
 	moduleJudged := false
 	if mm, ok := t.Ext.(metrics.ModuleMetrics); ok && len(selected) > 0 {
-		m, judged, err := jc.Module(ctx, mm, src.file != nil, opts.Packages)
+		m, judged, err := jc.Module(ctx, mm, src.File != nil, opts.Packages)
 		if err != nil {
 			err = baseline.TreeRelative(err, tmp)
 			logger.Error("checking module row failed", "err", err)
@@ -370,16 +374,6 @@ func stagedTarget(ctx context.Context, t *Target, indexFile string) (*Target, fu
 	return &ht, cleanup, nil
 }
 
-// headOf returns the head side of the changed-package diff for a check of
-// ht with opts: the index and its copy at ht's module root when
-// opts.Staged, the working tree otherwise.
-func headOf(ht *Target, opts CheckOptions) baseline.Head {
-	if !opts.Staged {
-		return baseline.Head{}
-	}
-	return baseline.Head{Staged: true, IndexFile: opts.IndexFile, Tree: ht.Mod.Root}
-}
-
 // tokenizer returns t.Tokenizer, or TokenizerEst when it is empty.
 func (t *Target) tokenizer() string {
 	if t.Tokenizer == "" {
@@ -398,48 +392,38 @@ func warnTokenizerMismatch(t *Target, b baseline.Baseline) {
 	}
 }
 
-// baselineSource is where the baseline comes from: a git ref or a file,
-// never both.
-type baselineSource struct {
-	// ref is the git ref whose merge-base with HEAD is the baseline; empty
-	// when file is set.
-	ref string
-	// file is the baseline read from a file; nil for a git baseline.
-	file baseline.Baseline
-}
-
 // resolveBaselineSource picks the baseline per SPEC.md 8.3: BaselineFile
 // reads the file, Base names the ref, and with neither the first default
 // ref is used. When no default ref exists but the module has a baseline
 // file at baseline.DefaultPath, that file is used and a warning says so;
 // without that file the error matches ErrNoBaseline. Files are read
 // through opts.Baselines.
-func resolveBaselineSource(ctx context.Context, t *Target, opts CheckOptions) (baselineSource, error) {
+func resolveBaselineSource(ctx context.Context, t *Target, opts CheckOptions) (selection.Source, error) {
 	if opts.BaselineFile != "" {
 		b, err := fileBaseline(opts.BaselineFile, opts.Baselines, t.logger())
 		if err != nil {
-			return baselineSource{}, err
+			return selection.Source{}, err
 		}
-		return baselineSource{file: b}, nil
+		return selection.Source{File: b}, nil
 	}
 	if opts.Base != "" {
-		return baselineSource{ref: opts.Base}, nil
+		return selection.Source{Ref: opts.Base}, nil
 	}
 	root := t.Mod.Root
 	ref, refErr := baseline.DefaultRef(ctx, root)
 	if refErr == nil {
-		return baselineSource{ref: ref}, nil
+		return selection.Source{Ref: ref}, nil
 	}
 	path := filepath.Join(root, baseline.DefaultPath)
 	if _, err := os.Stat(path); err != nil {
-		return baselineSource{}, &noBaselineError{err: refErr}
+		return selection.Source{}, &noBaselineError{err: refErr}
 	}
 	t.logger().Warn("no default baseline ref; using the baseline file", "path", path, "err", refErr)
 	b, err := fileBaseline(path, opts.Baselines, t.logger())
 	if err != nil {
-		return baselineSource{}, err
+		return selection.Source{}, err
 	}
-	return baselineSource{file: b}, nil
+	return selection.Source{File: b}, nil
 }
 
 // fileBaseline reads the baseline file at path through cache, keyed by the
@@ -497,158 +481,13 @@ func gitBaseline(ctx context.Context, t *Target, ref string, cache *BaselineCach
 	})
 }
 
-// selectPackages returns the import paths to check, in the order of head
-// (the import paths the extractor lists at head), and the module-relative
-// directories deleted since the baseline. With all set it returns head.
-// Every return of all of head leaves out the packages skips holds (head
-// includes them) whose own files did not change, since a package that
-// does not load is selected only when it changed (skips.Unchanged).
-// Otherwise it takes the packages changed since the merge-base of HEAD and
-// the baseline's ref and keeps those in head, which drops the directories
-// the go tool ignores. A file baseline whose ref does not resolve in git,
-// for example outside a repository, and an extractor that does not
-// implement metrics.SourceClassifier select every package and say so. A
-// changed file that can move every package, such as a TypeScript
-// tsconfig.json, selects every package too. A changed file that can move
-// its package's importers, such as a TypeScript declaration file, also
-// selects the packages importing that package in hm, the head module, and
-// in the baseline, which loadBase returns (selectImporters). tree says
-// whether the changes are those of the working tree or of the index.
-func selectPackages(ctx context.Context, t *Target, hm *metrics.ModuleContext, head []string, src baselineSource,
-	all bool, tree baseline.Head, skips judge.Skips, loadBase func() (baseline.Baseline, error),
-) (selected, deleted []string, err error) {
-	logger := t.logger()
-	sc, ok := t.Ext.(metrics.SourceClassifier)
-	ref := src.ref
-	if src.file != nil {
-		ref = src.file.Ref()
-	}
-	if all {
-		// Only a skipped package that changed is selected by --all; the
-		// changes are listed on a best effort, since --all needs no
-		// baseline to select the packages that load.
-		changed := map[string]bool{}
-		if ok && ref != "" && skips.Any() {
-			if mergeBase, err := baseline.MergeBase(ctx, t.Mod.Root, ref); err == nil {
-				if change, err := baseline.ChangedPackages(ctx, t.Mod.Root, mergeBase, sc, tree); err == nil {
-					changed = changedImportPaths(t.Mod.ModulePath, change)
-				}
-			}
-		}
-		return skips.Unchanged(head, changed), nil, nil
-	}
-	if !ok {
-		logger.Warn("the extractor cannot tell which files changed a package; checking every package",
-			"language", t.Ext.Language())
-		return skips.Unchanged(head, nil), nil, nil
-	}
-	if ref == "" {
-		logger.Warn("baseline file records no git ref; checking every package")
-		return skips.Unchanged(head, nil), nil, nil
-	}
-	mergeBase, err := baseline.MergeBase(ctx, t.Mod.Root, ref)
-	if err != nil {
-		if src.file == nil {
-			return nil, nil, err
-		}
-		logger.Warn("cannot resolve the baseline file's ref; checking every package", "ref", ref, "err", err)
-		return skips.Unchanged(head, nil), nil, nil
-	}
-	change, err := baseline.ChangedPackages(ctx, t.Mod.Root, mergeBase, sc, tree)
-	if err != nil {
-		return nil, nil, err
-	}
-	changed := changedImportPaths(t.Mod.ModulePath, change)
-	if change.All {
-		logger.Info("a changed file can move every package; checking every package")
-		return skips.Unchanged(head, changed), change.Deleted, nil
-	}
-	if il, ok := t.Ext.(metrics.ImporterLister); ok && len(change.Contract)+len(change.RemovedContract) > 0 {
-		base, err := loadBase()
-		if err != nil {
-			return nil, nil, err
-		}
-		if err := selectImporters(ctx, il, hm, t.Mod.ModulePath, head, change, base, changed, logger); err != nil {
-			return nil, nil, err
-		}
-	}
-	for _, pkg := range head {
-		if changed[pkg] {
-			selected = append(selected, pkg)
-		}
-	}
-	return selected, change.Deleted, nil
-}
-
-// importerGraph is the reverse import graph a baseline recorded
-// (baseline.Baseline.Importers).
-type importerGraph interface {
-	// Importers returns the module-relative directories of the importers
-	// of the package in dir, and false when no graph was recorded.
-	Importers(dir string) ([]string, bool)
-}
-
-// selectImporters adds to changed the import paths of the packages, among
-// head (the import paths the extractor lists), that import a package whose
-// change can move their importers' metrics. change names those packages by
-// module-relative directory: the importers of each package of
-// change.Contract that head holds are taken from il in mod, the head
-// module of module path modPath; the importers of each package of
-// change.Contract and change.RemovedContract are also taken from base, the
-// baseline's graph, so an edge that a removed or rewritten declaration
-// file resolved still selects its importer. Each package it adds is logged
-// at info level with the package it imports, the baseline's saying
-// "importer at baseline", so the output says why a package no file of
-// which changed was checked. When base is nil or records no graph and a
-// declaration file was removed, one info line says its former importers
-// are not selected.
-func selectImporters(ctx context.Context, il metrics.ImporterLister, mod *metrics.ModuleContext, modPath string,
-	head []string, change baseline.Change, base importerGraph, changed map[string]bool, logger *slog.Logger,
-) error {
-	inHead := make(map[string]bool, len(head))
-	for _, pkg := range head {
-		inHead[pkg] = true
-	}
-	add := func(importers []string, dir, msg string) {
-		for _, imp := range importers {
-			if !inHead[imp] || changed[imp] {
-				continue
-			}
-			changed[imp] = true
-			logger.Info(msg, "package", judge.Rel(modPath, imp), "importer_of", dir)
-		}
-	}
-	for _, dir := range change.Contract {
-		pkg := judge.ImportPath(modPath, dir)
-		if !inHead[pkg] {
-			continue
-		}
-		importers, err := il.Importers(ctx, mod, pkg)
-		if err != nil {
-			return fmt.Errorf("listing the importers of %s: %w", dir, err)
-		}
-		add(importers, dir, "selected as an importer of a package whose declarations changed")
-	}
-	dirs := slices.Concat(change.Contract, change.RemovedContract)
-	slices.Sort(dirs)
-	for _, dir := range slices.Compact(dirs) {
-		var importers []string
-		known := base != nil
-		if known {
-			var dirs []string
-			dirs, known = base.Importers(dir)
-			for _, d := range dirs {
-				importers = append(importers, judge.ImportPath(modPath, d))
-			}
-		}
-		if !known {
-			if len(change.RemovedContract) > 0 {
-				logger.Info("the baseline records no import graph; the former importers of a removed declaration file are not selected",
-					"packages", strings.Join(change.RemovedContract, ","))
-			}
-			return nil
-		}
-		add(importers, dir, "selected as an importer at baseline of a package whose declarations changed")
+// modulePathFunc returns how to read the module path of a tree of t's
+// language, which a git baseline keys its packages' directories by:
+// golang.ModulePath for Go, nil for a language whose package identifiers
+// already are module-relative directories.
+func (t *Target) modulePathFunc() baseline.ModulePathFunc {
+	if t.Ext.Language() == languageGo {
+		return golang.ModulePath
 	}
 	return nil
 }
@@ -664,14 +503,4 @@ func failedPaths(failed []error) []string {
 		}
 	}
 	return paths
-}
-
-// changedImportPaths returns the import paths, in module modPath, of the
-// packages change lists as changed.
-func changedImportPaths(modPath string, change baseline.Change) map[string]bool {
-	changed := make(map[string]bool, len(change.Packages))
-	for _, dir := range change.Packages {
-		changed[judge.ImportPath(modPath, dir)] = true
-	}
-	return changed
 }
