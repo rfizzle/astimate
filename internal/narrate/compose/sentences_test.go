@@ -204,7 +204,7 @@ func TestModuleSentences(t *testing.T) {
 			}
 		}
 	}
-	bare := Glossary("typescript", nil, 0, 0)
+	bare := narrate.Glossary("typescript", nil, 0, 0)
 	for _, g := range bare {
 		if g.Term == "Limits" || g.Term == "Copied" || g.Term == "Changes" {
 			t.Errorf("glossary without numbers has %s", g.Term)
@@ -273,7 +273,7 @@ func TestChangeSentences(t *testing.T) {
 		{"sloc moved", sloc.Moved, "grew 416, allowed 150 while over the limit"},
 		{"sloc moved short", sloc.MovedShort, "grew 416, allowed 150"},
 		{"globals moved", globals.Moved, ""},
-		{"globals why", globals.Why, ""},
+		{"globals why", globals.Why, "Shared mutable state is a dependency no signature shows, so callers and tests rely on it without saying so."},
 		{"lib why", ch.Failing[1].Findings[0].Why, "A wider surface is more to reverse-engineer and more callers to keep working."},
 		{"lib moved", ch.Failing[1].Findings[0].Moved, "grew 6, allowed 5 while over the limit"},
 	}

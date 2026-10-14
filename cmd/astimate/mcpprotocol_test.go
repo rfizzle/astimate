@@ -241,7 +241,7 @@ func checkToolsList(t *testing.T, list toolsList) {
 		}
 	}
 	slices.Sort(names)
-	if want := []string{"assess_package", "check_package", "explain_metric", "rank_packages"}; !slices.Equal(names, want) {
+	if want := []string{"assess_package", "check_package", "explain_metric", "rank_packages", "report_module"}; !slices.Equal(names, want) {
 		t.Errorf("tools/list names = %v, want %v", names, want)
 	}
 }

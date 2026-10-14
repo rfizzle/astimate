@@ -3,5 +3,6 @@
 // the ceilings, the rebuild, copies and complexity views and the
 // plain-language sentences, and, against a base, the change section. The
 // sentences are fields, filled by package compose, so renderers only lay
-// them out. It imports internal/report only.
+// them out. The glossary (Glossary) lives here, so the page and the MCP
+// server's explain_metric say the same words. It imports internal/report only.
 package narrate

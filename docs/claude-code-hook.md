@@ -67,16 +67,26 @@ The `timeout` is in seconds. A check loads the module twice (head and the baseli
 
 When a change adds a copied function, an untested export and a package variable to package `tested` and grows a function's branching (the repository's degraded fixture), the agent receives this as the reason to continue:
 
+<!-- hook-sample:begin -->
 ```
 violations:
   tested
     changed_func_cognitive_max: 51 (changed since baseline), max 50. Changed function grade (grade.go:8) has cognitive complexity 51; split it into smaller functions or flatten its branching.
+      why: A function this complex is the one a rebuild gets wrong.
+      open tested/grade.go:8
     dup_blocks: 0 -> 1, max_delta +0; duplication_pct 0 -> 12.2, max_delta +6. 1 duplicate block of any kind (1 code) covers 12.2% of lines; extract shared helpers, starting with degraded.go:15-20, added in this change.
+      why: A new copy is a second place every future fix has to land.
+      open tested/degraded.go:15
     globals: 0 -> 1, max_delta +0. 1 mutable package-level variable holds state no signature reveals (joins); pass it explicitly or move it into a struct.
+      why: Shared mutable state is a dependency no signature shows, so callers and tests rely on it without saying so.
+      open tested/degraded.go:9
     untested_exports: 0 -> 1, max_delta +0. 1 exported function has no test (JoinAgain); a rebuild would have to reverse-engineer its behavior.
+      why: Nothing pins what an untested export does, so a rebuild would have to guess it.
+      open tested/degraded.go:13
 ```
+<!-- hook-sample:end -->
 
-Each line reads `metric: baseline -> head, limit. suggestion`. The reason is the findings alone, with no rebuild estimate: no agent passes and no tier, which could contradict what the findings ask for. [reading-violations.md](reading-violations.md) gives the order in which to fix them; point the agent at it from `CLAUDE.md` or `AGENTS.md`.
+The first line of each finding reads `metric: baseline -> head, limit. suggestion`, as it always has. Under it, indented further, `why:` says why the gate cares (the sentence `astimate report` and `check` print) and `open file:line` names the first place to look; a finding without either leaves its line out. The reason is the findings alone, with no rebuild estimate: no agent passes and no tier, which could contradict what the findings ask for. [reading-violations.md](reading-violations.md) gives the order in which to fix them; point the agent at it from `CLAUDE.md` or `AGENTS.md`.
 
 ## Requirements and failure modes
 

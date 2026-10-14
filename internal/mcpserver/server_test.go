@@ -56,6 +56,8 @@ func TestDiscovery(t *testing.T) {
 			whenText: "before deciding how to approach a change"},
 		{name: rankToolName, props: []string{`"module_root"`, `"top"`, `"sort"`},
 			whenText: "before choosing what to touch"},
+		{name: moduleToolName, props: []string{`"path"`, `"base"`},
+			whenText: "what should I split first"},
 		{name: explainToolName, props: []string{`"metric"`, `"required":["metric"]`},
 			whenText: "names a metric you do not understand"},
 	}

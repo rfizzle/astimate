@@ -111,6 +111,22 @@ func withOutputSchema[T any](t *mcp.Tool, logger *slog.Logger) *mcp.Tool {
 	return t
 }
 
+// failure is the result of a tool call that failed: msg as the text with
+// isError set and {"error": msg} as the structured content, the failure
+// logged with attrs.
+func (s *session) failure(tool, msg string, err error, attrs ...any) (*mcp.CallToolResult, any, error) {
+	s.opts.logger().Warn("tool call failed", append([]any{"tool", tool, "err", err}, attrs...)...)
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{&mcp.TextContent{Text: msg}},
+		IsError: true,
+	}, checkError{Error: msg}, nil
+}
+
+// textResult is a successful tool result whose text content is s.
+func textResult(s string) *mcp.CallToolResult {
+	return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: s}}}
+}
+
 // addCheckTool registers check_package on srv, backed by s.
 func addCheckTool(srv *mcp.Server, s *session) {
 	mcp.AddTool(srv, withSkippedBranch(withOutputSchema[CheckResult](&mcp.Tool{
@@ -132,11 +148,7 @@ func (s *session) checkPackage(ctx context.Context, _ *mcp.CallToolRequest, in C
 		if errors.Is(err, engine.ErrNoBaseline) {
 			msg += "; pass base (a git ref) or baseline_file"
 		}
-		s.opts.logger().Warn("tool call failed", "tool", checkToolName, "path", in.Path, "err", err)
-		return &mcp.CallToolResult{
-			Content: []mcp.Content{&mcp.TextContent{Text: msg}},
-			IsError: true,
-		}, checkError{Error: msg}, nil
+		return s.failure(checkToolName, msg, err, "path", in.Path)
 	}
 	return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: text}}}, r, nil
 }

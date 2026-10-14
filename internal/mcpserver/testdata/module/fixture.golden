@@ -1,0 +1,39 @@
+== text ==
+Fixture has no package too big to rebuild in one go.
+12 packages, about 2 weeks of one engineer's time to rebuild from their tests. 11 are fine, 1 is close to a limit, and 0 need a split.
+
+Start here:
+1. hidden (fine)
+   It is inside every limit, and it has no tests at all.
+   Do this: Nothing. Leave it alone.
+2. immut (fine)
+   It is inside every limit, and it has no tests at all.
+   Do this: Nothing. Leave it alone.
+3. a (fine)
+   It is inside every limit, and it has no tests at all.
+   Do this: Nothing. Leave it alone.
+-- structured --
+{
+  "headline": "Fixture has no package too big to rebuild in one go.",
+  "lead": "12 packages, about 2 weeks of one engineer's time to rebuild from their tests. 11 are fine, 1 is close to a limit, and 0 need a split.",
+  "start_here": [
+    {
+      "path": "hidden",
+      "band": "fine",
+      "story": "It is inside every limit, and it has no tests at all.",
+      "do": "Nothing. Leave it alone."
+    },
+    {
+      "path": "immut",
+      "band": "fine",
+      "story": "It is inside every limit, and it has no tests at all.",
+      "do": "Nothing. Leave it alone."
+    },
+    {
+      "path": "a",
+      "band": "fine",
+      "story": "It is inside every limit, and it has no tests at all.",
+      "do": "Nothing. Leave it alone."
+    }
+  ]
+}

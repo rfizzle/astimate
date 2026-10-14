@@ -179,7 +179,7 @@ func checkTarget(ctx context.Context, t *engine.Target, opts checkOptions, stdou
 	code := checkExitCode(opts.format, c.Failed(), len(failed))
 	opts.text.Exit, opts.text.ChangeOnly = &code, true
 	if opts.format == formatMD || opts.format == formatGitHub {
-		err = engine.WriteChange(ctx, t, c, engine.ChangeOptions{Base: opts.base, GitHub: opts.format == formatGitHub,
+		err = engine.WriteChange(t, c, engine.ChangeOptions{Base: opts.base, GitHub: opts.format == formatGitHub,
 			SummaryFile: os.Getenv("GITHUB_STEP_SUMMARY")}, stdout)
 	} else {
 		err = renderCheck(ctx, t, c, &opts, stdout, stderr)
@@ -238,18 +238,18 @@ func checkExitCode(format string, violations bool, failedPackages int) int {
 func renderCheck(ctx context.Context, t *engine.Target, c *report.Check, opts *checkOptions, stdout, stderr io.Writer) error {
 	var buf, warnings bytes.Buffer
 	var err error
+	base := opts.base
+	if opts.baselineFile != "" {
+		base = filepath.Base(opts.baselineFile)
+	}
 	switch opts.format {
 	case formatJSON:
 		err = report.WriteCheckJSON(&buf, c)
 	case formatHook:
-		err = report.WriteHook(&buf, &warnings, c)
+		err = report.WriteHookNotes(&buf, &warnings, c, engine.CheckReport(t, c, base).HookNotes())
 	case formatGitHub:
 		err = report.WriteGitHub(&buf, c)
 	default:
-		base := opts.base
-		if opts.baselineFile != "" {
-			base = filepath.Base(opts.baselineFile)
-		}
 		err = render.Write(ctx, &buf, engine.CheckReport(t, c, base), render.FormatText, &opts.text)
 	}
 	if err != nil {

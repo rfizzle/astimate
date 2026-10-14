@@ -83,6 +83,39 @@ func CheckReport(t *Target, c *report.Check, base string) *narrate.Module {
 	return &built
 }
 
+// Sentences returns the story (what is wrong with the package) and the
+// todo (what to do about it) of r, the report of a package of t's module,
+// as the module report words them (compose.Build). Both are empty for a
+// package whose estimate is uncalibrated, which has no view.
+func Sentences(t *Target, r *report.Report) (story, todo string) {
+	if !r.Rebuild.Calibrated {
+		return "", ""
+	}
+	in := t.composeInput("", 1)
+	in.Packages = append(in.Packages, *r)
+	built := compose.Build(&in)
+	if len(built.Packages) == 0 {
+		return "", ""
+	}
+	return built.Packages[0].Story, built.Packages[0].Todo
+}
+
+// Glossary returns the glossary a module report of language carries
+// (narrate.Glossary), with the limits, duplicate-block floor and churn
+// window of cfg; a nil cfg is the embedded default configuration. It is
+// what the report page prints, so explain_metric can answer with the same
+// words.
+func Glossary(cfg *config.Config, language string) []narrate.Term {
+	if cfg == nil {
+		var err error
+		if cfg, err = config.Parse(config.Default()); err != nil {
+			return narrate.Glossary(language, nil, 0, 0)
+		}
+	}
+	eff := cfg.ForLanguage(language)
+	return narrate.Glossary(language, ceilings(&eff), cfg.Duplication.MinTokens, cfg.Churn.Commits)
+}
+
 // composeInput returns the input of compose.Build for t's module, with
 // room for n packages and the change against base.
 func (t *Target) composeInput(base string, n int) compose.Input {

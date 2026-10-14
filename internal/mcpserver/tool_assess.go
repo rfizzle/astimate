@@ -34,9 +34,19 @@ type AssessInput struct {
 	Coverage bool `json:"coverage,omitempty" jsonschema:"Run the package's tests with go test -cover to report coverage_pct and untested_exports_covered and scale the estimate's unspecified term by coverage_pct. Slower. Defaults to false."`
 }
 
+// assessResult is the structured content of a successful assess_package
+// call: the package's SPEC.md 10.2 report and, as the module report words
+// them, its story (what is wrong with it) and todo (what to do about it);
+// both are empty for a package whose estimate is uncalibrated.
+type assessResult struct {
+	report.Report
+	Story string `json:"story"`
+	Todo  string `json:"todo"`
+}
+
 // addAssessTool registers assess_package on srv, backed by s.
 func addAssessTool(srv *mcp.Server, s *session) {
-	mcp.AddTool(srv, withOutputSchema[report.Report](&mcp.Tool{
+	mcp.AddTool(srv, withOutputSchema[assessResult](&mcp.Tool{
 		Name:        assessToolName,
 		Title:       "Assess a package's rebuild estimate",
 		Description: assessToolDescription,
@@ -51,11 +61,7 @@ func (s *session) assessPackage(ctx context.Context, _ *mcp.CallToolRequest, in 
 	r, text, err := s.runAssess(ctx, in)
 	if err != nil {
 		msg := assessToolName + ": " + err.Error()
-		s.opts.logger().Warn("tool call failed", "tool", assessToolName, "path", in.Path, "err", err)
-		return &mcp.CallToolResult{
-			Content: []mcp.Content{&mcp.TextContent{Text: msg}},
-			IsError: true,
-		}, checkError{Error: msg}, nil
+		return s.failure(assessToolName, msg, err, "path", in.Path)
 	}
 	return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: text}}}, r, nil
 }
@@ -65,7 +71,7 @@ func (s *session) assessPackage(ctx context.Context, _ *mcp.CallToolRequest, in 
 // the module root. Another tokenizer needs an extractor of its own, so it
 // gets an uncached Target built for this call only: the cache stays one
 // Target per root, and the rarer exact count pays for its own load.
-func (s *session) runAssess(ctx context.Context, in AssessInput) (*report.Report, string, error) {
+func (s *session) runAssess(ctx context.Context, in AssessInput) (*assessResult, string, error) {
 	tokenizer := in.Tokenizer
 	if tokenizer == "" {
 		tokenizer = engine.TokenizerEst
@@ -101,9 +107,14 @@ func (s *session) runAssess(ctx context.Context, in AssessInput) (*report.Report
 	if err != nil {
 		return nil, "", err
 	}
+	res := &assessResult{Report: *r}
+	res.Story, res.Todo = engine.Sentences(t, r)
 	var b strings.Builder
 	if err := report.WriteTable(&b, r); err != nil {
 		return nil, "", err
 	}
-	return r, b.String(), nil
+	if res.Story != "" {
+		b.WriteString("story: " + res.Story + "\ndo this: " + res.Todo + "\n")
+	}
+	return res, b.String(), nil
 }

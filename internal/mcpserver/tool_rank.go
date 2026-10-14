@@ -67,11 +67,7 @@ func (s *session) rankPackages(ctx context.Context, _ *mcp.CallToolRequest, in R
 	text, res, err := s.runRank(ctx, in)
 	if err != nil {
 		msg := rankToolName + ": " + err.Error()
-		s.opts.logger().Warn("tool call failed", "tool", rankToolName, "module_root", in.ModuleRoot, "err", err)
-		return &mcp.CallToolResult{
-			Content: []mcp.Content{&mcp.TextContent{Text: msg}},
-			IsError: true,
-		}, checkError{Error: msg}, nil
+		return s.failure(rankToolName, msg, err, "module_root", in.ModuleRoot)
 	}
 	return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: text}}}, res, nil
 }
@@ -112,7 +108,7 @@ func (s *session) runRank(ctx context.Context, in RankInput) (string, rankResult
 // table, then, when any package failed, a "skipped N packages:" list with
 // each error.
 func rankOutput(ranked []rows.Row, failed []error) (string, rankResult, error) {
-	res := rankResult{Rows: ranked, Failed: make([]rankFailure, 0, len(failed))}
+	res := rankResult{Rows: ranked, Failed: failures(failed)}
 	if res.Rows == nil {
 		res.Rows = []rows.Row{}
 	}
@@ -124,13 +120,22 @@ func rankOutput(ranked []rows.Row, failed []error) (string, rankResult, error) {
 		b.WriteString("\nskipped " + strconv.Itoa(len(failed)) + " packages:\n")
 	}
 	for _, err := range failed {
+		b.WriteString("  " + err.Error() + "\n")
+	}
+	return b.String(), res, nil
+}
+
+// failures lists the packages failed names, each by path when it is a
+// *engine.PackageError.
+func failures(failed []error) []rankFailure {
+	out := make([]rankFailure, 0, len(failed))
+	for _, err := range failed {
 		f := rankFailure{Error: err.Error()}
 		var pe *engine.PackageError
 		if errors.As(err, &pe) {
 			f.Path, f.Error = pe.Path, pe.Err.Error()
 		}
-		res.Failed = append(res.Failed, f)
-		b.WriteString("  " + err.Error() + "\n")
+		out = append(out, f)
 	}
-	return b.String(), res, nil
+	return out
 }

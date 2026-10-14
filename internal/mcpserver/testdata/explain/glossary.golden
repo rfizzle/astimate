@@ -1,0 +1,18 @@
+== rebuild_cost ==
+Rebuild cost: How long it would take to rewrite the package from its tests. Shown as one engineer's working time, and as agent sittings: how many times an AI agent would have to start over with a fresh context window. One sitting means it fits in one go; over three means the package has to be split before anyone can rebuild it.
+== split ==
+Split: The package is past what one agent pass can hold, or over two of its limits. Carve it into smaller packages before adding to it.
+== watch ==
+Watch: Over one limit, or large enough to need a few passes. The next growth here will start failing the gate.
+== copied ==
+Copied: The share of lines inside duplicate blocks of 40 or more tokens. Every copy is a second place a fix has to land.
+== untested ==
+Untested: Exported functions no test touches. A rebuild would have to guess their behaviour.
+== changes ==
+Changes: Commits touching the package in the last 200. Hot code is where a split pays back soonest.
+== limits ==
+Limits: Per package: 1,000 lines, 16,000 tokens, a 600-line largest file, 60 exports, 10 internal imports. Fitted from well-regarded Go modules.
+== hard_to_follow ==
+Hard to follow: Each function gets a cognitive complexity score: how much branching and nesting a reader has to hold in their head. Up to 10 is easy, 11 to 20 needs care, over 20 is hard and the usual linter limit. "Paths" is the cyclomatic count, the number of distinct routes through the function a test would have to cover.
+== paths ==
+Hard to follow: Each function gets a cognitive complexity score: how much branching and nesting a reader has to hold in their head. Up to 10 is easy, 11 to 20 needs care, over 20 is hard and the usual linter limit. "Paths" is the cyclomatic count, the number of distinct routes through the function a test would have to cover.

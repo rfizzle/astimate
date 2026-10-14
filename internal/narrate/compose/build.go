@@ -59,7 +59,7 @@ func Build(in *Input) narrate.Module {
 		Packages:        make([]narrate.Package, 0, len(in.Packages)),
 		AstimateVersion: in.AstimateVersion,
 		ConfigVersion:   in.ConfigVersion,
-		Glossary:        Glossary(in.Language, in.Limits, in.MinTokens, in.ChurnWindow),
+		Glossary:        narrate.Glossary(in.Language, in.Limits, in.MinTokens, in.ChurnWindow),
 	}
 	if m.Limits == nil {
 		m.Limits = []narrate.Limit{}

@@ -203,7 +203,7 @@ func finding(v *gate.Violation) Finding {
 // (unavailableText) and one per skipped package (skippedText).
 func WriteCheckText(w io.Writer, c *Check) error {
 	bw := bufio.NewWriter(w)
-	writeFindings(bw, c)
+	writeFindings(bw, c, nil)
 	if c.Module != nil {
 		writeModuleSummary(bw, c.Module)
 	}
@@ -229,12 +229,12 @@ func WriteCheckText(w io.Writer, c *Check) error {
 // metrics.ModuleRowID and then each package's under its directory; an
 // empty section is left out. Each exempted line ends with its reason
 // (exemptedText), so no silenced finding is shown without it.
-func writeFindings(w *bufio.Writer, c *Check) {
+func writeFindings(w *bufio.Writer, c *Check, notes FindingNotes) {
 	sections := []struct {
 		title string
 		lines func(*Report) []string
 	}{
-		{"violations", func(r *Report) []string { return findingLines(r.Violations) }},
+		{"violations", func(r *Report) []string { return notes.lines(r.PackagePath, r.Violations) }},
 		{"warnings", func(r *Report) []string { return findingLines(r.Warnings) }},
 		{"exempted", func(r *Report) []string {
 			lines := make([]string, 0, len(r.Exemptions))
@@ -262,6 +262,33 @@ func writeFindings(w *bufio.Writer, c *Check) {
 			}
 		}
 	}
+}
+
+// FindingNotes gives the module report's sentences for a violation: why
+// the gate cares and the place to open first ("file:line"), either empty
+// when it has none. path is the package path, metrics.ModuleRowID for the
+// module row. A nil FindingNotes adds nothing.
+type FindingNotes func(path, metric string) (why, open string)
+
+// lines renders each of fs, the violations of the package at path, as
+// findingText followed, on lines of their own, by its why sentence and
+// "open <place>", indented under it.
+func (n FindingNotes) lines(path string, fs []Finding) []string {
+	lines := make([]string, 0, len(fs))
+	for j := range fs {
+		text := findingText(&fs[j])
+		if n != nil {
+			why, open := n(path, fs[j].Metric)
+			if why != "" {
+				text += "\n      why: " + why
+			}
+			if open != "" {
+				text += "\n      open " + open
+			}
+		}
+		lines = append(lines, text)
+	}
+	return lines
 }
 
 // findingLines renders each of fs with findingText.
@@ -445,9 +472,17 @@ type hookBlock struct {
 // each package whose baseline is unavailable and each skipped package one
 // more (unavailableText, skippedText).
 func WriteHook(w, warnings io.Writer, c *Check) error {
+	return WriteHookNotes(w, warnings, c, nil)
+}
+
+// WriteHookNotes is WriteHook with each violation's line followed by the
+// why sentence and the place to open that notes gives for it; the first
+// line of every finding is unchanged, so what reads the reason by its
+// finding lines still matches.
+func WriteHookNotes(w, warnings io.Writer, c *Check, notes FindingNotes) error {
 	var text strings.Builder
 	bw := bufio.NewWriter(&text)
-	writeFindings(bw, c)
+	writeFindings(bw, c, notes)
 	if note := tokenizerNote(c); note != "" {
 		_, _ = bw.WriteString("warning: " + note + "\n")
 	}

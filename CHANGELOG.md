@@ -32,6 +32,18 @@ history.
   finding at 80 columns or fewer, long paths cut from the left; colour and
   bars only on a terminal without `NO_COLOR`, or with
   `--color always`. Severity is always a word or sign first.
+- One voice across the MCP server and the Stop hook (SPEC.md 8.5 and
+  10.1). The new MCP tool `report_module` (`path`, optional `base`)
+  returns the verdict (`headline`, `lead`), the three packages to start
+  with, each with its story and what to do, and the whole module report,
+  so an agent can ask what to split first in one call. `assess_package`
+  adds the package's `story` and `todo`. `explain_metric` also explains
+  the report's words (`rebuild_cost`, `split`, `watch`, `copied`,
+  `untested`, `changes`, `limits`, `hard_to_follow`, `paths`) with the text
+  the report page's glossary prints. In the hook format each violation
+  keeps its first line and adds `why: ...` and `open file:line` under it;
+  the shared sentences also gained a why for `globals`, `untested_exports`,
+  `tokens_est` and `internal_imports`.
 - `astimate report [dir] [--base ref] --format json`: a module report in
   plain words, the data model every report format will share (SPEC.md
   10.3). Each package gets a band (Split when its rebuild tier is

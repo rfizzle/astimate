@@ -50,6 +50,10 @@ func TestAssessPackageTool(t *testing.T) {
 				t.Fatalf("IsError = true, want a report; text:\n%s", text)
 			}
 			r := decodeReport(t, res)
+			if got := decodeStrict[assessResult](t, res); got.Story == "" || got.Todo == "" ||
+				!strings.Contains(text, "story: "+got.Story+"\ndo this: "+got.Todo+"\n") {
+				t.Errorf("story = %q, todo = %q, want both, and in the text:\n%s", got.Story, got.Todo, text)
+			}
 			if r.PackagePath != "hub" || r.Language != "go" || r.Rebuild.Tier == "" {
 				t.Errorf("report = (%q, %q, tier %q), want the go package hub with a tier",
 					r.PackagePath, r.Language, r.Rebuild.Tier)

@@ -149,7 +149,7 @@ func decodeStrict[T any](t *testing.T, res *mcp.CallToolResult) T {
 // rejecting unknown fields.
 func decodeReport(t *testing.T, res *mcp.CallToolResult) report.Report {
 	t.Helper()
-	return decodeStrict[report.Report](t, res)
+	return decodeStrict[assessResult](t, res).Report
 }
 
 // decodeCheck decodes the structured content of res as a check_package

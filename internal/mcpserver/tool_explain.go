@@ -7,8 +7,10 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/rfizzle/astimate/internal/engine"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/metrics/explain"
+	"github.com/rfizzle/astimate/internal/narrate"
 	"github.com/rfizzle/astimate/internal/report"
 )
 
@@ -21,7 +23,19 @@ const explainToolName = "explain_metric"
 const explainToolDescription = "Explain one metric: what it counts, the evidence for reporting or gating it, " +
 	"the release it ships in, and the threshold rules the server's loaded configuration applies to it. " +
 	"Call it when a check_package violation or warning names a metric you do not understand, before " +
-	"deciding how to fix it."
+	"deciding how to fix it. It also explains the words of the module report in the same text its page " +
+	"prints: rebuild_cost, split, watch, copied, untested, changes, limits, hard_to_follow and paths."
+
+// glossaryLanguage is the language whose limits the report words are
+// explained with: explain_metric names no package, and the shipped
+// configuration is fitted for Go.
+const glossaryLanguage = "go"
+
+// glossaryNames are the report words explain_metric answers besides the
+// metrics, as the glossary of the module report prints them.
+func glossaryNames() []string {
+	return []string{"rebuild_cost", "split", "watch", "copied", "untested", "changes", "limits", "hard_to_follow", "paths"}
+}
 
 // ExplainInput is the input of the explain_metric tool.
 type ExplainInput struct {
@@ -32,7 +46,11 @@ type ExplainInput struct {
 // explainResult is the structured content of a successful explain_metric
 // call.
 type explainResult struct {
-	Name       string             `json:"name"`
+	Name string `json:"name"`
+	// Term is the glossary entry's heading, as the report page prints it,
+	// when Name is a report word rather than a metric; Definition is then
+	// the page's text and the other fields are empty.
+	Term       string             `json:"term,omitempty"`
 	Definition string             `json:"definition"`
 	Evidence   string             `json:"evidence"`
 	Release    string             `json:"release"`
@@ -79,8 +97,13 @@ func addExplainTool(srv *mcp.Server, s *session) {
 func (s *session) explainMetric(_ context.Context, _ *mcp.CallToolRequest, in ExplainInput) (*mcp.CallToolResult, any, error) {
 	e, ok := explain.Explain(in.Metric)
 	if !ok {
+		if term, found := narrate.Lookup(engine.Glossary(s.opts.Config, glossaryLanguage), in.Metric); found {
+			r := explainResult{Name: in.Metric, Term: term.Term, Definition: term.Text, Thresholds: []explainThreshold{}}
+			return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: r.text()}}}, r, nil
+		}
 		msg := explainToolName + ": unknown metric " + strconv.Quote(in.Metric) +
-			"; valid names: " + strings.Join(metrics.MetricNames(), ", ")
+			"; valid names: " + strings.Join(metrics.MetricNames(), ", ") +
+			"; report words: " + strings.Join(glossaryNames(), ", ")
 		s.opts.logger().Warn("tool call failed", "tool", explainToolName, "metric", in.Metric)
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{&mcp.TextContent{Text: msg}},
@@ -138,6 +161,9 @@ func (s *session) thresholdsFor(metric string) []explainThreshold {
 // always, and which rule a finding of the metric is attributed to when the
 // gate merges it into another's.
 func (r explainResult) text() string {
+	if r.Term != "" {
+		return r.Term + ": " + r.Definition + "\n"
+	}
 	var b strings.Builder
 	b.WriteString(r.Name + " (" + r.Release)
 	if r.Gated {

@@ -2,7 +2,6 @@ package engine
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"os"
@@ -30,28 +29,18 @@ type ChangeOptions struct {
 // on w, ranked as the report ranks its failing packages and capped at
 // report.MaxAnnotations of each kind, and the Markdown, with a closing
 // line saying how many annotations the cap left out, appended to
-// opts.SummaryFile. When the report cannot be built, the annotations are
-// written in check order and the summary is left alone, so a failure to
-// narrate never costs the annotations.
-func WriteChange(ctx context.Context, t *Target, c *report.Check, opts ChangeOptions, w io.Writer) error {
+// opts.SummaryFile. The report is narrated from the check's own rows
+// (CheckReport), so the module is not extracted again.
+func WriteChange(t *Target, c *report.Check, opts ChangeOptions, w io.Writer) error {
 	base := opts.Base
 	if base == "" {
 		base = "baseline"
 	}
-	build := func() (*narrate.Module, error) {
-		m, _, err := Report(ctx, t, ReportOptions{Base: base, Check: c})
-		return m, err
-	}
 	if !opts.GitHub {
-		m, err := build()
-		if err != nil {
-			return err
-		}
-		return writeChangeMarkdown(w, m, "")
+		return writeChangeMarkdown(w, CheckReport(t, c, base), "")
 	}
-	// Ranking needs the report, which extracts every package again; the
-	// first pass in check order is final when the cap left nothing out and
-	// no summary is wanted.
+	// Ranking needs the report; the first pass in check order is final
+	// when the cap left nothing out and no summary is wanted.
 	var buf bytes.Buffer
 	omitted, err := report.WriteGitHubRanked(&buf, c, nil)
 	if err != nil {
@@ -59,10 +48,8 @@ func WriteChange(ctx context.Context, t *Target, c *report.Check, opts ChangeOpt
 	}
 	var m *narrate.Module
 	if omitted != (report.Omitted{}) || opts.SummaryFile != "" {
-		var err error
-		if m, err = build(); err != nil {
-			t.logger().Error("building the report for the step summary failed", "err", err)
-		} else if omitted != (report.Omitted{}) {
+		m = CheckReport(t, c, base)
+		if omitted != (report.Omitted{}) {
 			buf.Reset()
 			rank := make([]string, len(m.Change.Failing))
 			for i, f := range m.Change.Failing {

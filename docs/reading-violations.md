@@ -2,41 +2,59 @@
 
 This page is for the agent (or person) that `astimate check` has just refused. It explains the output and the order in which to fix it. Point your agent at it from `CLAUDE.md` or `AGENTS.md`.
 
+## The words
+
+Every surface of astimate (`report`, `check`, the hook and the MCP server) says the same sentences, written once in `internal/narrate`. `astimate report`'s glossary, and the MCP tool `explain_metric` for `rebuild_cost`, `split`, `watch`, `copied`, `untested`, `changes`, `limits`, `hard_to_follow` and `paths`, explain them in the same text.
+
+- **Bands.** Every package is `Split`, `Watch` or `Fine`. Split: it is past what one agent pass can hold, or over two of its limits; carve it up before adding to it. Watch: it is over one limit, or large enough to need a few passes; the next growth will start failing the gate. Fine: everything else. The limits are the five size ceilings (lines, tokens, largest file, exports, internal imports).
+- **Rebuild cost.** How long it would take to rewrite the package from its tests, as one engineer's working time and as agent sittings (one sitting fits in one go; over three means split it first).
+- **Start here.** The three packages with the most changes lately times the days they would take to rebuild: where a split pays back soonest. Each has a one-sentence story (what is wrong) and a **Do this** sentence (what to do about it). `astimate report` prints them; the MCP tool `report_module` returns them as `start_here` with the verdict, so an agent can ask what to split first in one call; `assess_package` returns one package's `story` and `todo`.
+- **Heads up.** A warning: close to a limit, or a rule set to `severity: warn`. It never blocks.
+- **Open at.** A finding's first place to look, a file and line (`open tested/degraded.go:15`).
+
 ## The output
 
-In a terminal or a CI log, `astimate check` prints the change report (the counts and days here are illustrative):
+In a terminal or a CI log, `astimate check` prints the change report (this is the repository's degraded fixture):
 
 ```
 FAIL  1 package needs attention before this merges.  against master
-      2 changed · 1 fail · 1 heads up · 0 pass clean · copies between packages 1 → 1
+      1 changed · 1 fail · 0 heads up · 0 pass clean · copies between packages 1 → 1
 
- ✗ tested  1 finding · 4.5 days to rebuild
-   untested exports  0 → 1  max_delta +0
-   1 exported function has no test (JoinAgain).
+ ✗ tested  4 findings · 3.9 days to rebuild · 1 change lately
+   changed func cognitive max  51     max 50
+   A function this complex is the one a rebuild gets wrong.
+   open tested/grade.go:8
+   dup blocks                  0 → 1  1 new copy, none allowed
+   A new copy is a second place every future fix has to land.
+   open tested/degraded.go:15
+   globals                     0 → 1  max_delta +0
+   Shared mutable state is a dependency no signature shows, so callers and tests rely on it without saying so.
+   open tested/degraded.go:9
+   untested exports            0 → 1  max_delta +0
+   Nothing pins what an untested export does, so a rebuild would have to guess it.
    open tested/degraded.go:13
-
- ! 1 heads up: tokens est 1
-   astimate check --warnings lists them; they never block
 
  exit 3
 ```
 
-`FAIL` or `PASS` comes first, then the counts: the packages that changed, failed, carry warnings (heads-ups) or pass clean, and the code copied between packages at the baseline and now. Each failing package follows behind `✗`, any exempted violations after the heads-ups (see [Exemptions](#exemptions)). A finding gives its metric in words, baseline → head, and how far it moved against what the rule allows (`grew 416, allowed 150` for a package already past its ceiling, `4 new copies, none allowed` for new duplicates), else the rule's limit; then why the gate cares, or else what to do; then the file and line to open. At 80 columns or fewer each finding takes one line and only the package's first place to open is named. The warnings are counted by rule on the `!` line; `astimate check --warnings` lists each with its package, limit and suggestion. The failing package's summary gives its rebuild days and how often it changed lately only when the rebuild parameters are calibrated, as the embedded default's are (its `config_version` starts `rebuild-`): an uncalibrated estimate can contradict the gate, rating a duplicated package one pass while the gate asks for a split. `astimate assess` and `rank` always show the estimate, labeled calibrated or uncalibrated.
+`FAIL` or `PASS` comes first, then the counts: the packages that changed, failed, carry heads-ups or pass clean, and the code copied between packages at the baseline and now. Each failing package follows behind `✗`, any exempted violations after the heads-ups (see [Exemptions](#exemptions)). A finding gives its metric in words, baseline → head, and how far it moved against what the rule allows (`grew 416, allowed 150` for a package already past its ceiling, `4 new copies, none allowed` for new duplicates), else the rule's limit; then why the gate cares, or else what to do; then where to open. At 80 columns or fewer each finding takes one line and only the package's first place to open is named. The heads-ups are counted by rule on the `!` line; `astimate check --warnings` lists each with its package, limit and suggestion. The failing package's summary gives its rebuild days and how often it changed lately only when the rebuild parameters are calibrated, as the embedded default's are (its `config_version` starts `rebuild-`): an uncalibrated estimate can contradict the gate, rating a duplicated package one pass while the gate asks for a split. `astimate assess` and `rank` always show the estimate, labeled calibrated or uncalibrated.
 
-The Claude Code hook sends the findings in full as its `reason`, one line each, without the counts:
+The Claude Code hook sends the findings in full as its `reason`, without the counts. Each violation is its finding line, then, indented under it, why the gate cares and where to open:
 
 ```
 violations:
   tested
     untested_exports: 0 -> 1, max_delta +0. 1 exported function has no test (JoinAgain); a rebuild would have to reverse-engineer its behavior.
+      why: Nothing pins what an untested export does, so a rebuild would have to guess it.
+      open tested/degraded.go:13
 warnings:
   big
     tokens_est: 11000 -> 12800, max 16000. at 80% of the 16000 ceiling; plan a split before the next feature. The package is 12800 tokens of non-test source; split it so a rebuild fits one agent pass.
 ```
 
-Each finding line is `metric: baseline -> head, limit. suggestion`; a package new since the baseline shows `head (no baseline)` instead, and `changed_func_cognitive_max`, which is itself measured against the baseline, shows `head (changed since baseline)` for a new function and the function's own `base -> head` for one that existed at the baseline. One cause is one finding: a rule over both its `max_delta` and its `max` reads `max_delta +6 and max 40`, and a `tokens_est` breach on the same growth as a `sloc` one, or a `duplication_pct` breach beside a `dup_blocks` one, is folded into the `sloc` or `dup_blocks` finding, whose limit names the other's values (`max 1000; tokens_est 15000 -> 17500, max 16000`) and whose JSON lists it under `also`. The suggestion names the identifiers or file lines to start with when the extractor knows them. A `dup_blocks` suggestion ending `added in this change` marks the block that sits in your own copy of the code, the one to extract; the other copy was already there. An `untested_exports` suggestion lists the exports your change added first, then the older untested ones, so the first names are the ones you owe a test. The JSON format carries the same fields as `violations`, `warnings` and `exemptions` arrays, and `--format github` writes each finding line as an annotation on the file and line it names.
+Each finding line is `metric: baseline -> head, limit. suggestion`; a package new since the baseline shows `head (no baseline)` instead, and `changed_func_cognitive_max`, which is itself measured against the baseline, shows `head (changed since baseline)` for a new function and the function's own `base -> head` for one that existed at the baseline. The `why:` line is the same sentence the report prints under the finding, and `open` names the same file and line as its **open at** line; both are left out when the finding has none. One cause is one finding: a rule over both its `max_delta` and its `max` reads `max_delta +6 and max 40`, and a `tokens_est` breach on the same growth as a `sloc` one, or a `duplication_pct` breach beside a `dup_blocks` one, is folded into the `sloc` or `dup_blocks` finding, whose limit names the other's values (`max 1000; tokens_est 15000 -> 17500, max 16000`) and whose JSON lists it under `also`. The suggestion names the identifiers or file lines to start with when the extractor knows them. A `dup_blocks` suggestion ending `added in this change` marks the block that sits in your own copy of the code, the one to extract; the other copy was already there. An `untested_exports` suggestion lists the exports your change added first, then the older untested ones, so the first names are the ones you owe a test. The JSON format carries the same fields as `violations`, `warnings` and `exemptions` arrays, and `--format github` writes each finding line as an annotation on the file and line it names.
 
-**Fix every violation; read the warnings.** Violations fail the gate (exit 3, or a block decision in the hook). Warnings never do: they say a package is approaching a size ceiling, or they are the breach of a rule the configuration sets to `severity: warn`, which reads exactly like a violation (and carries `"severity": "warn"` in JSON) but is reported without failing. Treat such a warning as a violation you are not forced to fix: fix it when it is in the code you changed. Do not trade a violation for a warning, and do not spend the turn on warnings while a violation remains.
+**Fix every violation; read the heads-ups.** Violations fail the gate (exit 3, or a block decision in the hook). Heads-ups (warnings) never do: they say a package is approaching a size ceiling, or they are the breach of a rule the configuration sets to `severity: warn`, which reads exactly like a violation (and carries `"severity": "warn"` in JSON) but is reported without failing. Treat such a warning as a violation you are not forced to fix: fix it when it is in the code you changed. Do not trade a violation for a warning, and do not spend the turn on warnings while a violation remains.
 
 Density rules are judged on the change, so the fix is always in what you just wrote: the baseline value is what the package had before, and bringing head back to it passes. Never "fix" a violation by editing the thresholds in `astimate.yaml`, deleting tests, or moving code into an ignored directory; those are the regressions the gate exists to catch.
 

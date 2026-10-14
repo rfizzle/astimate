@@ -35,7 +35,7 @@ type Options struct {
 
 // New returns the astimate MCP server for o. Each tool is registered by its
 // own file in this package (tool_check.go, tool_assess.go, tool_rank.go,
-// tool_explain.go) through an AddTool call made from here. The tools share
+// tool_explain.go, tool_module.go) through an AddTool call made from here. The tools share
 // one session, which caches module loads and baselines for the server's
 // lifetime.
 func New(o Options) *mcp.Server {
@@ -54,6 +54,7 @@ func New(o Options) *mcp.Server {
 	addCheckTool(srv, s)
 	addRankTool(srv, s)
 	addExplainTool(srv, s)
+	addModuleTool(srv, s)
 	return srv
 }
 

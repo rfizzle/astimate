@@ -49,8 +49,16 @@ func why(metric string) string {
 		return "A new copy is a second place every future fix has to land."
 	case "sloc":
 		return "The package was already past what one agent pass can hold, and this change grew it more than one change is allowed to."
+	case "tokens_est":
+		return "The package is past what one agent pass can read, and this change took it there or grew it more than one change is allowed to."
 	case "largest_file_sloc":
 		return "One file is carrying the growth, and a rebuild has to read all of it."
+	case "globals":
+		return "Shared mutable state is a dependency no signature shows, so callers and tests rely on it without saying so."
+	case "untested_exports":
+		return "Nothing pins what an untested export does, so a rebuild would have to guess it."
+	case "internal_imports":
+		return "Each internal import is another package to understand before this one can be rebuilt."
 	case "exported_symbols":
 		return "A wider surface is more to reverse-engineer and more callers to keep working."
 	case "changed_func_cognitive_max":
@@ -351,54 +359,6 @@ func firstClause(s string) string {
 		return ""
 	}
 	return s + "."
-}
-
-// Glossary explains the report's words, with the numbers of limits, the
-// duplicate-block floor minTokens and the churn window.
-func Glossary(language string, limits []narrate.Limit, minTokens, window int) []narrate.Term {
-	out := []narrate.Term{
-		{Term: "Rebuild cost", Text: "How long it would take to rewrite the package from its tests. Shown as one engineer's working time, and as agent sittings: how many times an AI agent would have to start over with a fresh context window. One sitting means it fits in one go; over three means the package has to be split before anyone can rebuild it."},
-		{Term: "Split", Text: "The package is past what one agent pass can hold, or over two of its limits. Carve it into smaller packages before adding to it."},
-		{Term: "Watch", Text: "Over one limit, or large enough to need a few passes. The next growth here will start failing the gate."},
-	}
-	if minTokens > 0 {
-		out = append(out, narrate.Term{Term: "Copied", Text: "The share of lines inside duplicate blocks of " + strconv.Itoa(minTokens) +
-			" or more tokens. Every copy is a second place a fix has to land."})
-	}
-	out = append(out, narrate.Term{Term: "Untested", Text: "Exported functions no test touches. A rebuild would have to guess their behaviour."})
-	if window > 0 {
-		out = append(out, narrate.Term{Term: "Changes", Text: "Commits touching the package in the last " + strconv.Itoa(window) +
-			". Hot code is where a split pays back soonest."})
-	}
-	if l := limitsText(limits); l != "" {
-		t := "Per package: " + l + "."
-		if language == "go" {
-			t += " Fitted from well-regarded Go modules."
-		}
-		out = append(out, narrate.Term{Term: "Limits", Text: t})
-	}
-	return append(out, narrate.Term{Term: "Hard to follow", Text: "Each function gets a cognitive complexity score: how much branching and nesting a reader has to hold in their head. Up to 10 is easy, 11 to 20 needs care, over 20 is hard and the usual linter limit. \"Paths\" is the cyclomatic count, the number of distinct routes through the function a test would have to cover."})
-}
-
-// limitsText lists the limits as the glossary says them.
-func limitsText(limits []narrate.Limit) string {
-	parts := make([]string, 0, len(limits))
-	for _, l := range limits {
-		v := narrate.Num(l.Max)
-		switch l.Metric {
-		case "sloc":
-			parts = append(parts, v+" lines")
-		case "tokens_est":
-			parts = append(parts, v+" tokens")
-		case "largest_file_sloc":
-			parts = append(parts, "a "+v+"-line largest file")
-		case "exported_symbols":
-			parts = append(parts, v+" exports")
-		case "internal_imports":
-			parts = append(parts, v+" internal imports")
-		}
-	}
-	return strings.Join(parts, ", ")
 }
 
 // human is days as one engineer's working time: days under a week, weeks

@@ -53,6 +53,10 @@ func TestToolOutputSchemas(t *testing.T) {
 			ok:     map[string]any{"module_root": "mod"},
 			failed: map[string]any{"module_root": "missing"},
 		},
+		moduleToolName: {
+			ok:     map[string]any{"path": "mod"},
+			failed: map[string]any{"path": "missing"},
+		},
 		explainToolName: {
 			ok:     map[string]any{"metric": "dup_blocks"},
 			failed: map[string]any{"metric": "missing"},
