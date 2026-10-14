@@ -68,11 +68,15 @@ type Rules struct {
 	// language without and with an override is judged by.
 	top    []int
 	byLang map[string][]int
+	// CrossFloor is the configuration's duplication.min_tokens_cross: the
+	// shortest added cross-package block dup_blocks_cross_pkg judges on a
+	// module row that records its added blocks (corpus.Row.AddedCross).
+	CrossFloor int
 }
 
 // NewRules returns cfg's gated rules.
 func NewRules(cfg *config.Config) *Rules {
-	s := &Rules{byLang: make(map[string][]int)}
+	s := &Rules{byLang: make(map[string][]int), CrossFloor: cfg.Duplication.MinTokensCross}
 	for i, t := range cfg.Thresholds {
 		s.List = append(s.List, Rule{Threshold: t})
 		s.top = append(s.top, i)
@@ -191,12 +195,39 @@ func eqPtr[T comparable](a, b *T) bool {
 // has a violation on row r: whether it breaches, whatever its severity.
 // A row that records its changed functions gives them to the gate, so
 // changed_func_cognitive_max is judged per function (SPEC.md 8.1); on any
-// other row it is judged on the row's one stored value.
-func fires(t gate.Threshold, r *corpus.Row) bool {
+// other row it is judged on the row's one stored value. On a module row
+// that records the cross-package blocks its commit may have added,
+// dup_blocks_cross_pkg is judged as the gate judges it: the baseline's
+// count plus the blocks added of at least crossFloor tokens (SPEC.md 8.1);
+// on any other module row, on its full count.
+func fires(t gate.Threshold, r *corpus.Row, crossFloor int) bool {
 	t.Severity = gate.SeverityFail
 	var opts []gate.Option
 	if r.HasChanged() {
 		opts = append(opts, gate.WithChangedFunctions(r.Changed))
 	}
-	return len(gate.Evaluate(r.Head, r.Base, []gate.Threshold{t}, nil, opts...).Violations) > 0
+	head := r.Head
+	if t.Metric == crossMetric {
+		head = gatedCross(r, crossFloor)
+	}
+	return len(gate.Evaluate(head, r.Base, []gate.Threshold{t}, nil, opts...).Violations) > 0
+}
+
+// crossMetric is the module-wide metric judged on the blocks a change
+// added.
+const crossMetric = "dup_blocks_cross_pkg"
+
+// gatedCross returns r's head metrics with dup_blocks_cross_pkg replaced
+// by the value the gate judges at floor: the baseline's count plus the
+// blocks added of at least floor tokens, when r records them and both
+// counts are known; r's head metrics unchanged otherwise.
+func gatedCross(r *corpus.Row, floor int) metrics.RawMetrics {
+	head := r.Head
+	added, ok := r.AddedCross(floor)
+	if !ok || r.Base == nil || r.Base.DupBlocksCrossPkg == nil || head.DupBlocksCrossPkg == nil {
+		return head
+	}
+	v := *r.Base.DupBlocksCrossPkg + added
+	head.DupBlocksCrossPkg = &v
+	return head
 }

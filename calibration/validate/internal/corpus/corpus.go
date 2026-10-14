@@ -17,6 +17,7 @@ import (
 
 	"github.com/rfizzle/astimate/calibration/replay/labels"
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/score"
 )
 
 // Source names one corpus: its replay data directory and its labels file.
@@ -122,6 +123,34 @@ type Row struct {
 	// changed_func_cognitive_max on per function (SPEC.md 8.1); nil when
 	// the row records none (HasChanged).
 	Changed []metrics.ChangedFunction
+	// Cross are, on a module row, the sets of packages on which the commit
+	// added a cross-package block at some floor, with the parent's block
+	// lengths on each (score.CrossGroups), from which dup_blocks_cross_pkg
+	// is re-derived at any duplication.min_tokens_cross (AddedCross); nil
+	// when the row records none (HasCross).
+	Cross []score.CrossGroup
+	// Unavailable marks a package row whose package existed at the parent
+	// but failed to load there (baseline "unavailable", SPEC.md 11.4): the
+	// gate judged it by its maxes only, so Load sets it aside.
+	Unavailable bool
+}
+
+// HasCross reports whether r records the cross-package blocks its commit
+// may have added, an empty list included: a module row the gate judged on
+// the added blocks, replayed from 2026-10-14 on.
+func (r *Row) HasCross() bool { return r.Cross != nil }
+
+// AddedCross returns how many cross-package blocks of at least floor
+// tokens the gate judges r's commit to have added (score.CrossGroup.AddedAt
+// summed over r's groups); ok is false when r records none (HasCross).
+func (r *Row) AddedCross(floor int) (n int, ok bool) {
+	if !r.HasCross() {
+		return 0, false
+	}
+	for i := range r.Cross {
+		n += r.Cross[i].AddedAt(floor)
+	}
+	return n, true
 }
 
 // HasChanged reports whether r records its changed functions, an empty
@@ -192,6 +221,15 @@ type Corpus struct {
 	// labeled commits the replay did not load and NotAgent those dropped
 	// for agent: false.
 	Labeled, NotLoaded, NotAgent int
+	// Unavailable counts the package rows of the scored commits set aside
+	// because their package failed to load at the parent (Row.Unavailable),
+	// and UnavailableViolations the violations recorded on them.
+	Unavailable, UnavailableViolations int
+	// RecordsCross is true when a module row of the corpus records the
+	// cross-package blocks its commit may have added (Row.HasCross), and
+	// ModuleRows counts the module rows of the scored commits.
+	RecordsCross bool
+	ModuleRows   int
 	// ConfigVersion is the configuration the replay gated with.
 	ConfigVersion string
 	// RuleLabels is true when every label has provenance rule.
@@ -236,6 +274,10 @@ func Pool(name string, cs ...*Corpus) *Corpus {
 		out.Labeled += c.Labeled
 		out.NotLoaded += c.NotLoaded
 		out.NotAgent += c.NotAgent
+		out.Unavailable += c.Unavailable
+		out.UnavailableViolations += c.UnavailableViolations
+		out.RecordsCross = out.RecordsCross || c.RecordsCross
+		out.ModuleRows += c.ModuleRows
 		out.RuleLabels = out.RuleLabels && c.RuleLabels
 		if out.ConfigVersion == "" {
 			out.ConfigVersion, out.Rule = c.ConfigVersion, c.Rule
@@ -300,8 +342,32 @@ func (c *Corpus) add(cr *commitRow, l *labels.Label, rows []Row, agentOnly bool)
 	if cm.Passed == cm.Failed() {
 		return fmt.Errorf("commit %s: passed is %t but its rows record %t violations", cr.Commit, cm.Passed, cm.Failed())
 	}
+	c.setAside(&cm)
 	c.Commits = append(c.Commits, cm)
 	return nil
+}
+
+// setAside drops from cm the package rows whose package failed to load at
+// the parent (Row.Unavailable), with the violations recorded on them, and
+// counts both: the gate judged such a row by its maxes only, so neither a
+// verdict nor a re-evaluation of a ratchet on it measures the rules.
+// cm's verdict is then that of the rows kept.
+func (c *Corpus) setAside(cm *Commit) {
+	kept := cm.Rows[:0]
+	for _, r := range cm.Rows {
+		if r.Unavailable {
+			c.Unavailable++
+			c.UnavailableViolations += len(r.Violated)
+			continue
+		}
+		c.RecordsCross = c.RecordsCross || r.HasCross()
+		if r.Module() {
+			c.ModuleRows++
+		}
+		kept = append(kept, r)
+	}
+	cm.Rows = kept
+	cm.Passed = !cm.Failed()
 }
 
 // zeroModuleBase gives the module row of a commit judged against an empty
@@ -333,6 +399,7 @@ type packageRow struct {
 	Package    string              `json:"package"`
 	Language   string              `json:"language"`
 	Role       string              `json:"role"`
+	Baseline   string              `json:"baseline"`
 	Metrics    metrics.RawMetrics  `json:"metrics"`
 	Base       *metrics.RawMetrics `json:"base"`
 	SLOCDelta  int                 `json:"sloc_delta"`
@@ -342,6 +409,37 @@ type packageRow struct {
 	// floor; null on a row without a function diff and on rows replayed
 	// before the field existed.
 	ChangedFunctions []rowFunction `json:"changed_functions"`
+	// CrossAdded are a module row's cross-package blocks its commit may
+	// have added, by set of packages; absent on package rows, on a module
+	// row whose full count was judged, and on rows replayed before the
+	// field existed.
+	CrossAdded []rowCrossGroup `json:"cross_added"`
+}
+
+// rowCrossGroup is the part of a recorded set of packages the join reads:
+// the parent's block lengths on it and the commit's blocks' lengths.
+type rowCrossGroup struct {
+	Base   []int `json:"base"`
+	Blocks []struct {
+		Tokens int `json:"tokens"`
+	} `json:"blocks"`
+}
+
+// cross returns pr's recorded sets of packages as score.CrossGroup values,
+// with the lengths alone, and nil when the row records none.
+func (pr *packageRow) cross() []score.CrossGroup {
+	var out []score.CrossGroup
+	if pr.CrossAdded != nil {
+		out = []score.CrossGroup{}
+	}
+	for _, g := range pr.CrossAdded {
+		cg := score.CrossGroup{Base: g.Base}
+		for _, b := range g.Blocks {
+			cg.Head = append(cg.Head, metrics.CrossBlock{Tokens: b.Tokens})
+		}
+		out = append(out, cg)
+	}
+	return out
 }
 
 // rowFunction is a recorded changed function: its complexity at the
@@ -385,6 +483,10 @@ func (f *rowFinding) metrics() []string {
 	return append([]string{f.Metric}, f.Also...)
 }
 
+// baselineUnavailable is a package row's baseline when its package failed
+// to load at the parent (SPEC.md 11.4).
+const baselineUnavailable = "unavailable"
+
 // readRows reads packages.jsonl at path, keyed by commit hash.
 func readRows(path string) (map[string][]Row, error) {
 	out := make(map[string][]Row)
@@ -396,6 +498,8 @@ func readRows(path string) (map[string][]Row, error) {
 		r := Row{Package: pr.Package, Language: pr.Language, Head: pr.Metrics, Base: pr.Base, SLOCDelta: pr.SLOCDelta}
 		r.Head.Role = pr.Role
 		r.Changed = pr.changed()
+		r.Cross = pr.cross()
+		r.Unavailable = pr.Baseline == baselineUnavailable
 		for i := range pr.Violations {
 			r.Violated = append(r.Violated, pr.Violations[i].metrics()...)
 		}

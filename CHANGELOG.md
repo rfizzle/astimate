@@ -12,6 +12,15 @@ history.
 
 ### Added
 
+- Replay rows record, on the module row, the cross-package blocks each
+  commit may have added (`cross_added`): per set of packages, the blocks'
+  lengths, kinds, packages and occurrences with the parent's block lengths
+  on the same set. `calibration/validate` re-derives
+  `dup_blocks_cross_pkg` from them at the configuration's
+  `duplication.min_tokens_cross`, so its recheck reproduces the recorded
+  verdicts and a configuration with another floor can be validated on the
+  same rows. It also sets aside package rows whose baseline was
+  unavailable, with their violations, and says how many.
 - A configuration may gate `dup_blocks_code`, the code blocks of
   `dup_blocks`, in place of `dup_blocks`: its finding carries
   `duplication_pct` and `duplicated_lines` as `dup_blocks` would, merges

@@ -215,7 +215,7 @@ func (s *Scored) fails(ci int, over map[int]*gate.Threshold) bool {
 func (s *Scored) firesOn(i int, t gate.Threshold, c *corpus.Commit) bool {
 	for ri := range c.Rows {
 		r := &c.Rows[ri]
-		if s.Rules.Judges(i, r) && fires(t, r) {
+		if s.Rules.Judges(i, r) && fires(t, r, s.Rules.CrossFloor) {
 			return true
 		}
 	}
@@ -238,7 +238,7 @@ func (s *Scored) Recheck() (checked, mismatched int) {
 					continue
 				}
 				checked++
-				if r.Breached(rule.Threshold.Metric) != fires(rule.Threshold, r) {
+				if r.Breached(rule.Threshold.Metric) != fires(rule.Threshold, r, s.Rules.CrossFloor) {
 					mismatched++
 				}
 			}

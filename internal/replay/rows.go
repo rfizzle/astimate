@@ -2,10 +2,12 @@ package replay
 
 import (
 	"errors"
+	"slices"
 
 	"github.com/rfizzle/astimate/internal/engine"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/report"
+	"github.com/rfizzle/astimate/internal/score"
 )
 
 // packageRow is one checked row of one commit: a line of packages.jsonl.
@@ -61,6 +63,67 @@ type packageRow struct {
 	// (changed_func_cognitive_max is null), as on the module row, and on
 	// rows replayed before the field existed.
 	ChangedFunctions []changedFunc `json:"changed_functions"`
+	// CrossAdded are, on the module row, the sets of packages on which the
+	// change added a cross-package block at some floor, each with the
+	// baseline's block lengths on the set (report.CheckedPackage.CrossGroups),
+	// so dup_blocks_cross_pkg can be re-derived at any
+	// duplication.min_tokens_cross (SPEC.md 8.1, 11.4). An empty list when
+	// no set gained a block; omitted on package rows, when the gate judged
+	// the full count, and on rows replayed before the field existed.
+	CrossAdded []crossGroup `json:"cross_added,omitzero"`
+}
+
+// crossGroup is the cross-package blocks of one set of packages that the
+// change may have added (score.CrossGroup).
+type crossGroup struct {
+	// Base are the token lengths of the parent's blocks on the set, 0 when
+	// unknown.
+	Base []int `json:"base"`
+	// Blocks are the commit's blocks on the set, neither exempt nor moved
+	// by a rename, in the module's order.
+	Blocks []crossBlock `json:"blocks"`
+}
+
+// crossBlock is one cross-package block: its length in normalized tokens
+// (0 when unknown), its kind, the packages it touches and its occurrences.
+type crossBlock struct {
+	Tokens      int          `json:"tokens"`
+	Kind        string       `json:"kind,omitempty"`
+	Packages    []string     `json:"packages"`
+	Occurrences []occurrence `json:"occurrences"`
+}
+
+// occurrence is one occurrence of a block: its package, its file relative
+// to the module root and its first and last lines.
+type occurrence struct {
+	Package string `json:"package"`
+	File    string `json:"file"`
+	Line    int    `json:"line"`
+	EndLine int    `json:"end_line"`
+}
+
+// crossGroups returns gs as row entries: nil when gs is, so the field is
+// omitted.
+func crossGroups(gs []score.CrossGroup) []crossGroup {
+	if gs == nil {
+		return nil
+	}
+	out := make([]crossGroup, len(gs))
+	for i := range gs {
+		g := crossGroup{Base: append([]int{}, gs[i].Base...), Blocks: make([]crossBlock, len(gs[i].Head))}
+		for j, b := range gs[i].Head {
+			cb := crossBlock{Tokens: b.Tokens, Kind: b.Kind, Occurrences: make([]occurrence, len(b.Occurrences))}
+			for k, o := range b.Occurrences {
+				cb.Occurrences[k] = occurrence{Package: o.Package, File: o.File, Line: o.StartLine, EndLine: o.EndLine}
+				cb.Packages = append(cb.Packages, o.Package)
+			}
+			slices.Sort(cb.Packages)
+			cb.Packages = slices.Compact(cb.Packages)
+			g.Blocks[j] = cb
+		}
+		out[i] = g
+	}
+	return out
 }
 
 // changedFuncFloor is the cognitive complexity a changed function must
@@ -222,6 +285,7 @@ func newPackageRow(commit string, p *report.CheckedPackage) packageRow {
 		// The metric is non-null exactly when the check diffed the row's
 		// functions.
 		ChangedFunctions: changedFuncs(p.ChangedFunctions, r.Metrics.ChangedFuncCognitiveMax != nil),
+		CrossAdded:       crossGroups(p.CrossGroups),
 	}
 	if r.BaselineUnavailable != "" {
 		row.Baseline = baselineUnavailable

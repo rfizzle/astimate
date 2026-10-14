@@ -23,7 +23,11 @@
 // re-evaluated on the stored metrics in place of the recorded breaches, and
 // so is a rule on another metric of the same kind in a replayed rule's
 // place (dup_blocks_code for dup_blocks), when no rule gates the replayed
-// one. --candidate names a second configuration
+// one. A configuration whose duplication.min_tokens_cross differs is
+// accepted too when the rows record the cross-package blocks each commit
+// may have added: dup_blocks_cross_pkg is then re-derived at its floor.
+// Rows whose package failed to load at the parent are set aside.
+// --candidate names a second configuration
 // whose top-level rules on metrics the first does not gate are measured
 // as candidates: re-evaluated on every row they would judge, swept, and
 // scored beside the gate as replayed, without becoming part of it.
@@ -180,8 +184,12 @@ func loadConfig(o *options) (*config.Config, string, error) {
 // dup_blocks_code rule is on rows a dup_blocks rule gated, since the rows
 // store both. A rule that differs only in severity is not re-evaluated: a
 // severity decides only whether a breach fails, and the scoring reads the
-// recorded breaches of either severity.
-func reevaluated(cfg *config.Config, rules *measure.Rules, version, dir string) ([]int, error) {
+// recorded breaches of either severity. A replay at another
+// duplication.min_tokens_cross is accepted when cross says the floor can be
+// re-derived from its rows: its module rows record the blocks each commit
+// may have added (corpus.Row.HasCross), or it has none. The rules on
+// dup_blocks_cross_pkg are then re-evaluated at cfg's floor.
+func reevaluated(cfg *config.Config, rules *measure.Rules, version, dir string, cross bool) ([]int, error) {
 	if cfg.Version == version {
 		return nil, nil
 	}
@@ -192,6 +200,11 @@ func reevaluated(cfg *config.Config, rules *measure.Rules, version, dir string) 
 	}
 	if !sameMeasurement(cfg, prev) {
 		return nil, fmt.Errorf("replayed under %s, whose chars_per_token, duplication settings or exemptions differ from %s's, so its rows hold other metrics", version, cfg.Version)
+	}
+	floorMoved := cfg.Duplication.MinTokensCross != prev.Duplication.MinTokensCross
+	if floorMoved && !cross {
+		return nil, fmt.Errorf("replayed under %s at min_tokens_cross %d, and its rows record no added cross-package blocks to re-derive %s's %d from",
+			version, prev.Duplication.MinTokensCross, cfg.Version, cfg.Duplication.MinTokensCross)
 	}
 	then := measure.NewRules(prev).List
 	if len(then) != len(rules.List) {
@@ -208,7 +221,8 @@ func reevaluated(cfg *config.Config, rules *measure.Rules, version, dir string) 
 		case r.Threshold.Metric != p.Threshold.Metric:
 			rules.Replace(i, p.Threshold.Metric)
 			out = append(out, i)
-		case !reflect.DeepEqual(withoutSeverity(r.Threshold), withoutSeverity(p.Threshold)):
+		case !reflect.DeepEqual(withoutSeverity(r.Threshold), withoutSeverity(p.Threshold)),
+			floorMoved && r.Threshold.Metric == crossMetric:
 			out = append(out, i)
 		}
 	}
@@ -220,11 +234,20 @@ func gates(rules *measure.Rules, metric string) bool {
 	return slices.ContainsFunc(rules.List, func(r measure.Rule) bool { return r.Threshold.Metric == metric })
 }
 
+// crossMetric is the module-wide metric judged on the blocks a change
+// added of at least duplication.min_tokens_cross tokens.
+const crossMetric = "dup_blocks_cross_pkg"
+
 // sameMeasurement reports whether a and b give the same stored metrics
 // and verdict inputs: the same chars_per_token, duplication settings and
-// exemptions. A language override changes none of them.
+// exemptions. A language override changes none of them. The floor of the
+// added cross-package blocks, duplication.min_tokens_cross, stores no
+// metric and is left out: it decides only which recorded blocks
+// dup_blocks_cross_pkg judges (reevaluated).
 func sameMeasurement(a, b *config.Config) bool {
-	return a.CharsPerToken == b.CharsPerToken && a.Duplication == b.Duplication &&
+	da, db := a.Duplication, b.Duplication
+	da.MinTokensCross, db.MinTokensCross = 0, 0
+	return a.CharsPerToken == b.CharsPerToken && da == db &&
 		reflect.DeepEqual(a.Exemptions, b.Exemptions)
 }
 
@@ -241,13 +264,15 @@ func measureAll(o *options) (*report.Input, error) {
 		return nil, err
 	}
 	rules := measure.NewRules(cfg)
-	in := &report.Input{Date: o.date, Version: cfg.Version, ConfigSource: from, CandidateSource: o.candidate}
+	in := &report.Input{Date: o.date, Version: cfg.Version, ConfigSource: from, CandidateSource: o.candidate,
+		CrossFloor: cfg.Duplication.MinTokensCross}
 	loaded := make([]*corpus.Corpus, 0, len(o.sources))
 	for _, src := range o.sources {
 		c, err := corpus.Load(src, o.agentOnly)
 		var differ []int
 		if err == nil {
-			differ, err = reevaluated(cfg, rules, c.ConfigVersion, o.thresholdsDir)
+			// Without module rows the floor judges nothing.
+			differ, err = reevaluated(cfg, rules, c.ConfigVersion, o.thresholdsDir, c.RecordsCross || c.ModuleRows == 0)
 		}
 		if err != nil {
 			return nil, fmt.Errorf("corpus %s: %w", src.Name, err)

@@ -81,6 +81,10 @@ type Input struct {
 	// measure.Rule.Reevaluated are those it ran at other limits, or on
 	// another metric (measure.Rule.Replaced).
 	Replayed []string
+	// CrossFloor is the configuration's duplication.min_tokens_cross, at
+	// which dup_blocks_cross_pkg is re-derived on module rows that record
+	// their added blocks.
+	CrossFloor int
 	// Parts holds measure.Scored.Alone on the basis for each rule.
 	Parts []measure.Rates
 	// AgentOnly says labels with agent: false were dropped.
@@ -172,6 +176,18 @@ func method(b *strings.Builder, in *Input) {
 		pct(in.Targets.FalseFailure), in.basis().Name, ruleBlock, reverts)
 	if in.warnRules() {
 		b.WriteString(warnMethodText)
+	}
+	unavailable, violations, cross := 0, 0, false
+	for _, c := range in.Corpora {
+		unavailable += c.Loaded.Unavailable
+		violations += c.Loaded.UnavailableViolations
+		cross = cross || c.Loaded.RecordsCross
+	}
+	if unavailable > 0 {
+		fmt.Fprintf(b, unavailableMethodText, unavailable, violations)
+	}
+	if cross {
+		fmt.Fprintf(b, crossMethodText, in.CrossFloor)
 	}
 	if len(in.Replayed) > 0 {
 		var names []string

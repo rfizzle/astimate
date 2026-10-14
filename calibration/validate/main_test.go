@@ -142,7 +142,9 @@ func TestRunErrors(t *testing.T) {
 // TestReevaluated matches rows replayed under another committed
 // configuration to the rules the configuration validated with runs at
 // other limits, and refuses one that measures differently or has other
-// rules.
+// rules. A replay at another min_tokens_cross is accepted only from rows
+// that record the added cross-package blocks, with the cross rule
+// re-evaluated.
 func TestReevaluated(t *testing.T) {
 	data := string(config.Default())
 	def, err := config.Parse(config.Default())
@@ -164,7 +166,8 @@ func TestReevaluated(t *testing.T) {
 		"same-1":      edit(version, "config_version: same-1\n"),
 		"warned-1":    edit("  - metric: init_funcs\n    kind: density\n", "  - metric: init_funcs\n    kind: density\n    severity: warn\n"),
 		"limits-1":    edit("    max: 16000\n", "    max: 17000\n"),
-		"tokens-1":    edit("  min_tokens_cross: 80\n", "  min_tokens_cross: 90\n"),
+		"tokens-1":    edit("  min_tokens: 60\n", "  min_tokens: 70\n"),
+		"floor-1":     edit("  min_tokens_cross: 80\n", "  min_tokens_cross: 90\n"),
 		"reordered-1": edit("  - metric: init_funcs\n", "  - metric: globals\n"),
 	}
 	for name, text := range replays {
@@ -174,25 +177,32 @@ func TestReevaluated(t *testing.T) {
 		}
 	}
 	rules := measure.NewRules(def)
-	tokens := -1
+	tokens, cross := -1, -1
 	for i, r := range rules.List {
-		if r.Language == "" && r.Threshold.Metric == "tokens_est" {
+		switch {
+		case r.Language == "" && r.Threshold.Metric == "tokens_est":
 			tokens = i
+		case r.Threshold.Metric == "dup_blocks_cross_pkg":
+			cross = i
 		}
 	}
 	tests := []struct {
 		name    string
 		version string
+		// records says the rows record their added cross-package blocks.
+		records bool
 		want    []int
 		err     string
 	}{
-		{"same version", def.Version, nil, ""},
-		{"another version, the same rules", "same-1", nil, ""},
-		{"a rule that differs only in severity", "warned-1", nil, ""},
-		{"a rule at another limit", "limits-1", []int{tokens}, ""},
-		{"other duplication settings", "tokens-1", nil, "duplication settings"},
-		{"a rule of another kind", "reordered-1", nil, "where"},
-		{"no committed configuration", "thresholds-1999-01-01", nil, "cannot be read"},
+		{"same version", def.Version, false, nil, ""},
+		{"another version, the same rules", "same-1", false, nil, ""},
+		{"a rule that differs only in severity", "warned-1", false, nil, ""},
+		{"a rule at another limit", "limits-1", false, []int{tokens}, ""},
+		{"other duplication settings", "tokens-1", true, nil, "duplication settings"},
+		{"another cross floor, rows with added blocks", "floor-1", true, []int{cross}, ""},
+		{"another cross floor, rows without them", "floor-1", false, nil, "record no added cross-package blocks"},
+		{"a rule of another kind", "reordered-1", false, nil, "where"},
+		{"no committed configuration", "thresholds-1999-01-01", false, nil, "cannot be read"},
 	}
 	code, err := config.Parse([]byte(edit("  - metric: dup_blocks\n", "  - metric: dup_blocks_code\n")))
 	if err != nil {
@@ -200,7 +210,7 @@ func TestReevaluated(t *testing.T) {
 	}
 	t.Run("a rule on another metric in a replayed rule's place", func(t *testing.T) {
 		codeRules := measure.NewRules(code)
-		got, err := reevaluated(code, codeRules, "same-1", dir)
+		got, err := reevaluated(code, codeRules, "same-1", dir, false)
 		if err != nil || len(got) != 1 {
 			t.Fatalf("reevaluated = %v, %v, want one rule", got, err)
 		}
@@ -210,7 +220,7 @@ func TestReevaluated(t *testing.T) {
 	})
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := reevaluated(def, rules, tt.version, dir)
+			got, err := reevaluated(def, rules, tt.version, dir, tt.records)
 			switch {
 			case tt.err != "" && (err == nil || !strings.Contains(err.Error(), tt.err)):
 				t.Errorf("err = %v, want %q", err, tt.err)

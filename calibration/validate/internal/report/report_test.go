@@ -138,6 +138,25 @@ func TestRenderReplayed(t *testing.T) {
 	}
 }
 
+// TestRenderSetAsideAndCross renders the Method bullets on rows set aside
+// for a baseline that did not load and on module rows that record their
+// added cross-package blocks, each only when the corpora have some.
+func TestRenderSetAsideAndCross(t *testing.T) {
+	in := input()
+	if out := Render(in); strings.Contains(out, "Rows set aside") || strings.Contains(out, "`cross_added`") {
+		t.Error("set-aside or cross text without either")
+	}
+	c := in.Corpora[0].Loaded
+	c.Unavailable, c.UnavailableViolations, c.RecordsCross = 6, 1, true
+	in.CrossFloor = 120
+	out := Render(in)
+	for _, want := range []string{"Rows set aside: 6; violations recorded on them: 1.", "of at least `duplication.min_tokens_cross` (120) tokens"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("report lacks %q", want)
+		}
+	}
+}
+
 func TestRenderSizeMet(t *testing.T) {
 	in := input()
 	in.SizeMet = true

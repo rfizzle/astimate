@@ -27,6 +27,16 @@ const methodText = "## Method\n\n" +
 // configuration has one.
 const warnMethodText = "- A rule with `severity: warn`, marked `(warn)`, reports its breaches as warnings and never fails a commit, so the gate's verdict and every gate column leave it out, whatever severity the replay ran it at. Its breach, recorded as a violation or as a warning with severity `warn`, still counts as the rule firing, so its row has precision and recall like any other and measures it before it is made to fail.\n"
 
+// unavailableMethodText is the Method bullet on package rows whose package
+// failed to load at the parent; its verbs are how many rows were set aside
+// and how many violations they recorded.
+const unavailableMethodText = "- A package row the replay marked `\"baseline\": \"unavailable\"` existed at the parent but failed to load there, so the gate judged it by its maxes only and ratcheted nothing from zero (SPEC.md 11.4). Such rows are set aside with the violations recorded on them, and a commit's verdict is that of its other rows. Rows set aside: %d; violations recorded on them: %d.\n"
+
+// crossMethodText is the Method bullet on module rows that record the
+// cross-package blocks a commit may have added; its verb is the
+// configuration's duplication.min_tokens_cross.
+const crossMethodText = "- `dup_blocks_cross_pkg` is judged as the gate judges it on every module row that records the cross-package blocks its commit may have added (`cross_added`, replays from 2026-10-14 on): the parent's count plus the blocks added of at least `duplication.min_tokens_cross` (%d) tokens, matched by the set of packages they touch against the parent's blocks of the same floor (SPEC.md 8.1). A module row without them is judged on its full count.\n"
+
 // replayedMethodText is the Method bullet on rows replayed under another
 // configuration; its verbs are the replays' config_version values, the
 // configuration's, and which of its rules are re-evaluated.

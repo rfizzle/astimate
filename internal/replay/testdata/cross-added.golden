@@ -1,0 +1,31 @@
+{
+  "cross_added": [
+    {
+      "base": [],
+      "blocks": [
+        {
+          "tokens": 113,
+          "kind": "code",
+          "packages": [
+            "a",
+            "b"
+          ],
+          "occurrences": [
+            {
+              "package": "a",
+              "file": "a/a.go",
+              "line": 1,
+              "end_line": 9
+            },
+            {
+              "package": "b",
+              "file": "b/b.go",
+              "line": 1,
+              "end_line": 9
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

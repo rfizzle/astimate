@@ -232,7 +232,8 @@ func (c *Checker) Module(ctx context.Context, mm metrics.ModuleMetrics, fromFile
 	}
 	locateCross(&r, located)
 	r.Details = c.details(&det)
-	return report.CheckedPackage{Report: r}, len(rules) > 0, nil
+	rel := func(pkg string) string { return Rel(o.Mod.ModulePath, pkg) }
+	return report.CheckedPackage{Report: r, CrossGroups: cj.recorded(m, bm, rel)}, len(rules) > 0, nil
 }
 
 // row evaluates gm, the metrics the rules judge, against gb, the baseline

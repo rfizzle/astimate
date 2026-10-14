@@ -12,6 +12,7 @@ import (
 
 	"github.com/rfizzle/astimate/internal/gate"
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/score"
 )
 
 // Check is the outcome of one check run (SPEC.md section 8): the input of
@@ -60,6 +61,15 @@ type CheckedPackage struct {
 	// none changed or there was no function-level diff. No renderer shows
 	// them; the gate replay records them.
 	ChangedFunctions []metrics.ChangedFunction
+	// CrossGroups are, on the module row, the sets of packages on which
+	// the change added a cross-package block at some floor, with the
+	// baseline's block lengths on each (score.CrossGroups), packages
+	// module-relative, so dup_blocks_cross_pkg can be re-derived at any
+	// duplication.min_tokens_cross as a check of every package judges it;
+	// an empty list when none gained one, nil on a package row and when
+	// the full count was judged (SPEC.md 8.1). No renderer shows them; the
+	// gate replay records them.
+	CrossGroups []score.CrossGroup
 }
 
 // Failed reports whether the module row or any package has a violation.
