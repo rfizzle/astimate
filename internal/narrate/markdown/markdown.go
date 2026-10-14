@@ -157,7 +157,7 @@ func repository(b *strings.Builder, m *narrate.Module) {
 		return 0
 	})
 	b.WriteString("\n### Every package\n\nBy rebuild days; * marks a package over its size limit.\n\n")
-	b.WriteString("| Package | Band | Days | Lines | Copied | Untested | Changes |\n|---|---|---|---|---|---|---|\n")
+	b.WriteString("| Package | Band | Time | Lines | Copied | Untested | Changes |\n|---|---|---|---|---|---|---|\n")
 	for i := range all[:min(rows, len(all))] {
 		p := &all[i]
 		star := ""

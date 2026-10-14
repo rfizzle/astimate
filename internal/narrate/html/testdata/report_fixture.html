@@ -167,44 +167,28 @@ tr[hidden], .tip[hidden] { display: none }
   <div class="hero">
     <div>
       <div class="eyebrow">example.com/fixture</div>
-      <h1>Fixture has no package too big to rebuild in one go.</h1>
-      <p class="lead">12 packages, about 2 weeks of one engineer&#39;s time to rebuild from their tests. 11 are fine, 1 is close to a limit, and 0 need a split.</p>
+      <h1>Fixture has no package that needs a split.</h1>
+      <p class="lead">12 packages, about 2 weeks of one engineer&#39;s time to rebuild from their tests. 11 are fine, 1 needs watching, and 0 need a split. There is no change history to read, so the packages to start with are ranked by rebuild time alone.</p>
       <div class="stickers"><span class="sticker split"><b class="num">0</b>need a split</span><span class="sticker watch"><b class="num">1</b>to watch</span><span class="sticker fine"><b class="num">11</b>fine</span><span class="sticker ink"><b class="num">2 weeks</b>to rebuild</span><span class="sticker ink"><b class="num">7</b>without tests</span></div>
     </div>
     <div class="ring"><svg viewBox="0 0 100 100" aria-hidden="true"><circle r="40" cx="50" cy="50" fill="none" stroke="var(--fine)" stroke-width="12" stroke-dasharray="228.38 22.94" stroke-dashoffset="0"/><circle r="40" cx="50" cy="50" fill="none" stroke="var(--watch)" stroke-width="12" stroke-dasharray="18.94 232.38" stroke-dashoffset="-230.38"/><circle r="40" cx="50" cy="50" fill="none" stroke="var(--split)" stroke-width="12" stroke-dasharray="0 253.33" stroke-dashoffset="-251.33"/></svg><div class="c"><b>11</b><span>of 12 fine</span></div></div>
   </div>
 
   <h2>Start here</h2>
-  <p class="note">Three packages, in the order a split pays back soonest. The ranking is how often a package changes, times what it would cost to rebuild from its tests.</p>
+  <p class="note">The packages to split or watch, the costliest to rebuild first.</p>
   <div class="steps">
-    <div class="step fine">
+    <div class="step watch">
       <div class="n">1</div>
-      <div class="name">hidden</div>
-      <div class="say"><b>It is inside every limit, and it has no tests at all.</b></div>
-      <div class="facts"><span class="fact"><b class="num">2 days</b> to rebuild</span><span class="fact"><b class="num">32</b> lines</span><span class="fact"><b class="num">0%</b> copied</span><span class="fact"><b class="num">1</b> untested</span></div>
-      <div class="meter fine" title="hotspot score 0"><span style="width:0%"></span></div>
-      <div class="do">Nothing. Leave it alone.</div>
-    </div>
-    <div class="step fine">
-      <div class="n">2</div>
-      <div class="name">immut</div>
-      <div class="say"><b>It is inside every limit, and it has no tests at all.</b></div>
-      <div class="facts"><span class="fact"><b class="num">2 days</b> to rebuild</span><span class="fact"><b class="num">31</b> lines</span><span class="fact"><b class="num">0%</b> copied</span><span class="fact"><b class="num">3</b> untested</span></div>
-      <div class="meter fine" title="hotspot score 0"><span style="width:0%"></span></div>
-      <div class="do">Nothing. Leave it alone.</div>
-    </div>
-    <div class="step fine">
-      <div class="n">3</div>
-      <div class="name">a</div>
-      <div class="say"><b>It is inside every limit, and it has no tests at all.</b></div>
-      <div class="facts"><span class="fact"><b class="num">1 day</b> to rebuild</span><span class="fact"><b class="num">22</b> lines</span><span class="fact"><b class="num">0%</b> copied</span><span class="fact"><b class="num">2</b> untested</span></div>
-      <div class="meter fine" title="hotspot score 0"><span style="width:0%"></span></div>
-      <div class="do">Nothing. Leave it alone.</div>
+      <div class="name">dupes</div>
+      <div class="say"><b>It is inside every limit, and 80.6% of its lines are copies of each other.</b></div>
+      <div class="facts"><span class="fact"><b class="num">1 day</b> to rebuild</span><span class="fact"><b class="num">67</b> lines</span><span class="fact"><b class="num">80.6%</b> copied</span><span class="fact"><b class="num">3</b> untested</span></div>
+      <div class="meter watch" title="hotspot score 0"><span style="width:0%"></span></div>
+      <div class="do">Extract the copied code next time you work here; nothing needs a split yet.</div>
     </div>
   </div>
 
   <h2>The map</h2>
-  <p class="note">Every package as a bubble. Bigger means more code. Red needs a split, amber is close to a limit, green is fine. Hover for the story, click to open it below.</p>
+  <p class="note">Every package as a bubble. Bigger means more code. Red needs a split, amber needs watching, green is fine. Hover for the story, click to open it below.</p>
   <div class="mapcard">
     <div class="maphead">
       <div class="seg" role="group" aria-label="Map view"><button aria-pressed="true" data-view="bubbles">Bubbles</button><button aria-pressed="false" data-view="scatter">Hot vs costly</button></div>
@@ -291,10 +275,7 @@ It is inside every limit, and it has no tests at all.
       <circle class="fine" cx="520" cy="394.77" r="12.95" data-i="2"><title>consumer
 It is inside every limit.
 0.1 days to rebuild · 45 tokens</title></circle>
-      <text class="lbl" x="489.95" y="45.33" text-anchor="end">hidden</text>
-      <text class="lbl" x="485.26" y="96.46" text-anchor="end">immut</text>
-      <text class="lbl" x="493.18" y="124.6" text-anchor="end">a</text>
-      <text class="lbl" x="492.16" y="124.6" text-anchor="end">b</text>
+      <text class="lbl" x="480" y="225.6" text-anchor="end">dupes</text>
     </svg>
   </div>
 
@@ -485,7 +466,7 @@ It is inside every limit.
       <td><span class="mini"><span style="width:6.7%"></span></span><span class="num">67</span></td>
       <td class="num" title="0.7 working days for one engineer">1 d</td><td class="num over">80.6%</td><td class="num">3</td><td class="num">n/a</td>
     </tr>
-    <tr class="detail" hidden><td colspan="6"><div class="detail"><p class="say"><b>It is inside every limit, and 80.6% of its lines are copies of each other.</b> Nothing yet. Keep an eye on it.</p>
+    <tr class="detail" hidden><td colspan="6"><div class="detail"><p class="say"><b>It is inside every limit, and 80.6% of its lines are copies of each other.</b> Extract the copied code next time you work here; nothing needs a split yet.</p>
 <div class="widgets">
 <div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests</span></h4>
 <div class="big fine-t">1 day<small>for one engineer · 0 agent passes</small></div>
@@ -498,7 +479,7 @@ It is inside every limit.
 <div class="big split-t">80.6%<small>of 67 lines · 1 repeated chunk</small></div>
 <div class="waffle" title="each square is 1% of the package's lines"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
 <div class="sharelbl"><span><i class="b-split"></i>logic that repeats</span><span><i class="b-watch"></i>tables and boilerplate</span><span><i class="b-soft"></i>written once</span></div>
-<p>Nearly half of this code exists at least twice. A bug fixed in one copy stays alive in the others, and every copy is more for a rebuild to read.</p><div class="chunk">Longest repeat: <b>dupes.go:9-26</b> (18 lines), again at <b>dupes.go:31-48</b>.</div></div>
+<p>Half or more of this code exists at least twice. A bug fixed in one copy stays alive in the others, and every copy is more for a rebuild to read.</p><div class="chunk">Longest repeat: <b>dupes.go:9-26</b> (18 lines), again at <b>dupes.go:31-48</b>.</div></div>
 <div class="w"><h4>How hard it is to follow <span>cognitive complexity per function</span></h4>
 <div class="big fine-t">0<small>of 4 functions are hard to follow · 0 need care</small></div>
 <div class="share"><i class="b-fine" style="width:100%"></i><i class="b-watch" style="width:0%"></i><i class="b-split" style="width:0%"></i></div>
@@ -662,7 +643,7 @@ It is inside every limit.
   <div class="glossary">
     <div class="term"><b>Rebuild cost</b>How long it would take to rewrite the package from its tests. Shown as one engineer&#39;s working time, and as agent sittings: how many times an AI agent would have to start over with a fresh context window. One sitting means it fits in one go; over three means the package has to be split before anyone can rebuild it.</div>
     <div class="term"><b>Split</b>The package is past what one agent pass can hold, or over two of its limits. Carve it into smaller packages before adding to it.</div>
-    <div class="term"><b>Watch</b>Over one limit, or large enough to need a few passes. The next growth here will start failing the gate.</div>
+    <div class="term"><b>Watch</b>Over one limit, large enough to need a few passes, or a quarter or more of it copied. Plan a split or a clean-up before it grows.</div>
     <div class="term"><b>Copied</b>The share of lines inside duplicate blocks of 40 or more tokens. Every copy is a second place a fix has to land.</div>
     <div class="term"><b>Untested</b>Exported functions no test touches. A rebuild would have to guess their behaviour.</div>
     <div class="term"><b>Changes</b>Commits touching the package in the last 200. Hot code is where a split pays back soonest.</div>

@@ -3,16 +3,20 @@ FAIL  1 package needs attention before this merges.  against master
 
  ✗ tested  4 findings · 3.9 days to rebuild · 1 change lately
    changed func cognitive max  51     max 50
-   A function this complex is the one a rebuild gets wrong.
+   A function this complex is the one a rebuild gets wrong. Changed function grade (grade.go:8) has cognitive complexity
+   51.
    open tested/grade.go:8
    dup blocks                  0 → 1  1 new copy, none allowed
-   A new copy is a second place every future fix has to land.
+   A new copy is a second place every future fix has to land. 1 duplicate block of any kind (1 code) covers 12.2% of
+   lines.
    open tested/degraded.go:15
    globals                     0 → 1  max_delta +0
-   Shared mutable state is a dependency no signature shows, so callers and tests rely on it without saying so.
+   Shared mutable state is a dependency no signature shows, so callers and tests rely on it without saying so. 1 mutable
+   package-level variable holds state no signature reveals (joins).
    open tested/degraded.go:9
    untested exports            0 → 1  max_delta +0
-   Nothing pins what an untested export does, so a rebuild would have to guess it.
+   Nothing pins what an untested export does, so a rebuild would have to guess it. 1 exported function has no test
+   (JoinAgain).
    open tested/degraded.go:13
 
  exit 3

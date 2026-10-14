@@ -24,7 +24,10 @@ type page struct {
 	Rows     []row
 	// Window is the churn window, 0 when churn is off.
 	Window int
-	Change *changeView
+	// Churned reports whether any package has churn, so "Start here"
+	// says what it is ranked by.
+	Churned bool
+	Change  *changeView
 }
 
 // sticker is one of the hero's tilted counts.
@@ -86,6 +89,7 @@ func build(m *narrate.Module, fonts template.CSS) *page {
 		r := row{I: i, P: pk, Days: pk.Rebuild.HumanDays, Churn: -1, Detail: newDetail(pk)}
 		if pk.Churn != nil {
 			r.Churn = pk.Churn.Commits
+			p.Churned = true
 		}
 		if v, lim, ok := ceiling(pk, "sloc"); ok {
 			r.Sloc, r.Over, r.Mini = v.Value, v.Over, pct(min(v.Value, lim), lim)

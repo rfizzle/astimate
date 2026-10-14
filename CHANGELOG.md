@@ -663,6 +663,20 @@ history.
 
 ### Fixed
 
+- Sentences of `astimate report` read against eleven repositories. "Start
+  here" lists only split and watch packages (a fine package said "Nothing.
+  Leave it alone." there), by rebuild time with a sentence saying so when
+  there is no git history. The headline says a package "needs a split"
+  rather than "too big to rebuild in one go", which most split packages
+  are not, and names a package only when the first to start with is one.
+  The longest repeat names two places of the same block; it could pair two
+  different blocks. The text change report prints a finding's why and what
+  to do together, so a global's or an untested export's name is kept; the
+  size finding no longer says "already past" of a change that crossed the
+  limit. Smaller fixes: "1 time", "did not change", "Half or more" copied,
+  a watch package that is only copied code is told to extract it, the
+  change lead counts a package without tests as untested, and the
+  Markdown table's column is Time.
 - `calibration/fit --language` keeps the base rule's `floor`, `severity`
   and a density rule's `over_max_delta` in a refitted override rule; it
   dropped them.

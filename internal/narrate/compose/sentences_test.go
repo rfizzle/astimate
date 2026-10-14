@@ -96,7 +96,7 @@ func TestPackageSentences(t *testing.T) {
 		{"big", "longest", by["big"].Copies.Longest, "Longest repeat: a.go:1-81 (81 lines), again at b.go:5-85."},
 		{"big", "complexity", by["big"].Complexity.Say, "1 function is hard to follow: it branches and nests enough that a rewrite would likely get it wrong. Start with the ones below. The hardest tenth of functions score 11 or more; code nests up to 5 levels deep."},
 		{"near", "story", by["near"].Story, "It is over its size limit, and 21% of its lines are copies of each other."},
-		{"near", "todo", by["near"].Todo, "Plan a split now; the gate fails the next change that grows it."},
+		{"near", "todo", by["near"].Todo, "Plan a split now, before it grows further past its limit."},
 		{"near", "rebuild", by["near"].Rebuild.Say, "An agent would need about 3 sittings, carrying notes between them. For one engineer, about 2 weeks."},
 		{"near", "copies", by["near"].Copies.Say, "A large share of this code exists at least twice. A bug fixed in one copy stays alive in the others."},
 		{"near", "complexity", by["near"].Complexity.Say, "Most functions are easy to follow; 1 needs some care. The hardest tenth of functions score 0 or more; code nests up to 0 levels deep."},
@@ -105,7 +105,7 @@ func TestPackageSentences(t *testing.T) {
 		{"dupey", "todo", by["dupey"].Todo, "Nothing. Leave it alone."},
 		{"dupey", "rebuild", by["dupey"].Rebuild.Say, "Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 1 day."},
 		{"dupey", "copies", by["dupey"].Copies.Say, "Some of this code is repeated. Worth extracting when you are next in here, not urgent."},
-		{"dupey", "longest", by["dupey"].Copies.Longest, "Longest repeat: x.go:2-9 (8 lines)"},
+		{"dupey", "longest", by["dupey"].Copies.Longest, "Longest repeat: x.go:2-9 (8 lines)."},
 		{"dupey", "complexity", by["dupey"].Complexity.Say, ""},
 		{"bare", "story", by["bare"].Story, "It is inside every limit, and it has no tests at all."},
 		{"bare", "copies", by["bare"].Copies.Say, "Very little repetition. Nothing to do."},
@@ -125,6 +125,26 @@ func TestPackageSentences(t *testing.T) {
 	split, _ := narrated(row{path: "s", tier: tierPartition, hasTests: true})
 	if got, want := split.Packages[0].Todo, "Split it into smaller packages before the next feature lands here."; got != want {
 		t.Errorf("split todo without copies = %q, want %q", got, want)
+	}
+	copied, _ := narrated(row{path: "c", hasTests: true, dup: 56.9, churn: intp(1)}, row{path: "q", hasTests: true, churn: intp(0)},
+		row{path: "self", hasTests: true, duplicates: []details.Span{{File: "f.go", StartLine: 171, EndLine: 267}, {File: "f.go", StartLine: 219, EndLine: 315}}})
+	for _, tt := range []struct{ name, got, want string }{
+		// A package watched for its copies alone is inside every limit:
+		// "keep an eye on it" read as nothing to do on 56.9% copied code.
+		{"copied todo", copied.Packages[0].Todo, "Extract the copied code next time you work here; nothing needs a split yet."},
+		{"copied say", copied.Packages[0].Copies.Say, "Half or more of this code exists at least twice. A bug fixed in one copy stays alive in the others, and every copy is more for a rebuild to read."},
+		{"changed once", copied.Packages[0].Changes, "It changed 1 time in the last 200 commits, so every one of those problems is in the way of day-to-day work."},
+		{"never changed", copied.Packages[1].Changes, "It did not change in the last 200 commits."},
+		{"overlapping repeat", copied.Packages[2].Copies.Longest, "Longest repeat: f.go:171-267 (97 lines), again at f.go:219-315, overlapping it: the same code back to back."},
+	} {
+		if tt.got != tt.want {
+			t.Errorf("%s = %q, want %q", tt.name, tt.got, tt.want)
+		}
+	}
+	all := report.Report{PackagePath: "all", Metrics: metrics.RawMetrics{SLOC: 2000, TokensEst: 20000, LargestFileSLOC: 700,
+		ExportedSymbols: 70, InternalImports: 11, HasTests: true}}
+	if got, want := pkg(&all, defaultLimits(), 200).Story, "It is over all five of its limits (size, tokens, largest file, exports, imports)."; got != want {
+		t.Errorf("story over every limit = %q, want %q", got, want)
 	}
 	many, _ := narrated(row{path: "m", hasTests: true, functions: []details.Function{{Cognitive: 21}, {Cognitive: 30}, {Cognitive: 11}, {Cognitive: 12}}})
 	if got, want := many.Packages[0].Complexity.Say, "2 functions are hard to follow: they branch and nest enough that a rewrite would likely get them wrong. Start with the ones below. The hardest tenth of functions score 0 or more; code nests up to 0 levels deep."; got != want {
@@ -159,26 +179,46 @@ func TestModuleSentences(t *testing.T) {
 		row{path: "cold", tier: tierPartition, days: 300, hasTests: true, churn: intp(0)},
 		row{path: "fine", days: 2, hasTests: true, churn: intp(1)},
 	)
-	if want := "Shop has 2 packages too big to rebuild in one go. Start with hot."; m.Headline != want {
+	if want := "Shop has 2 packages that need a split. Start with hot."; m.Headline != want {
 		t.Errorf("headline = %q, want %q", m.Headline, want)
 	}
-	if want := "3 packages, about 2 engineer-years of one engineer's time to rebuild from their tests. 1 is fine, 0 are close to a limit, and 2 need a split. The hottest of those changed 9 times in the last 200 commits and 12.5% of it is copied code."; m.Lead != want {
+	if want := "3 packages, about 2 engineer-years of one engineer's time to rebuild from their tests. 1 is fine, 0 need watching, and 2 need a split. The hottest of those changed 9 times in the last 200 commits and 12.5% of it is copied code."; m.Lead != want {
 		t.Errorf("lead = %q, want %q", m.Lead, want)
 	}
-	if want := []string{"hot", "fine", "cold"}; !slices.Equal(m.Hotspots, want) {
+	// A fine package is never a hotspot: "Start here" with "Nothing.
+	// Leave it alone." told the reader to start on nothing.
+	if want := []string{"hot", "cold"}; !slices.Equal(m.Hotspots, want) {
 		t.Errorf("hotspots = %q, want %q", m.Hotspots, want)
+	}
+	// A split package only names the first hotspot when that is one.
+	watchFirst, _ := narrated(row{path: "busy", tier: tierFewPasses, days: 30, hasTests: true, churn: intp(30)},
+		row{path: "big", tier: tierPartition, days: 100, hasTests: true, churn: intp(1)})
+	if want := "Shop has 1 package that needs a split."; watchFirst.Headline != want {
+		t.Errorf("headline with a watched package first = %q, want %q", watchFirst.Headline, want)
+	}
+	if !strings.HasSuffix(watchFirst.Lead, " 0 are fine, 1 needs watching, and 1 needs a split. The hottest of those changed 1 time in the last 200 commits and 0% of it is copied code.") {
+		t.Errorf("lead with one of each = %q", watchFirst.Lead)
 	}
 
 	quiet, _ := narrated(row{path: "a", days: 1, hasTests: true})
-	if want := "Shop has no package too big to rebuild in one go."; quiet.Headline != want {
+	if want := "Shop has no package that needs a split."; quiet.Headline != want {
 		t.Errorf("headline = %q, want %q", quiet.Headline, want)
 	}
-	if want := "1 package, about 1 day of one engineer's time to rebuild from their tests. 1 is fine, 0 are close to a limit, and 0 need a split."; quiet.Lead != want {
+	if want := "1 package, about 1 day of one engineer's time to rebuild from their tests. 1 is fine, 0 need watching, and 0 need a split."; quiet.Lead != want {
 		t.Errorf("lead without a split = %q, want %q", quiet.Lead, want)
 	}
-	unmeasured, _ := narrated(row{path: "s", tier: tierPartition, days: 1, hasTests: true})
+	// Without churn the packages to start with are ranked by rebuild days,
+	// and the lead says so; a fine package still never is one.
+	unmeasured, _ := narrated(row{path: "s", tier: tierPartition, days: 1, hasTests: true},
+		row{path: "w", tier: tierFewPasses, days: 5, hasTests: true}, row{path: "f", days: 50, hasTests: true})
 	if strings.Contains(unmeasured.Lead, "hottest") {
 		t.Errorf("lead without churn = %q, want no hottest sentence", unmeasured.Lead)
+	}
+	if want := " There is no change history to read, so the packages to start with are ranked by rebuild time alone."; !strings.HasSuffix(unmeasured.Lead, want) {
+		t.Errorf("lead without churn = %q, want it to end %q", unmeasured.Lead, want)
+	}
+	if want := []string{"w", "s"}; !slices.Equal(unmeasured.Hotspots, want) {
+		t.Errorf("hotspots without churn = %q, want %q", unmeasured.Hotspots, want)
 	}
 
 	terms := make([]string, 0, len(m.Glossary))
@@ -268,8 +308,9 @@ func TestChangeSentences(t *testing.T) {
 		{"dup do", dup.Do, "16 duplicate blocks cover 8% of lines."},
 		{"dup moved", dup.Moved, "4 new duplicate blocks; the rule allows none"},
 		{"dup moved short", dup.MovedShort, "4 new copies, none allowed"},
-		{"sloc why", sloc.Why, "The package was already past what one agent pass can hold, and this change grew it more than one change is allowed to."},
-		{"sloc do", sloc.Do, "grew 416 while over the 1000 ceiling, more than the 150 one change may add there."},
+		// A change that crosses the ceiling was not "already past" it.
+		{"sloc why", sloc.Why, "The package is past what one agent pass can hold, and this change took it there or grew it more than one change is allowed to."},
+		{"sloc do", sloc.Do, "Grew 416 while over the 1000 ceiling, more than the 150 one change may add there."},
 		{"sloc moved", sloc.Moved, "grew 416, allowed 150 while over the limit"},
 		{"sloc moved short", sloc.MovedShort, "grew 416, allowed 150"},
 		{"globals moved", globals.Moved, ""},
@@ -290,6 +331,21 @@ func TestChangeSentences(t *testing.T) {
 	}
 	if g := ch.WarningGroups[1]; g.Why != "new exports without a test" {
 		t.Errorf("untested warning why = %q", g.Why)
+	}
+
+	// A package with no tests at all fails has_tests: the lead must not
+	// say nothing new was left untested.
+	bare := Build(&Input{Packages: reports, Check: &report.Check{
+		Module: &report.CheckedPackage{Report: report.Report{PackagePath: moduleRow, Violations: []report.Finding{
+			{Metric: "dup_blocks_cross_pkg", Base: fp(45), Head: 51, Limit: "max_delta +0"}}}},
+		Packages: []report.CheckedPackage{{Report: report.Report{PackagePath: "lib",
+			Violations: []report.Finding{{Metric: "has_tests", Base: fp(0), Head: 0, Limit: "require true"}}}}}}}).Change
+	if want := "1 package changed. 2 fail the gate with 2 findings. 0 pass clean."; bare.Lead != want {
+		t.Errorf("lead with a package without tests = %q, want %q", bare.Lead, want)
+	}
+	if f := bare.Failing[0].Findings[0]; f.Moved != "6 new duplicate blocks shared with other packages; the rule allows none" ||
+		f.MovedShort != "6 new copies across packages, none allowed" {
+		t.Errorf("cross moved = %q / %q", f.Moved, f.MovedShort)
 	}
 
 	pass := Build(&Input{Packages: reports, Check: &report.Check{Packages: []report.CheckedPackage{{Report: report.Report{PackagePath: "ok"}}}}}).Change
@@ -315,7 +371,7 @@ func TestWords(t *testing.T) {
 		}
 	}
 	for metric, want := range map[string]string{"sloc": "close to or over the size limit",
-		"tokens_est": "close to the token limit for one agent pass", "largest_file_sloc": "a file close to or over 600 lines",
+		"tokens_est": "close to or over the token limit for one agent pass", "largest_file_sloc": "a file close to or over 600 lines",
 		"exported_symbols": "close to or over 60 exports", "globals": "new package-level state",
 		"cognitive_p90": "complexity drifting up", "has_tests": ""} {
 		if got := warnWhy(metric, defaultLimits()); got != want {
@@ -325,7 +381,7 @@ func TestWords(t *testing.T) {
 	if got := warnWhy("internal_imports", nil); got != "" {
 		t.Errorf("warnWhy without a ceiling = %q, want empty", got)
 	}
-	for in, want := range map[string]string{"a; b. c": "a.", "a. b; c": "a.", "only.": "only.", "": ""} {
+	for in, want := range map[string]string{"a; b. c": "A.", "a. b; c": "A.", "only.": "Only.", "": "", "grew 3; split it": "Grew 3."} {
 		if got := firstClause(in); got != want {
 			t.Errorf("firstClause(%q) = %q, want %q", in, got, want)
 		}

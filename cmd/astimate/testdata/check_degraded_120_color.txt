@@ -3,16 +3,20 @@
 
  [1;31m✗[0m [36mtested[0m  [2m4 findings · 3.9 days to rebuild · 1 change lately[0m
    changed func cognitive max  51     max 50
-   [2mA function this complex is the one a rebuild gets wrong.[0m
+   [2mA function this complex is the one a rebuild gets wrong. Changed function grade (grade.go:8) has cognitive complexity[0m
+   [2m51.[0m
    [2mopen[0m [36mtested/grade.go:8[0m
    dup blocks                  0 → 1  1 new copy, none allowed
-   [2mA new copy is a second place every future fix has to land.[0m
+   [2mA new copy is a second place every future fix has to land. 1 duplicate block of any kind (1 code) covers 12.2% of[0m
+   [2mlines.[0m
    [2mopen[0m [36mtested/degraded.go:15[0m
    globals                     0 → 1  max_delta +0
-   [2mShared mutable state is a dependency no signature shows, so callers and tests rely on it without saying so.[0m
+   [2mShared mutable state is a dependency no signature shows, so callers and tests rely on it without saying so. 1 mutable[0m
+   [2mpackage-level variable holds state no signature reveals (joins).[0m
    [2mopen[0m [36mtested/degraded.go:9[0m
    untested exports            0 → 1  max_delta +0
-   [2mNothing pins what an untested export does, so a rebuild would have to guess it.[0m
+   [2mNothing pins what an untested export does, so a rebuild would have to guess it. 1 exported function has no test[0m
+   [2m(JoinAgain).[0m
    [2mopen[0m [36mtested/degraded.go:13[0m
 
  exit 3

@@ -1,22 +1,15 @@
 [1mFixture[0m  [2mexample.com/fixture · thresholds-2026-10-14b[0m
 
-[1mFixture has no package too big to rebuild in one go.[0m
+[1mFixture has no package that needs a split.[0m
 12 packages · 2 weeks to rebuild · [32m11 fine[0m · [33m1 watch[0m · [31m0 split[0m · 7 without tests
 [32m██████████████████░░[0m  [2mshare of packages that are fine[0m
 
 [1mStart here[0m  [2mby days to rebuild[0m
 
-[1m 1  [0m[36mhidden[0m  [1;32mFINE[0m  2 days
-    It is inside every limit, and it has no tests at all.
-    [2mDo this → Nothing. Leave it alone.[0m
-
-[1m 2  [0m[36mimmut[0m  [1;32mFINE[0m  2 days
-    It is inside every limit, and it has no tests at all.
-    [2mDo this → Nothing. Leave it alone.[0m
-
-[1m 3  [0m[36ma[0m  [1;32mFINE[0m  1 day
-    It is inside every limit, and it has no tests at all.
-    [2mDo this → Nothing. Leave it alone.[0m
+[1m 1  [0m[36mdupes[0m  [1;33mWATCH[0m  1 day
+    It is inside every limit, and 80.6% of its lines are copies of each other.
+    [2mDo this → Extract the copied code next time you work here; nothing needs a[0m
+    [2msplit yet.[0m
 
 [1mEvery package[0m  [2mby days to rebuild · * is over its size limit[0m
 

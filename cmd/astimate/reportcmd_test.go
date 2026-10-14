@@ -159,7 +159,7 @@ func TestReportHTML(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.HasPrefix(page, []byte("<!DOCTYPE html>")) || !bytes.Contains(page, []byte("Fixture has no package too big")) {
+	if !bytes.HasPrefix(page, []byte("<!DOCTYPE html>")) || !bytes.Contains(page, []byte("Fixture has no package that needs a split")) {
 		t.Errorf("page = %.200q, want the fixture's report", page)
 	}
 }

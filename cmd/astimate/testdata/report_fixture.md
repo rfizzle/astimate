@@ -1,26 +1,18 @@
-## Fixture has no package too big to rebuild in one go.
+## Fixture has no package that needs a split.
 
-12 packages, about 2 weeks of one engineer's time to rebuild from their tests. 11 are fine, 1 is close to a limit, and 0 need a split.
+12 packages, about 2 weeks of one engineer's time to rebuild from their tests. 11 are fine, 1 needs watching, and 0 need a split. There is no change history to read, so the packages to start with are ranked by rebuild time alone.
 
 ### Start here
 
-1. `hidden` (fine): 2 d to rebuild
-   It is inside every limit, and it has no tests at all.
-   Do this: Nothing. Leave it alone.
-
-2. `immut` (fine): 2 d to rebuild
-   It is inside every limit, and it has no tests at all.
-   Do this: Nothing. Leave it alone.
-
-3. `a` (fine): 1 d to rebuild
-   It is inside every limit, and it has no tests at all.
-   Do this: Nothing. Leave it alone.
+1. `dupes` (watch): 1 d to rebuild
+   It is inside every limit, and 80.6% of its lines are copies of each other.
+   Do this: Extract the copied code next time you work here; nothing needs a split yet.
 
 ### Every package
 
 By rebuild days; * marks a package over its size limit.
 
-| Package | Band | Days | Lines | Copied | Untested | Changes |
+| Package | Band | Time | Lines | Copied | Untested | Changes |
 |---|---|---|---|---|---|---|
 | `hidden` | fine | 2 d | 32 | 0% | 1 | n/a |
 | `immut` | fine | 2 d | 31 | 0% | 3 | n/a |

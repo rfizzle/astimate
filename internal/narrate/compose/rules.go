@@ -164,30 +164,15 @@ func hardest(fns []details.Function) []narrate.Function {
 	return out
 }
 
-// chunks returns the chunkCount longest distinct occurrences of spans, by
-// line count with ties in the order given; two occurrences in one file
-// whose first lines fall in the same ten-line run are one.
+// chunks returns the first chunkCount occurrences of spans. Spans list
+// the occurrences block by block, longest block in tokens first, and every
+// block occurs at least twice, so these are two places of the same code.
+// Picking by line count instead could pair occurrences of two different
+// blocks, and the sentence would name a repeat that is not one.
 func chunks(spans []details.Span) []narrate.Chunk {
-	sorted := slices.Clone(spans)
-	slices.SortStableFunc(sorted, func(a, b details.Span) int {
-		return cmp.Compare(b.EndLine-b.StartLine, a.EndLine-a.StartLine)
-	})
-	type key struct {
-		file string
-		run  int
-	}
-	seen := make(map[key]bool, len(sorted))
 	out := make([]narrate.Chunk, 0, chunkCount)
-	for _, s := range sorted {
-		k := key{s.File, s.StartLine / 10}
-		if seen[k] {
-			continue
-		}
-		seen[k] = true
+	for _, s := range spans[:min(chunkCount, len(spans))] {
 		out = append(out, narrate.Chunk{File: s.File, Start: s.StartLine, End: s.EndLine, Lines: s.EndLine - s.StartLine + 1})
-		if len(out) == chunkCount {
-			break
-		}
 	}
 	return out
 }

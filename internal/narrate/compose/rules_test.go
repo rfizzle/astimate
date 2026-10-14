@@ -95,15 +95,24 @@ func TestBuckets(t *testing.T) {
 func TestChunks(t *testing.T) {
 	t.Parallel()
 
+	// The longest block's two occurrences come first, even when a later
+	// block's occurrence spans more lines: pairing the longest spans by
+	// line count once named two different blocks as one repeat.
 	spans := []details.Span{
-		{File: "a.go", StartLine: 10, EndLine: 20},
-		{File: "a.go", StartLine: 12, EndLine: 40}, // longest
-		{File: "a.go", StartLine: 15, EndLine: 43}, // same ten-line run as the longest
-		{File: "b.go", StartLine: 15, EndLine: 43}, // tie, another file
+		{File: "handlers.go", StartLine: 10, EndLine: 20},
+		{File: "state.go", StartLine: 5, EndLine: 14},
+		{File: "a.go", StartLine: 12, EndLine: 60},
+		{File: "b.go", StartLine: 15, EndLine: 63},
 	}
-	want := []narrate.Chunk{{File: "a.go", Start: 12, End: 40, Lines: 29}, {File: "b.go", Start: 15, End: 43, Lines: 29}}
+	want := []narrate.Chunk{{File: "handlers.go", Start: 10, End: 20, Lines: 11}, {File: "state.go", Start: 5, End: 14, Lines: 10}}
 	if got := chunks(spans); !slices.Equal(got, want) {
 		t.Errorf("chunks = %+v, want %+v", got, want)
+	}
+	if got := chunks(spans[:1]); len(got) != 1 {
+		t.Errorf("chunks of one span = %+v, want one", got)
+	}
+	if got := chunks(nil); len(got) != 0 {
+		t.Errorf("chunks of none = %+v, want none", got)
 	}
 }
 

@@ -87,18 +87,25 @@ func Build(in *Input) narrate.Module {
 	m.Counts.HumanTime = human(m.Counts.HumanDays)
 	hot := hotOrder(m.Packages)
 	m.Hotspots = make([]string, 0, hotspotCount)
-	for _, p := range hot[:min(hotspotCount, len(hot))] {
-		m.Hotspots = append(m.Hotspots, p.Path)
-	}
-	var hottest *narrate.Package
+	var first, hottest *narrate.Package
+	churned := false
 	for _, p := range hot {
-		if p.Band == narrate.BandSplit && p.Hotspot > 0 {
+		churned = churned || p.Churn != nil
+		if p.Band == narrate.BandFine {
+			continue
+		}
+		if first == nil {
+			first = p
+		}
+		if len(m.Hotspots) < hotspotCount {
+			m.Hotspots = append(m.Hotspots, p.Path)
+		}
+		if hottest == nil && p.Band == narrate.BandSplit && p.Hotspot > 0 {
 			hottest = p
-			break
 		}
 	}
-	m.Headline = headline(&m)
-	m.Lead = lead(&m, hottest)
+	m.Headline = headline(&m, first)
+	m.Lead = lead(&m, hottest, churned)
 	if in.Check != nil {
 		m.Change = change(in.Check, in.Base, &m)
 	}
@@ -116,11 +123,16 @@ func moduleName(modulePath, rootName string) string {
 			name = path.Base(dir)
 		}
 	}
-	r, size := utf8.DecodeRuneInString(name)
+	return capitalize(name)
+}
+
+// capitalize returns s with its first letter upper-cased.
+func capitalize(s string) string {
+	r, size := utf8.DecodeRuneInString(s)
 	if size == 0 {
-		return name
+		return s
 	}
-	return string(unicode.ToUpper(r)) + name[size:]
+	return string(unicode.ToUpper(r)) + s[size:]
 }
 
 // isMajor reports whether s is a module major-version suffix, v2 or above.
@@ -257,7 +269,7 @@ func change(c *report.Check, base string, m *narrate.Module) *narrate.Change {
 			Findings: make([]narrate.Finding, 0, len(r.Violations))}
 		for i := range r.Violations {
 			v := &r.Violations[i]
-			untested = untested || v.Metric == "untested_exports"
+			untested = untested || v.Metric == "untested_exports" || v.Metric == "has_tests"
 			f.Findings = append(f.Findings, finding(v))
 		}
 		ch.Violations += len(f.Findings)

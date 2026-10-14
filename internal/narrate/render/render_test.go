@@ -17,7 +17,7 @@ import (
 func TestWrite(t *testing.T) {
 	t.Parallel()
 
-	m := &narrate.Module{Name: "Demo", Headline: "Demo has no package too big to rebuild in one go."}
+	m := &narrate.Module{Name: "Demo", Headline: "Demo has no package that needs a split."}
 	for _, format := range Formats() {
 		t.Run(format, func(t *testing.T) {
 			t.Parallel()

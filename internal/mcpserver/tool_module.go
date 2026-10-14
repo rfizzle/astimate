@@ -17,7 +17,7 @@ const moduleToolName = "report_module"
 
 // moduleToolDescription tells the agent what report_module is for.
 const moduleToolDescription = "Report on a whole Go module in plain language, as `astimate report` prints it: " +
-	"a verdict (headline and lead) on the repository, the three packages to start with (start_here, each " +
+	"a verdict (headline and lead) on the repository, up to three split or watch packages to start with (start_here, each " +
 	"with its story, what is wrong, and its do sentence, what to do about it) and the full module report " +
 	"(every package's band, rebuild cost, copies, complexity, tests and churn). Call it to answer " +
 	"\"what should I split first\" in one call. With base, a git ref, it also checks the change since " +

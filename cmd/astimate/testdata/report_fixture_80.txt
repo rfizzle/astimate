@@ -1,21 +1,14 @@
 Fixture  example.com/fixture · thresholds-2026-10-14b
 
-Fixture has no package too big to rebuild in one go.
+Fixture has no package that needs a split.
 12 packages · 2 weeks to rebuild · 11 fine · 1 watch · 0 split · 7 without tests
 
 Start here  by days to rebuild
 
- 1  hidden  FINE  2 days
-    It is inside every limit, and it has no tests at all.
-    Do this → Nothing. Leave it alone.
-
- 2  immut  FINE  2 days
-    It is inside every limit, and it has no tests at all.
-    Do this → Nothing. Leave it alone.
-
- 3  a  FINE  1 day
-    It is inside every limit, and it has no tests at all.
-    Do this → Nothing. Leave it alone.
+ 1  dupes  WATCH  1 day
+    It is inside every limit, and 80.6% of its lines are copies of each other.
+    Do this → Extract the copied code next time you work here; nothing needs a
+    split yet.
 
 Every package  by days to rebuild · * is over its size limit
 

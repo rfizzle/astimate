@@ -3,7 +3,7 @@ Rebuild cost: How long it would take to rewrite the package from its tests. Show
 == split ==
 Split: The package is past what one agent pass can hold, or over two of its limits. Carve it into smaller packages before adding to it.
 == watch ==
-Watch: Over one limit, or large enough to need a few passes. The next growth here will start failing the gate.
+Watch: Over one limit, large enough to need a few passes, or a quarter or more of it copied. Plan a split or a clean-up before it grows.
 == copied ==
 Copied: The share of lines inside duplicate blocks of 40 or more tokens. Every copy is a second place a fix has to land.
 == untested ==

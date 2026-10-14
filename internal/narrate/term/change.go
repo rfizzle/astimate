@@ -1,7 +1,6 @@
 package term
 
 import (
-	"cmp"
 	"strconv"
 	"strings"
 
@@ -76,9 +75,9 @@ func (p *printer) change(c *narrate.Change) {
 }
 
 // failing writes one failing package: its path and summary, then each
-// finding on three lines (what moved, why or else what to do, where to
-// look), or at narrowWidth or less on one line with one place to look for
-// the package.
+// finding on three lines (what moved, why and what to do, where to look),
+// or at narrowWidth or less on one line with one place to look for the
+// package.
 func (p *printer) failing(f *narrate.Failing, lw, vw int) {
 	narrow := p.width <= narrowWidth
 	summary := f.Summary
@@ -115,7 +114,7 @@ func (p *printer) failing(f *narrate.Failing, lw, vw int) {
 			p.line(strings.TrimRight(lead, " "))
 			p.para(moved, "     ")
 		}
-		if why := cmp.Or(x.Why, x.Do); !narrow && why != "" {
+		if why := strings.TrimSpace(x.Why + " " + x.Do); !narrow && why != "" {
 			p.para(why, "   ", sgrDim)
 		}
 		if l := x.Location; l != nil && (!narrow || !opened) {

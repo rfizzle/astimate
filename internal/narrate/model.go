@@ -34,8 +34,10 @@ type Module struct {
 	Headline string `json:"headline"`
 	// Lead is the paragraph under Headline.
 	Lead string `json:"lead"`
-	// Hotspots are the paths of the five packages with the highest
-	// hotspot score, highest first; "Start here" is the first three.
+	// Hotspots are the paths of the five split or watch packages with the
+	// highest hotspot score, highest first (by rebuild days without
+	// churn); "Start here" is the first three. A fine package is never
+	// one: there is nothing to do about it.
 	Hotspots []string `json:"hotspots"`
 	// Packages are every package, by path.
 	Packages []Package `json:"packages"`
@@ -178,7 +180,7 @@ type Copies struct {
 	Lines int `json:"lines"`
 	// Level colours the share: split at 25%, watch at 10%, else fine.
 	Level string `json:"level"`
-	// Chunks are the two longest distinct repeats.
+	// Chunks are two occurrences of the longest duplicate block.
 	Chunks []Chunk `json:"chunks"`
 	// Say is the view's sentence.
 	Say string `json:"say"`

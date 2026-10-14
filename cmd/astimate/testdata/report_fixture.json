@@ -44,14 +44,10 @@
     "human_days": 10,
     "human_time": "2 weeks"
   },
-  "headline": "Fixture has no package too big to rebuild in one go.",
-  "lead": "12 packages, about 2 weeks of one engineer's time to rebuild from their tests. 11 are fine, 1 is close to a limit, and 0 need a split.",
+  "headline": "Fixture has no package that needs a split.",
+  "lead": "12 packages, about 2 weeks of one engineer's time to rebuild from their tests. 11 are fine, 1 needs watching, and 0 need a split. There is no change history to read, so the packages to start with are ranked by rebuild time alone.",
   "hotspots": [
-    "hidden",
-    "immut",
-    "a",
-    "b",
-    "hub"
+    "dupes"
   ],
   "packages": [
     {
@@ -591,7 +587,7 @@
             "lines": 18
           }
         ],
-        "say": "Nearly half of this code exists at least twice. A bug fixed in one copy stays alive in the others, and every copy is more for a rebuild to read.",
+        "say": "Half or more of this code exists at least twice. A bug fixed in one copy stays alive in the others, and every copy is more for a rebuild to read.",
         "longest": "Longest repeat: dupes.go:9-26 (18 lines), again at dupes.go:31-48."
       },
       "complexity": {
@@ -641,7 +637,7 @@
       "churn": null,
       "fan_in": 0,
       "story": "It is inside every limit, and 80.6% of its lines are copies of each other.",
-      "todo": "Nothing yet. Keep an eye on it.",
+      "todo": "Extract the copied code next time you work here; nothing needs a split yet.",
       "facts": [
         {
           "label": "Rebuild",
@@ -1889,7 +1885,7 @@
     },
     {
       "term": "Watch",
-      "text": "Over one limit, or large enough to need a few passes. The next growth here will start failing the gate."
+      "text": "Over one limit, large enough to need a few passes, or a quarter or more of it copied. Plan a split or a clean-up before it grows."
     },
     {
       "term": "Copied",

@@ -32,7 +32,7 @@
   </div>
 {{if .Steps}}
   <h2>Start here</h2>
-  <p class="note">Three packages, in the order a split pays back soonest. The ranking is how often a package changes, times what it would cost to rebuild from its tests.</p>
+  <p class="note">{{if .Churned}}The packages to split or watch, in the order a split pays back soonest. The ranking is how often a package changes, times what it would cost to rebuild from its tests.{{else}}The packages to split or watch, the costliest to rebuild first.{{end}}</p>
   <div class="steps">{{range .Steps}}
     <div class="step {{.P.Band}}">
       <div class="n">{{.N}}</div>
@@ -45,7 +45,7 @@
   </div>
 {{end}}
   <h2>The map</h2>
-  <p class="note">Every package as a bubble. Bigger means more code. Red needs a split, amber is close to a limit, green is fine. Hover for the story, click to open it below.</p>
+  <p class="note">Every package as a bubble. Bigger means more code. Red needs a split, amber needs watching, green is fine. Hover for the story, click to open it below.</p>
   <div class="mapcard">
     <div class="maphead">
       <div class="seg" role="group" aria-label="Map view"><button aria-pressed="true" data-view="bubbles">Bubbles</button><button aria-pressed="false" data-view="scatter">Hot vs costly</button></div>

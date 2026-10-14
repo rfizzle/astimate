@@ -144,16 +144,16 @@ func TestOverwatch(t *testing.T) {
 		HumanDays: m.Counts.HumanDays, HumanTime: m.Counts.HumanTime}); got != want {
 		t.Errorf("counts = %+v, want %+v", got, want)
 	}
-	if want := "Overwatch has 19 packages too big to rebuild in one go. Start with internal/controller."; m.Headline != want {
+	if want := "Overwatch has 19 packages that need a split. Start with internal/controller."; m.Headline != want {
 		t.Errorf("headline = %q, want %q", m.Headline, want)
 	}
 	if want := "61 packages, about " + m.Counts.HumanTime + " of one engineer's time to rebuild from their tests. " +
-		"31 are fine, 11 are close to a limit, and 19 need a split. The hottest of those changed 41 times in the last " +
+		"31 are fine, 11 need watching, and 19 need a split. The hottest of those changed 41 times in the last " +
 		"200 commits and 42.6% of it is copied code."; m.Lead != want {
 		t.Errorf("lead = %q, want %q", m.Lead, want)
 	}
 	c := byPath["internal/controller"]
-	if want := "It is over 5 of its five limits (size, tokens, largest file, exports, imports), and 42.6% of its " +
+	if want := "It is over all five of its limits (size, tokens, largest file, exports, imports), and 42.6% of its " +
 		"lines are copies of each other, and 16 of its 203 exports have no test."; c.Story != want {
 		t.Errorf("story = %q, want %q", c.Story, want)
 	}

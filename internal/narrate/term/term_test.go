@@ -26,7 +26,7 @@ func sample() *narrate.Module {
 	return &narrate.Module{
 		Name: "Demo", ModulePath: "example.com/demo", ConfigVersion: "v1", ChurnWindow: 200,
 		Counts:   narrate.Counts{Packages: 3, Split: 1, Watch: 1, Fine: 1, WithoutTests: 1, HumanTime: "3 weeks"},
-		Headline: "Demo has 1 package too big to rebuild in one go. Start with " + long + ".",
+		Headline: "Demo has 1 package that needs a split. Start with " + long + ".",
 		Hotspots: []string{long, "w", "f"},
 		Packages: []narrate.Package{pkg(long, narrate.BandSplit, 9, 1200, "sloc"), pkg("w", narrate.BandWatch, 4, 800),
 			pkg("f", narrate.BandFine, 1, 10)},
@@ -161,7 +161,7 @@ func TestWriteChangeOnly(t *testing.T) {
 func TestWritePass(t *testing.T) {
 	t.Parallel()
 
-	m := &narrate.Module{Name: "Empty", Headline: "Empty has no package too big to rebuild in one go.",
+	m := &narrate.Module{Name: "Empty", Headline: "Empty has no package that needs a split.",
 		Change: &narrate.Change{Verdict: "PASS", Headline: "Nothing needs attention before this merges.", BaseCommit: strings.Repeat("ab", 20)}}
 	out := write(t, m, narrate.WriteOptions{ChangeOnly: true})
 	if !strings.HasPrefix(out, "PASS  Nothing needs attention before this merges.  against abababab\n") ||

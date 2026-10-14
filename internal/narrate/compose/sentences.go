@@ -48,7 +48,7 @@ func why(metric string) string {
 	case "dup_blocks":
 		return "A new copy is a second place every future fix has to land."
 	case "sloc":
-		return "The package was already past what one agent pass can hold, and this change grew it more than one change is allowed to."
+		return "The package is past what one agent pass can hold, and this change took it there or grew it more than one change is allowed to."
 	case "tokens_est":
 		return "The package is past what one agent pass can read, and this change took it there or grew it more than one change is allowed to."
 	case "largest_file_sloc":
@@ -82,7 +82,7 @@ func warnWhy(metric string, limits []narrate.Limit) string {
 	case "sloc":
 		return "close to or over the size limit"
 	case "tokens_est":
-		return "close to the token limit for one agent pass"
+		return "close to or over the token limit for one agent pass"
 	case "untested_exports":
 		return "new exports without a test"
 	case "globals":
@@ -118,8 +118,11 @@ func story(p *narrate.Package) string {
 		for i, m := range p.Over {
 			labels[i] = metricLabel(m)
 		}
-		s = append(s, "It is over "+strconv.Itoa(len(p.Over))+" of its "+countWord(len(p.Ceilings))+" limits ("+
-			strings.Join(labels, ", ")+")")
+		over := strconv.Itoa(len(p.Over)) + " of its " + countWord(len(p.Ceilings)) + " limits"
+		if len(p.Over) == len(p.Ceilings) {
+			over = "all " + countWord(len(p.Ceilings)) + " of its limits"
+		}
+		s = append(s, "It is over "+over+" ("+strings.Join(labels, ", ")+")")
 	}
 	if p.Copies.Pct >= 20 {
 		s = append(s, narrate.Num(p.Copies.Pct)+"% of its lines are copies of each other")
@@ -143,7 +146,10 @@ func todo(p *narrate.Package) string {
 		return "Split it into smaller packages before the next feature lands here."
 	case narrate.BandWatch:
 		if len(p.Over) > 0 {
-			return "Plan a split now; the gate fails the next change that grows it."
+			return "Plan a split now, before it grows further past its limit."
+		}
+		if p.Copies.Pct >= watchDupPct {
+			return "Extract the copied code next time you work here; nothing needs a split yet."
 		}
 		return "Nothing yet. Keep an eye on it."
 	}
@@ -155,7 +161,10 @@ func changes(p *narrate.Package, window int) string {
 	if p.Churn == nil || window <= 0 {
 		return ""
 	}
-	return "It changed " + strconv.Itoa(p.Churn.Commits) + " times in the last " + strconv.Itoa(window) +
+	if p.Churn.Commits == 0 {
+		return "It did not change in the last " + strconv.Itoa(window) + " commits."
+	}
+	return "It changed " + plural(p.Churn.Commits, "time", "times") + " in the last " + strconv.Itoa(window) +
 		" commits, so every one of those problems is in the way of day-to-day work."
 }
 
@@ -205,6 +214,8 @@ func rebuildSay(r *narrate.Rebuild) string {
 // copiesSay is the copies view's sentence.
 func copiesSay(pct float64) string {
 	switch {
+	case pct >= 50:
+		return "Half or more of this code exists at least twice. A bug fixed in one copy stays alive in the others, and every copy is more for a rebuild to read."
 	case pct >= 40:
 		return "Nearly half of this code exists at least twice. A bug fixed in one copy stays alive in the others, and every copy is more for a rebuild to read."
 	case pct >= 20:
@@ -215,24 +226,21 @@ func copiesSay(pct float64) string {
 	return "Very little repetition. Nothing to do."
 }
 
-// longest names the chunks; empty without any.
+// longest names the chunks, two occurrences of the longest duplicate
+// block; empty without any. Two that overlap are said to.
 func longest(cs []narrate.Chunk) string {
 	if len(cs) == 0 {
 		return ""
 	}
-	var b strings.Builder
-	for i, c := range cs {
-		where := c.File + ":" + strconv.Itoa(c.Start) + "-" + strconv.Itoa(c.End)
-		if i == 0 {
-			b.WriteString("Longest repeat: " + where + " (" + strconv.Itoa(c.Lines) + " lines)")
-			continue
-		}
-		b.WriteString(", again at " + where)
-	}
+	where := func(c narrate.Chunk) string { return c.File + ":" + strconv.Itoa(c.Start) + "-" + strconv.Itoa(c.End) }
+	s := "Longest repeat: " + where(cs[0]) + " (" + plural(cs[0].Lines, "line", "lines") + ")"
 	if len(cs) > 1 {
-		b.WriteString(".")
+		s += ", again at " + where(cs[1])
+		if a, b := cs[0], cs[1]; a.File == b.File && a.Start <= b.End && b.Start <= a.End {
+			s += ", overlapping it: the same code back to back"
+		}
 	}
-	return b.String()
+	return s + "."
 }
 
 // complexitySay is the complexity view's sentence; empty without
@@ -257,29 +265,34 @@ func complexitySay(c *narrate.Complexity) string {
 		strconv.Itoa(c.Nesting) + " levels deep."
 }
 
-// headline is the repository's one-sentence verdict.
-func headline(m *narrate.Module) string {
+// headline is the repository's one-sentence verdict; first is the first
+// hotspot, nil when there is none, named when it is a split package.
+func headline(m *narrate.Module, first *narrate.Package) string {
 	if m.Counts.Split == 0 {
-		return m.Name + " has no package too big to rebuild in one go."
+		return m.Name + " has no package that needs a split."
 	}
-	s := m.Name + " has " + plural(m.Counts.Split, "package", "packages") + " too big to rebuild in one go."
-	if len(m.Hotspots) > 0 {
-		s += " Start with " + m.Hotspots[0] + "."
+	s := m.Name + " has " + plural(m.Counts.Split, "package that needs", "packages that need") + " a split."
+	if first != nil && first.Band == narrate.BandSplit {
+		s += " Start with " + first.Path + "."
 	}
 	return s
 }
 
 // lead is the paragraph under the headline; hottest is the split package
-// with the highest hotspot score, nil when none has one.
-func lead(m *narrate.Module, hottest *narrate.Package) string {
+// with the highest hotspot score, nil when none has one, and churned
+// reports whether churn was measured for any package.
+func lead(m *narrate.Module, hottest *narrate.Package, churned bool) string {
 	c := m.Counts
 	s := plural(c.Packages, "package", "packages") + ", about " + c.HumanTime +
 		" of one engineer's time to rebuild from their tests. " + strconv.Itoa(c.Fine) + pick(c.Fine, " is", " are") + " fine, " +
-		strconv.Itoa(c.Watch) + pick(c.Watch, " is", " are") + " close to a limit, and " + strconv.Itoa(c.Split) +
+		strconv.Itoa(c.Watch) + pick(c.Watch, " needs", " need") + " watching, and " + strconv.Itoa(c.Split) +
 		pick(c.Split, " needs", " need") + " a split."
 	if hottest != nil && hottest.Churn != nil && m.ChurnWindow > 0 {
-		s += " The hottest of those changed " + strconv.Itoa(hottest.Churn.Commits) + " times in the last " +
+		s += " The hottest of those changed " + plural(hottest.Churn.Commits, "time", "times") + " in the last " +
 			strconv.Itoa(m.ChurnWindow) + " commits and " + narrate.Num(hottest.Copies.Pct) + "% of it is copied code."
+	}
+	if !churned && len(m.Hotspots) > 0 {
+		s += " There is no change history to read, so the packages to start with are ranked by rebuild time alone."
 	}
 	return s
 }
@@ -293,7 +306,7 @@ func changeHeadline(c *narrate.Change) string {
 }
 
 // changeLead is the paragraph under the ribbon; untested reports whether
-// any finding is on untested_exports.
+// any finding is on untested_exports or has_tests.
 func changeLead(c *narrate.Change, untested bool) string {
 	s := plural(c.Changed, "package", "packages") + " changed. " + strconv.Itoa(c.Failed) + " fail" +
 		pick(c.Failed, "s", "") + " the gate with " + plural(c.Violations, "finding", "findings") + ". " +
@@ -336,16 +349,22 @@ func moved(f *narrate.Finding) (page, term string) {
 		return "grew " + narrate.Num(grew) + ", allowed " + narrate.Num(*f.Allowed) + " while over the limit",
 			"grew " + narrate.Num(grew) + ", allowed " + narrate.Num(*f.Allowed)
 	}
-	if rule, _, _ := strings.Cut(f.Limit, ";"); f.Metric == "dup_blocks" && rule == "max_delta +0" {
+	if rule, _, _ := strings.Cut(f.Limit, ";"); rule == "max_delta +0" {
 		n := int(grew)
-		return plural(n, "new duplicate block", "new duplicate blocks") + "; the rule allows none",
-			plural(n, "new copy", "new copies") + ", none allowed"
+		switch f.Metric {
+		case "dup_blocks":
+			return plural(n, "new duplicate block", "new duplicate blocks") + "; the rule allows none",
+				plural(n, "new copy", "new copies") + ", none allowed"
+		case "dup_blocks_cross_pkg":
+			return plural(n, "new duplicate block", "new duplicate blocks") + " shared with other packages; the rule allows none",
+				plural(n, "new copy", "new copies") + " across packages, none allowed"
+		}
 	}
 	return "", ""
 }
 
 // firstClause is the first clause of a gate suggestion, ending in a
-// period.
+// period, its first letter upper-cased: it follows the why sentence.
 func firstClause(s string) string {
 	i := strings.Index(s, ". ")
 	if j := strings.Index(s, "; "); j >= 0 && (i < 0 || j < i) {
@@ -358,7 +377,7 @@ func firstClause(s string) string {
 	if s == "" {
 		return ""
 	}
-	return s + "."
+	return capitalize(s) + "."
 }
 
 // human is days as one engineer's working time: days under a week, weeks
