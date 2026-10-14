@@ -7,9 +7,24 @@
 - Inputs decided before this retune: `duplication.min_tokens` 60 with `dup_blocks` `max_delta` 0 (`calibration/notes/min-tokens-2026-10-14.md`), `duplicated_lines` left ungated (`calibration/notes/duplicated-lines-rule-2026-10-14.md`)
 - No replay was run for this retune: every number below comes from the stored rows, through `calibration/validate`
 
+## Relabel 2026-10-14
+
+Five ztp hand labels were placeholders, `allow` with the reason "not loaded", written when the 2026-10-13 replay could not load their commits; the 2026-10-14 replays load them, so they were scored as `allow` without having been read. They have now been read (`calibration/notes/hand-labels-2026-10-14.md`): c4af29e is `block` (a verbatim copy of the policy matcher, extracted twelve commits later), and bb7f0cd, c0373bb, 9a006d6 and 130d2c8 stay `allow` with a cause. The pool is now 15 `block` and 137 `allow` commits. The two tables "The whole gate" and "Per rule" are re-run on the relabelled labels, with the same commands; the prose of the steps, the warn-rule list and the Not taken table keep the numbers each decision was made on (14 and 138).
+
+Every decision holds on the relabelled labels. c4af29e fires only `dup_blocks` and `dup_blocks_cross_pkg`, so every other rule keeps its counts and only its denominators move, and no rule's "only it" count changes:
+
+- `min_tokens` 60: `dup_blocks` at 60 fails 66.7% of `block` and 5.8% of `allow` (J +60.8), against 86.7% and 12.4% at 40 on the matched commits (over the budget), 46.7% and 2.2% at 80 (+44.5) and 26.7% and 2.9% at 120 (+23.7).
+- `sloc` `over_max_delta` 100 to 150: J +31.9 to +33.3, false failures 1.5% to 0.0%, recall 33.3% kept; 200 lowers recall (26.7%).
+- `tokens_est` 1,000 to 2,000: J +17.8 to +20.0, 2.2% to 0.0%, recall 20.0% kept; 3,000 lowers recall (13.3%).
+- `largest_file_sloc` 5 to 50: 20, 25 and 50 tie at J +13.3 against +11.1 at 5; 100 lowers recall (6.7%).
+- The four warn rules still fail no `block` commit another rule misses, and gate recall stays 86.7%.
+- The settings under Not taken are still tightenings, which criterion 4 rules out whatever their numbers.
+
+The shipped gate's false failures fall from 10.9% to 10.2% (14 of 137), still one commit over the target.
+
 ## Method
 
-Every number is on the pooled hand-label view with the two capacity-only `block` labels set aside (ztp f430f2f, shhh ac1110f): 14 `block` and 138 `allow` agent-authored commits, as in the min-tokens note. A rule's recall is the share of `block` commits it fires on, its false-failure share the share of `allow` commits, and J their difference. A rule fires whatever its severity, so a warn rule keeps its own rates.
+Every number is on the pooled hand-label view with the two capacity-only `block` labels set aside (ztp f430f2f, shhh ac1110f): 14 `block` and 138 `allow` agent-authored commits, as in the min-tokens note, when the retune was decided, and 15 and 137 in the two tables re-run after the relabel (above). A rule's recall is the share of `block` commits it fires on, its false-failure share the share of `allow` commits, and J their difference. A rule fires whatever its severity, so a warn rule keeps its own rates.
 
 A change to a rule ships only when all of these hold:
 
@@ -28,15 +43,15 @@ The validation of the shipped default reads the rows replayed under the min-toke
 
 | Rows, configuration | Gate recall | Gate false failures | Gate J | Split-or-extraction labels: recall, false failures | Every author: recall, false failures |
 | --- | --- | --- | --- | --- | --- |
-| 40 tokens, `astimate-thresholds-2026-10-13.yaml` (the replay's own gate) | 13 of 14 (92.9%) | 39 of 140 (27.9%) | +65.0 pts | 8 of 9 (88.9%), 44 of 145 (30.3%) | 19 of 20 (95.0%), 69 of 276 (25.0%) |
-| 60 tokens, `astimate-min-tokens-60-2026-10-14.yaml` (only `min_tokens` changed) | 12 of 14 (85.7%) | 37 of 138 (26.8%) | +58.9 pts | 11 of 11 (100.0%), 38 of 141 (27.0%) | 18 of 20 (90.0%), 67 of 276 (24.3%) |
-| 60 tokens, the four warn rules only | 12 of 14 (85.7%) | 21 of 138 (15.2%) | +70.5 pts | | |
-| 60 tokens, the three allowances only | 12 of 14 (85.7%) | 32 of 138 (23.2%) | +62.5 pts | | |
-| 60 tokens, `thresholds-2026-10-14` (shipped) | 12 of 14 (85.7%) | 15 of 138 (10.9%) | +74.8 pts | 11 of 11 (100.0%), 16 of 141 (11.3%) | 17 of 20 (85.0%), 39 of 276 (14.1%) |
+| 40 tokens, `astimate-thresholds-2026-10-13.yaml` (the replay's own gate) | 14 of 15 (93.3%) | 38 of 139 (27.3%) | +66.0 pts | 8 of 9 (88.9%), 44 of 145 (30.3%) | 20 of 21 (95.2%), 68 of 275 (24.7%) |
+| 60 tokens, `astimate-min-tokens-60-2026-10-14.yaml` (only `min_tokens` changed) | 13 of 15 (86.7%) | 36 of 137 (26.3%) | +60.4 pts | 11 of 11 (100.0%), 38 of 141 (27.0%) | 19 of 21 (90.5%), 66 of 275 (24.0%) |
+| 60 tokens, the four warn rules only | 13 of 15 (86.7%) | 20 of 137 (14.6%) | +72.1 pts | | |
+| 60 tokens, the three allowances only | 13 of 15 (86.7%) | 31 of 137 (22.6%) | +64.0 pts | | |
+| 60 tokens, `thresholds-2026-10-14` (shipped) | 13 of 15 (86.7%) | 14 of 137 (10.2%) | +76.4 pts | 11 of 11 (100.0%), 16 of 141 (11.3%) | 18 of 21 (85.7%), 38 of 275 (13.8%) |
 
-The 40-token row has 140 `allow` commits because shhh's range moved two commits between the replays (min-tokens note); on the 138 shared commits it fails 38 (27.5%). The every-author view is `--agent-only=false`, adding go-starter's first 20 commits, crush's 58 human commits and all of ai-shell; it was run to check the retune does not rest on the agent-only filter, and it falls from 24.3% to 14.1% too.
+The 40-token row has 139 `allow` commits because shhh's range moved two commits between the replays (min-tokens note); on the 137 shared commits it fails 37 (27.0%). The every-author view is `--agent-only=false`, adding go-starter's first 20 commits, crush's 58 human commits and all of ai-shell; it was run to check the retune does not rest on the agent-only filter, and it falls from 24.0% to 13.8% too.
 
-The false-failure target (10%) is missed by one commit: 13 of 138 would meet it. Every remaining false failure carries a duplication finding: `dup_blocks` fails 9 of the 15 `allow` commits (5 alone), `dup_blocks_cross_pkg` 8 (5 alone), `duplication_pct` 2 and `max_nesting` 1 (neither alone). That is what the partial-overlap coalescing and narrow-shape work of `calibration/notes/dup-block-kinds-2026-10-14.md` addresses, not a limit.
+The false-failure target (10%) is missed by one commit: 13 of 137 would meet it. Every remaining false failure carries a duplication finding: `dup_blocks` fails 8 of the 14 `allow` commits (5 alone), `dup_blocks_cross_pkg` 7 (5 alone), `duplication_pct` 2 and `max_nesting` 1 (neither alone). That is what the partial-overlap coalescing and narrow-shape work of `calibration/notes/dup-block-kinds-2026-10-14.md` addresses, not a limit.
 
 ## Per rule
 
@@ -44,21 +59,21 @@ Rule columns are the rule alone, as recorded or re-evaluated at that setting; "o
 
 | Rule | Shipped before | Decision | Shipped now | Before: recall, false failures, J | After: recall, false failures, J | Only it before: `block`, `allow` |
 | --- | --- | --- | --- | --- | --- | --- |
-| `dup_blocks` | `max_delta` 0 at `min_tokens` 40 | kept, at `min_tokens` 60 | `max_delta` 0 | 85.7%, 13.0%, +72.7 (40, over the budget) | 64.3%, 6.5%, +57.8 | 2, 2 |
-| `duplication_pct` | `max_delta` 6, `max` 40, `floor` 10 | kept | the same | 14.3%, 1.4%, +12.8 | the same | 0, 0 |
-| `untested_exports` | fail, `max_delta` 0 | warn | warn, `max_delta` 0 | 50.0%, 12.3%, +37.7 (over the budget) | the same, never failing | 0, 10 |
-| `globals` | fail, `max_delta` 0 | warn | warn, `max_delta` 0 | 7.1%, 3.6%, +3.5 | the same, never failing | 0, 2 |
+| `dup_blocks` | `max_delta` 0 at `min_tokens` 40 | kept, at `min_tokens` 60 | `max_delta` 0 | 86.7%, 12.4%, +74.3 (40, over the budget) | 66.7%, 5.8%, +60.8 | 2, 2 |
+| `duplication_pct` | `max_delta` 6, `max` 40, `floor` 10 | kept | the same | 13.3%, 1.5%, +11.9 | the same | 0, 0 |
+| `untested_exports` | fail, `max_delta` 0 | warn | warn, `max_delta` 0 | 46.7%, 12.4%, +34.3 (over the budget) | the same, never failing | 0, 10 |
+| `globals` | fail, `max_delta` 0 | warn | warn, `max_delta` 0 | 6.7%, 3.6%, +3.0 | the same, never failing | 0, 2 |
 | `init_funcs` | `max_delta` 0 | kept | the same | never fired | never fired | 0, 0 |
-| `max_nesting` | `max_delta` 0, `max` 5, `floor` 4 | kept | the same | 7.1%, 0.7%, +6.4 | the same | 0, 0 |
+| `max_nesting` | `max_delta` 0, `max` 5, `floor` 4 | kept | the same | 6.7%, 0.7%, +5.9 | the same | 0, 0 |
 | `cognitive_p90` | fail, `max_delta` 3, `max` 20, `floor` 10 | warn | warn, same limits | 0.0%, 2.9%, -2.9 | the same, never failing | 0, 3 |
-| `changed_func_cognitive_max` | `max` 50, `over_max_delta` 5 | kept | the same | 7.1%, 0.0%, +7.1 | the same | 0, 0 |
-| `dup_blocks_cross_pkg` | `max_delta` 0, `max` 450 | kept | the same | 42.9%, 5.8%, +37.1 | the same | 0, 3; after the demotions 1, 5 |
-| `tokens_est` | `max` 16,000, `over_max_delta` 1,000 | retuned | `over_max_delta` 2,000 | 21.4%, 2.2%, +19.3 | 21.4%, 0.0%, +21.4 | 0, 1 |
-| `largest_file_sloc` | `max` 600, `over_max_delta` 5 | retuned | `over_max_delta` 50 | 14.3%, 2.2%, +12.1 | 14.3%, 0.0%, +14.3 | 0, 3 |
-| `exported_symbols` | `max` 60, `over_max_delta` 5 | kept | the same | 28.6%, 0.0%, +28.6 | the same | 0, 0 |
+| `changed_func_cognitive_max` | `max` 50, `over_max_delta` 5 | kept | the same | 6.7%, 0.0%, +6.7 | the same | 0, 0 |
+| `dup_blocks_cross_pkg` | `max_delta` 0, `max` 450 | kept | the same | 46.7%, 5.1%, +41.6 | the same | 0, 3; after the demotions 1, 5 |
+| `tokens_est` | `max` 16,000, `over_max_delta` 1,000 | retuned | `over_max_delta` 2,000 | 20.0%, 2.2%, +17.8 | 20.0%, 0.0%, +20.0 | 0, 1 |
+| `largest_file_sloc` | `max` 600, `over_max_delta` 5 | retuned | `over_max_delta` 50 | 13.3%, 2.2%, +11.1 | 13.3%, 0.0%, +13.3 | 0, 3 |
+| `exported_symbols` | `max` 60, `over_max_delta` 5 | kept | the same | 26.7%, 0.0%, +26.7 | the same | 0, 0 |
 | `internal_imports` | fail, `max` 10, `over_max_delta` 1 | warn | warn, same limits | 0.0%, 0.7%, -0.7 | the same, never failing | 0, 0 |
-| `sloc` | `max` 1,000, `over_max_delta` 100 | retuned | `over_max_delta` 150 | 35.7%, 1.4%, +34.3 | 35.7%, 0.0%, +35.7 | 0, 0 |
-| `has_tests`, past 100 SLOC, not `main` | require | kept | the same | 7.1%, 0.0%, +7.1 | the same | 0, 0 |
+| `sloc` | `max` 1,000, `over_max_delta` 100 | retuned | `over_max_delta` 150 | 33.3%, 1.5%, +31.9 | 33.3%, 0.0%, +33.3 | 0, 0 |
+| `has_tests`, past 100 SLOC, not `main` | require | kept | the same | 6.7%, 0.0%, +6.7 | the same | 0, 0 |
 | `has_tests`, past 300 SLOC, `main` | require | kept | the same | never fired | never fired | 0, 0 |
 
 ### `min_tokens` and `dup_blocks` (step 1)

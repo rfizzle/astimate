@@ -123,8 +123,9 @@ commits:
     provenance: confirmed
     agent: true
   - hash: c4af29e520731c3b51f62f84ec781616c7255f1b
-    verdict: allow
-    reason: "not loaded: the replay could not load the module at this commit, so it has no verdict and the validation leaves it out."
+    verdict: block
+    reason: "real (with boilerplate-dup): The new pkg/recording/http package copies policy.matches and boolPtr verbatim as matchesCriteria and adds a fourth copy of the NDJSON file logger, and twelve first-parent commits later 056cf0d replaced both matchers with one pipeline.matchesRule. Evidence: pkg/recording/http/router.go:146, pkg/recording/policy/policy.go:128, pkg/recording/http/metadata.go:23, pkg/recording/dissect/directtcpip/logger.go:16, pkg/recording/pipeline/router.go:74 (at 056cf0d)."
+    metrics: [dup_blocks_cross_pkg]
     provenance: confirmed
     agent: true
   - hash: f430f2f0375f37974b2f76ad0486cbce36044523
@@ -192,22 +193,22 @@ commits:
     agent: true
   - hash: bb7f0cdc77057422e10ad32bfa3a4fc694c0ab1a
     verdict: allow
-    reason: "not loaded: the replay could not load the module at this commit, so it has no verdict and the validation leaves it out."
+    reason: "other: re-keyed cross block + nesting never split: Deleting the dead directtcpip logger changed the package set of an unchanged metadata/scp logger block, and the asciicast case nests a fallback inside relayPassive's existing guards, which no later commit split. Evidence: pkg/recording/format/metadata/metadata.go:44, pkg/recording/protocol/ssh/scp/logger.go:35, pkg/recording/protocol/ssh/orchestrator.go:206."
     provenance: confirmed
     agent: true
   - hash: c0373bb6f02191c91dcce8932c3521657d4e1d7c
     verdict: allow
-    reason: "not loaded: the replay could not load the module at this commit, so it has no verdict and the validation leaves it out."
+    reason: "other: rename-only: A naming pass whose nethttp import alias lines up with the ssh orchestrator's gossh import, so an existing http/ssh orchestrator block extends into the import list. Evidence: pkg/recording/protocol/http/orchestrator.go:11, pkg/recording/protocol/ssh/orchestrator.go:10."
     provenance: confirmed
     agent: true
   - hash: 9a006d6f5a1358f75426c32cd04476d6e566e9e9
     verdict: allow
-    reason: "not loaded: the replay could not load the module at this commit, so it has no verdict and the validation leaves it out."
+    reason: "sampled pass, read: Deletes the unimported pkg/session package and its fake (-416 lines); nothing added. Evidence: pkg/session/manager.go:1, pkg/session/memory_manager.go:1."
     provenance: confirmed
     agent: true
   - hash: 130d2c8de2a07fd51fe13a806384f2425ca00240
     verdict: allow
-    reason: "not loaded: the replay could not load the module at this commit, so it has no verdict and the validation leaves it out."
+    reason: "no-baseline + boilerplate-dup: A net de-duplication refactor whose internal/broker and internal/protocol/ssh rows had no baseline though both packages existed at the parent, so their pre-existing blocks ratcheted from zero, and the two added cross blocks are functional-option setters. Evidence: internal/broker/options.go:60, internal/protocol/ssh/handler.go:46, internal/protocol/ssh/channel_relay.go:275."
     provenance: confirmed
     agent: true
   - hash: e1ed3c7095cb190847ba923643a4178e5ce81233

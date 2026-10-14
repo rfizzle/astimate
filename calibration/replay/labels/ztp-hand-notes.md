@@ -277,6 +277,54 @@ Copies the 84-line WebSocket frame extractor into a new package without moving i
 | `pkg/recording/protocol/http` | `dup_blocks` | boilerplate-dup | Option shells WithLogger/WithFlushInterval/WithFrameFilter (orchestrator.go:35-49). |
 | `pkg/recording/wsframe` | `untested_exports` | real | NewExtractor/Filter (extractor.go:22, 33) have no tests; the tests stayed on the internal copy, and the K8s exec corruption fix depends on this path. |
 
+## Placeholders read on 2026-10-14 (5)
+
+These five were labelled "not loaded" because the 2026-10-13 replay could not load them. The 2026-10-14 replays load them, so they were read against the findings of `calibration/data/replay-ztp-2026-10-14-min60/packages.jsonl` (`calibration/notes/hand-labels-2026-10-14.md`, Relabel 2026-10-14). 4539a1d and 056cf0d still do not load and keep their placeholders.
+
+### c4af29e52 `block`: Add httprecorder package, Sprint 18 archive, gitignore updates (S-156 T-241–T-243)
+
+The new HTTP recorder package copies the policy matcher verbatim and adds a fourth NDJSON file logger. Twelve first-parent commits later 056cf0d replaced both matchers with one `pipeline.matchesRule`. Evidence: `pkg/recording/http/router.go:146`, `pkg/recording/policy/policy.go:128`, `pkg/recording/http/metadata.go:23`, `pkg/recording/dissect/directtcpip/logger.go:16`.
+
+| Package | Rule | Cause | Note |
+| --- | --- | --- | --- |
+| `<module>` | `dup_blocks_cross_pkg` | real | matchesCriteria and boolPtr (router.go:146-165) are policy.matches and boolPtr (policy.go:128-147) token for token. MetadataLogger with its options and constructor (metadata.go:23-78) repeats directtcpip's ChannelLogger (logger.go:16-71) and scp's logger. The cited internal/broker/options.go:44 is an older option block, and the +7 covers the copies. |
+| `pkg/recording/http` | `dup_blocks` | boilerplate-dup | New package. The block is the DefaultRules table matching itself (router.go:173-197): five `{Name, Match: RoutingCriteria{...}, Target}` entries. |
+
+### bb7f0cdc7 `allow`: Remove dead code and legacy interfaces from pkg/recording
+
+Dead-code removal plus asciicast wiring. The cross finding is a re-keyed old block, and the nesting is a format switch no later commit split. Evidence: `pkg/recording/format/metadata/metadata.go:44`, `pkg/recording/protocol/ssh/scp/logger.go:35`, `pkg/recording/protocol/ssh/orchestrator.go:206`.
+
+| Package | Rule | Cause | Note |
+| --- | --- | --- | --- |
+| `<module>` | `dup_blocks_cross_pkg` | other: re-keyed | Deleting protocol/ssh/directtcpip/logger.go changed the package set of the logger block that metadata.go:44-78 and scp/logger.go:35-72 already shared, so it no longer matched its base key. metadata.go is unchanged from the parent. |
+| `pkg/recording/protocol/ssh` | `max_nesting` | other: nesting never split | A format switch with an asciicast fallback, nested in `else if h != nil` inside `if len(plan.Outputs)` in relayPassive (orchestrator.go:206-218). a3a053e added a pcapng case at the same depth, and the switch is still nested at HEAD. a3a053e's tcp copy of this pattern is `real` because it was pasted, which this is not. |
+
+### c0373bb6f `allow`: Standardize naming across pkg/recording
+
+A rename-only commit (157 lines added, 157 removed). The one finding is an existing block that grew into an import list. Evidence: `pkg/recording/protocol/http/orchestrator.go:11`, `pkg/recording/protocol/ssh/orchestrator.go:10`.
+
+| Package | Rule | Cause | Note |
+| --- | --- | --- | --- |
+| `<module>` | `dup_blocks_cross_pkg` | other: rename-only | The new `nethttp "net/http"` alias lines up with `gossh "golang.org/x/crypto/ssh"`, so the existing http/ssh orchestrator block now starts in the import list (http orchestrator.go:6, was line 11 at the parent). |
+
+### 130d2c8de `allow`: Streamline internal proxy pipeline: extract shared utilities, unify HTTP engine, remove dead code
+
+A net de-duplication refactor (2,014 lines added, 3,550 removed): three helpers extracted and two request loops unified into httpproxy.Engine. Evidence: `internal/broker/options.go:60`, `internal/protocol/ssh/handler.go:46`, `internal/protocol/ssh/channel_relay.go:275`.
+
+| Package | Rule | Cause | Note |
+| --- | --- | --- | --- |
+| `<module>` | `dup_blocks_cross_pkg` | boilerplate-dup | The two added pairs are one-line functional-option setters, internal/broker/options.go:60-76 against internal/protocol/ssh/handler.go:46-58, and the ssh handler's options against httpproxy/engine.go:24-44. |
+| `internal/broker` | `dup_blocks` | no-baseline | The package existed at the parent, but its row has no baseline, so the WithX setter run in options.go (present at the parent, options.go:55) ratchets from zero. |
+| `internal/protocol/ssh` | `dup_blocks` | no-baseline | Same artifact: forwardRequests and forwardGlobalRequests (channel_relay.go:275-322) were both at the parent (channel_relay.go:394, 413). |
+| `internal/broker` | `internal_imports` (warn) | no-baseline | Judged as new, 12 against `max` 10; warns, does not fail. |
+| `internal/broker` | `untested_exports` (warn) | no-baseline | grpc_adapter.go:27 was at the parent; warns, does not fail. |
+| `internal/protocol/httpproxy` | `untested_exports` (warn) | covered-export | NewResponseWriter (response_writer.go:32) is called by Engine (engine.go:70), which engine_test.go drives; warns, does not fail. |
+| `internal/protocol/kubernetes` | `globals` (warn) | no-baseline | classify.go:10 was at the parent; the row has no baseline. |
+
+### 9a006d6f5 `allow`, passed: Delete pkg/session: replaced by pkg/recording/session
+
+Deletes the unimported pkg/session and its fake (416 lines removed) and adds nothing. Evidence: `pkg/session/manager.go:1`, `pkg/session/memory_manager.go:1`.
+
 ## Sampled passed commits (10)
 
 | Commit | Verdict | Subject | Why | Evidence |

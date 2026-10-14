@@ -1,5 +1,27 @@
 # Hand labels for the five 2026-10-13 replays
 
+## Relabel 2026-10-14: the ztp placeholders
+
+Seven ztp labels were placeholders: `allow` with the reason "not loaded: the replay could not load the module at this commit", written because the 2026-10-13 replay did not load those commits. The 2026-10-14 replays load five of them, so the validation had scored them as `allow` without anyone having read them, and c4af29e was one of ztp's eleven false failures (`calibration/notes/ztp-remaining-2026-10-14.md`). No other repository's hand labels, `shhh-hand-2026-10-14*.yaml` included, carry the placeholder.
+
+Each of the five was read the way the labels below were made: the diff from its parent, the gate's findings in `calibration/data/replay-ztp-2026-10-14-min60/packages.jsonl`, and the later first-parent history for a split or an extraction. The reasons keep the cause-and-evidence format, the per-finding causes are in `ztp-hand-notes.md`, and every label is `provenance: confirmed`.
+
+| Commit | Was | Now | Cause |
+| --- | --- | --- | --- |
+| c4af29e | `allow` (placeholder) | `block` (`dup_blocks_cross_pkg`) | real: `pkg/recording/http/router.go:146` copies `policy.matches` and `boolPtr` (`pkg/recording/policy/policy.go:128`) token for token, and `metadata.go:23` is a fourth copy of the NDJSON file logger (`dissect/directtcpip/logger.go:16`). Twelve first-parent commits later 056cf0d deleted both matchers for one `pipeline.matchesRule` (`pkg/recording/pipeline/router.go:74`) |
+| bb7f0cd | `allow` (placeholder) | `allow` | other: the cross block is re-keyed, since deleting the dead directtcpip logger changed the package set of an unchanged metadata/scp logger block (`format/metadata/metadata.go:44`, `protocol/ssh/scp/logger.go:35`). The `max_nesting` 3 to 5 is an asciicast case with a fallback nested inside `relayPassive`'s existing guards (`protocol/ssh/orchestrator.go:206`); a3a053e extended it in place and no later commit split it |
+| c0373bb | `allow` (placeholder) | `allow` | other: a rename-only commit. The new `nethttp` import alias lines up with the ssh orchestrator's `gossh` import, so an existing http/ssh orchestrator block grows into the import list (`protocol/http/orchestrator.go:11`) |
+| 9a006d6 | `allow` (placeholder) | `allow` | sampled pass, read: deletes the unimported `pkg/session` (-416 lines) and adds nothing |
+| 130d2c8 | `allow` (placeholder) | `allow` | no-baseline + boilerplate-dup: a net de-duplication refactor. The `internal/broker` and `internal/protocol/ssh` rows had no baseline although both packages existed at the parent, so blocks already there (`channel_relay.go:275`) ratcheted from zero, and the two added cross blocks are functional-option setters (`internal/broker/options.go:60`, `internal/protocol/ssh/handler.go:46`) |
+
+The current binary judges a package that existed at the baseline but failed to load there against the capacity ceilings only. Under it, 130d2c8's two `dup_blocks` findings would not fire. The stored rows predate that change and still show them, and the label rests on the code either way.
+
+4539a1d and 056cf0d still do not load under the 2026-10-14 replays, because each is broken at the commit itself. 4539a1d imports `pkg/recording/http`, which only its child c4af29e adds. At 056cf0d, `cmd/broker` calls `broker.WithRecordingBlobStore`, which is not defined there. Their placeholders stay, and the validation leaves them out.
+
+bb7f0cd is the closest call. The `ztp-remaining` reading calls its nesting real, and a3a053e's label counts the same pattern in tcp as real. It stays `allow` because the standard for these labels is a later split or extraction, or a copy plain on reading, and the nested switch is neither. The gate fails bb7f0cd either way, so marking it `block` would add one caught `block` commit and remove one false failure.
+
+Re-running `calibration/validate` on the shipped default over the five 60-token replays (`calibration/reports/gate-validation-2026-10-14.md`) moves the headline. Pooled with capacity-only labels set aside, the gate fails 13 of 15 `block` commits (86.7%, was 12 of 14, 85.7%) and 14 of 137 `allow` commits (10.2%, was 15 of 138, 10.9%), so J goes from +74.8 to +76.4 points. Over every author it fails 18 of 21 and 38 of 275 (85.7% and 13.8%, was 85.0% and 14.1%). On ztp alone it fails 9 of 9 and 10 of 48 (20.8%, was 22.4%). The passed commits read as a sample rise from 33 to 34 with 9a006d6. SPEC.md 8.2's Measured column and the before and after tables of `calibration/reports/thresholds-2026-10-14.md` were updated, and every retune decision holds (that report's Relabel section). The tables below this section are the 2026-10-13 drafting and are left as written.
+
 Date: 2026-10-14. Replays: `calibration/data/replay-{go-starter,ztp,shhh,crush,ai-shell}-2026-10-13/` (60 first-parent commits each, binary c28a78f, configuration `rebuild-2026-09-28-claude-code-opus`). Labels: `calibration/replay/labels/<name>-hand.yaml`, with each finding's cause and `file:line` evidence in `<name>-hand-notes.md` beside them. Report: `calibration/reports/gate-validation-2026-10-14-hand.md`, hand labels first and split-or-extraction labels second.
 
 Every label is a draft (`provenance: proposed`) awaiting the user's confirmation. None is confirmed yet.
