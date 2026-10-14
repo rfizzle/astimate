@@ -76,7 +76,9 @@ type Scored struct {
 
 // Score resolves c's recorded breaches, violations and warn rules'
 // warnings alike, to rules. A breach of a metric no rule of s gates on its
-// row is an error: the rows were not gated with this configuration.
+// row is an error: the rows were not gated with this configuration. So is
+// a breach of a candidate's metric (Rule.Candidate), which the replay
+// cannot have gated if it ran with this configuration.
 func Score(c *corpus.Corpus, s *Rules) (*Scored, error) {
 	sc := &Scored{Corpus: c, Rules: s, fired: make([][]bool, len(c.Commits))}
 	for ci := range c.Commits {
@@ -86,7 +88,7 @@ func Score(c *corpus.Corpus, s *Rules) (*Scored, error) {
 			r := &cm.Rows[ri]
 			for _, m := range slices.Concat(r.Violated, r.Warned) {
 				i, ok := s.For(r, m)
-				if !ok {
+				if !ok || s.List[i].Candidate {
 					return nil, fmt.Errorf("commit %s row %s: violation of %s, which no rule gates there", cm.Hash, r.Package, m)
 				}
 				f[i] = true
@@ -105,8 +107,13 @@ func (s *Scored) Gate() Rates { return s.With(nil) }
 
 // Rule is how rule i did as replayed: a commit counts as failed by it
 // when one of its rows has a recorded breach of the rule, whatever its
-// severity.
+// severity. A candidate (Rule.Candidate), which no replay gated, is
+// re-evaluated at its own setting instead.
 func (s *Scored) Rule(i int) Rates {
+	if r := s.Rules.List[i]; r.Candidate {
+		rule, _ := s.Swap(i, &r.Threshold)
+		return rule
+	}
 	var r Rates
 	for ci := range s.Corpus.Commits {
 		r.add(s.Corpus.Commits[ci].Block(), s.fired[ci][i])
@@ -207,14 +214,15 @@ func (s *Scored) firesOn(i int, t gate.Threshold, c *corpus.Commit) bool {
 // Recheck re-evaluates every rule at its shipped limits on every row it
 // judges and returns the number of (row, rule) pairs checked and how many
 // disagree with the breaches the replay recorded, violations and warn
-// rules' warnings alike.
+// rules' warnings alike. A candidate, which the replay never gated, has
+// nothing recorded to agree with and is not checked.
 func (s *Scored) Recheck() (checked, mismatched int) {
 	for ci := range s.Corpus.Commits {
 		c := &s.Corpus.Commits[ci]
 		for ri := range c.Rows {
 			r := &c.Rows[ri]
 			for i, rule := range s.Rules.List {
-				if !s.Rules.Judges(i, r) {
+				if rule.Candidate || !s.Rules.Judges(i, r) {
 					continue
 				}
 				checked++

@@ -76,8 +76,8 @@ func (s Setting) String() string {
 	return string(s.Param) + " " + v
 }
 
-// shipped returns t's current setting of p.
-func shipped(t gate.Threshold, p Param) Setting {
+// Shipped returns t's current setting of p, one of Params(t).
+func Shipped(t gate.Threshold, p Param) Setting {
 	switch p {
 	case Max:
 		return Setting{Param: p, Value: *t.Max}
@@ -131,7 +131,7 @@ func Apply(t gate.Threshold, s Setting) gate.Threshold {
 // max_delta can also be removed when the rule keeps the other, and a guard
 // or a floor always can; that setting comes last.
 func Grid(t gate.Threshold, p Param) []Setting {
-	cur := shipped(t, p).Value
+	cur := Shipped(t, p).Value
 	var vs []float64
 	switch p {
 	case Max:
@@ -191,7 +191,7 @@ func (s *Scored) Sweep(i int) []Curve {
 	t := s.Rules.List[i].Threshold
 	var out []Curve
 	for _, p := range Params(t) {
-		cur := shipped(t, p)
+		cur := Shipped(t, p)
 		c := Curve{Rule: i, Param: p}
 		for _, set := range Grid(t, p) {
 			applied := Apply(t, set)

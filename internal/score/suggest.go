@@ -102,7 +102,7 @@ func driverSuggestion(d Driver, m *metrics.RawMetrics, n Names) string {
 // on metric, whose value at head is head. m supplies related values quoted in
 // the text and n the names, when known. It returns "" for a metric without a
 // template; every metric with a default threshold in SPEC.md 8.2 has one, and
-// so do dup_blocks_cross_pkg, the informational flags uses_cgo,
+// so do dup_blocks_cross_pkg, duplicated_lines, the informational flags uses_cgo,
 // uses_reflect and generated_files, and tokens_est_generated, which a config
 // may gate.
 func MetricSuggestion(metric string, head float64, m metrics.RawMetrics, n Names) string {
@@ -112,6 +112,9 @@ func MetricSuggestion(metric string, head float64, m metrics.RawMetrics, n Names
 		return dupSentence(int(head), formatPct(m.DuplicationPct), n.DupLocations, n.DupAdded)
 	case "duplication_pct":
 		return dupSentence(m.DupBlocks, formatPct(head), n.DupLocations, n.DupAdded)
+	case "duplicated_lines":
+		return count(int(head), "source line is", "source lines are") + " duplicated. " +
+			dupSentence(m.DupBlocks, formatPct(m.DuplicationPct), n.DupLocations, n.DupAdded)
 	case "untested_exports":
 		return untestedSentence(int(head), n.UntestedExports)
 	case "globals":

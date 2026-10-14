@@ -11,12 +11,15 @@
 // Usage, from the repository root:
 //
 //	go run ./calibration/validate --corpus <name>=<replay dir>:<labels file>[,<second labels file>] [--corpus ...] \
-//	    [--config <file>] [--out <report.md>] [--agent-only=false] [--date YYYY-MM-DD]
+//	    [--config <file>] [--candidate <file>] [--out <report.md>] [--agent-only=false] [--date YYYY-MM-DD]
 //
 // The configuration must be the one the replays gated with (the rows'
 // config_version): which rules fired is read from the rows' recorded
 // violations, and the sweeps re-evaluate each rule from the rows' stored
-// metrics with internal/gate.
+// metrics with internal/gate. --candidate names a second configuration
+// whose top-level rules on metrics the first does not gate are measured
+// as candidates: re-evaluated on every row they would judge, swept, and
+// scored beside the gate as replayed, without becoming part of it.
 package main
 
 import (
@@ -44,6 +47,9 @@ import (
 type options struct {
 	sources     []corpus.Source
 	config, out string
+	// candidate is the configuration whose rules on metrics config does
+	// not gate are measured as candidates; empty for none.
+	candidate string
 	// thresholdsDir holds the committed threshold candidates, by which a
 	// replay made under thresholds-<date> is matched to the rules it used.
 	thresholdsDir string
@@ -115,6 +121,7 @@ func (o *options) parse(args []string, stderr io.Writer) error {
 		return err
 	})
 	fs.StringVar(&o.config, "config", "", "configuration the replays gated with; empty means the embedded default")
+	fs.StringVar(&o.candidate, "candidate", "", "configuration whose top-level rules on metrics --config does not gate are measured as candidates")
 	fs.BoolVar(&o.agentOnly, "agent-only", o.agentOnly, "drop labels with agent: false")
 	fs.StringVar(&o.out, "out", "", "report file; empty means calibration/reports/gate-validation-<date>.md")
 	fs.StringVar(&o.date, "date", o.date, "report date, YYYY-MM-DD")
@@ -188,6 +195,9 @@ func measureAll(o *options) (*report.Input, error) {
 		return nil, err
 	}
 	rules := measure.NewRules(cfg)
+	if err := addCandidates(rules, o.candidate); err != nil {
+		return nil, err
+	}
 	capacity := func(m string) bool {
 		for _, r := range rules.List {
 			if r.Threshold.Metric == m && r.Threshold.Kind == gate.Capacity {
@@ -196,7 +206,7 @@ func measureAll(o *options) (*report.Input, error) {
 		}
 		return false
 	}
-	in := &report.Input{Date: o.date, Version: cfg.Version, ConfigSource: from}
+	in := &report.Input{Date: o.date, Version: cfg.Version, ConfigSource: from, CandidateSource: o.candidate}
 	in.AgentOnly, in.Targets, in.Rules, in.Criteria = o.agentOnly, o.targets, rules.List, o.criteria
 	loaded := make([]*corpus.Corpus, 0, len(o.sources))
 	for _, src := range o.sources {
@@ -226,6 +236,55 @@ func measureAll(o *options) (*report.Input, error) {
 		return nil, err
 	}
 	return in, nil
+}
+
+// addCandidates adds to rules, as candidates, the top-level rules of the
+// configuration at path on metrics no rule of rules gates; nothing for an
+// empty path. It is an error for that configuration to have none.
+func addCandidates(rules *measure.Rules, path string) error {
+	if path == "" {
+		return nil
+	}
+	cand, err := config.Load(path)
+	if err != nil {
+		return fmt.Errorf("--candidate: %w", err)
+	}
+	added := 0
+	gated := make(map[string]bool, len(rules.List))
+	for _, r := range rules.List {
+		gated[r.Threshold.Metric] = true
+	}
+	for _, t := range cand.Thresholds {
+		_, err := rules.AddCandidate(t)
+		switch {
+		case errors.Is(err, measure.ErrGated) && !gated[t.Metric]:
+			return fmt.Errorf("--candidate: %s has two rules on %s; measure one at a time", path, t.Metric)
+		case errors.Is(err, measure.ErrGated):
+		case err != nil:
+			return fmt.Errorf("--candidate: %w", err)
+		default:
+			added++
+		}
+	}
+	if added == 0 {
+		return fmt.Errorf("--candidate: %s has no top-level rule on a metric the configuration does not gate", path)
+	}
+	return nil
+}
+
+// withCandidates returns the gate's rates on s with each candidate rule
+// added alone at its own setting, by rule index; nil without candidates.
+func withCandidates(s *measure.Scored) map[int]measure.Rates {
+	idx := s.Rules.Candidates()
+	if len(idx) == 0 {
+		return nil
+	}
+	out := make(map[int]measure.Rates, len(idx))
+	for _, i := range idx {
+		t := s.Rules.List[i].Threshold
+		out[i] = s.With(map[int]*gate.Threshold{i: &t})
+	}
+	return out
 }
 
 // scoreSecond scores every view under the second label set, when the
@@ -264,7 +323,8 @@ func scoreSecond(in *report.Input, views []*corpus.Corpus, rules *measure.Rules,
 		if err != nil {
 			return err
 		}
-		in.Second = append(in.Second, report.View{Name: v.Name, Gate: s.Gate(), Advised: s.With(advised), Size: s.Size(in.SizeT)})
+		in.Second = append(in.Second, report.View{Name: v.Name, Gate: s.Gate(), Advised: s.With(advised), Size: s.Size(in.SizeT),
+			WithCandidate: withCandidates(s)})
 	}
 	return nil
 }
@@ -318,8 +378,10 @@ func viewsOf(cs []*corpus.Corpus, capacity func(string) bool) []*corpus.Corpus {
 
 // fill computes, on the last view, the size-only threshold, each rule's
 // sweeps and advice; then every view's rates, with the advice applied
-// too; and each corpus's missed block commits. It returns the advised
-// rules, nil for a dropped one, by rule index.
+// too, and with each candidate rule added; and each corpus's missed block
+// commits. It returns the advised rules, nil for a dropped one, by rule
+// index. A candidate is advised like any rule, but Advised never adds it:
+// its advice is whether to add it, which the report shows apart.
 func fill(in *report.Input, scored []*measure.Scored, o *options) map[int]*gate.Threshold {
 	basis := scored[len(scored)-1]
 	in.SizeCurve = basis.SizeCurve(o.sizeGrid)
@@ -331,10 +393,11 @@ func fill(in *report.Input, scored []*measure.Scored, o *options) map[int]*gate.
 		_, dropped := basis.Swap(i, nil)
 		a := measure.Advise(basis.Rule(i), basis.Judged(i), curves, o.criteria)
 		in.Curves, in.Dropped, in.Advice = append(in.Curves, curves), append(in.Dropped, dropped), append(in.Advice, a)
-		switch a.Action {
-		case measure.Drop:
+		switch {
+		case r.Candidate:
+		case a.Action == measure.Drop:
 			advised[i] = nil
-		case measure.Retune:
+		case a.Action == measure.Retune:
 			t := measure.Apply(r.Threshold, a.To)
 			advised[i] = &t
 		}
@@ -344,7 +407,8 @@ func fill(in *report.Input, scored []*measure.Scored, o *options) map[int]*gate.
 		}
 	}
 	for _, s := range scored {
-		v := report.View{Name: s.Corpus.Name, Gate: s.Gate(), Advised: s.With(advised), Size: s.Size(in.SizeT)}
+		v := report.View{Name: s.Corpus.Name, Gate: s.Gate(), Advised: s.With(advised), Size: s.Size(in.SizeT),
+			WithCandidate: withCandidates(s)}
 		for i := range in.Rules {
 			v.Rules, v.Judged = append(v.Rules, s.Rule(i)), append(v.Judged, s.Judged(i))
 		}

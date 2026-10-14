@@ -12,6 +12,26 @@ history.
 
 ### Added
 
+- A configuration may gate `duplicated_lines` as a density rule: its
+  finding names the duplicated lines, cites a duplicate block like the
+  other duplication rules and is located on it, and merges into a
+  `dup_blocks` finding of the same change, or takes a `duplication_pct`
+  one when `dup_blocks` did not fire, so one paste stays one finding. The
+  embedded default does not carry the rule: measured over the five
+  replays of 2026-10-14 at floors 0, 10 and 20 it catches kubesentry's
+  third copy that merged two blocks, but lowers the gate's pooled J on the
+  hand labels by 1.4 points at every floor
+  (`calibration/notes/duplicated-lines-rule-2026-10-14.md`).
+- `calibration/validate --candidate <file>` measures the rules of a second
+  configuration that the replays' configuration lacks: each is
+  re-evaluated on the rows it would judge, swept and advised like any
+  rule, and a Candidate rules section gives every view's gate without it
+  and with it, under both label sets, so a rule is measured before it
+  ships.
+- The five replays of 2026-10-13 replayed again with the current
+  extractor, labelled by the split-or-extraction rule, with the hand
+  labels joined by commit hash, and scored in
+  `calibration/reports/gate-validation-2026-10-14-replays.md`.
 - A package skipped because it does not load still counts for its
   neighbours: its test files are read syntactically, matching
   `pkg.Name` selectors and method names against the loaded packages they

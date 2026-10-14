@@ -405,6 +405,8 @@ func TestMetricSuggestionV1Templates(t *testing.T) {
 		{"generated_files", 2, "2 files are generated; change the generator or its input, not the output."},
 		{"generated_files", 1, "1 file is generated"},
 		{"tokens_est_generated", 240240, "240240 tokens of generated source, outside the rebuild estimate"},
+		{"duplicated_lines", 157, "157 source lines are duplicated. 0 duplicate blocks cover 0% of lines; extract shared helpers."},
+		{"duplicated_lines", 1, "1 source line is duplicated."},
 	}
 	for _, tt := range tests {
 		got := MetricSuggestion(tt.metric, tt.head, metrics.RawMetrics{}, Names{})

@@ -311,11 +311,13 @@ duplicated_lines (v1, not gated by default)
 Definition: Non-test SLOC covered by a duplicate block, duplication_pct's numerator. Generated files, those with a "Code generated ... DO NOT EDIT." header, are left out: a rebuild regenerates them; see tokens_est_generated.
 Evidence: Copy-paste instead of extraction: industry reports on AI-assisted repositories show rising duplicated blocks. The most specific LLM failure mode found; moderate evidence.
 Thresholds in the loaded config: none
+Merged: when dup_blocks also fires on the row in the same direction, the two are one finding attributed to dup_blocks, whose limit names both and whose also list names duplicated_lines.
 -- structured --
 {
   "definition": "Non-test SLOC covered by a duplicate block, duplication_pct's numerator. Generated files, those with a \"Code generated ... DO NOT EDIT.\" header, are left out: a rebuild regenerates them; see tokens_est_generated.",
   "evidence": "Copy-paste instead of extraction: industry reports on AI-assisted repositories show rising duplicated blocks. The most specific LLM failure mode found; moderate evidence.",
   "gated": false,
+  "merged_into": "dup_blocks",
   "name": "duplicated_lines",
   "release": "v1",
   "thresholds": []

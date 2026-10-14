@@ -143,9 +143,9 @@ func ForRow(rules []Threshold, row Row) []Threshold {
 // fields and Severity SeverityWarn, so it never fails the result. Before
 // the findings are split into violations and warnings, findings of one
 // cause are merged into one (merge): a rule breaching both its max_delta
-// and its max, sloc with tokens_est, and dup_blocks with duplication_pct.
-// A density rule never fails a head value at or below its Floor, and,
-// against a baseline, duplication_pct and cognitive_p90 fail only when
+// and its max, sloc with tokens_est, and dup_blocks with duplication_pct
+// and duplicated_lines (mergePairs). A density rule never fails a head
+// value at or below its Floor, and, against a baseline, duplication_pct and cognitive_p90 fail only when
 // the change raised what they measure (rose). Suggestions come from s; a
 // nil s leaves them empty. Evaluate does no
 // I/O. Evaluate applies every rule it is given, whatever the row; callers

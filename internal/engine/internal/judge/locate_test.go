@@ -29,6 +29,7 @@ func TestFindingPosition(t *testing.T) {
 	}{
 		{name: "duplicate in a changed file", metric: "dup_blocks", d: d, worst: worst, want: metrics.Position{File: "b.go", Line: 12}},
 		{name: "first duplicate without changes", metric: "duplication_pct", d: d, want: metrics.Position{File: "a.go", Line: 3}},
+		{name: "duplicated lines in a changed file", metric: "duplicated_lines", d: d, worst: worst, want: metrics.Position{File: "b.go", Line: 12}},
 		{name: "untested export in a changed file", metric: "untested_exports", d: d, worst: worst, want: metrics.Position{File: "b.go", Line: 20}},
 		{name: "added duplicate over a changed file", metric: "dup_blocks", d: d, worst: worst, lead: leads{dup: true},
 			want: metrics.Position{File: "a.go", Line: 3}},

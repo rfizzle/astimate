@@ -20,18 +20,26 @@ type mergePair struct {
 // and max breaches are one finding before it merges into dup_blocks. The
 // kept rule is the one the merged finding is attributed to, the first of
 // each pair: sloc, the size tokens_est is estimated from, and dup_blocks,
-// whose suggestion already quotes the duplication percentage.
+// whose suggestion already quotes the duplication percentage. A paste
+// raises duplicated_lines with dup_blocks, and duplication_pct is judged
+// only when duplicated_lines rose, so all three are one finding on
+// dup_blocks; when dup_blocks did not fire (a copy that merged two blocks
+// into one longer one), duplication_pct merges into duplicated_lines.
 func mergePairs() []mergePair {
 	return []mergePair{
 		{},
 		{keep: "sloc", drop: "tokens_est"},
 		{keep: "dup_blocks", drop: "duplication_pct"},
+		{keep: "dup_blocks", drop: "duplicated_lines"},
+		{keep: "duplicated_lines", drop: "duplication_pct"},
 	}
 }
 
 // MergedInto returns the metric whose finding a finding of metric is
 // merged into when both fire on one row in the same direction (SPEC.md
-// 8.1), and false when metric is merged into no other rule's finding.
+// 8.1), and false when metric is merged into no other rule's finding. A
+// metric the table pairs with two kept rules (duplication_pct) returns
+// the first, the one it merges into when all three fire.
 func MergedInto(metric string) (string, bool) {
 	for _, p := range mergePairs() {
 		if !p.sameRule() && p.drop == metric {

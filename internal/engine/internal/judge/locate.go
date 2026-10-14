@@ -68,7 +68,8 @@ func describeChanged(f *metrics.FunctionInfo) *changedFunction {
 // and worst, its most complex changed function (nil when unknown), can
 // say:
 //
-//   - dup_blocks and duplication_pct on a duplicate block's occurrence,
+//   - dup_blocks, duplication_pct and duplicated_lines on a duplicate
+//     block's occurrence,
 //   - untested_exports on an untested export's declaration,
 //   - globals on a global's declaration,
 //   - sloc, largest_file_sloc, tokens_est and tokens_est_with_tests on the
@@ -116,7 +117,7 @@ func findingPosition(metric string, d *metrics.Details, worst *changedFunction, 
 	}
 	var pos metrics.Position
 	switch metric {
-	case "dup_blocks", "duplication_pct":
+	case "dup_blocks", "duplication_pct", "duplicated_lines":
 		pos = pickPosition(dupPositions(d.DupLocations), preferred(changed, lead.dup))
 	case "untested_exports":
 		pos = pickPosition(d.UntestedPositions, preferred(changed, lead.untested))

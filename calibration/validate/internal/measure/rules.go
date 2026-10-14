@@ -9,6 +9,8 @@
 package measure
 
 import (
+	"errors"
+	"fmt"
 	"slices"
 
 	"github.com/rfizzle/astimate/calibration/validate/internal/corpus"
@@ -24,11 +26,16 @@ type Rule struct {
 	Language string
 	// Threshold is the rule as the configuration ships it.
 	Threshold gate.Threshold
+	// Candidate marks a rule the configuration lacks, measured as if it
+	// were added (Rules.AddCandidate): the replays never gated it, so it
+	// fires only where it is re-evaluated, and the gate as replayed leaves
+	// it out.
+	Candidate bool
 }
 
 // Name is the rule's metric, followed by its override's language in
-// parentheses for an override rule and by "(warn)" for a warn rule, which
-// reports without failing.
+// parentheses for an override rule, by "(warn)" for a warn rule, which
+// reports without failing, and by "(candidate)" for a candidate.
 func (r Rule) Name() string {
 	name := r.Threshold.Metric
 	if r.Language != "" {
@@ -36,6 +43,9 @@ func (r Rule) Name() string {
 	}
 	if r.Threshold.Warns() {
 		name += " (warn)"
+	}
+	if r.Candidate {
+		name += " (candidate)"
 	}
 	return name
 }
@@ -72,6 +82,37 @@ func NewRules(cfg *config.Config) *Rules {
 		s.byLang[lang] = idx
 	}
 	return s
+}
+
+// ErrGated is returned by AddCandidate for a candidate on a metric a rule
+// of the configuration already gates, where For would never pick it.
+var ErrGated = errors.New("a rule of the configuration already gates the metric")
+
+// AddCandidate appends t as a candidate rule (Rule.Candidate) judging the
+// rows of every language, and returns its List index. Its metric must be
+// one no rule of s gates, so it is the only rule on that metric.
+func (s *Rules) AddCandidate(t gate.Threshold) (int, error) {
+	if slices.ContainsFunc(s.List, func(r Rule) bool { return r.Threshold.Metric == t.Metric }) {
+		return 0, fmt.Errorf("candidate %s: %w", t.Metric, ErrGated)
+	}
+	i := len(s.List)
+	s.List = append(s.List, Rule{Threshold: t, Candidate: true})
+	s.top = append(s.top, i)
+	for lang := range s.byLang {
+		s.byLang[lang] = append(s.byLang[lang], i)
+	}
+	return i, nil
+}
+
+// Candidates returns the List indexes of the candidate rules, in order.
+func (s *Rules) Candidates() []int {
+	var out []int
+	for i, r := range s.List {
+		if r.Candidate {
+			out = append(out, i)
+		}
+	}
+	return out
 }
 
 // For returns the List index of the rule on metric that judges row r:
