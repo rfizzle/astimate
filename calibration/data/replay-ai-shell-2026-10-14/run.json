@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-14",
+  "totals": {
+    "commits": 60,
+    "loaded": 60,
+    "not_loaded": 0,
+    "passed": 46,
+    "failed": 14,
+    "package_rows": 76,
+    "wall_seconds": 4.636,
+    "written": 60,
+    "skipped": 0
+  },
+  "parallel": 1,
+  "source": {
+    "first": "dc0a9149309b539cd1e03267b2265e9f14e4e9c9",
+    "last": "8e4a29b2defabc191d9ae9e117c96b78f6f9de6b",
+    "module_dir": ".",
+    "range": "HEAD",
+    "remote": "https://github.com/BuilderIO/ai-shell.git",
+    "repository": "ai-shell"
+  },
+  "tool": {
+    "astimate_commit": "astimate v0.3.0-32-gbd13bc3",
+    "config": "embedded",
+    "config_version": "rebuild-2026-09-28-claude-code-opus",
+    "go": "go1.27.1-X:nodwarf5 linux/arm64",
+    "tokenizer": "est"
+  }
+}

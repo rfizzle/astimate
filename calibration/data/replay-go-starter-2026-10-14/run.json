@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-14",
+  "totals": {
+    "commits": 60,
+    "loaded": 60,
+    "not_loaded": 0,
+    "passed": 50,
+    "failed": 10,
+    "package_rows": 154,
+    "wall_seconds": 323.459,
+    "written": 60,
+    "skipped": 0
+  },
+  "parallel": 1,
+  "source": {
+    "first": "3d226d162dadb3d01e8cb1b4de699e0b8f737348",
+    "last": "b2f5f209634c732a98da3bb1b49beff989272053",
+    "module_dir": ".",
+    "range": "HEAD",
+    "remote": "github.com:rfizzle/go-starter.git",
+    "repository": "go-starter"
+  },
+  "tool": {
+    "astimate_commit": "astimate v0.3.0-32-gbd13bc3",
+    "config": "embedded",
+    "config_version": "rebuild-2026-09-28-claude-code-opus",
+    "go": "go1.27.1-X:nodwarf5 linux/arm64",
+    "tokenizer": "est"
+  }
+}

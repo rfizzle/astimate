@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-14",
+  "totals": {
+    "commits": 60,
+    "loaded": 60,
+    "not_loaded": 0,
+    "passed": 40,
+    "failed": 20,
+    "package_rows": 173,
+    "wall_seconds": 1425.491,
+    "written": 60,
+    "skipped": 0
+  },
+  "parallel": 1,
+  "source": {
+    "first": "e3ca57505ee2fdd5a7fccfbaafc822576feccc60",
+    "last": "73d0c97855587e190d025965bc1a71e462c74087",
+    "module_dir": ".",
+    "range": "HEAD",
+    "remote": "github.com:rfizzle/shhh.git",
+    "repository": "shhh"
+  },
+  "tool": {
+    "astimate_commit": "astimate v0.3.0-32-gbd13bc3",
+    "config": "embedded",
+    "config_version": "rebuild-2026-09-28-claude-code-opus",
+    "go": "go1.27.1-X:nodwarf5 linux/arm64",
+    "tokenizer": "est"
+  }
+}
