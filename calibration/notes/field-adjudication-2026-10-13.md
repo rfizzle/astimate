@@ -691,3 +691,23 @@ S-205 to S-211, S-158 and S-146 landed: standard-interface and syntactic-test ex
 The seven true findings named above are all still violations (mark `ProcessFile` 140, `confluence`, `renderer`, kubesentry `internal/output`, ztp `wsframe`, shhh `gitwrite.go`; crush `extractRows` is reported under its package as before). The warning counts are mostly `untested_exports`, which now warns: crush and shhh carry it on most packages, which is the cost of the demotion and the reason `source: coverage` in hooks is the next step for that rule.
 
 `astimate dryrun --last 60` with the final binary: go-starter would fail 3 of 42 package-touching commits (7%, was 24% after run 2 and 37% at the start; `dup_blocks` 3, `duplication_pct` 1, `init_funcs` 1). ztp 20 of 41 (49%, was 73% and 78%; 58 of 60 commits load): `dup_blocks` 13 and `dup_blocks_cross_pkg` 13 decide it, both over the 10% budget, with `duplication_pct` 4, `exported_symbols` 3, `max_nesting` 2, `sloc` 2. ztp's remaining failures are duplication between its `cmd/*` and protocol packages, which S-180 (self-overlap coalescing) and the parked `min_tokens_cross` 60 measurement address, not thresholds.
+
+## After the fourth run (2026-10-14, master 6c8d225)
+
+S-212 to S-215 landed from the ztp reading (`calibration/notes/ztp-remaining-2026-10-14.md`): five placeholder hand labels read (pool 15 block / 137 allow), a package the baseline could not load judged by ceilings only, `dup_blocks_code` measured and kept off, added cross blocks recorded on replay rows and `min_tokens_cross` raised 80 to 120 as `thresholds-2026-10-14b`. On the pooled hand labels the gate is at 86.7% recall and 5.8% false failures (J +80.8), inside the 10% target. Same eight windows, same base commits (`runs/*.check5.txt`; the run-3 files are `*.check5-run3.*`):
+
+| Repo | Start | Run 1 | Run 2 | Run 3 | Run 4 |
+| --- | --- | --- | --- | --- | --- |
+| go-starter | 3 | 1 | 1 | 0 | 0 |
+| goKMS | 12 | 7 | 5 | 1 | 1 |
+| kubesentry | 11 | 7 | 7 | 7 | 7 |
+| ztp | 30 | 23 | 22 | 7 | 7 |
+| ai-orchestration | 13 | 8 | 7 | 5 | 5 |
+| mark | 51 | 20 | 18 | 10 | 10 |
+| crush | 20 | 16 | 16 | 9 | 8 |
+| shhh | 54 | 31 | 27 | 12 | 11 |
+| total | 194 | 113 | 103 | 51 | 49 |
+
+The two findings that dropped are the module-row `dup_blocks_cross_pkg` counts on crush and shhh, neither a true finding; the named true findings are all still violations.
+
+`astimate dryrun --last 60`: go-starter unchanged at 3 of 42 package-touching commits (7%). ztp 15 of 41 (37%; was 49% after run 3 and 78% at the start): `dup_blocks` 12, `dup_blocks_cross_pkg` 6 (was 13), `duplication_pct` 4, `exported_symbols` 3. Of the 15, the hand labels call 9 block, so ztp's false failures per package-touching commit are about 6 of 41 (15%); the pooled rate across the five repositories is 5.8%. What remains on ztp is in-package duplication (`dup_blocks` 12), which S-180's coalescing and the content anchors parked under S-213 address.
