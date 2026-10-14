@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 
+	"github.com/rfizzle/astimate/internal/cli"
 	"github.com/rfizzle/astimate/internal/engine"
 )
 
@@ -34,15 +35,15 @@ func runBaseline(args []string, stdout, stderr io.Writer) int {
 // .astimate/baseline.json under the module root. The file's directory is
 // created if missing, and the file records the tokenizer.
 func runBaselineWrite(args []string, stdout, stderr io.Writer) int {
-	fs := newFlagSet("baseline write", "usage: astimate baseline write [<module-root>] [--out path] [--config path] [--tokenizer est|o200k]", stderr)
+	fs := cli.NewFlagSet("baseline write", "usage: astimate baseline write [<module-root>] [--out path] [--config path] [--tokenizer est|o200k]", stderr)
 	out := fs.String("out", "", "path of the baseline file (default <module-root>/"+engine.DefaultBaselinePath+")")
 	var tf targetFlags
 	tf.register(fs, false)
-	positional, err := parseInterspersed(fs, args)
+	positional, err := cli.ParseInterspersed(fs, args)
 	if err != nil {
 		return exitUsage // the flag package has printed the error and usage
 	}
-	dir, ok := moduleRoot("baseline write", positional, fs, stderr)
+	dir, ok := cli.ModuleRoot("baseline write", positional, fs, stderr)
 	if !ok {
 		return exitUsage
 	}
@@ -50,7 +51,7 @@ func runBaselineWrite(args []string, stdout, stderr io.Writer) int {
 		return exitUsage
 	}
 
-	logger := newLogger(stderr)
+	logger := cli.NewLogger(stderr)
 	path, n, err := writeBaseline(context.Background(), dir, *out, tf.config, tf.tokenizer, logger)
 	if err != nil {
 		logger.Error("baseline write failed", "dir", dir, "err", err)

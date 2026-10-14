@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/rfizzle/astimate/internal/cli"
 	"github.com/rfizzle/astimate/internal/engine"
 	"github.com/rfizzle/astimate/internal/report/rows"
 )
@@ -20,7 +21,7 @@ import (
 // package that fails to extract is logged to stderr and left out; the other
 // rows are still printed and the command exits 2.
 func runRank(args []string, stdout, stderr io.Writer) int {
-	fs := newFlagSet("rank", "usage: astimate rank [<module-root>] [--json] [--top N] "+
+	fs := cli.NewFlagSet("rank", "usage: astimate rank [<module-root>] [--json] [--top N] "+
 		"[--sort passes|days|fan_in|tokens|duplication|churn] [--config path] [--tokenizer est|o200k] "+
 		"[--coverage] [--coverage-timeout 2m]", stderr)
 	asJSON := fs.Bool("json", false, "print a JSON array instead of the table")
@@ -28,7 +29,7 @@ func runRank(args []string, stdout, stderr io.Writer) int {
 	sortKey := fs.String("sort", rows.SortPasses, "sort key: "+strings.Join(rows.SortKeys(), ", "))
 	var tf targetFlags
 	tf.register(fs, true)
-	dir, ok := parseModuleArgs("rank", fs, args, stderr)
+	dir, ok := cli.ParseModuleArgs("rank", fs, args, stderr)
 	if !ok {
 		return exitUsage
 	}
@@ -46,7 +47,7 @@ func runRank(args []string, stdout, stderr io.Writer) int {
 		return exitUsage
 	}
 
-	logger := newLogger(stderr)
+	logger := cli.NewLogger(stderr)
 	t, err := tf.load(dir, logger)
 	if err != nil {
 		logger.Error("rank failed", "dir", dir, "err", err)
@@ -81,13 +82,13 @@ func rankTarget(ctx context.Context, t *engine.Target, opts engine.RankOptions, 
 	})
 }
 
-// emit writes what render renders to stdout (writeBuffered) and returns
+// emit writes what render renders to stdout (cli.WriteBuffered) and returns
 // the exit code of the module-wide command name on t: exitAnalysis when
 // writing fails or any package failed, each logged, else exitOK.
 func emit(name string, t *engine.Target, failed []error, stdout io.Writer, logger *slog.Logger,
 	render func(io.Writer) error,
 ) int {
-	if err := writeBuffered(stdout, render); err != nil {
+	if err := cli.WriteBuffered(stdout, render); err != nil {
 		logger.Error(name+" failed", "root", t.Mod.Root, "err", err)
 		return exitAnalysis
 	}

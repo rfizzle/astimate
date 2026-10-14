@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/rfizzle/astimate/internal/cli"
 	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/gocache"
 	"github.com/rfizzle/astimate/internal/replay"
@@ -45,11 +46,11 @@ const (
 // said, 1 on a usage error, and 2 when the replay itself fails or stops at
 // --timeout or on an interrupt, after printing what it replayed.
 func runDryrun(args []string, stdout, stderr io.Writer) int {
-	fs := newFlagSet("dryrun", "usage: astimate dryrun [<module-root>] [--last N] [--budget P] [--suggest file] "+
+	fs := cli.NewFlagSet("dryrun", "usage: astimate dryrun [<module-root>] [--last N] [--budget P] [--suggest file] "+
 		"[--json] [--timeout 30m] [--parallel N] [--config path] [--out dir]", stderr)
 	f := dryrunFlags{last: defaultDryrunLast, budget: defaultDryrunBudget, timeout: defaultDryrunTimeout, parallel: 1}
 	f.register(fs)
-	dir, ok := parseModuleArgs("dryrun", fs, args, stderr)
+	dir, ok := cli.ParseModuleArgs("dryrun", fs, args, stderr)
 	if !ok {
 		return exitUsage
 	}
@@ -108,12 +109,12 @@ func (f *dryrunFlags) validate() error {
 // directory under the resolved configuration, then prints the summary or
 // the rows and writes the suggestion.
 func dryrun(ctx context.Context, dir string, f *dryrunFlags, stdout, stderr io.Writer) int {
-	logger := newLogger(stderr)
+	logger := cli.NewLogger(stderr)
 	fail := func(msg string, err error) int {
 		logger.Error(msg, "err", err)
 		return exitAnalysis
 	}
-	cfg, src, configPath, err := resolveConfigSource(f.config)
+	cfg, src, configPath, err := config.ResolveFile(f.config)
 	if err != nil {
 		return fail("dryrun failed", err)
 	}
@@ -161,7 +162,7 @@ func dryrun(ctx context.Context, dir string, f *dryrunFlags, stdout, stderr io.W
 	if f.out != "" {
 		logger.Info("kept the replay's rows", "dir", out)
 	}
-	err = writeBuffered(stdout, func(w io.Writer) error {
+	err = cli.WriteBuffered(stdout, func(w io.Writer) error {
 		if f.asJSON {
 			return summary.WriteRows(w, out)
 		}
@@ -196,29 +197,4 @@ func replayDir(out string) (string, func(), error) {
 		return "", nil, err
 	}
 	return dir, func() { _ = os.RemoveAll(dir) }, nil
-}
-
-// resolveConfigSource resolves the configuration as every command does
-// (config.Resolve) and returns it with its file's contents, which a
-// suggestion edits, and its path for the replay's records, empty for the
-// embedded default.
-func resolveConfigSource(flagPath string) (*config.Config, []byte, string, error) {
-	cfg, source, err := config.Resolve(flagPath)
-	if err != nil {
-		return nil, nil, "", fmt.Errorf("resolving config: %w", err)
-	}
-	path := ""
-	switch source {
-	case config.SourceFlag:
-		path = flagPath
-	case config.SourceWorkDir:
-		path = config.FileName
-	default:
-		return cfg, config.Default(), "", nil
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, nil, "", fmt.Errorf("reading config: %w", err)
-	}
-	return cfg, data, path, nil
 }

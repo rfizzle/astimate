@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"io"
@@ -91,64 +90,6 @@ func (f *targetFlags) validate(name string, stderr io.Writer) (engine.CoverageOp
 // (loadTarget).
 func (f *targetFlags) load(dir string, logger *slog.Logger) (*engine.Target, error) {
 	return loadTarget(dir, f.config, f.tokenizer, logger)
-}
-
-// moduleRoot returns the module root among a command's positional
-// arguments, "." when there is none. With more than one it prints the
-// usage error of command name and fs's usage to stderr and returns false.
-func moduleRoot(name string, positional []string, fs *flag.FlagSet, stderr io.Writer) (string, bool) {
-	switch len(positional) {
-	case 0:
-		return ".", true
-	case 1:
-		return positional[0], true
-	}
-	_, _ = fmt.Fprintf(stderr, "astimate: %s: want at most one module root, got %d arguments\n", name, len(positional))
-	fs.Usage()
-	return "", false
-}
-
-// parseModuleArgs parses args, flags and positional arguments interleaved,
-// with fs and returns the module root among the positional arguments
-// (moduleRoot). On a usage error, which the flag package or moduleRoot has
-// printed, it returns false.
-func parseModuleArgs(name string, fs *flag.FlagSet, args []string, stderr io.Writer) (string, bool) {
-	positional, err := parseInterspersed(fs, args)
-	if err != nil {
-		return "", false
-	}
-	return moduleRoot(name, positional, fs, stderr)
-}
-
-// newFlagSet returns the flag set of command name, "astimate <name>",
-// which prints its errors to stderr and, on -h or a usage error, usageLine
-// followed by the flag defaults.
-func newFlagSet(name, usageLine string, stderr io.Writer) *flag.FlagSet {
-	fs := flag.NewFlagSet("astimate "+name, flag.ContinueOnError)
-	fs.SetOutput(stderr)
-	fs.Usage = func() {
-		_, _ = fmt.Fprintln(stderr, usageLine)
-		fs.PrintDefaults()
-	}
-	return fs
-}
-
-// newLogger returns the logger every command logs to stderr with, at info
-// level.
-func newLogger(stderr io.Writer) *slog.Logger {
-	return slog.New(slog.NewTextHandler(stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
-}
-
-// writeBuffered renders into a buffer with render and writes it to stdout
-// in one call, so a render error leaves stdout empty and a write error
-// cannot leave a partial report.
-func writeBuffered(stdout io.Writer, render func(io.Writer) error) error {
-	var buf bytes.Buffer
-	if err := render(&buf); err != nil {
-		return err
-	}
-	_, err := stdout.Write(buf.Bytes())
-	return err
 }
 
 // loadTarget resolves dir with engine.LoadTarget, recording the astimate

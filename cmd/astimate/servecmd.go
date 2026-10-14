@@ -9,6 +9,7 @@ import (
 	"slices"
 	"syscall"
 
+	"github.com/rfizzle/astimate/internal/cli"
 	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/engine"
 	"github.com/rfizzle/astimate/internal/mcpserver"
@@ -24,10 +25,10 @@ import (
 // SIGTERM, 2 when the configuration cannot be resolved or serving fails,
 // and 1 on a usage error.
 func runServe(args []string, _, stderr io.Writer) int {
-	fs := newFlagSet("serve", "usage: astimate serve [--config path] [--allow-any-path]", stderr)
+	fs := cli.NewFlagSet("serve", "usage: astimate serve [--config path] [--allow-any-path]", stderr)
 	configPath := fs.String("config", "", "configuration file (default ./astimate.yaml, then the embedded default)")
 	allowAnyPath := fs.Bool("allow-any-path", false, "let tools read paths outside the working directory")
-	positional, err := parseInterspersed(fs, args)
+	positional, err := cli.ParseInterspersed(fs, args)
 	if err != nil {
 		return exitUsage // the flag package has printed the error and usage
 	}
@@ -37,7 +38,7 @@ func runServe(args []string, _, stderr io.Writer) int {
 		return exitUsage
 	}
 
-	logger := newLogger(stderr)
+	logger := cli.NewLogger(stderr)
 	cfg, source, err := config.Resolve(*configPath)
 	if err != nil {
 		logger.Error("serve failed", "err", fmt.Errorf("resolving config: %w", err))

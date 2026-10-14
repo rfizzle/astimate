@@ -2,12 +2,12 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"io"
 	"log/slog"
 	"runtime/debug"
 
+	"github.com/rfizzle/astimate/internal/cli"
 	"github.com/rfizzle/astimate/internal/engine"
 	"github.com/rfizzle/astimate/internal/report"
 )
@@ -18,12 +18,12 @@ import (
 // 10.2 JSON report with --json, to stdout. On failure stdout stays empty and
 // the error is logged to stderr.
 func runAssess(args []string, stdout, stderr io.Writer) int {
-	fs := newFlagSet("assess", "usage: astimate assess <package-dir> [--json] [--config path] [--tokenizer est|o200k] "+
+	fs := cli.NewFlagSet("assess", "usage: astimate assess <package-dir> [--json] [--config path] [--tokenizer est|o200k] "+
 		"[--coverage] [--coverage-timeout 2m]", stderr)
 	asJSON := fs.Bool("json", false, "print the JSON report instead of the table")
 	var tf targetFlags
 	tf.register(fs, true)
-	positional, err := parseInterspersed(fs, args)
+	positional, err := cli.ParseInterspersed(fs, args)
 	if err != nil {
 		return exitUsage // the flag package has printed the error and usage
 	}
@@ -38,10 +38,10 @@ func runAssess(args []string, stdout, stderr io.Writer) int {
 		return exitUsage
 	}
 
-	logger := newLogger(stderr)
+	logger := cli.NewLogger(stderr)
 	r, err := assess(context.Background(), dir, tf.config, tf.tokenizer, engine.AssessOptions{Coverage: coverage}, logger)
 	if err == nil {
-		err = writeBuffered(stdout, func(w io.Writer) error {
+		err = cli.WriteBuffered(stdout, func(w io.Writer) error {
 			if *asJSON {
 				return report.WriteJSON(w, r)
 			}
@@ -53,22 +53,6 @@ func runAssess(args []string, stdout, stderr io.Writer) int {
 		return exitAnalysis
 	}
 	return exitOK
-}
-
-// parseInterspersed parses args with fs, accepting flags before and after
-// positional arguments, and returns the positional arguments in order.
-func parseInterspersed(fs *flag.FlagSet, args []string) ([]string, error) {
-	var positional []string
-	for {
-		if err := fs.Parse(args); err != nil {
-			return nil, err
-		}
-		if fs.NArg() == 0 {
-			return positional, nil
-		}
-		positional = append(positional, fs.Arg(0))
-		args = fs.Args()[1:]
-	}
 }
 
 // assess resolves dir and builds its report with engine.Assess under opts.

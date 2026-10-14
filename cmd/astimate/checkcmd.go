@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -13,6 +12,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/rfizzle/astimate/internal/cli"
 	"github.com/rfizzle/astimate/internal/engine"
 	"github.com/rfizzle/astimate/internal/report"
 )
@@ -57,9 +57,6 @@ type checkOptions struct {
 	hookStdin func() io.Reader
 }
 
-// maxHookInput bounds how much of the hook input check reads.
-const maxHookInput = 64 << 10
-
 // processHookStdin returns os.Stdin when it is not a terminal, and nil when
 // it is one or cannot be inspected, so an interactive check never waits for
 // input.
@@ -69,26 +66,6 @@ func processHookStdin() io.Reader {
 		return nil
 	}
 	return os.Stdin
-}
-
-// stopHookActive reports whether the Claude Code Stop hook input in r has
-// stop_hook_active set to true. A nil reader, a read error and missing or
-// malformed input all report false, so the check runs as usual.
-func stopHookActive(r io.Reader) bool {
-	if r == nil {
-		return false
-	}
-	data, err := io.ReadAll(io.LimitReader(r, maxHookInput))
-	if err != nil {
-		return false
-	}
-	var in struct {
-		StopHookActive bool `json:"stop_hook_active"`
-	}
-	if err := json.Unmarshal(data, &in); err != nil {
-		return false
-	}
-	return in.StopHookActive
 }
 
 // runCheck gates the packages of a module against a baseline and the
@@ -109,7 +86,7 @@ func runCheck(args []string, stdout, stderr io.Writer) int {
 // {} and exits 0 without analysis: the hook already blocked once, and
 // blocking again could keep the agent looping.
 func runCheckInput(args []string, hookStdin func() io.Reader, stdout, stderr io.Writer) int {
-	fs := newFlagSet("check", "usage: astimate check [<module-root>] [--base ref | --baseline file] [--all] [--staged] "+
+	fs := cli.NewFlagSet("check", "usage: astimate check [<module-root>] [--base ref | --baseline file] [--all] [--staged] "+
 		"[--config|--thresholds file] [--format text|json|hook|github|md] [--tokenizer est|o200k] "+
 		"[--coverage] [--coverage-timeout 2m]", stderr)
 	opts := checkOptions{hookStdin: hookStdin}
@@ -123,11 +100,11 @@ func runCheckInput(args []string, hookStdin func() io.Reader, stdout, stderr io.
 		"instead of the working tree")
 	fs.StringVar(&tf.config, "thresholds", "", "alias of --config")
 	fs.StringVar(&opts.format, "format", formatText, "output format: "+strings.Join(checkFormats(), ", "))
-	positional, err := parseInterspersed(fs, args)
+	positional, err := cli.ParseInterspersed(fs, args)
 	if err != nil {
 		return exitUsage // the flag package has printed the error and usage
 	}
-	dir, ok := moduleRoot("check", positional, fs, stderr)
+	dir, ok := cli.ModuleRoot("check", positional, fs, stderr)
 	if !ok {
 		return exitUsage
 	}
@@ -144,8 +121,8 @@ func runCheckInput(args []string, hookStdin func() io.Reader, stdout, stderr io.
 		return exitUsage
 	}
 
-	logger := newLogger(stderr)
-	if opts.format == formatHook && opts.hookStdin != nil && stopHookActive(opts.hookStdin()) {
+	logger := cli.NewLogger(stderr)
+	if opts.format == formatHook && opts.hookStdin != nil && report.StopHookActive(opts.hookStdin()) {
 		logger.Info("stop hook already blocked once; allowing the stop without a check")
 		if _, err := io.WriteString(stdout, "{}\n"); err != nil {
 			logger.Error("check failed", "err", fmt.Errorf("writing check output: %w", err))

@@ -207,6 +207,29 @@ func Resolve(flagPath string) (*Config, string, error) {
 	return resolveIn(flagPath, ".")
 }
 
+// ResolveFile resolves the configuration as Resolve does and returns it
+// with its file's contents, which a suggestion edits, and its path, empty
+// for the embedded default, whose contents are Default.
+func ResolveFile(flagPath string) (cfg *Config, data []byte, path string, err error) {
+	cfg, source, err := Resolve(flagPath)
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("resolving config: %w", err)
+	}
+	switch source {
+	case SourceFlag:
+		path = flagPath
+	case SourceWorkDir:
+		path = FileName
+	default:
+		return cfg, Default(), "", nil
+	}
+	data, err = os.ReadFile(path)
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("reading config: %w", err)
+	}
+	return cfg, data, path, nil
+}
+
 // resolveIn is Resolve with the working directory made explicit for tests.
 func resolveIn(flagPath, dir string) (*Config, string, error) {
 	if flagPath != "" {

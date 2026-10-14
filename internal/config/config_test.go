@@ -620,6 +620,32 @@ func TestResolveOrder(t *testing.T) {
 	}
 }
 
+// TestResolveFile checks that ResolveFile returns the flagged file's bytes
+// and path, the embedded default's bytes and no path without a flag (the
+// package directory has no astimate.yaml), and a wrapped error for a
+// missing file.
+func TestResolveFile(t *testing.T) {
+	t.Parallel()
+
+	flagged := replace(t, "config_version: thresholds-2026-10-14b", "config_version: flagged")
+	path := filepath.Join(t.TempDir(), "flagged.yaml")
+	if err := os.WriteFile(path, []byte(flagged), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, data, got, err := ResolveFile(path)
+	if err != nil || cfg.Version != "flagged" || string(data) != flagged || got != path {
+		t.Errorf("ResolveFile(flag) = %v, %d bytes, %q, %v; want the flagged file", cfg, len(data), got, err)
+	}
+	cfg, data, got, err = ResolveFile("")
+	if err != nil || cfg.Version != "thresholds-2026-10-14b" || string(data) != string(Default()) || got != "" {
+		t.Errorf("ResolveFile(\"\") = %v, %d bytes, %q, %v; want the embedded default", cfg, len(data), got, err)
+	}
+	if _, _, _, err := ResolveFile(filepath.Join(t.TempDir(), "none.yaml")); err == nil ||
+		!strings.HasPrefix(err.Error(), "resolving config: ") {
+		t.Errorf("ResolveFile(missing) error = %v, want a resolving config error", err)
+	}
+}
+
 func TestResolveErrors(t *testing.T) {
 	t.Parallel()
 
