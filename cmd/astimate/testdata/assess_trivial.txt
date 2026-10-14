@@ -19,6 +19,7 @@ metrics:
   exported_symbols       1      globals               0
   init_funcs             0      max_nesting           0
   cognitive_total        0      cognitive_p90         0
+  cyclomatic_total       1      cyclomatic_p90        1
   func_count             1      dup_blocks            0
   dup_blocks_code        0      duplication_pct       0
   duplicated_lines       0      test_files            0

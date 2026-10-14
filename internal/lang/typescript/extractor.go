@@ -172,8 +172,9 @@ func (e *Extractor) checkTokenizer() error {
 // Details returns the names behind untested_exports, the names the
 // //astimate:untested directive left out of it, the duplicate block
 // locations, the declarations of the untested exports and globals, the
-// largest file and the source files of package pkg, from the details its
-// most recent Extract on mod recorded. When nothing is recorded it runs Extract first, so it fails
+// largest file, the functions (as Functions lists them) and the source
+// files of package pkg, from the details its most recent Extract on mod
+// recorded. When nothing is recorded it runs Extract first, so it fails
 // exactly when Extract would.
 func (e *Extractor) Details(ctx context.Context, mod *metrics.ModuleContext, pkg string) (metrics.Details, error) {
 	if err := ctx.Err(); err != nil {
@@ -198,6 +199,9 @@ func (e *Extractor) Details(ctx context.Context, mod *metrics.ModuleContext, pkg
 		GlobalNames:       slices.Clone(d.globalNames),
 		LargestFile:       d.largestFile,
 		SourceFiles:       slices.Clone(d.sourceFiles),
+	}
+	if p, ok := m.pkgs[pkg]; ok {
+		det.Functions = functionsOf(p)
 	}
 	det.DupLocations, det.DupBlocks = duptok.Details(d.dupGroups, nil)
 	return det, nil
@@ -224,6 +228,12 @@ func (e *Extractor) Functions(ctx context.Context, mod *metrics.ModuleContext, p
 	if !ok {
 		return nil, fmt.Errorf("functions of %s: %w", pkg, metrics.ErrUnknownPackage)
 	}
+	return functionsOf(p), nil
+}
+
+// functionsOf returns the function records of p's non-test files, in file
+// and declaration order, File relative to p's directory.
+func functionsOf(p *pkg) []metrics.FunctionInfo {
 	n := 0
 	for _, f := range p.src {
 		n += len(f.Funcs)
@@ -241,12 +251,13 @@ func (e *Extractor) Functions(ctx context.Context, mod *metrics.ModuleContext, p
 				Name:        fn.Ident,
 				Fingerprint: fn.Fingerprint,
 				Cognitive:   fn.Cognitive,
+				Cyclomatic:  fn.Cyclomatic,
 				File:        file,
 				Line:        fn.Line,
 			})
 		}
 	}
-	return fns, nil
+	return fns
 }
 
 // Forget drops the cached parse of the module at root, spelled in any form

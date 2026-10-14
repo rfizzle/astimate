@@ -97,6 +97,8 @@ func assemble(ctx context.Context, l *loaded, p *packages.Package, opts assemble
 		MaxNesting:         r.cx.MaxNesting,
 		CognitiveTotal:     r.cx.CognitiveTotal,
 		CognitiveP90:       r.cx.CognitiveP90,
+		CyclomaticTotal:    r.cx.CyclomaticTotal,
+		CyclomaticP90:      r.cx.CyclomaticP90,
 		FuncCount:          r.cx.FuncCount,
 		DupBlocks:          r.dup.Blocks,
 		DupBlocksCode:      &r.dup.Code,

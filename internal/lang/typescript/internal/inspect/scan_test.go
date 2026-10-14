@@ -77,6 +77,44 @@ func TestCognitive(t *testing.T) {
 	}
 }
 
+// TestCyclomatic checks each node walk counts for cyclomatic complexity
+// adds exactly one, and that what it does not count adds nothing.
+func TestCyclomatic(t *testing.T) {
+	cases := []struct {
+		name, body string
+		want       int
+	}{
+		{"empty", "", 1},
+		{"if", "if (a) {}", 2},
+		{"else adds nothing", "if (a) {} else {}", 2},
+		{"else if", "if (a) {} else if (b) {}", 3},
+		{"for", "for (;;) {}", 2},
+		{"for of", "for (const k of v) {}", 2},
+		{"for in", "for (const k in o) {}", 2},
+		{"while", "while (a) {}", 2},
+		{"do", "do {} while (a);", 2},
+		{"case", "switch (a) { case 1: break; }", 2},
+		{"default adds nothing", "switch (a) { case 1: break; default: break; }", 2},
+		{"catch", "try { a(); } catch (e) {} finally { b(); }", 2},
+		{"ternary", "const v = a ? 1 : 2;", 2},
+		{"and", "const v = a && b;", 2},
+		{"or", "const v = a || b;", 2},
+		{"nullish", "const v = a ?? b;", 2},
+		{"each operator counts", "const v = a && b && c;", 3},
+		{"other operators add nothing", "const v = a + 1 < b;", 1},
+		{"labeled break adds nothing", "outer: for (;;) { break outer; }", 2},
+		{"nested arrow counts in its parent", "const f = () => { if (a) {} };", 2},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ff := scanSource(t, "x.ts", "function f(n: number) {\n"+tc.body+"\n}\n")
+			if got := only(t, ff).Cyclomatic; got != tc.want {
+				t.Errorf("cyclomatic = %d, want %d", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestFunctions(t *testing.T) {
 	src := `function a() {}
 function* gen() {}

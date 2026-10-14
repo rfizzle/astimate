@@ -60,9 +60,10 @@ type Member struct {
 }
 
 // Aggregate combines the members' metrics into the tree's: counts and
-// sizes are summed; largest_file_sloc, max_nesting and cognitive_p90 are
-// the members' largest; duplication_pct is weighted by tokens_est, so the
-// volume term of the aggregate is the sum of the members'; has_tests,
+// sizes are summed; largest_file_sloc, max_nesting, cognitive_p90 and
+// cyclomatic_p90 are the members' largest; duplication_pct is weighted by
+// tokens_est, so the volume term of the aggregate is the sum of the
+// members'; has_tests,
 // uses_cgo and uses_reflect hold when they hold for any member; and the
 // module-level and ratio fields (dup_blocks_cross_pkg, instability,
 // abstractness, main_sequence_distance, coverage_pct,
@@ -94,8 +95,9 @@ func Aggregate(members []Member) metrics.RawMetrics {
 
 // addCounts adds every int field of m to a's, taking the larger value
 // instead for the per-package maxima (largest_file_sloc, max_nesting,
-// cognitive_p90). The int fields of RawMetrics are exactly its counts and
-// sizes, so a metric added later is summed without a change here.
+// cognitive_p90, cyclomatic_p90). The int fields of RawMetrics are exactly
+// its counts and sizes, so a metric added later is summed without a change
+// here.
 func addCounts(a, m *metrics.RawMetrics) {
 	va, vm := reflect.ValueOf(a).Elem(), reflect.ValueOf(m).Elem()
 	for i := range va.NumField() {
@@ -104,7 +106,7 @@ func addCounts(a, m *metrics.RawMetrics) {
 			continue
 		}
 		switch va.Type().Field(i).Name {
-		case "LargestFileSLOC", "MaxNesting", "CognitiveP90":
+		case "LargestFileSLOC", "MaxNesting", "CognitiveP90", "CyclomaticP90":
 			f.SetInt(max(f.Int(), vm.Field(i).Int()))
 		default:
 			f.SetInt(f.Int() + vm.Field(i).Int())

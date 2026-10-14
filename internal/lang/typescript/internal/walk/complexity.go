@@ -22,6 +22,13 @@ import (
 // Recursion is not counted: without type information a call cannot be
 // told to target the enclosing function. try and finally add nothing.
 //
+// Cyclomatic complexity is McCabe's count as gocyclo computes it for Go,
+// over the same nodes: 1 per function, plus 1 for each if, for, for...in,
+// for...of (both for_in_statement), while, do, case (switch_case, not
+// switch_default), catch and ternary, and for each &&, || and ?? operator,
+// one per operator rather than per run. Nested functions count in the
+// function that contains them, as func literals do in Go.
+//
 // max_nesting counts the depth of if, for, for...in, for...of, while, do,
 // switch, try, and nested function, arrow function and method nodes, the
 // function's own body being depth 0. An else if is an if inside the outer
@@ -32,6 +39,9 @@ import (
 // rules above name, visiting its children itself, and reports whether it
 // did.
 func (w *Walker) complexity(n *sitter.Node, typ string, st state) bool {
+	if decides(typ) {
+		w.fn.Cyclomatic++
+	}
 	switch typ {
 	case "if_statement":
 		w.ifStatement(n, st, false)
@@ -62,11 +72,24 @@ func (w *Walker) complexity(n *sitter.Node, typ string, st state) bool {
 	return true
 }
 
+// decides reports whether a node of type typ adds one to cyclomatic
+// complexity by itself; an if, else if included, is counted by
+// ifStatement and the logical operators by binary.
+func decides(typ string) bool {
+	switch typ {
+	case "for_statement", "for_in_statement", "while_statement", "do_statement",
+		"switch_case", "catch_clause", "ternary_expression", "conditional_expression":
+		return true
+	}
+	return false
+}
+
 // ifStatement scores an if statement: +1 plus the nesting level, or +1
-// alone for the if of an else if. Its consequence is one level deeper; an
-// else block is not, and scores +1.
+// alone for the if of an else if, and +1 cyclomatic either way. Its
+// consequence is one level deeper; an else block is not, and scores +1.
 func (w *Walker) ifStatement(n *sitter.Node, st state, elseIf bool) {
 	w.fn.Nesting = max(w.fn.Nesting, st.depth)
+	w.fn.Cyclomatic++
 	if elseIf {
 		w.fn.Cognitive++
 	} else {
@@ -136,6 +159,9 @@ func (w *Walker) fieldsNested(n *sitter.Node, flat state, fields ...string) {
 // adds one per run of like logical operators over the whole tree of binary
 // expressions below it, which then count nothing themselves.
 func (w *Walker) binary(n *sitter.Node, st state) {
+	if isLogicalOp(w.operator(n)) {
+		w.fn.Cyclomatic++
+	}
 	counted := st.chained
 	if !st.chained && isLogicalOp(w.operator(n)) {
 		var last string

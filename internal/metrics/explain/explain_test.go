@@ -136,8 +136,8 @@ func TestExplainCrossPackageAndOpacity(t *testing.T) {
 func TestExplainGeneratedExcluded(t *testing.T) {
 	excluded := []string{
 		"sloc", "largest_file_sloc", "tokens_est", "tokens_est_with_tests", "exported_symbols",
-		"globals", "init_funcs", "max_nesting", "cognitive_total", "cognitive_p90", "func_count",
-		"dup_blocks", "dup_blocks_code", "duplication_pct", "untested_exports", "duplicated_lines", "abstractness",
+		"globals", "init_funcs", "max_nesting", "cognitive_total", "cognitive_p90", "cyclomatic_total", "cyclomatic_p90",
+		"func_count", "dup_blocks", "dup_blocks_code", "duplication_pct", "untested_exports", "duplicated_lines", "abstractness",
 	}
 	for _, name := range metrics.MetricNames() {
 		e, _ := Explain(name)
@@ -147,6 +147,28 @@ func TestExplainGeneratedExcluded(t *testing.T) {
 	}
 	if e, _ := Explain("files"); !strings.Contains(e.Definition, "generated files included") {
 		t.Errorf("files definition does not say generated files count: %s", e.Definition)
+	}
+}
+
+// TestExplainCyclomatic checks that the cyclomatic metrics say they are
+// reported, not gated, name gocyclo as the per-function enforcer and name
+// what cognitive complexity measures that they do not.
+func TestExplainCyclomatic(t *testing.T) {
+	for _, name := range []string{"cyclomatic_total", "cyclomatic_p90"} {
+		t.Run(name, func(t *testing.T) {
+			e, ok := Explain(name)
+			if !ok {
+				t.Fatalf("Explain(%s) has no entry", name)
+			}
+			if e.Gated {
+				t.Errorf("Explain(%s).Gated = true, want false", name)
+			}
+			for _, want := range []string{"Reported, not gated", "gocyclo", "nesting", "breaks in linear flow"} {
+				if !strings.Contains(e.Evidence, want) {
+					t.Errorf("Explain(%s).Evidence lacks %q: %s", name, want, e.Evidence)
+				}
+			}
+		})
 	}
 }
 

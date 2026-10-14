@@ -299,13 +299,14 @@ func checkInvariants(t *testing.T, pkgs []string, got map[string]metrics.RawMetr
 // the files a person wrote (SPEC.md 6.5) and can only grow when a file is
 // counted too: sums, and maxima over files or functions. The token counts,
 // which the generated volume moves between, are checked separately, and
-// cognitive_p90, dup_blocks and duplication_pct are left to the goldens,
+// cognitive_p90, cyclomatic_p90, dup_blocks and duplication_pct are left
+// to the goldens,
 // since one more file can lower a percentile, merge blocks or dilute a
 // share; see checkGenerated.
 func generatedExcluded() []string {
 	return []string{
 		"sloc", "largest_file_sloc", "exported_symbols", "globals", "init_funcs", "max_nesting",
-		"cognitive_total", "func_count", "untested_exports",
+		"cognitive_total", "cyclomatic_total", "func_count", "untested_exports",
 	}
 }
 

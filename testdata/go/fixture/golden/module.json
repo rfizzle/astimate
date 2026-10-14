@@ -15,6 +15,8 @@
   "max_nesting": 0,
   "cognitive_total": 0,
   "cognitive_p90": 0,
+  "cyclomatic_total": 0,
+  "cyclomatic_p90": 0,
   "func_count": 0,
   "dup_blocks": 0,
   "duplication_pct": 0,

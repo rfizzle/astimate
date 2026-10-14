@@ -49,7 +49,8 @@ the same change. Do not regenerate goldens from the extractor.
   generated package-level vars (`_Cgo_always_false` and the C function
   pointers) are not in the source.
 - **func_count** 1 (`Add`), **max_nesting** 0, **cognitive_total** 0,
-  **cognitive_p90** 0.
+  **cognitive_p90** 0, **cyclomatic_total** 1 and **cyclomatic_p90** 1 (a
+  function with no branch counts 1, as gocyclo counts it).
 - **dup_blocks** 0, **dup_blocks_code** 0, **duplication_pct** 0, **duplicated_lines** 0: one
   short function holds no repeated block.
 - **test_files** 1 (`native_test.go`, package `native`), **test_funcs** 1
@@ -83,7 +84,8 @@ blank.
 - **fan_in** 0, **fan_in_tests** 0.
 - **exported_symbols** 1 (`Sum`), **globals** 0, **init_funcs** 0.
 - **func_count** 1; the `for` loop gives **max_nesting** 1 and
-  **cognitive_total** 1, so **cognitive_p90** is 1.
+  **cognitive_total** 1, so **cognitive_p90** is 1, and **cyclomatic_total**
+  2 (1 plus the `for`), so **cyclomatic_p90** is 2.
 - **dup_blocks** 0, **dup_blocks_code** 0, **duplication_pct** 0, **duplicated_lines** 0.
 - **test_files** 0, **test_funcs** 0, **has_tests** false,
   **untested_exports** 1 (`Sum`).

@@ -62,7 +62,8 @@ type fileRow struct {
 }
 
 // fileFunction is one function in a baseline file: the matching key, the
-// fingerprint as 16 hexadecimal digits and the cognitive complexity. File
+// fingerprint as 16 hexadecimal digits and the cognitive and cyclomatic
+// complexity, the latter omitted by files written before it existed. File
 // and line are not stored; a baseline function is only ever matched, never
 // named.
 type fileFunction struct {
@@ -70,6 +71,7 @@ type fileFunction struct {
 	Name        string `json:"name"`
 	Fingerprint string `json:"fingerprint"`
 	Cognitive   int    `json:"cognitive"`
+	Cyclomatic  int    `json:"cyclomatic,omitempty"`
 }
 
 // Contents is what a baseline file records besides the time it was
@@ -224,7 +226,7 @@ func decodeFunctions(in map[string][]fileFunction) (map[string][]metrics.Functio
 			if err != nil {
 				return nil, fmt.Errorf("function %s of %s: fingerprint %q: %w", ff.Name, pkg, ff.Fingerprint, err)
 			}
-			fns[i] = metrics.FunctionInfo{Receiver: ff.Receiver, Name: ff.Name, Fingerprint: fp, Cognitive: ff.Cognitive}
+			fns[i] = metrics.FunctionInfo{Receiver: ff.Receiver, Name: ff.Name, Fingerprint: fp, Cognitive: ff.Cognitive, Cyclomatic: ff.Cyclomatic}
 		}
 		out[pkg] = fns
 	}
@@ -240,7 +242,7 @@ func encodeFunctions(in map[string][]metrics.FunctionInfo) map[string][]fileFunc
 	for pkg, fns := range in {
 		ffs := make([]fileFunction, len(fns))
 		for i := range fns {
-			ffs[i] = fileFunction{Receiver: fns[i].Receiver, Name: fns[i].Name, Fingerprint: hex16(fns[i].Fingerprint), Cognitive: fns[i].Cognitive}
+			ffs[i] = fileFunction{Receiver: fns[i].Receiver, Name: fns[i].Name, Fingerprint: hex16(fns[i].Fingerprint), Cognitive: fns[i].Cognitive, Cyclomatic: fns[i].Cyclomatic}
 		}
 		out[pkg] = ffs
 	}

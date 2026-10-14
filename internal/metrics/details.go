@@ -56,6 +56,11 @@ type Details struct {
 	// largest_file_sloc measures, relative to the package directory in
 	// slash form; the first such file on a tie. Empty when unknown.
 	LargestFile string
+	// Functions are the package's functions with their cognitive and
+	// cyclomatic complexity, as metrics.FunctionLister lists them, for the
+	// report's details. Nil when there are none or the implementation does
+	// not list them.
+	Functions []FunctionInfo
 	// SourceFiles are the package's non-test source files relative to the
 	// package directory in slash form, sorted. Nil when unknown.
 	SourceFiles []string

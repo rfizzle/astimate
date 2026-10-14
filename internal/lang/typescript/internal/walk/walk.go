@@ -2,7 +2,8 @@
 // top-level statements, in the same single pass that records the file's
 // declarations: it emits the normalized duplication tokens, collects
 // comments, import specifiers and the identifiers of a test file, and
-// scores each function it is handed for cognitive complexity and nesting
+// scores each function it is handed for cognitive and cyclomatic
+// complexity and nesting
 // while fingerprinting its body (SPEC.md 6.3, 6.5 and 13.1). The package
 // inspect drives it; nothing here reads a file or keeps a tree.
 package walk
@@ -22,8 +23,9 @@ type Func struct {
 	// empty for a plain function; Ident the function or member name.
 	Receiver, Ident string
 	// Cognitive is the cognitive complexity; Nesting the deepest nesting
-	// inside the body, which is itself depth 0.
-	Cognitive, Nesting int
+	// inside the body, which is itself depth 0; Cyclomatic the McCabe
+	// count (complexity.go).
+	Cognitive, Nesting, Cyclomatic int
 	// Line is the 1-based line the function starts on.
 	Line int
 	// Fingerprint hashes the body's normalized tokens (fingerprint.go).
@@ -181,7 +183,7 @@ func isIdentType(typ string) bool {
 // fingerprinting its body. Functions of test files are walked but not
 // recorded.
 func (w *Walker) Function(receiver, ident string, fn *sitter.Node) {
-	score := &Func{Receiver: receiver, Ident: ident, Line: int(fn.StartPoint().Row) + 1, Fingerprint: fpOffset}
+	score := &Func{Receiver: receiver, Ident: ident, Line: int(fn.StartPoint().Row) + 1, Fingerprint: fpOffset, Cyclomatic: 1}
 	prev, prevHashing, prevSelf, prevMember, prevShaping := w.fn, w.hashing, w.self, w.selfMember, w.shaping
 	w.fn, w.self, w.selfMember, w.shaping = score, "", "", shaping{shape: duptok.ShapeNeutral}
 	switch {

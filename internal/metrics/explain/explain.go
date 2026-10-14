@@ -67,6 +67,12 @@ const (
 	evidenceHiddenState = "Hidden state: no direct study; plausible and kept at low weight."
 	evidenceNesting     = "Deep nesting: classical complexity metrics show no consistent correlation with " +
 		"LLM performance. Gated on regressions only; weak evidence."
+	evidenceCyclomatic = "Reported, not gated: no rule in the default configuration until a measurement " +
+		"against the hand labels supports one. Per function it is the count gocyclo enforces, the linter to " +
+		"use for a per-function limit. It overlaps cognitive complexity on branching, but counts each " +
+		"decision once wherever it sits, so it misses what cognitive complexity measures: nesting, which " +
+		"cognitive complexity weights by depth, and breaks in linear flow such as else, labelled break " +
+		"and continue, and runs of mixed boolean operators."
 	evidenceContext = "Context only: an input to the rebuild estimate or to other metrics, not a " +
 		"failure mode the gate targets."
 	evidenceCoupling = "Reported, not gated. Martin's package metrics are widely reported but their " +
@@ -97,6 +103,7 @@ func explainText(s string) string {
 		"{hidden}", evidenceHiddenState,
 		"{nesting}", evidenceNesting,
 		"{context}", evidenceContext,
+		"{cyclomatic}", evidenceCyclomatic,
 		"{coupling}", evidenceCoupling,
 		"{coverage}", evidenceCoverage,
 		"{opacity}", evidenceOpacity,

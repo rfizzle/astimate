@@ -87,8 +87,13 @@ are the same on every checkout.
   or `var` names initialized with a function or arrow function, and the
   methods and function-valued fields of top-level classes. Functions nested
   inside those are scored as part of them.
-- **max_nesting / cognitive_total / cognitive_p90**: see the comment in
-  `internal/lang/typescript/complexity.go`; p90 is nearest-rank as for Go.
+- **max_nesting / cognitive_total / cognitive_p90 / cyclomatic_total /
+  cyclomatic_p90**: see the comment in
+  `internal/lang/typescript/internal/walk/complexity.go`; p90 is
+  nearest-rank as for Go. Cyclomatic complexity is 1 per function plus 1
+  for each `if`, loop, `case`, `catch`, ternary, `&&`, `||` and `??`;
+  `hidden`'s `drain`, for example, is 7: 1, the `if`, the `for...of`, the
+  `case`, the `while`, the `&&` and the `??`.
 - **dup_blocks / duplication_pct / duplicated_lines**: see `dupes` below;
   `duplicated_lines` is the covered SLOC, the percentage's numerator, 0 in
   every package without a block. `dup_blocks_code` counts the blocks of

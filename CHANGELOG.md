@@ -12,6 +12,15 @@ history.
 
 ### Added
 
+- Cyclomatic complexity beside cognitive complexity: `cyclomatic_total`
+  and `cyclomatic_p90` per package, and each function's count, McCabe's as
+  gocyclo computes it (1 plus each `if`, `for`, `range`, non-default
+  `case`, `&&` and `||`; for TypeScript the same over the loops, `case`,
+  `catch`, the ternary and `??`). They are reported, not gated: `assess`
+  prints them, every JSON report carries them with each function's
+  cognitive and cyclomatic complexity in `details.functions`, baseline
+  files record them per function, and replay and corpus rows carry them
+  from the next run.
 - Replay rows record, on the module row, the cross-package blocks each
   commit may have added (`cross_added`): per set of packages, the blocks'
   lengths, kinds, packages and occurrences with the parent's block lengths

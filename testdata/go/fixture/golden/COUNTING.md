@@ -7,7 +7,10 @@ holds the module-level row (`SPEC.md` section 8.1); see "module" at the end. The
 were counted by hand from the source, then re-derived independently: a
 throwaway `go/ast` + `go/scanner` script for sizes, imports, declarations and
 duplication, `wc -c` for bytes, and golangci-lint's `gocognit` (min complexity
-0) for cognitive complexity. All three agreed with the hand counts. A v1 field
+0) for cognitive complexity. All three agreed with the hand counts. The
+cyclomatic fields were taken from `gocyclo` v0.6.0 run over the fixture with
+test and generated files ignored, its per-function values summed and their
+p90 taken per package. A v1 field
 missing from a golden is not compared, so a null value cannot be expressed
 here; `internal/lang/golang/assemble_test.go` checks the null cases.
 
@@ -105,6 +108,13 @@ generated file.
 - **cognitive_total / cognitive_p90**: gocognit rules per function in
   non-test, non-generated files. p90 is nearest-rank: sort the per-function scores
   ascending, take the value at rank `ceil(0.9 * n)` (1-based).
+- **cyclomatic_total / cyclomatic_p90**: gocyclo rules per function over the
+  same functions: 1, plus 1 for each `if`, `for`, `range`, `case` and
+  `select` clause other than `default`, `&&` and `||`. p90 as for cognitive
+  complexity. Per package (total, p90): `a` 6, 5; `b` 6, 5; `consumer` 1, 1;
+  `dupes` 18, 5; `errs` 3, 1; `hidden` 8, 6; `hub` 5, 3; `immut` 5, 3;
+  `sibling` 2, 1; `support` 2, 2; `tested` 7, 4; `trivial` 1, 1; the module
+  row 0, 0.
 - **dup_blocks / duplication_pct / duplicated_lines**: see `dupes` below;
   `duplicated_lines` (v1) is the covered SLOC, the percentage's numerator,
   0 in every package without a block. `dup_blocks_code` (v1) counts the

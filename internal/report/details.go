@@ -33,6 +33,26 @@ type Details struct {
 	// dup_blocks_cross_pkg: for a package, those touching it; for the
 	// module row, every one in the module.
 	CrossBlocks []CrossBlock `json:"cross_blocks,omitempty"`
+	// Functions are the package's functions in declaration order with the
+	// per-function values behind cognitive_total, cognitive_p90,
+	// cyclomatic_total and cyclomatic_p90.
+	Functions []Function `json:"functions,omitempty"`
+}
+
+// Function is one function or method with its complexity.
+type Function struct {
+	// Name is the function name, prefixed with the receiver and a dot for
+	// a method.
+	Name string `json:"name"`
+	// File is relative to the package directory, in slash form; empty
+	// (omitted) when unknown.
+	File string `json:"file,omitempty"`
+	// Line is 1-based; 0 (omitted) when unknown.
+	Line int `json:"line,omitempty"`
+	// Cognitive and Cyclomatic are the function's cognitive and cyclomatic
+	// complexity.
+	Cognitive  int `json:"cognitive"`
+	Cyclomatic int `json:"cyclomatic"`
 }
 
 // Span is a range of lines in one file.
@@ -136,11 +156,26 @@ func NewDetails(d *metrics.Details, pkgPath func(string) string) *Details {
 			out.CrossBlocks[i].Occurrences = occ
 		}
 	}
+	out.Functions = newFunctions(d.Functions)
 	if len(out.Duplicates) == 0 && len(out.UntestedExports) == 0 && len(out.ExcludedUntested) == 0 &&
-		len(out.Globals) == 0 && out.LargestFile == "" && len(out.CrossBlocks) == 0 {
+		len(out.Globals) == 0 && out.LargestFile == "" && len(out.CrossBlocks) == 0 && len(out.Functions) == 0 {
 		return nil
 	}
 	return &out
+}
+
+// newFunctions converts the function records of a package's details to
+// the report's, in the same order; nil for none.
+func newFunctions(fns []metrics.FunctionInfo) []Function {
+	if len(fns) == 0 {
+		return nil
+	}
+	out := make([]Function, len(fns))
+	for i := range fns {
+		f := &fns[i]
+		out[i] = Function{Name: f.QualifiedName(), File: f.File, Line: f.Line, Cognitive: f.Cognitive, Cyclomatic: f.Cyclomatic}
+	}
+	return out
 }
 
 // parseSpan parses a metrics.Details.DupLocations entry, "file:start-end".

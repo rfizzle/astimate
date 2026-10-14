@@ -43,6 +43,12 @@ type RawMetrics struct {
 	CognitiveTotal int `json:"cognitive_total"`
 	// CognitiveP90 is the 90th percentile cognitive complexity per function.
 	CognitiveP90 int `json:"cognitive_p90"`
+	// CyclomaticTotal is the sum of McCabe cyclomatic complexity (gocyclo
+	// rules) over all functions. Reported, not gated.
+	CyclomaticTotal int `json:"cyclomatic_total"`
+	// CyclomaticP90 is the 90th percentile cyclomatic complexity per
+	// function. Reported, not gated.
+	CyclomaticP90 int `json:"cyclomatic_p90"`
 	// FuncCount is the number of functions and methods in non-test files.
 	FuncCount int `json:"func_count"`
 	// DupBlocks counts duplicate token sequences of at least

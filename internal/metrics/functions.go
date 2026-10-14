@@ -18,6 +18,9 @@ type FunctionInfo struct {
 	Fingerprint uint64
 	// Cognitive is the function's cognitive complexity.
 	Cognitive int
+	// Cyclomatic is the function's McCabe cyclomatic complexity, counted
+	// as gocyclo counts it (SPEC.md 6.5).
+	Cyclomatic int
 	// File is the declaring file relative to the package directory, in
 	// slash form; empty when unknown, as in a baseline file.
 	File string

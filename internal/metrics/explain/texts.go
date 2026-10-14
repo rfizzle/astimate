@@ -121,6 +121,16 @@ func texts() []entry {
 			"{nesting}",
 		},
 		{
+			"cyclomatic_total", "",
+			"Sum of McCabe cyclomatic complexity over all functions (gocyclo rules: 1 per function plus 1 for each if, for, range, case other than default, && and ||).{generated}",
+			"{cyclomatic}",
+		},
+		{
+			"cyclomatic_p90", "",
+			"Nearest-rank 90th percentile of per-function cyclomatic complexity (gocyclo rules).{generated}",
+			"{cyclomatic}",
+		},
+		{
 			"func_count", "",
 			"Functions and methods in non-test files.{generated}",
 			"{context}",

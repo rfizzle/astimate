@@ -26,7 +26,7 @@ type assembleOptions struct {
 // its files recorded at load, and records its details in m.
 func assemble(m *module, p *pkg, opts assembleOptions) (metrics.RawMetrics, error) {
 	var r metrics.RawMetrics
-	var scores []int
+	var scores, cyclomatic []int
 	var types, interfaces int
 	var srcBytes, srcTokens, allBytes, allTokens int
 	var candidates []candidate
@@ -58,7 +58,9 @@ func assemble(m *module, p *pkg, opts assembleOptions) (metrics.RawMetrics, erro
 		}
 		for _, fn := range f.Funcs {
 			scores = append(scores, fn.Cognitive)
+			cyclomatic = append(cyclomatic, fn.Cyclomatic)
 			r.CognitiveTotal += fn.Cognitive
+			r.CyclomaticTotal += fn.Cyclomatic
 			r.MaxNesting = max(r.MaxNesting, fn.Nesting)
 		}
 		for _, c := range f.ExportedFuncs {
@@ -69,6 +71,7 @@ func assemble(m *module, p *pkg, opts assembleOptions) (metrics.RawMetrics, erro
 	r.ExportedSymbols += p.reexports
 	r.FuncCount = len(scores)
 	r.CognitiveP90 = p90(scores)
+	r.CyclomaticP90 = p90(cyclomatic)
 
 	allBytes, allTokens = srcBytes, srcTokens
 	for _, f := range p.tests {

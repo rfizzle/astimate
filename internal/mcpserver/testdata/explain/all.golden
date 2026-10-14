@@ -242,6 +242,36 @@ Direction: against a baseline, a density rule on it fails a rise only when a fun
   "thresholds": []
 }
 
+== cyclomatic_total ==
+cyclomatic_total (v0, not gated by default)
+Definition: Sum of McCabe cyclomatic complexity over all functions (gocyclo rules: 1 per function plus 1 for each if, for, range, case other than default, && and ||). Generated files, those with a "Code generated ... DO NOT EDIT." header, are left out: a rebuild regenerates them; see tokens_est_generated.
+Evidence: Reported, not gated: no rule in the default configuration until a measurement against the hand labels supports one. Per function it is the count gocyclo enforces, the linter to use for a per-function limit. It overlaps cognitive complexity on branching, but counts each decision once wherever it sits, so it misses what cognitive complexity measures: nesting, which cognitive complexity weights by depth, and breaks in linear flow such as else, labelled break and continue, and runs of mixed boolean operators.
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "Sum of McCabe cyclomatic complexity over all functions (gocyclo rules: 1 per function plus 1 for each if, for, range, case other than default, \u0026\u0026 and ||). Generated files, those with a \"Code generated ... DO NOT EDIT.\" header, are left out: a rebuild regenerates them; see tokens_est_generated.",
+  "evidence": "Reported, not gated: no rule in the default configuration until a measurement against the hand labels supports one. Per function it is the count gocyclo enforces, the linter to use for a per-function limit. It overlaps cognitive complexity on branching, but counts each decision once wherever it sits, so it misses what cognitive complexity measures: nesting, which cognitive complexity weights by depth, and breaks in linear flow such as else, labelled break and continue, and runs of mixed boolean operators.",
+  "gated": false,
+  "name": "cyclomatic_total",
+  "release": "v0",
+  "thresholds": []
+}
+
+== cyclomatic_p90 ==
+cyclomatic_p90 (v0, not gated by default)
+Definition: Nearest-rank 90th percentile of per-function cyclomatic complexity (gocyclo rules). Generated files, those with a "Code generated ... DO NOT EDIT." header, are left out: a rebuild regenerates them; see tokens_est_generated.
+Evidence: Reported, not gated: no rule in the default configuration until a measurement against the hand labels supports one. Per function it is the count gocyclo enforces, the linter to use for a per-function limit. It overlaps cognitive complexity on branching, but counts each decision once wherever it sits, so it misses what cognitive complexity measures: nesting, which cognitive complexity weights by depth, and breaks in linear flow such as else, labelled break and continue, and runs of mixed boolean operators.
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "Nearest-rank 90th percentile of per-function cyclomatic complexity (gocyclo rules). Generated files, those with a \"Code generated ... DO NOT EDIT.\" header, are left out: a rebuild regenerates them; see tokens_est_generated.",
+  "evidence": "Reported, not gated: no rule in the default configuration until a measurement against the hand labels supports one. Per function it is the count gocyclo enforces, the linter to use for a per-function limit. It overlaps cognitive complexity on branching, but counts each decision once wherever it sits, so it misses what cognitive complexity measures: nesting, which cognitive complexity weights by depth, and breaks in linear flow such as else, labelled break and continue, and runs of mixed boolean operators.",
+  "gated": false,
+  "name": "cyclomatic_p90",
+  "release": "v0",
+  "thresholds": []
+}
+
 == func_count ==
 func_count (v0, not gated by default)
 Definition: Functions and methods in non-test files. Generated files, those with a "Code generated ... DO NOT EDIT." header, are left out: a rebuild regenerates them; see tokens_est_generated.

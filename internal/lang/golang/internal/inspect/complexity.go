@@ -29,6 +29,11 @@ type ComplexityCounts struct {
 	// CognitiveP90 is the nearest-rank 90th percentile of per-function
 	// cognitive complexity; 0 with no functions.
 	CognitiveP90 int
+	// CyclomaticTotal is the sum of per-function cyclomatic complexity.
+	CyclomaticTotal int
+	// CyclomaticP90 is the nearest-rank 90th percentile of per-function
+	// cyclomatic complexity; 0 with no functions.
+	CyclomaticP90 int
 	// FuncCount is the number of top-level funcs and methods, init included.
 	FuncCount int
 	// PerFunc holds each function's scores in declaration order.
@@ -52,6 +57,9 @@ type Func struct {
 	Receiver, Ident string
 	// Cognitive is the gocognit score.
 	Cognitive int
+	// Cyclomatic is the McCabe count as gocyclo computes it (see
+	// inspectBody).
+	Cyclomatic int
 	// Nesting is the deepest nesting inside the function body.
 	Nesting int
 	// Fingerprint hashes the body's normalized syntax (see fingerprint.go).
@@ -61,8 +69,8 @@ type Func struct {
 	Pos token.Pos
 }
 
-// Complexity measures the nesting depth and cognitive complexity of every
-// top-level function and method in p's authored non-test files, init
+// Complexity measures the nesting depth and cognitive and cyclomatic
+// complexity of every top-level function and method in p's authored non-test files, init
 // functions included and generated files left out (SPEC.md 6.5; see
 // load.Module.AuthoredSyntax), so the function list
 // changed_func_cognitive_max diffs holds no generated function either, and
@@ -88,18 +96,21 @@ func Complexity(m *load.Module, p *packages.Package) ComplexityCounts {
 			Cognitive: gocognit.Complexity(fn),
 			Pos:       fn.Pos(),
 		}
-		fc.Nesting, fc.Fingerprint = inspectBody(fn.Name.Name, fn.Body, w)
+		fc.Nesting, fc.Cyclomatic, fc.Fingerprint = inspectBody(fn.Name.Name, fn.Body, w)
 		c.PerFunc = append(c.PerFunc, fc)
 		c.CognitiveTotal += fc.Cognitive
+		c.CyclomaticTotal += fc.Cyclomatic
 		c.MaxNesting = max(c.MaxNesting, fc.Nesting)
 	}
 	c.Written = w.names
 	c.FuncCount = len(c.PerFunc)
 	scores := make([]int, len(c.PerFunc))
+	cyclomatic := make([]int, len(c.PerFunc))
 	for i, fc := range c.PerFunc {
-		scores[i] = fc.Cognitive
+		scores[i], cyclomatic[i] = fc.Cognitive, fc.Cyclomatic
 	}
 	c.CognitiveP90 = p90(scores)
+	c.CyclomaticP90 = p90(cyclomatic)
 	return c
 }
 
@@ -117,7 +128,8 @@ func decls(m *load.Module, p *packages.Package) iter.Seq[ast.Decl] {
 	}
 }
 
-// inspectBody walks body once and returns its nesting and its fingerprint.
+// inspectBody walks body once and returns its nesting, its cyclomatic
+// complexity and its fingerprint.
 //
 // Nesting is the deepest stack of if, for, range, switch, type switch,
 // select and func literal nodes inside body, which is itself depth 0. Case
@@ -126,19 +138,24 @@ func decls(m *load.Module, p *packages.Package) iter.Seq[ast.Decl] {
 // continues from the enclosing depth, so nesting inside it counts relative to
 // the enclosing function.
 //
+// Cyclomatic complexity is gocyclo's count: 1, plus 1 for each if, for and
+// range statement, each case clause of a switch or type switch and each
+// communication clause of a select other than default, and each && and ||
+// operator, func literals included.
+//
 // The fingerprint mixes every node's code on entry and a close code on
 // exit, skipping comment groups, and marks direct calls to name, the
 // enclosing function, as recursion (see fingerprint.go). A nil body, a
-// function declared without one, has nesting 0 and the fingerprint of an
-// empty walk.
+// function declared without one, has nesting 0, cyclomatic complexity 1
+// and the fingerprint of an empty walk.
 //
 // Each assignment, increment or decrement, address-of expression and range
 // statement is also passed to w, which records the package-level variables
 // the body writes; w may be nil.
-func inspectBody(name string, body *ast.BlockStmt, w *writes) (deepest int, hash uint64) {
-	hash = fpOffset
+func inspectBody(name string, body *ast.BlockStmt, w *writes) (deepest, cyclomatic int, hash uint64) {
+	hash, cyclomatic = fpOffset, 1
 	if body == nil {
-		return 0, hash
+		return 0, cyclomatic, hash
 	}
 	var (
 		depth int
@@ -160,6 +177,9 @@ func inspectBody(name string, body *ast.BlockStmt, w *writes) (deepest int, hash
 		}
 		hash = fpMix(hash, fpCode(n))
 		nests := false
+		if decides(n) {
+			cyclomatic++
+		}
 		switch x := n.(type) {
 		case *ast.CallExpr:
 			if id, ok := x.Fun.(*ast.Ident); ok && id.Name == name {
@@ -181,7 +201,24 @@ func inspectBody(name string, body *ast.BlockStmt, w *writes) (deepest int, hash
 		pushed = append(pushed, nests)
 		return true
 	})
-	return deepest, hash
+	return deepest, cyclomatic, hash
+}
+
+// decides reports whether n adds one to gocyclo's cyclomatic complexity: an
+// if, for or range statement, a case or select clause other than default,
+// or an && or || operator.
+func decides(n ast.Node) bool {
+	switch x := n.(type) {
+	case *ast.IfStmt, *ast.ForStmt, *ast.RangeStmt:
+		return true
+	case *ast.CaseClause:
+		return x.List != nil
+	case *ast.CommClause:
+		return x.Comm != nil
+	case *ast.BinaryExpr:
+		return x.Op == token.LAND || x.Op == token.LOR
+	}
+	return false
 }
 
 // p90 returns the nearest-rank 90th percentile of scores: the value at 1-based

@@ -16,9 +16,9 @@ import (
 // Details returns the names behind untested_exports, the duplicate block
 // locations and the cross-package blocks touching the package with import
 // path pkg, the declarations of its untested exports and globals, the names
-// of its globals, its largest file and its source files, from the details
-// its most recent Extract on mod recorded and the memoized cross-package
-// pass. When nothing is recorded it runs Extract first, so it fails exactly
+// of its globals, its largest file, its functions and its source files,
+// from the details its most recent Extract on mod recorded and the
+// memoized cross-package pass. When nothing is recorded it runs Extract first, so it fails exactly
 // when Extract would.
 func (e *Extractor) Details(ctx context.Context, mod *metrics.ModuleContext, pkg string) (metrics.Details, error) {
 	d, l, dir, err := e.recorded(ctx, mod, pkg)
@@ -55,6 +55,7 @@ func (e *Extractor) Details(ctx context.Context, mod *metrics.ModuleContext, pkg
 		GlobalPositions:   positions(l.Fset, dir, d.globals.Pos),
 		GlobalNames:       slices.Clone(d.globals.Names),
 		LargestFile:       load.RelFile(dir, d.largestFile),
+		Functions:         functionInfos(l.Fset, dir, d.functions),
 		SourceFiles:       files,
 	}, nil
 }
@@ -103,6 +104,7 @@ func functionInfos(fset *token.FileSet, dir string, fcs []inspect.Func) []metric
 			Name:        fc.Ident,
 			Fingerprint: fc.Fingerprint,
 			Cognitive:   fc.Cognitive,
+			Cyclomatic:  fc.Cyclomatic,
 		}
 		if fset != nil && fc.Pos.IsValid() {
 			pos := fset.Position(fc.Pos)

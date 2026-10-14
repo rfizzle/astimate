@@ -65,6 +65,17 @@ func TestNewDetails(t *testing.T) {
 			want: &Details{Globals: []Global{{File: "state.go", Line: 7}}},
 		},
 		{
+			name: "functions",
+			in: metrics.Details{Functions: []metrics.FunctionInfo{
+				{Name: "Parse", File: "p.go", Line: 3, Cognitive: 4, Cyclomatic: 3, Fingerprint: 9},
+				{Receiver: "T", Name: "Run", Cognitive: 0, Cyclomatic: 1},
+			}},
+			want: &Details{Functions: []Function{
+				{Name: "Parse", File: "p.go", Line: 3, Cognitive: 4, Cyclomatic: 3},
+				{Name: "T.Run", Cyclomatic: 1},
+			}},
+		},
+		{
 			name: "global names without positions",
 			in:   metrics.Details{GlobalNames: []string{"cache", "hits"}},
 			want: &Details{Globals: []Global{{Name: "cache"}, {Name: "hits"}}},

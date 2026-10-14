@@ -22,6 +22,7 @@ Per package, from non-test files unless noted:
 | `exported_symbols`, `fan_in`, `internal_imports` | The contract other packages depend on and the coupling in both directions |
 | `globals`, `init_funcs` | Hidden state and ordering no signature reveals |
 | `max_nesting`, `cognitive_p90`, `changed_func_cognitive_max` | Structural complexity, including that of the most complex function changed since the baseline |
+| `cyclomatic_total`, `cyclomatic_p90` | McCabe's cyclomatic complexity per function as gocyclo counts it, summed and at the 90th percentile; reported, not gated, with each function's value beside its cognitive complexity in the JSON report's `details.functions` |
 | `test_files`, `test_funcs`, `has_tests` | Whether the next agent has a feedback loop |
 
 The full list, definitions and counting rules are in `SPEC.md` section 6.
@@ -95,6 +96,7 @@ metrics:
   exported_symbols       4      globals               0
   init_funcs             0      max_nesting           2
   cognitive_total        19     cognitive_p90         6
+  cyclomatic_total       18     cyclomatic_p90        5
   func_count             4      dup_blocks            1
   dup_blocks_code        1      duplication_pct       80.6
   duplicated_lines       54     test_files            1

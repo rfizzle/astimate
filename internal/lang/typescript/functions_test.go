@@ -92,17 +92,18 @@ export class K {
 	type row struct {
 		receiver, name, file string
 		line, cognitive      int
+		cyclomatic           int
 	}
 	got := make([]row, 0, len(fns))
 	for _, f := range fns {
-		got = append(got, row{f.Receiver, f.Name, f.File, f.Line, f.Cognitive})
+		got = append(got, row{f.Receiver, f.Name, f.File, f.Line, f.Cognitive, f.Cyclomatic})
 	}
 	want := []row{
-		{"", "arrow", "a.ts", 1, 1},
-		{"K", "m", "a.ts", 3, 0},
-		{"K", "f", "a.ts", 4, 0},
-		{"", "over", "b.ts", 2, 1},
-		{"", "default", "b.ts", 5, 0},
+		{"", "arrow", "a.ts", 1, 1, 2},
+		{"K", "m", "a.ts", 3, 0, 1},
+		{"K", "f", "a.ts", 4, 0, 1},
+		{"", "over", "b.ts", 2, 1, 2},
+		{"", "default", "b.ts", 5, 0, 1},
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("functions =\n%+v\nwant\n%+v", got, want)
