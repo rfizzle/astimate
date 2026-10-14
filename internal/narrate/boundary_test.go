@@ -9,7 +9,8 @@ import (
 
 // TestImportBoundary checks that narrate, compose and markdown import only the
 // report packages and metrics from this module, never an extractor,
-// score, gate or baseline.
+// score, gate or baseline, and that render reaches narrate and its
+// renderers only, never compose.
 func TestImportBoundary(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs go list")
@@ -22,6 +23,7 @@ func TestImportBoundary(t *testing.T) {
 		"./markdown":             {"internal/narrate"},
 		"./html":                 {"internal/narrate", "internal/narrate/html/internal/layout"},
 		"./html/internal/layout": {},
+		"./render":               {"internal/narrate", "internal/narrate/markdown", "internal/narrate/html"},
 	} {
 		out, err := exec.CommandContext(t.Context(), "go", "list", "-f", `{{join .Imports "\n"}}`, pkg).Output()
 		if err != nil {

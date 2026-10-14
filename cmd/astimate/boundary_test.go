@@ -7,7 +7,8 @@ import (
 )
 
 // TestImportBoundary checks that the command reaches baseline, gate and
-// score only through internal/engine, never by importing them directly.
+// score only through internal/engine, never by importing them directly,
+// and the module report's formats only through internal/narrate/render.
 func TestImportBoundary(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs go list")
@@ -24,6 +25,11 @@ func TestImportBoundary(t *testing.T) {
 			if strings.HasSuffix(imp, "/"+forbidden) {
 				t.Errorf("cmd/astimate imports %s directly; go through internal/engine", imp)
 			}
+		}
+	}
+	for _, imp := range imports {
+		if strings.Contains(imp, "/internal/narrate/") && !strings.HasSuffix(imp, "/internal/narrate/render") {
+			t.Errorf("cmd/astimate imports %s directly; go through internal/narrate/render", imp)
 		}
 	}
 	engineImported := false
