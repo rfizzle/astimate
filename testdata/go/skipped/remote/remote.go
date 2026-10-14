@@ -9,3 +9,15 @@ import (
 
 // Call calls the absent client with base.Value.
 func Call() int { return client.Call(base.Value()) }
+
+// digest is a copy of base.Checksum.
+func digest(s string) int {
+	sum := 7
+	for i := 0; i < len(s); i++ {
+		sum = (sum*31 + int(s[i])) % 1000003
+		if sum < 0 {
+			sum = -sum
+		}
+	}
+	return sum
+}

@@ -5,8 +5,11 @@ package dup
 // Stream. Every module package, in import path order, contributes its
 // non-test, non-generated files to one normalized stream, scanned exactly
 // as Package scans one package's (see duplication.go), into one
-// duptok.Stream. duptok follows each file with its own separator, so no
-// match crosses a file boundary, let alone a package boundary; a side table
+// duptok.Stream; the packages skipped because they fail to load follow,
+// parsed from disk (skippedcross.go), so their blocks still count for the
+// loaded packages and the module row though they have no row. duptok
+// follows each file with its own separator, so no match crosses a file
+// boundary, let alone a package boundary; a side table
 // maps each file index to its package, which is what attributes an
 // occurrence to a package. Cross-package means within one module; repeats
 // across modules or repositories are out of scope.
@@ -114,42 +117,66 @@ func computeCross(m *load.Module, src load.FileSource, opts Options) (Cross, err
 	var s duptok.Stream
 	z := newDupTokenizer(opts)
 	fs := token.NewFileSet()
-	filePkg := make([]int32, 0, len(m.Paths))
-	for i, ip := range m.Paths {
+	skipped := m.SkippedSources()
+	// pkgs names each package of the stream: the loaded packages in import
+	// path order, then the skipped ones (see skippedcross.go).
+	pkgs := make([]streamPkg, 0, len(m.Paths)+len(skipped))
+	for _, ip := range m.Paths {
+		p := m.Pkgs[ip]
+		pkgs = append(pkgs, streamPkg{path: ip, dir: p.Dir, scan: func(sink tokenSink) error {
+			return z.appendPackage(fs, m, p, src, sink)
+		}})
+	}
+	for _, sk := range skipped {
+		pkgs = append(pkgs, streamPkg{path: sk.Package, dir: sk.Dir, scan: func(sink tokenSink) error {
+			return z.appendSkipped(fs, sk, src, sink)
+		}})
+	}
+	filePkg := make([]int32, 0, len(pkgs))
+	for k, sp := range pkgs {
 		before := s.Files()
-		if err := z.appendPackage(fs, m, m.Pkgs[ip], src, &s); err != nil {
-			return Cross{}, fmt.Errorf("detecting cross-package duplication in %s: %w", ip, err)
+		if err := sp.scan(&s); err != nil {
+			return Cross{}, fmt.Errorf("detecting cross-package duplication in %s: %w", sp.path, err)
 		}
 		for range s.Files() - before {
-			filePkg = append(filePkg, int32(i))
+			filePkg = append(filePkg, int32(k))
 		}
 	}
-	found, perPkg, err := crossPackage(&s, filePkg, len(m.Paths), opts)
+	found, perPkg, err := crossPackage(&s, filePkg, len(pkgs), opts)
 	if err != nil {
 		return Cross{}, fmt.Errorf("detecting cross-package duplication: %w", err)
 	}
-	c := Cross{Blocks: crossBlocks(m, found, filePkg), PerPkg: make(map[string]int)}
-	for i, n := range perPkg {
+	c := Cross{Blocks: crossBlocks(m.Path, pkgs, found, filePkg), PerPkg: make(map[string]int)}
+	// A skipped package has no row, so only the loaded ones get a count.
+	for i, n := range perPkg[:len(m.Paths)] {
 		if n > 0 {
-			c.PerPkg[m.Paths[i]] = n
+			c.PerPkg[pkgs[i].path] = n
 		}
 	}
 	return c, nil
 }
 
+// streamPkg is one package of the module stream: its import path, its
+// directory and what scans its files into the stream.
+type streamPkg struct {
+	path, dir string
+	scan      func(sink tokenSink) error
+}
+
 // crossBlocks names the occurrences of the cross-package blocks found in
-// the module stream of m, whose file i belongs to package m.Paths[filePkg[i]],
-// by package import path and file relative to the module root. Occurrences
-// are sorted by package, file and line, and blocks by first occurrence.
-func crossBlocks(m *load.Module, found []duptok.Block, filePkg []int32) []metrics.CrossBlock {
+// the module stream of the module modulePath, whose file i belongs to
+// package pkgs[filePkg[i]], by package import path and file relative to
+// the module root. Occurrences are sorted by package, file and line, and
+// blocks by first occurrence.
+func crossBlocks(modulePath string, pkgs []streamPkg, found []duptok.Block, filePkg []int32) []metrics.CrossBlock {
 	if len(found) == 0 {
 		return nil
 	}
 	// dirs[k] is the directory of package k relative to the module root,
 	// in slash form: its import path less the module path.
-	dirs := make([]string, len(m.Paths))
-	for k, p := range m.Paths {
-		dirs[k] = strings.TrimPrefix(strings.TrimPrefix(p, m.Path), "/")
+	dirs := make([]string, len(pkgs))
+	for k, p := range pkgs {
+		dirs[k] = strings.TrimPrefix(strings.TrimPrefix(p.path, modulePath), "/")
 	}
 	out := make([]metrics.CrossBlock, 0, len(found))
 	for _, b := range found {
@@ -158,8 +185,8 @@ func crossBlocks(m *load.Module, found []duptok.Block, filePkg []int32) []metric
 			k := filePkg[f]
 			loc := b.Locations[i]
 			occ[i] = metrics.Occurrence{
-				Package:   m.Paths[k],
-				File:      path.Join(dirs[k], load.RelFile(m.Pkgs[m.Paths[k]].Dir, loc.File)),
+				Package:   pkgs[k].path,
+				File:      path.Join(dirs[k], load.RelFile(pkgs[k].dir, loc.File)),
 				StartLine: loc.StartLine,
 				EndLine:   loc.EndLine,
 			}

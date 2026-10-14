@@ -19,7 +19,9 @@ import (
 // walking the test files again.
 //
 // It is built once per load, on the first Untested, in one pass over the
-// types.Info.Uses and Selections of every test package, and shared, like
+// types.Info.Uses and Selections of every test package, plus the test
+// files of the packages skipped because they do not load, read by name
+// (syntactic.go), and shared, like
 // the load it belongs to, by every package measured in it. The zero value
 // is ready to use; it is safe for concurrent use.
 type Refs struct {
@@ -112,6 +114,7 @@ func (r *Refs) build(m *load.Module) {
 				r.index(m, path, tp)
 			}
 		}
+		r.indexSkipped(m)
 		r.indexSupport(m)
 		r.builds++
 	})

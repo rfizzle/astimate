@@ -54,6 +54,22 @@ func TestSkippedPackages(t *testing.T) {
 		t.Errorf("base fan_in = %d, want 2: app and the skipped remote", m.FanIn)
 	}
 
+	// remote's test file is the only one calling base.New and Counter.Add,
+	// and remote.digest copies base.Checksum.
+	if m.UntestedExports != 2 || !m.HasTests {
+		t.Errorf("base untested_exports = %d, has_tests %v; want 2 (Value, Checksum) and true", m.UntestedExports, m.HasTests)
+	}
+	if m.DupBlocksCrossPkg == nil || *m.DupBlocksCrossPkg != 1 {
+		t.Errorf("base dup_blocks_cross_pkg = %v, want 1: the copy in the skipped remote", m.DupBlocksCrossPkg)
+	}
+	row, err := e.ModuleRow(t.Context(), mod)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if row.DupBlocksCrossPkg == nil || *row.DupBlocksCrossPkg != 1 {
+		t.Errorf("module dup_blocks_cross_pkg = %v, want 1", row.DupBlocksCrossPkg)
+	}
+
 	text := logs.String()
 	if !strings.Contains(text, "package=example.com/skipped/remote") || !strings.Contains(text, filepath.Join("remote", "remote.go")) ||
 		strings.Contains(text, root) {

@@ -12,6 +12,15 @@ history.
 
 ### Added
 
+- A package skipped because it does not load still counts for its
+  neighbours: its test files are read syntactically, matching
+  `pkg.Name` selectors and method names against the loaded packages they
+  import, so an export only its tests call is no longer counted as
+  untested (and `has_tests` follows); its non-test files join the
+  cross-package duplication stream, so a block copied between it and a
+  loaded package counts in that package's `dup_blocks_cross_pkg` and on
+  the module row. The skipped package still has no row.
+
 - `untested_exports` leaves out a method implementing `http.Flusher`,
   `http.Hijacker` or `http.Pusher`, which the HTTP server calls; a response
   writer's `Flush` is no longer counted as untested.

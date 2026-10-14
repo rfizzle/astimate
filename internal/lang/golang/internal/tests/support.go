@@ -15,10 +15,12 @@ import (
 // interface calls are dispatch refs flagged support, so a rule set can
 // leave them out.
 func (r *Refs) indexSupport(m *load.Module) {
+	// imported holds the paths a non-test package of the module imports, a
+	// skipped one's imports included (load.Module.GraphPackages).
 	imported := make(map[string]bool)
-	for _, p := range m.Pkgs {
-		for path, ip := range p.Imports {
-			if ip != nil && path != p.PkgPath {
+	for _, gp := range m.GraphPackages() {
+		for path, ip := range gp.Pkg.Imports {
+			if ip != nil && path != gp.Pkg.PkgPath {
 				imported[path] = true
 			}
 		}
