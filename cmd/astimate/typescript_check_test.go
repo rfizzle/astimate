@@ -90,7 +90,7 @@ func TestTypeScriptCheckChanged(t *testing.T) {
 			tt.change(t, repo)
 
 			var stdout, stderr bytes.Buffer
-			args := []string{"check", repo, "--format", formatJSON}
+			args := []string{"check", repo, "--config", pinnedConfigFile(t), "--format", formatJSON}
 			if got := run(args, &stdout, &stderr); got != tt.wantExit {
 				t.Fatalf("run(%q) exit code = %d, want %d\nstdout:\n%s\nstderr:\n%s",
 					args, got, tt.wantExit, stdout.String(), stderr.String())

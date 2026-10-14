@@ -78,7 +78,9 @@ type Scored struct {
 // warnings alike, to rules. A breach of a metric no rule of s gates on its
 // row is an error: the rows were not gated with this configuration. So is
 // a breach of a candidate's metric (Rule.Candidate), which the replay
-// cannot have gated if it ran with this configuration.
+// cannot have gated if it ran with this configuration. A rule marked
+// Reevaluated fires where it breaches on a row's stored metrics instead,
+// whatever the replay recorded for it.
 func Score(c *corpus.Corpus, s *Rules) (*Scored, error) {
 	sc := &Scored{Corpus: c, Rules: s, fired: make([][]bool, len(c.Commits))}
 	for ci := range c.Commits {
@@ -92,6 +94,11 @@ func Score(c *corpus.Corpus, s *Rules) (*Scored, error) {
 					return nil, fmt.Errorf("commit %s row %s: violation of %s, which no rule gates there", cm.Hash, r.Package, m)
 				}
 				f[i] = true
+			}
+		}
+		for i, rule := range s.List {
+			if rule.Reevaluated {
+				f[i] = sc.firesOn(i, rule.Threshold, cm)
 			}
 		}
 		sc.fired[ci] = f
@@ -215,14 +222,15 @@ func (s *Scored) firesOn(i int, t gate.Threshold, c *corpus.Commit) bool {
 // judges and returns the number of (row, rule) pairs checked and how many
 // disagree with the breaches the replay recorded, violations and warn
 // rules' warnings alike. A candidate, which the replay never gated, has
-// nothing recorded to agree with and is not checked.
+// nothing recorded to agree with and is not checked; nor is a rule marked
+// Reevaluated, which the replay ran at other limits.
 func (s *Scored) Recheck() (checked, mismatched int) {
 	for ci := range s.Corpus.Commits {
 		c := &s.Corpus.Commits[ci]
 		for ri := range c.Rows {
 			r := &c.Rows[ri]
 			for i, rule := range s.Rules.List {
-				if rule.Candidate || !s.Rules.Judges(i, r) {
+				if rule.Candidate || rule.Reevaluated || !s.Rules.Judges(i, r) {
 					continue
 				}
 				checked++
@@ -233,6 +241,27 @@ func (s *Scored) Recheck() (checked, mismatched int) {
 		}
 	}
 	return checked, mismatched
+}
+
+// Alone is how rule i did on the commits no other rule that fails fired
+// on as recorded: a commit counts as failed when rule i fired on it and
+// no other rule that is not a warn rule did. For a rule that fails, these
+// are the commits the gate fails on its account alone, which it would
+// pass with the rule dropped or made a warn rule; for a warn rule, those
+// it would fail were the rule made to fail. A candidate, which never
+// fired as recorded, is failed on none.
+func (s *Scored) Alone(i int) Rates {
+	var r Rates
+	for ci := range s.Corpus.Commits {
+		alone := s.fired[ci][i]
+		for j, f := range s.fired[ci] {
+			if alone && j != i && f && !s.Rules.List[j].Threshold.Warns() {
+				alone = false
+			}
+		}
+		r.add(s.Corpus.Commits[ci].Block(), alone)
+	}
+	return r
 }
 
 // Missed returns the block commits the gate passed (Gate), in corpus

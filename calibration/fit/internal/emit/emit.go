@@ -21,8 +21,9 @@ import (
 // Language writes the languages.<lang> override block of the fitted
 // choices: one rule per overridden choice, in the base's order, each a
 // whole rule (it replaces the top-level rule on its metric for lang) with
-// the fitted limits and the base rule's kind, ratchet_from_zero, warn_at
-// and over_max_delta. No rebuild parameter is set. The block is validated
+// the fitted limits and the base rule's kind, severity, ratchet_from_zero,
+// floor, warn_at and over_max_delta, so a refit keeps what the fit does
+// not produce. No rebuild parameter is set. The block is validated
 // merged into the base configuration baseData, and must resolve to
 // version.
 func Language(baseData []byte, lang, version, source string, rows int, choices []pool.Choice) ([]byte, error) {
@@ -41,6 +42,9 @@ func Language(baseData []byte, lang, version, source string, rows int, choices [
 		fmt.Fprintf(&b, "      # %s %s over %d %s; the top level has max %s, max_delta %s.\n",
 			name, report.Num(at), c.Stats.N, unit, report.Opt(c.Rule.Max), report.Opt(c.Rule.MaxDelta))
 		fmt.Fprintf(&b, "      - metric: %s\n        kind: %s\n", c.Rule.Metric, c.Rule.Kind)
+		if c.Rule.Warns() {
+			fmt.Fprintf(&b, "        severity: %s\n", c.Rule.Severity)
+		}
 		if c.MaxDelta != nil {
 			fmt.Fprintf(&b, "        max_delta: %s\n", report.Num(*c.MaxDelta))
 		}
@@ -50,11 +54,14 @@ func Language(baseData []byte, lang, version, source string, rows int, choices [
 		if c.Max != nil {
 			fmt.Fprintf(&b, "        max: %s\n", report.Num(*c.Max))
 		}
+		if c.Rule.Floor != nil {
+			fmt.Fprintf(&b, "        floor: %s\n", report.Num(*c.Rule.Floor))
+		}
 		if c.Rule.Kind == gate.Capacity {
 			fmt.Fprintf(&b, "        warn_at: %s\n", report.Num(c.Rule.WarnAt))
-			if c.Rule.OverMaxDelta != nil {
-				fmt.Fprintf(&b, "        over_max_delta: %s\n", report.Num(*c.Rule.OverMaxDelta))
-			}
+		}
+		if c.Rule.OverMaxDelta != nil {
+			fmt.Fprintf(&b, "        over_max_delta: %s\n", report.Num(*c.Rule.OverMaxDelta))
 		}
 	}
 	out := []byte(b.String())

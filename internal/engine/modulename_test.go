@@ -25,7 +25,7 @@ func namedModuleTarget(t *testing.T, logs *bytes.Buffer) *Target {
 		"root.go":  "package root\n\n// F is exported.\nfunc F() int { return 1 }\n",
 		"sub/s.go": "package sub\n\n// G is exported.\nfunc G() int { return 2 }\n",
 	})
-	tg, err := LoadTarget(root, TargetOptions{Logger: slog.New(slog.NewTextHandler(logs, nil))})
+	tg, err := LoadTarget(root, TargetOptions{Config: pinnedConfig(t), Logger: slog.New(slog.NewTextHandler(logs, nil))})
 	if err != nil {
 		t.Fatalf("LoadTarget: %v", err)
 	}
@@ -84,7 +84,7 @@ func TestCheckModuleNamedModule(t *testing.T) {
 		// A new global in the root package fails it, not the module row.
 		// The target is reloaded, since a target extracts its load.
 		writeFiles(t, tg.Mod.Root, map[string]string{"state.go": "package root\n\nvar state []int\n"})
-		tg, err = LoadTarget(tg.Mod.Root, TargetOptions{Logger: tg.Logger})
+		tg, err = LoadTarget(tg.Mod.Root, TargetOptions{Config: pinnedConfig(t), Logger: tg.Logger})
 		if err != nil {
 			t.Fatalf("LoadTarget: %v", err)
 		}

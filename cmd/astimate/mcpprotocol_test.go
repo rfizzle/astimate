@@ -63,10 +63,11 @@ type stdioSession struct {
 	ids    []string    // ids of the requests sent, in order
 }
 
-// startStdioSession starts serve with --allow-any-path in dir.
+// startStdioSession starts serve with --allow-any-path and the pinned default
+// config in dir.
 func startStdioSession(t *testing.T, dir string) *stdioSession {
 	t.Helper()
-	cmd, stdin, stdout, stderr := startServeIn(t, dir, serveChildAllowAnyPathEnv+"=1")
+	cmd, stdin, stdout, stderr := startServeIn(t, dir, serveChildAllowAnyPathEnv+"=1", serveChildConfigEnv+"="+pinnedConfigFile(t))
 	s := &stdioSession{t: t, cmd: cmd, stdin: stdin, stderr: stderr, lines: make(chan string)}
 	go func() {
 		defer close(s.lines)

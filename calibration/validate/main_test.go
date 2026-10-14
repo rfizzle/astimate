@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rfizzle/astimate/calibration/validate/internal/measure"
 	"github.com/rfizzle/astimate/internal/config"
 )
 
@@ -138,63 +139,71 @@ func TestRunErrors(t *testing.T) {
 	}
 }
 
-func TestGatesAs(t *testing.T) {
+// TestReevaluated matches rows replayed under another committed
+// configuration to the rules the configuration validated with runs at
+// other limits, and refuses one that measures differently or has other
+// rules.
+func TestReevaluated(t *testing.T) {
+	data := string(config.Default())
 	def, err := config.Parse(config.Default())
 	if err != nil {
 		t.Fatal(err)
 	}
-	// fitted is the default without the over_max_delta the gate validation
-	// fitted after the replays and without the density floors and package
-	// roles set later, with the has_tests rule for main packages they
-	// added: the rules they were replayed under.
-	var kept []string
-	for l := range strings.SplitAfterSeq(string(config.Default()), "\n") {
-		if !strings.HasPrefix(l, "    over_max_delta: ") && !strings.HasPrefix(l, "    floor: ") && !strings.HasPrefix(l, "    roles: ") {
-			kept = append(kept, l)
+	dir := t.TempDir()
+	// edit returns the default with old replaced by repl, failing when
+	// the default lacks old.
+	edit := func(old, repl string) string {
+		t.Helper()
+		if !strings.Contains(data, old) {
+			t.Fatalf("the embedded default has no %q", old)
+		}
+		return strings.Replace(data, old, repl, 1)
+	}
+	version := "config_version: " + def.Version + "\n"
+	replays := map[string]string{
+		"same-1":      edit(version, "config_version: same-1\n"),
+		"warned-1":    edit("  - metric: init_funcs\n    kind: density\n", "  - metric: init_funcs\n    kind: density\n    severity: warn\n"),
+		"limits-1":    edit("    max: 16000\n", "    max: 17000\n"),
+		"tokens-1":    edit("  min_tokens_cross: 80\n", "  min_tokens_cross: 90\n"),
+		"reordered-1": edit("  - metric: init_funcs\n", "  - metric: globals\n"),
+	}
+	for name, text := range replays {
+		text = strings.Replace(text, version, "config_version: "+name+"\n", 1)
+		if err := os.WriteFile(filepath.Join(dir, "astimate-"+name+".yaml"), []byte(text), 0o644); err != nil {
+			t.Fatal(err)
 		}
 	}
-	const mainRule = "  - metric: has_tests\n    kind: requirement\n    require: true\n    when: sloc > 300\n"
-	if !strings.Contains(strings.Join(kept, ""), mainRule) {
-		t.Fatal("the default has no has_tests rule past 300 SLOC")
+	rules := measure.NewRules(def)
+	tokens := -1
+	for i, r := range rules.List {
+		if r.Language == "" && r.Threshold.Metric == "tokens_est" {
+			tokens = i
+		}
 	}
-	kept = []string{strings.Replace(strings.Join(kept, ""), mainRule, "", 1)}
-	fitted, err := config.Parse([]byte(strings.Join(kept, "")))
-	if err != nil {
-		t.Fatal(err)
-	}
-	changed, err := config.Parse([]byte(strings.Replace(string(config.Default()), "    max: 16000\n", "    max: 17000\n", 1)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	// warned is fitted with one rule marked warn: severity decides only
-	// whether a breach fails, so it gates as the replays did.
-	warned, err := config.Parse([]byte(strings.Replace(strings.Join(kept, ""),
-		"  - metric: globals\n    kind: density\n", "  - metric: globals\n    kind: density\n    severity: warn\n", 1)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if reflect.DeepEqual(warned.Thresholds, fitted.Thresholds) {
-		t.Fatal("marking globals warn changed no rule")
-	}
-	const dir = "../thresholds"
 	tests := []struct {
 		name    string
-		cfg     *config.Config
 		version string
-		want    bool
+		want    []int
+		err     string
 	}{
-		{"same version", def, def.Version, true},
-		{"the thresholds the rebuild fit was made on", fitted, "thresholds-2026-09-28", true},
-		{"those thresholds with a warn rule", warned, "thresholds-2026-09-28", true},
-		{"those thresholds with an over_max_delta", def, "thresholds-2026-09-28", false},
-		{"those thresholds, a rule changed", changed, "thresholds-2026-09-28", false},
-		{"no committed candidate", def, "thresholds-1999-01-01", false},
-		{"another rebuild fit", def, "rebuild-1999-01-01-x", false},
+		{"same version", def.Version, nil, ""},
+		{"another version, the same rules", "same-1", nil, ""},
+		{"a rule that differs only in severity", "warned-1", nil, ""},
+		{"a rule at another limit", "limits-1", []int{tokens}, ""},
+		{"other duplication settings", "tokens-1", nil, "duplication settings"},
+		{"a rule of another kind", "reordered-1", nil, "where"},
+		{"no committed configuration", "thresholds-1999-01-01", nil, "cannot be read"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := gatesAs(tt.cfg, tt.version, dir); got != tt.want {
-				t.Errorf("gatesAs(%q) = %v, want %v", tt.version, got, tt.want)
+			got, err := reevaluated(def, rules, tt.version, dir)
+			switch {
+			case tt.err != "" && (err == nil || !strings.Contains(err.Error(), tt.err)):
+				t.Errorf("err = %v, want %q", err, tt.err)
+			case tt.err == "" && err != nil:
+				t.Errorf("err = %v", err)
+			case !reflect.DeepEqual(got, tt.want):
+				t.Errorf("reevaluated(%q) = %v, want %v", tt.version, got, tt.want)
 			}
 		})
 	}

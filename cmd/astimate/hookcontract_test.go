@@ -10,6 +10,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/rfizzle/astimate/internal/config"
 )
 
 // These tests pin the Claude Code Stop hook contract (docs/claude-code-hook.md)
@@ -105,7 +107,7 @@ func TestHookContract(t *testing.T) {
 			t.Parallel()
 
 			var out, errOut bytes.Buffer
-			args := []string{"check", "--all", "--baseline", base, "--format", "hook", hookTestdata(tt.fixture)}
+			args := []string{"check", "--all", "--baseline", base, "--config", pinnedConfigFile(t), "--format", "hook", hookTestdata(tt.fixture)}
 			// Claude Code reads a hook's JSON only on exit 0, so a block
 			// decision must exit 0 too.
 			if got := run(args, &out, &errOut); got != 0 {
@@ -213,6 +215,11 @@ func TestStopHookSnippet(t *testing.T) {
 	gitCmd(t, repo, env, "commit", "-q", "--no-verify", "-m", "pristine fixture")
 	project := filepath.Join(repo, "fixture")
 	env = append(env, "CLAUDE_PROJECT_DIR="+project)
+	// The snippet passes no --config, so the working directory's file
+	// pins the rules the fixture was written against.
+	if err := os.WriteFile(filepath.Join(project, config.FileName), pinnedDefault(), 0o600); err != nil {
+		t.Fatal(err)
+	}
 
 	stop := func(t *testing.T, active bool) string {
 		t.Helper()

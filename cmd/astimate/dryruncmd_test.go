@@ -107,7 +107,8 @@ func TestDryrunLast(t *testing.T) {
 }
 
 // TestDryrunSuggest checks that --suggest writes a configuration that
-// parses and sets warn on exactly the rules over --budget.
+// parses and sets warn on exactly the rules over --budget, besides the rules
+// the shipped default already warns on.
 func TestDryrunSuggest(t *testing.T) {
 	repo := dryrunRepo(t)
 	file := filepath.Join(t.TempDir(), "suggested.yaml")
@@ -121,9 +122,10 @@ func TestDryrunSuggest(t *testing.T) {
 		t.Fatalf("suggestion does not parse: %v", err)
 	}
 	over := []string{"dup_blocks", "duplication_pct"}
+	shipped := []string{"untested_exports", "globals", "cognitive_p90", "internal_imports"}
 	for _, lang := range []string{"go", "typescript"} {
 		for _, r := range cfg.ForLanguage(lang).Thresholds {
-			if want := slices.Contains(over, r.Metric); r.Warns() != want {
+			if want := slices.Contains(over, r.Metric) || slices.Contains(shipped, r.Metric); r.Warns() != want {
 				t.Errorf("%s rule %s: warns %v, want %v", lang, r.Metric, r.Warns(), want)
 			}
 		}

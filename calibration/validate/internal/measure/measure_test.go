@@ -22,11 +22,12 @@ func defaultRules(t *testing.T) *Rules {
 	return NewRules(cfg)
 }
 
-// index returns the List index of the rule named name.
+// index returns the List index of the rule named name, or name marked
+// "(warn)" for a warn rule.
 func index(t *testing.T, s *Rules, name string) int {
 	t.Helper()
 	for i, r := range s.List {
-		if r.Name() == name {
+		if r.Name() == name || r.Name() == name+" (warn)" {
 			return i
 		}
 	}
@@ -139,7 +140,7 @@ func TestSweepCapacity(t *testing.T) {
 	c := &corpus.Corpus{Commits: []corpus.Commit{
 		commit("new", true, row(1200, -1)),     // new over max: fires
 		commit("cross", true, row(1100, 900)),  // crossed: fires
-		commit("grow", false, row(1400, 1200)), // grew over by 200: fires past over_max_delta 100
+		commit("grow", false, row(1400, 1200)), // grew over by 200: fires past over_max_delta 150
 		commit("fell", false, row(1200, 1300)), // fell, still over: passes
 	}}
 	sc, err := Score(c, s)
@@ -156,7 +157,7 @@ func TestSweepCapacity(t *testing.T) {
 	overMax := map[float64][2]int{}
 	for _, p := range curves[1].Points {
 		overMax[p.Setting.Value] = [2]int{p.Rule.BlockFailed, p.Rule.AllowFailed}
-		if p.Shipped != (p.Setting.Value == 100) {
+		if p.Shipped != (p.Setting.Value == 150) {
 			t.Errorf("shipped marks %v", p.Setting)
 		}
 	}
@@ -468,5 +469,57 @@ func TestSweepChangedFunctions(t *testing.T) {
 				t.Errorf("got %d block, %d allow; want %d, %d", r.BlockFailed, r.AllowFailed, tc.block, tc.all)
 			}
 		})
+	}
+}
+
+// TestReevaluate scores the planted corpus with the sloc rule at max 1150,
+// which the replay ran at 1000: the rule fires where its new limit
+// breaches, not where the breaches were recorded, and the recheck leaves
+// it out.
+func TestReevaluate(t *testing.T) {
+	s := defaultRules(t)
+	i := index(t, s, "sloc")
+	limit := 1150.0
+	s.List[i].Threshold.Max = &limit
+	s.Reevaluate(i)
+	sc, err := Score(planted(), s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := sc.Rule(i); got.BlockFailed != 8 || got.AllowFailed != 0 {
+		t.Errorf("re-evaluated sloc = %+v, want 8 block and 0 allow failed", got)
+	}
+	if got := sc.Gate(); got.BlockFailed != 8 || got.AllowFailed != 0 {
+		t.Errorf("gate = %+v, want 8 block and 0 allow failed", got)
+	}
+	if _, mismatched := sc.Recheck(); mismatched != 0 {
+		t.Errorf("recheck finds %d mismatches; the re-evaluated rule must be left out", mismatched)
+	}
+}
+
+// TestAlone counts the commits a rule fails with no other rule that fails:
+// a commit both sloc and globals fired on is sloc's alone only while
+// globals is a warn rule.
+func TestAlone(t *testing.T) {
+	c := planted()
+	both := row(1300, 900)
+	both.Violated = append(both.Violated, "globals")
+	c.Commits = append(c.Commits, commit("both", false, both))
+	s := defaultRules(t)
+	sl, gl := index(t, s, "sloc"), index(t, s, "globals")
+	s.List[gl].Threshold.Severity = gate.SeverityFail
+	sc, err := Score(c, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := sc.Alone(sl); got.BlockFailed != 8 || got.AllowFailed != 4 {
+		t.Errorf("sloc alone = %+v, want 8 block and 4 allow", got)
+	}
+	if got := sc.Alone(gl); got.Failed() != 0 {
+		t.Errorf("globals alone = %+v, want none", got)
+	}
+	s.List[gl].Threshold.Severity = gate.SeverityWarn
+	if got := sc.Alone(sl); got.AllowFailed != 5 {
+		t.Errorf("sloc alone beside a warn globals = %+v, want 5 allow", got)
 	}
 }

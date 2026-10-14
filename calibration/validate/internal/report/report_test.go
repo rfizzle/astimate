@@ -33,6 +33,7 @@ func input() *Input {
 		SizeCurve: []measure.SizePoint{{T: 0, Rates: gateRates}, {T: 150, Rates: ruleRates}},
 		Curves:    [][]measure.Curve{{{Rule: 0, Param: measure.Max, Points: []measure.Point{pt}}}, nil},
 		Dropped:   []measure.Rates{{Block: 10, Allow: 20, BlockFailed: 1}, {}},
+		Parts:     []measure.Rates{{Block: 10, Allow: 20, BlockFailed: 1, AllowFailed: 2}, {}},
 		Advice: []measure.Advice{{Action: measure.Retune, To: measure.Setting{Param: measure.Max, Value: 9}, Why: "numbers"},
 			{Action: measure.Keep, Why: "no row"}},
 		Criteria: measure.Criteria{MinFired: 10, Budget: 0.1, MinJ: 0.02},
@@ -63,6 +64,8 @@ func TestRender(t *testing.T) {
 		"| `sloc` | 8 | 4 | 6 | 3 | 9 of 12 (75.0%) |",
 		"| `sloc` | retune | max 9 | numbers; 75.0% of the commits it fired on only grew a package already over its max",
 		"| `sloc (typescript)` | keep |  | no row |",
+		"## Each rule's part in the gate\n\nOn the demo view, where the gate fails 5 `allow` commits",
+		"| `sloc` | 8 | 1 | 4 | 2 | 4 of 5 (80.0%) | 2 of 5 (40.0%) |",
 		"| `0123456789ab` | a \\| b | fixed up by x |",
 		"### other\n\nNone.",
 	} {
@@ -99,6 +102,39 @@ func TestRenderLabelSets(t *testing.T) {
 		if got := labelKind(tc.rule, tc.text); got != tc.want {
 			t.Errorf("labelKind(%v, %q) = %q", tc.rule, tc.text, got)
 		}
+	}
+}
+
+// TestRenderReplayed renders rows replayed under another configuration,
+// with one rule re-evaluated, and hand labels that mark a sample of the
+// passed commits.
+func TestRenderReplayed(t *testing.T) {
+	in := input()
+	out := Render(in)
+	if strings.Contains(out, "The rows were replayed under") || strings.Contains(out, "Recall rests on") {
+		t.Error("replayed or sample text without either")
+	}
+	in.Replayed = []string{"other-1"}
+	in.Rules[0].Reevaluated = true
+	c := in.Corpora[0].Loaded
+	c.Commits = append(c.Commits,
+		corpus.Commit{Hash: "a", Label: labels.Label{Verdict: labels.Allow, Reason: "sampled pass, read: fine"}},
+		corpus.Commit{Hash: "b", Label: labels.Label{Verdict: labels.Allow, Reason: "passed, outside the hand sample: not read"}},
+		corpus.Commit{Hash: "c", Label: labels.Label{Verdict: labels.Allow, Reason: "passed, outside the hand sample: not read"}})
+	out = Render(in)
+	for _, want := range []string{
+		"- The rows were replayed under `other-1`, not `v1`,",
+		"the replay ran 1 of its rules, `sloc`, at other limits.",
+		"the labels mark 3 passed commits that touched a package, of which 1 were read as a sample and 2 were not",
+		"a regression among those 2 is not",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("report lacks %q", want)
+		}
+	}
+	in.Rules[0].Reevaluated = false
+	if out := Render(in); !strings.Contains(out, "the replay ran none of its rules at other limits") {
+		t.Error("replayed text without a re-evaluated rule")
 	}
 }
 

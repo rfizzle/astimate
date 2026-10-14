@@ -42,6 +42,27 @@ func takeOverMax(ts []gate.Threshold) map[string]float64 {
 	return out
 }
 
+// takeSeverities clears every rule's severity in ts and returns the
+// metrics of the warn rules, sorted, since no fit produces a severity: the
+// gate validation sets them (SPEC.md 8.2 and 11.4).
+func takeSeverities(ts []gate.Threshold) []string {
+	var out []string
+	for i := range ts {
+		if ts[i].Warns() {
+			out = append(out, ts[i].Metric)
+		}
+		ts[i].Severity = ""
+	}
+	slices.Sort(out)
+	return out
+}
+
+// wantWarns is the metrics of the default's warn rules, sorted, at the top
+// level and in the typescript override alike (SPEC.md 8.2).
+func wantWarns() []string {
+	return []string{"cognitive_p90", "globals", "internal_imports", "untested_exports"}
+}
+
 // takeRoles returns ts without the rules that judge main packages only,
 // which no fit produces (the default's has_tests past 300 SLOC for main,
 // SPEC.md 8.2), and with every other rule's roles cleared, and the roles
@@ -324,11 +345,16 @@ func TestDefaultCarriesTypeScriptOverride(t *testing.T) {
 	takeFloors(exp.Thresholds)
 	// The allowances are set by hand from the validation fit or scaled from
 	// the top level's (SPEC.md 8.2), not produced by the override fit.
-	wantOver := map[string]float64{"changed_func_cognitive_max": 5, "tokens_est": 2200, "largest_file_sloc": 8, "exported_symbols": 5, "internal_imports": 1, "sloc": 250}
+	wantOver := map[string]float64{"changed_func_cognitive_max": 5, "tokens_est": 4400, "largest_file_sloc": 75, "exported_symbols": 5, "internal_imports": 1, "sloc": 375}
 	if over := takeOverMax(got.Thresholds); !reflect.DeepEqual(over, wantOver) {
 		t.Errorf("default typescript over_max_delta = %v, want %v", over, wantOver)
 	}
 	takeOverMax(exp.Thresholds)
+	// So are the severities.
+	if warns := takeSeverities(got.Thresholds); !slices.Equal(warns, wantWarns()) {
+		t.Errorf("default typescript warn rules = %v, want %v", warns, wantWarns())
+	}
+	takeSeverities(exp.Thresholds)
 	// The roles are set by hand too (SPEC.md 8.2).
 	var roles map[string]string
 	if got.Thresholds, roles = takeRoles(got.Thresholds); !reflect.DeepEqual(roles, wantRoles()) {

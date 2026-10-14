@@ -49,8 +49,13 @@ func TestCalibrated(t *testing.T) {
 		want    bool
 	}{
 		{"default-uncalibrated-1", false},
-		// Calibrated thresholds leave the rebuild parameters unmeasured.
+		// Thresholds fitted before the rebuild fit carry the placeholders.
 		{"thresholds-2026-09-28", false},
+		{"thresholds-2026-09-28-typescript", false},
+		// A gate retune after it keeps the fitted rebuild parameters.
+		{"thresholds-2026-10-14", true},
+		{"thresholds-2026-10-14+typescript", true},
+		{"thresholds-soon", false},
 		{"rebuild-2026-10-01-claude-code", true},
 		{"", false},
 		{"custom-rebuild-1", false},

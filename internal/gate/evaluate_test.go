@@ -556,13 +556,28 @@ func TestEvaluateUnchangedOverCeilingSuggestion(t *testing.T) {
 	}
 }
 
-func defaultRules(t *testing.T) []gate.Threshold {
+// shippedRules returns the embedded default's rules as it ships them,
+// warn rules included.
+func shippedRules(t *testing.T) []gate.Threshold {
 	t.Helper()
 	cfg, err := config.Parse(config.Default())
 	if err != nil {
 		t.Fatalf("config.Parse(config.Default()) error = %v", err)
 	}
 	return cfg.Thresholds
+}
+
+// defaultRules returns the embedded default's rules with every one at
+// severity fail, so a test of a rule's semantics sees each breach as a
+// violation whatever severity the default ships the rule at;
+// TestEvaluateDefaultConfig judges the shipped severities.
+func defaultRules(t *testing.T) []gate.Threshold {
+	t.Helper()
+	rules := shippedRules(t)
+	for i := range rules {
+		rules[i].Severity = ""
+	}
+	return rules
 }
 
 // healthy is a mid-sized package inside every default threshold and below
@@ -591,7 +606,7 @@ func fresh() metrics.RawMetrics {
 func TestEvaluateDefaultConfig(t *testing.T) {
 	t.Parallel()
 
-	rules := defaultRules(t)
+	rules := shippedRules(t)
 
 	t.Run("head within all limits", func(t *testing.T) {
 		t.Parallel()
@@ -641,14 +656,14 @@ func TestEvaluateDefaultConfig(t *testing.T) {
 		}
 	})
 
-	t.Run("new package with untested exports fails", func(t *testing.T) {
+	t.Run("new package with untested exports warns", func(t *testing.T) {
 		t.Parallel()
 
 		head := fresh()
 		head.UntestedExports = 3
 		got := gate.Evaluate(head, nil, rules, nil)
-		want := gate.Result{Violations: []gate.Violation{
-			{Metric: "untested_exports", Head: 3, Limit: "max_delta +0"},
+		want := gate.Result{Passed: true, Warnings: []gate.Warning{
+			{Metric: "untested_exports", Head: 3, Limit: "max_delta +0", Severity: gate.SeverityWarn},
 		}}
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Evaluate() =\n%+v\nwant\n%+v", got, want)
@@ -665,14 +680,14 @@ func TestEvaluateDefaultConfig(t *testing.T) {
 		}
 	})
 
-	t.Run("new package with one global fails", func(t *testing.T) {
+	t.Run("new package with one global warns", func(t *testing.T) {
 		t.Parallel()
 
 		head := fresh()
 		head.Globals = 1
 		got := gate.Evaluate(head, nil, rules, nil)
-		want := gate.Result{Violations: []gate.Violation{
-			{Metric: "globals", Head: 1, Limit: "max_delta +0"},
+		want := gate.Result{Passed: true, Warnings: []gate.Warning{
+			{Metric: "globals", Head: 1, Limit: "max_delta +0", Severity: gate.SeverityWarn},
 		}}
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Evaluate() =\n%+v\nwant\n%+v", got, want)
@@ -693,14 +708,14 @@ func TestEvaluateDefaultConfig(t *testing.T) {
 		}
 	})
 
-	t.Run("new package with complexity past the ceiling fails on max", func(t *testing.T) {
+	t.Run("new package with complexity past the ceiling warns on max", func(t *testing.T) {
 		t.Parallel()
 
 		head := fresh()
 		head.CognitiveP90 = 21
 		got := gate.Evaluate(head, nil, rules, nil)
-		want := gate.Result{Violations: []gate.Violation{
-			{Metric: "cognitive_p90", Head: 21, Limit: "max 20"},
+		want := gate.Result{Passed: true, Warnings: []gate.Warning{
+			{Metric: "cognitive_p90", Head: 21, Limit: "max 20", Severity: gate.SeverityWarn},
 		}}
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("Evaluate() =\n%+v\nwant\n%+v", got, want)
@@ -724,7 +739,7 @@ func TestEvaluateDefaultConfig(t *testing.T) {
 		}
 	})
 
-	t.Run("sloc over max ratchets by over_max_delta 100", func(t *testing.T) {
+	t.Run("sloc over max ratchets by over_max_delta 150", func(t *testing.T) {
 		t.Parallel()
 
 		pkg := func(sloc int) *metrics.RawMetrics {
@@ -738,8 +753,8 @@ func TestEvaluateDefaultConfig(t *testing.T) {
 			wantLimit  string
 			wantWarned bool
 		}{
-			{"1050 to 1100 warns", pkg(1050), 1100, true, "over max by 100, allowed 100", true},
-			{"1050 to 1200 fails", pkg(1050), 1200, false, "over max by 200, allowed 100", false},
+			{"1050 to 1200 warns", pkg(1050), 1200, true, "over max by 200, allowed 150", true},
+			{"1050 to 1250 fails", pkg(1050), 1250, false, "over max by 250, allowed 150", false},
 			{"950 to 1010 fails on the crossing", pkg(950), 1010, false, "max 1000", false},
 			{"new at 1010 fails", nil, 1010, false, "max 1000", false},
 		}

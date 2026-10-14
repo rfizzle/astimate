@@ -33,22 +33,39 @@ func degradedMetrics() []string {
 	return []string{"changed_func_cognitive_max", "dup_blocks", "globals", "untested_exports"}
 }
 
-// defaultConfig returns the embedded default configuration.
+// pinnedDefault returns the embedded default configuration with the rules the
+// fixtures were written against: min_tokens 40 and no severity: warn lines.
+// It pins them so a retune of the shipped default does not move the tests.
+func pinnedDefault() []byte {
+	var out []string
+	for _, l := range strings.Split(string(config.Default()), "\n") {
+		switch strings.TrimSpace(l) {
+		case "severity: warn":
+			continue
+		case "min_tokens: 60":
+			l = strings.Replace(l, "60", "40", 1)
+		}
+		out = append(out, l)
+	}
+	return []byte(strings.Join(out, "\n"))
+}
+
+// defaultConfig returns the pinned default configuration (see pinnedDefault).
 func defaultConfig(t *testing.T) *config.Config {
 	t.Helper()
-	cfg, _, err := config.Resolve("")
+	cfg, err := config.Parse(pinnedDefault())
 	if err != nil {
-		t.Fatalf("resolving default config: %v", err)
+		t.Fatalf("parsing the pinned default config: %v", err)
 	}
 	return cfg
 }
 
-// uncalibratedConfig returns the embedded default with its config_version
+// uncalibratedConfig returns the pinned default with its config_version
 // replaced by one of a thresholds-only calibration, so its rebuild estimate
 // counts as uncalibrated (score.Calibrated) and the text leaves it out.
 func uncalibratedConfig(t *testing.T) *config.Config {
 	t.Helper()
-	lines := strings.Split(string(config.Default()), "\n")
+	lines := strings.Split(string(pinnedDefault()), "\n")
 	for i, l := range lines {
 		if strings.HasPrefix(l, "config_version: ") {
 			lines[i] = "config_version: thresholds-2026-09-28"
@@ -340,7 +357,7 @@ func gitIn(t *testing.T, dir string, args ...string) {
 // are judged.
 func crossPackageConfig(t *testing.T) *config.Config {
 	t.Helper()
-	cfg, err := config.Parse(config.Default())
+	cfg, err := config.Parse(pinnedDefault())
 	if err != nil {
 		t.Fatal(err)
 	}

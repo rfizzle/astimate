@@ -2,11 +2,13 @@ package emit
 
 import (
 	"bytes"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/rfizzle/astimate/calibration/fit/internal/pool"
 	"github.com/rfizzle/astimate/internal/config"
+	"github.com/rfizzle/astimate/internal/gate"
 )
 
 // synthRows returns n rows with sloc, largest_file_sloc and
@@ -97,6 +99,22 @@ func TestLanguage(t *testing.T) {
 	}
 	if got := cfg.ForLanguage("typescript").Version; got != version {
 		t.Errorf("typescript version = %q, want %q", got, version)
+	}
+	// Each overridden rule keeps what the fit does not produce: the base
+	// rule's floor, severity and over_max_delta.
+	top := map[string]gate.Threshold{}
+	for _, r := range base.Thresholds {
+		top[r.Metric] = r
+	}
+	for _, r := range cfg.ForLanguage("typescript").Thresholds {
+		b, ok := top[r.Metric]
+		if !ok || !bytes.Contains(block, []byte("- metric: "+r.Metric+"\n")) {
+			continue
+		}
+		if !reflect.DeepEqual(r.Floor, b.Floor) || r.Severity != b.Severity || !reflect.DeepEqual(r.OverMaxDelta, b.OverMaxDelta) {
+			t.Errorf("override %s: floor %v severity %q over_max_delta %v, want the base rule's %v %q %v",
+				r.Metric, r.Floor, r.Severity, r.OverMaxDelta, b.Floor, b.Severity, b.OverMaxDelta)
+		}
 	}
 }
 

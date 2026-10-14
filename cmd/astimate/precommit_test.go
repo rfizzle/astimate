@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/rfizzle/astimate/internal/config"
 )
 
 // hookGitEnv returns the environment for git and hook commands in a
@@ -101,6 +103,11 @@ func TestPreCommitSnippet(t *testing.T) {
 	script := docSnippet(t, "pre-commit.md", "pre-commit-snippet")
 	env := append(hookGitEnv(buildAstimate(t)), "ASTIMATE_MODULE=fixture", "ASTIMATE_BASE=master")
 	repo := newFixtureRepo(t, env)
+	// The hook passes no --config, so the repository root's file pins the
+	// rules the fixture was written against.
+	if err := os.WriteFile(filepath.Join(repo, config.FileName), pinnedDefault(), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	hook := filepath.Join(repo, ".git", "hooks", "pre-commit")
 	if err := os.WriteFile(hook, []byte(script), 0o700); err != nil { // a git hook must be executable
 		t.Fatal(err)

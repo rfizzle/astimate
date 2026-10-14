@@ -22,10 +22,16 @@
 # "pass" is a unit of the estimate, not literally one context window.
 # TypeScript packages are judged by the typescript override at the end of
 # this file, fitted from a TypeScript corpus (SPEC.md section 13).
+# On 2026-10-14 the gate was retuned on hand-labelled agent commits
+# (thresholds-2026-10-14, calibration/reports/thresholds-2026-10-14.md):
+# duplicate blocks start at 60 tokens, four rules that failed commits no
+# other rule failed without catching a regression only they caught warn
+# instead of failing, and three over-ceiling allowances were widened.
 
-# Identifies the calibration the values came from: the rebuild fit, made on
-# top of the thresholds-2026-09-28 gate thresholds.
-config_version: rebuild-2026-09-28-claude-code-opus
+# Identifies the calibration the values came from: the 2026-10-14 gate
+# retune, on top of the thresholds-2026-09-28 fit and the
+# rebuild-2026-09-28-claude-code-opus rebuild parameters.
+config_version: thresholds-2026-10-14
 
 # Bytes of source per estimated token; tokens_est = bytes / chars_per_token.
 chars_per_token: 3.2
@@ -33,8 +39,11 @@ chars_per_token: 3.2
 # Duplicate-block detection. This section is optional: any key left out, or
 # the whole section, takes the value shown here.
 duplication:
-  # Minimum normalized token run that counts as a duplicate block.
-  min_tokens: 40
+  # Minimum normalized token run that counts as a duplicate block. 60 has
+  # the best J of 40, 60, 80 and 120 on the hand labels with dup_blocks
+  # inside the 10% false-failure budget; at 40 short option setters and
+  # error chains counted (calibration/notes/min-tokens-2026-10-14.md).
+  min_tokens: 60
   # Shortest cross-package block, in normalized tokens, that
   # dup_blocks_cross_pkg fails a change for adding; shorter repeats of a
   # preamble across packages are reported but not gated. 80 is near where
@@ -115,8 +124,12 @@ thresholds:
     # A package at or under 10% duplicated is not failed for a rise.
     floor: 10
   # New exported behavior needs a test; legacy gaps are reported, not failed.
+  # A warning, not a failure: on the 2026-10-14 hand labels it failed 12.3%
+  # of allow commits, 10 that no other rule failed, and no block commit
+  # that another rule did not fail as well.
   - metric: untested_exports
     kind: density
+    severity: warn
     max_delta: 0
     # Counted from zero for a package with no baseline.
     ratchet_from_zero: true
@@ -129,9 +142,12 @@ thresholds:
     # tested. It runs the tests. Without --coverage the rule reads
     # untested_exports as before.
     # source: coverage
-  # No new package-level state.
+  # No new package-level state. A warning, not a failure: on the
+  # 2026-10-14 hand labels it failed 5 allow commits and 1 block commit,
+  # which another rule failed as well.
   - metric: globals
     kind: density
+    severity: warn
     max_delta: 0
     # Counted from zero for a package with no baseline.
     ratchet_from_zero: true
@@ -151,8 +167,11 @@ thresholds:
   # Small drift allowed since p90 moves with function count. Judged only
   # when a function changed since the baseline is more complex than the
   # baseline's p90, so a p90 that rises because code was deleted passes.
+  # A warning, not a failure: on the 2026-10-14 hand labels it failed 4
+  # allow commits and no block commit.
   - metric: cognitive_p90
     kind: density
+    severity: warn
     max_delta: 3
     # What a new package, which has no baseline to drift from, is judged by.
     max: 20
@@ -184,20 +203,21 @@ thresholds:
     kind: capacity
     max: 16000
     warn_at: 0.75
-    # Fitted on 2026-09-29 by calibration/validate on the replayed agent
-    # commits (calibration/reports/gate-validation-2026-09-29.md): the most
-    # a package already over max may grow and only warn, about 80 SLOC.
-    over_max_delta: 1000
+    # The most a package already over max may grow and only warn, about
+    # 150 SLOC. Refitted on the 2026-10-14 hand labels: the best J inside
+    # the budget (calibration/reports/thresholds-2026-10-14.md); 1000 was
+    # the 2026-09-29 fit.
+    over_max_delta: 2000
   # Files past this rarely fit an edit in one view.
   - metric: largest_file_sloc
     kind: capacity
     max: 600
     warn_at: 0.75
-    # Hand-set from the 2026-10-13 field adjudication, not the sweep's 3:
-    # bug fixes of +6 to +24 lines in files over 600 failed. The sweep's 17
-    # split-or-extraction block labels are thin and predict growth of an
-    # already-over package by construction; S-198's hand labels will refit it.
-    over_max_delta: 5
+    # Refitted on the 2026-10-14 hand labels: 20, 25 and 50 tie on the best
+    # J inside the budget, and the largest is taken. The 2026-10-13 field
+    # adjudication had bug fixes of +6 to +24 lines failing in files over
+    # 600 at the hand-set 5.
+    over_max_delta: 50
   # Surface past this is a package boundary problem.
   - metric: exported_symbols
     kind: capacity
@@ -205,16 +225,18 @@ thresholds:
     warn_at: 0.75
     # Hand-set from the 2026-10-13 field adjudication, not the sweep's 0:
     # crush's config package (150+ exports) failed on +1, +3 and +5 exports
-    # for ordinary options. The sweep's 17 split-or-extraction block labels
-    # are thin and predict growth of an already-over package by construction;
-    # S-198's hand labels will refit it.
+    # for ordinary options. The 2026-10-14 hand labels favour 3 only by
+    # tightening, which no rule takes while the gate is over its
+    # false-failure target.
     over_max_delta: 5
     # Not main: nothing imports a composition root, so its surface is no
     # package boundary.
     roles: [library, test-support, generated-only]
-  # Fan-out ceiling on internal imports.
+  # Fan-out ceiling on internal imports. A warning, not a failure: on the
+  # 2026-10-14 hand labels it failed 1 allow commit and no block commit.
   - metric: internal_imports
     kind: capacity
+    severity: warn
     max: 10
     warn_at: 0.75
     # Swept the same way: one import more, as a composition root gains per
@@ -228,8 +250,9 @@ thresholds:
     kind: capacity
     max: 1000
     warn_at: 0.75
-    # Fitted the same way; the hand labels also drew the line at 100 SLOC.
-    over_max_delta: 100
+    # Refitted on the 2026-10-14 hand labels: the best J inside the budget;
+    # 100 was the 2026-09-29 fit.
+    over_max_delta: 150
   # Packages of meaningful size must have tests.
   - metric: has_tests
     kind: requirement
@@ -288,8 +311,10 @@ languages:
         max: 7
         floor: 4
       # p90 27 over 1209 packages; the top level has max 20, max_delta 3.
+      # A warning, as the top level.
       - metric: cognitive_p90
         kind: density
+        severity: warn
         max_delta: 4
         max: 25
         floor: 10
@@ -305,15 +330,15 @@ languages:
         max: 35000
         warn_at: 0.75
         # No TypeScript package in the replays was over a ceiling, so the
-        # top level's 1000 scaled by the max ratio (35000/16000), rounded.
-        over_max_delta: 2200
+        # top level's 2000 scaled by the max ratio (35000/16000), rounded.
+        over_max_delta: 4400
       # p90 891 over 1209 packages; the top level has max 600, max_delta none.
       - metric: largest_file_sloc
         kind: capacity
         max: 900
         warn_at: 0.75
-        # The top level's hand-set 5 times 900/600, rounded up.
-        over_max_delta: 8
+        # The top level's 50 times 900/600.
+        over_max_delta: 75
       # p90 57 over 1209 packages; the top level has max 60, max_delta none.
       - metric: exported_symbols
         kind: capacity
@@ -324,8 +349,10 @@ languages:
         # As the top level: not main.
         roles: [library, test-support, generated-only]
       # p90 8 over 1209 packages; the top level has max 10, max_delta none.
+      # A warning, as the top level.
       - metric: internal_imports
         kind: capacity
+        severity: warn
         max: 8
         warn_at: 0.75
         # The top level's 1 times 8/10, rounded.
@@ -337,8 +364,8 @@ languages:
         kind: capacity
         max: 2500
         warn_at: 0.75
-        # The top level's 100 times 2500/1000.
-        over_max_delta: 250
+        # The top level's 150 times 2500/1000.
+        over_max_delta: 375
 
 # Exemptions (optional; SPEC.md 8.6) accept one rule's violations on one
 # package, with the reason recorded beside them. An exempted violation does

@@ -47,7 +47,7 @@ func rolesModule(t *testing.T) (root, base string) {
 	return root, base
 }
 
-// TestCheckRoleInternalImports checks the default's internal_imports
+// TestCheckRoleInternalImports checks the pinned default's internal_imports
 // rule judges library packages only (SPEC.md 8.2): twelve internal
 // imports pass in a package main and fail the same imports in a library,
 // and the JSON reports and rank rows carry each package's role.
@@ -59,7 +59,7 @@ func TestCheckRoleInternalImports(t *testing.T) {
 
 	root, base := rolesModule(t)
 	var out, errOut bytes.Buffer
-	args := []string{"check", root, "--all", "--baseline", base, "--format", formatJSON}
+	args := []string{"check", root, "--all", "--baseline", base, "--config", pinnedConfigFile(t), "--format", formatJSON}
 	if code := run(args, &out, &errOut); code != exitGateFailed {
 		t.Fatalf("run(%q) exit code = %d, want %d\nstdout:\n%s\nstderr:\n%s", args, code, exitGateFailed, out.String(), errOut.String())
 	}

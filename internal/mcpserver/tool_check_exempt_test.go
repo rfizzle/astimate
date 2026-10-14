@@ -22,7 +22,7 @@ func TestCheckPackageExemptions(t *testing.T) {
 	}
 	t.Parallel()
 
-	cfg, err := config.Parse(config.Default())
+	cfg, err := config.Parse(pinnedDefault())
 	if err != nil {
 		t.Fatal(err)
 	}

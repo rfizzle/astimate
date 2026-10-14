@@ -32,7 +32,7 @@ func gitRepoAt(t *testing.T, files map[string]string) string {
 // and checks it against the tag base, every package when all is set.
 func checkAgainstBase(t *testing.T, dir string, all bool) (*report.Check, string) {
 	t.Helper()
-	cfg, err := config.Parse(config.Default())
+	cfg, err := config.Parse(pinnedDefault())
 	if err != nil {
 		t.Fatal(err)
 	}

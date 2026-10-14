@@ -9,11 +9,11 @@ import (
 	"github.com/rfizzle/astimate/internal/report"
 )
 
-// warnConfig returns the embedded default with every top-level rule marked
+// warnConfig returns the pinned default with every top-level rule marked
 // severity: warn.
 func warnConfig(t *testing.T) *config.Config {
 	t.Helper()
-	lines := strings.Split(string(config.Default()), "\n")
+	lines := strings.Split(string(pinnedDefault()), "\n")
 	out := make([]string, 0, len(lines)+20)
 	for _, l := range lines {
 		out = append(out, l)

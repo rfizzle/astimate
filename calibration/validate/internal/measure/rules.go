@@ -31,6 +31,10 @@ type Rule struct {
 	// fires only where it is re-evaluated, and the gate as replayed leaves
 	// it out.
 	Candidate bool
+	// Reevaluated marks a rule the replay ran at other limits
+	// (Rules.Reevaluate): it fires where it is re-evaluated on a row's
+	// stored metrics, not where the replay recorded a breach.
+	Reevaluated bool
 }
 
 // Name is the rule's metric, followed by its override's language in
@@ -103,6 +107,11 @@ func (s *Rules) AddCandidate(t gate.Threshold) (int, error) {
 	}
 	return i, nil
 }
+
+// Reevaluate marks rule i Reevaluated, for rows a replay gated with the
+// rule at other limits: Score then re-evaluates it on every row it judges
+// in place of the breaches the replay recorded.
+func (s *Rules) Reevaluate(i int) { s.List[i].Reevaluated = true }
 
 // Candidates returns the List indexes of the candidate rules, in order.
 func (s *Rules) Candidates() []int {

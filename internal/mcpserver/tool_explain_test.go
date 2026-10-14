@@ -145,10 +145,10 @@ func TestExplainMetricOverMaxDelta(t *testing.T) {
 	if len(r.Thresholds) == 0 {
 		t.Fatalf("thresholds empty; text:\n%s", text)
 	}
-	if th := r.Thresholds[0]; th.Kind != "capacity" || th.OverMaxDelta == nil || *th.OverMaxDelta != 100 {
-		t.Errorf("thresholds[0] = %+v, want capacity with over_max_delta 100", th)
+	if th := r.Thresholds[0]; th.Kind != "capacity" || th.OverMaxDelta == nil || *th.OverMaxDelta != 150 {
+		t.Errorf("thresholds[0] = %+v, want capacity with over_max_delta 150", th)
 	}
-	if want := "capacity max 1000 warn_at 0.75 over_max_delta 100"; !strings.Contains(text, want) {
+	if want := "capacity max 1000 warn_at 0.75 over_max_delta 150"; !strings.Contains(text, want) {
 		t.Errorf("text = %q, want %q", text, want)
 	}
 }

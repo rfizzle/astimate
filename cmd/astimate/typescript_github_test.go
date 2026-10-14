@@ -28,7 +28,7 @@ func TestTypeScriptCheckGitHubPositions(t *testing.T) {
 		"\nexport let hits = 0;\n\nexport function neverTested(n: number): number {\n  return n + hits;\n}\n")
 
 	var stdout, stderr bytes.Buffer
-	args := []string{"check", repo, "--format", formatGitHub}
+	args := []string{"check", repo, "--config", pinnedConfigFile(t), "--format", formatGitHub}
 	if got := run(args, &stdout, &stderr); got != exitGateFailed {
 		t.Fatalf("run(%q) exit code = %d, want %d\nstdout:\n%s\nstderr:\n%s",
 			args, got, exitGateFailed, stdout.String(), stderr.String())

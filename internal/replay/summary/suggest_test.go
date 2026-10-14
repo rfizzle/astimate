@@ -24,8 +24,17 @@ func TestSuggest(t *testing.T) {
 		[]byte("  - metric: sloc\n    severity: fail\n    kind: capacity\n"), 1)
 	src = bytes.Replace(src, []byte("\nlanguages:\n"),
 		[]byte("\nlanguages:\n  go:\n    thresholds:\n      - metric: globals\n        disabled: true\n"), 1)
-	if _, err := config.Parse(src); err != nil {
+	base, err := config.Parse(src)
+	if err != nil {
 		t.Fatalf("test configuration: %v", err)
+	}
+	// shipped holds the metrics the default already warns on, which a
+	// suggestion leaves warning.
+	shipped := map[string]bool{}
+	for _, r := range base.Thresholds {
+		if r.Warns() {
+			shipped[r.Metric] = true
+		}
 	}
 	warn := []string{"globals", "sloc", "tokens_est"}
 	out, err := Suggest(src, warn)
@@ -38,7 +47,7 @@ func TestSuggest(t *testing.T) {
 	}
 	check := func(where string, rules []gate.Threshold) {
 		for _, r := range rules {
-			if want := slices.Contains(warn, r.Metric); r.Warns() != want {
+			if want := slices.Contains(warn, r.Metric) || shipped[r.Metric]; r.Warns() != want {
 				t.Errorf("%s rule %s: warns %v, want %v", where, r.Metric, r.Warns(), want)
 			}
 		}

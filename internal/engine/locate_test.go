@@ -25,7 +25,7 @@ func TestCheckLocatesDegradedFindings(t *testing.T) {
 	}
 	t.Parallel()
 
-	fx, err := LoadTarget(fixtureDir, TargetOptions{Tokenizer: TokenizerEst})
+	fx, err := LoadTarget(fixtureDir, TargetOptions{Config: pinnedConfig(t), Tokenizer: TokenizerEst})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +48,7 @@ func TestCheckLocatesDegradedFindings(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tg, err := LoadTarget(degradedDir, TargetOptions{Tokenizer: TokenizerEst})
+	tg, err := LoadTarget(degradedDir, TargetOptions{Config: pinnedConfig(t), Tokenizer: TokenizerEst})
 	if err != nil {
 		t.Fatal(err)
 	}

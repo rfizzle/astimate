@@ -20,9 +20,9 @@ import (
 // tokens_per_hidden_state and superlinear_exponent set from p. Each key
 // must appear exactly once where it is replaced; a comment after a value
 // is kept. The result must parse, carry exactly p's values in those keys,
-// and be calibrated (score.Calibrated).
+// and be named as a rebuild calibration (score.RebuildPrefix).
 func Config(base []byte, version string, p score.RebuildParams) ([]byte, error) {
-	if !score.Calibrated(version) {
+	if !strings.HasPrefix(version, score.RebuildPrefix) {
 		return nil, fmt.Errorf("config_version %q is not a rebuild calibration", version)
 	}
 	lines := strings.SplitAfter(string(base), "\n")

@@ -29,13 +29,13 @@ func TestParseDefault(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Parse(Default()) error = %v", err)
 	}
-	if cfg.Version != "rebuild-2026-09-28-claude-code-opus" {
-		t.Errorf("Version = %q, want rebuild-2026-09-28-claude-code-opus", cfg.Version)
+	if cfg.Version != "thresholds-2026-10-14" {
+		t.Errorf("Version = %q, want thresholds-2026-10-14", cfg.Version)
 	}
 	if cfg.CharsPerToken != 3.2 {
 		t.Errorf("CharsPerToken = %v, want 3.2", cfg.CharsPerToken)
 	}
-	if want := (Duplication{MinTokens: 40, MinTokensCross: 80, IgnoreLiteralOnly: true, FoldSigns: true}); cfg.Duplication != want {
+	if want := (Duplication{MinTokens: 60, MinTokensCross: 80, IgnoreLiteralOnly: true, FoldSigns: true}); cfg.Duplication != want {
 		t.Errorf("Duplication = %+v, want %+v", cfg.Duplication, want)
 	}
 	if len(cfg.Warnings) != 0 {
@@ -89,17 +89,16 @@ func TestParseDefault(t *testing.T) {
 			t.Errorf("changed_func_cognitive_max max = %v, max_delta = %v, want max 50 and no max_delta", th.Max, th.MaxDelta)
 		}
 	}
-	// over_max_delta is fitted for three capacity rules and hand-set for two
-	// (largest_file_sloc and exported_symbols, 5 each; SPEC.md 8.2).
-	// changed_func_cognitive_max carries 5,
-	// per function (SPEC.md 8.1); no other rule has one.
+	// over_max_delta is fitted for four capacity rules and hand-set for
+	// exported_symbols (5; SPEC.md 8.2). changed_func_cognitive_max carries
+	// 5, per function (SPEC.md 8.1); no other rule has one.
 	overMax := map[string]float64{}
 	for _, th := range cfg.Thresholds {
 		if th.OverMaxDelta != nil {
 			overMax[th.Metric] = *th.OverMaxDelta
 		}
 	}
-	if w := map[string]float64{"tokens_est": 1000, "largest_file_sloc": 5, "exported_symbols": 5, "internal_imports": 1, "sloc": 100, "changed_func_cognitive_max": 5}; !maps.Equal(overMax, w) {
+	if w := map[string]float64{"tokens_est": 2000, "largest_file_sloc": 50, "exported_symbols": 5, "internal_imports": 1, "sloc": 150, "changed_func_cognitive_max": 5}; !maps.Equal(overMax, w) {
 		t.Errorf("over_max_delta = %v, want %v", overMax, w)
 	}
 	// The density floors (SPEC.md 8.2), the same in the typescript
@@ -151,11 +150,17 @@ func TestParseDefault(t *testing.T) {
 			t.Errorf("roles for %q = %v, want %v", lang, roles, wantRoles)
 		}
 	}
-	// The default sets no severity, so every rule it ships fails the gate.
+	// Four rules warn (SPEC.md 8.2), in the typescript override too; the
+	// default sets no other severity, so every other rule fails the gate.
+	warns := map[string]bool{"untested_exports": true, "globals": true, "cognitive_p90": true, "internal_imports": true}
 	for _, lang := range append([]string{""}, cfg.Languages()...) {
 		for _, th := range cfg.ForLanguage(lang).Thresholds {
-			if th.Severity != "" {
-				t.Errorf("%s %s: severity = %q, want none (fail)", lang, th.Metric, th.Severity)
+			want := gate.Severity("")
+			if warns[th.Metric] {
+				want = gate.SeverityWarn
+			}
+			if th.Severity != want {
+				t.Errorf("%s %s: severity = %q, want %q", lang, th.Metric, th.Severity, want)
 			}
 		}
 	}
@@ -168,7 +173,7 @@ func TestParseSeverity(t *testing.T) {
 	t.Parallel()
 
 	data := replace(t, "  - metric: dup_blocks\n    kind: density\n", "  - metric: dup_blocks\n    kind: density\n    severity: warn\n")
-	data = strings.Replace(data, "  - metric: globals\n    kind: density\n", "  - metric: globals\n    kind: density\n    severity: fail\n", 1)
+	data = strings.Replace(data, "  - metric: globals\n    kind: density\n    severity: warn\n", "  - metric: globals\n    kind: density\n    severity: fail\n", 1)
 	data = strings.Replace(data, "languages:\n  typescript:\n    thresholds:\n",
 		"languages:\n  typescript:\n    thresholds:\n      - metric: init_funcs\n        kind: density\n        max_delta: 0\n        severity: warn\n", 1)
 	cfg, err := Parse([]byte(data))
@@ -259,7 +264,8 @@ func TestParseSource(t *testing.T) {
 
 // TestDefaultVersionPrefix checks the embedded default ships calibrated
 // rebuild parameters: SPEC.md 11.2 names a rebuild fit rebuild-<date>-<agent>,
-// which score.Calibrated reads. The thresholds it carries are thresholds-<date>'s.
+// and a gate retune made on top of it after its date thresholds-<date>,
+// which score.Calibrated reads as carrying the fitted parameters.
 func TestDefaultVersionPrefix(t *testing.T) {
 	t.Parallel()
 
@@ -267,8 +273,8 @@ func TestDefaultVersionPrefix(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Parse(Default()) error = %v", err)
 	}
-	if !strings.HasPrefix(cfg.Version, "rebuild-") {
-		t.Errorf("Version = %q, want a rebuild-<date>-<agent> version", cfg.Version)
+	if !strings.HasPrefix(cfg.Version, "rebuild-") && !strings.HasPrefix(cfg.Version, "thresholds-") {
+		t.Errorf("Version = %q, want a rebuild-<date>-<agent> or thresholds-<date> version", cfg.Version)
 	}
 }
 
@@ -337,20 +343,20 @@ func TestParseErrors(t *testing.T) {
 		{name: "missing rebuild field", old: "  days_per_month: 19\n", repl: "", wantErr: "rebuild.days_per_month is required"},
 		{name: "missing chars_per_token", old: "chars_per_token: 3.2\n", repl: "", wantErr: "chars_per_token is required"},
 		{name: "zero chars_per_token", old: "chars_per_token: 3.2", repl: "chars_per_token: 0", wantErr: "chars_per_token must be > 0"},
-		{name: "zero min_tokens", old: "min_tokens: 40", repl: "min_tokens: 0", wantErr: "duplication.min_tokens must be > 0"},
+		{name: "zero min_tokens", old: "min_tokens: 60", repl: "min_tokens: 0", wantErr: "duplication.min_tokens must be > 0"},
 		{name: "negative min_tokens_cross", old: "min_tokens_cross: 80", repl: "min_tokens_cross: -1", wantErr: "duplication.min_tokens_cross must be >= 0"},
 		{name: "ignore_literal_only not a bool", old: "ignore_literal_only: true", repl: "ignore_literal_only: maybe", wantErr: "`maybe` into bool"},
-		{name: "unknown duplication key", old: "  min_tokens: 40\n", repl: "  min_tokens: 40\n  min_tokenz: 40\n", wantErr: "min_tokenz"},
-		{name: "empty version", old: "config_version: rebuild-2026-09-28-claude-code-opus", repl: "config_version: \"\"", wantErr: "config_version is required"},
+		{name: "unknown duplication key", old: "  min_tokens: 60\n", repl: "  min_tokens: 60\n  min_tokenz: 40\n", wantErr: "min_tokenz"},
+		{name: "empty version", old: "config_version: thresholds-2026-10-14", repl: "config_version: \"\"", wantErr: "config_version is required"},
 		{name: "unknown key", old: "chars_per_token: 3.2", repl: "chars_per_token: 3.2\nchars_per_tokenz: 3.2", wantErr: "chars_per_tokenz"},
 		{name: "threshold with no limit", old: "    kind: density\n    max_delta: 6\n    max: 40\n", repl: "    kind: density\n", wantErr: `"duplication_pct": density rule needs max_delta or max`},
 		{name: "capacity with max_delta", old: capacityRule, repl: capacityRule + "    max_delta: 0\n", wantErr: `"sloc": capacity rule must not set max_delta`},
 		{name: "ratchet_from_zero on capacity", old: capacityRule, repl: capacityRule + "    ratchet_from_zero: true\n", wantErr: `"sloc": ratchet_from_zero applies only to density rules`},
-		{name: "negative over_max_delta", old: "    over_max_delta: 100\n", repl: "    over_max_delta: -1\n", wantErr: `"sloc": over_max_delta must be a finite number >= 0, got -1`},
+		{name: "negative over_max_delta", old: "    over_max_delta: 150\n", repl: "    over_max_delta: -1\n", wantErr: `"sloc": over_max_delta must be a finite number >= 0, got -1`},
 		{name: "over_max_delta on density", old: "    kind: density\n    max_delta: 6\n", repl: "    kind: density\n    max_delta: 6\n    over_max_delta: 0\n", wantErr: `"duplication_pct": over_max_delta applies only to capacity rules`},
 		{name: "over_max_delta on requirement", old: "    require: true\n", repl: "    require: true\n    over_max_delta: 10\n", wantErr: `"has_tests": over_max_delta applies only to capacity rules`},
 		{name: "floor not a number", old: "    max: 5\n    # Nesting 4 or less is not failed for a rise.\n    floor: 4\n", repl: "    max: 5\n    floor: .nan\n", wantErr: `"max_nesting": floor must be a finite number`},
-		{name: "floor on capacity", old: "    over_max_delta: 100\n", repl: "    over_max_delta: 100\n    floor: 10\n", wantErr: `"sloc": floor applies only to density rules`},
+		{name: "floor on capacity", old: "    over_max_delta: 150\n", repl: "    over_max_delta: 150\n    floor: 10\n", wantErr: `"sloc": floor applies only to density rules`},
 		{name: "floor on a disabled rule", old: "languages:\n  typescript:\n    thresholds:\n", repl: "languages:\n  typescript:\n    thresholds:\n      - metric: sloc\n        disabled: true\n        floor: 10\n", wantErr: "a disabled rule sets only metric and disabled"},
 		{name: "over_max_delta on a disabled rule", old: "languages:\n  typescript:\n    thresholds:\n", repl: "languages:\n  typescript:\n    thresholds:\n      - metric: sloc\n        disabled: true\n        over_max_delta: 10\n", wantErr: "a disabled rule sets only metric and disabled"},
 		{name: "unknown severity", old: capacityRule, repl: capacityRule + "    severity: error\n", wantErr: `"sloc": unknown severity "error"; want fail or warn`},
@@ -388,8 +394,11 @@ func TestParseErrors(t *testing.T) {
 // defaultDupSection is the duplication section of default.yaml, comments
 // included, so tests can drop or rewrite it.
 const defaultDupSection = `duplication:
-  # Minimum normalized token run that counts as a duplicate block.
-  min_tokens: 40
+  # Minimum normalized token run that counts as a duplicate block. 60 has
+  # the best J of 40, 60, 80 and 120 on the hand labels with dup_blocks
+  # inside the 10% false-failure budget; at 40 short option setters and
+  # error chains counted (calibration/notes/min-tokens-2026-10-14.md).
+  min_tokens: 60
   # Shortest cross-package block, in normalized tokens, that
   # dup_blocks_cross_pkg fails a change for adding; shorter repeats of a
   # preamble across packages are reported but not gated. 80 is near where
@@ -411,7 +420,7 @@ const defaultDupSection = `duplication:
 func TestParseDuplication(t *testing.T) {
 	t.Parallel()
 
-	defaults := Duplication{MinTokens: 40, MinTokensCross: 80, IgnoreLiteralOnly: true, FoldSigns: true}
+	defaults := Duplication{MinTokens: 60, MinTokensCross: 80, IgnoreLiteralOnly: true, FoldSigns: true}
 	tests := []struct {
 		name         string
 		section      string
@@ -424,13 +433,13 @@ func TestParseDuplication(t *testing.T) {
 		{name: "only min_tokens", section: "duplication:\n  min_tokens: 25\n",
 			want: Duplication{MinTokens: 25, MinTokensCross: 80, IgnoreLiteralOnly: true, FoldSigns: true}},
 		{name: "only min_tokens_cross", section: "duplication:\n  min_tokens_cross: 120\n",
-			want: Duplication{MinTokens: 40, MinTokensCross: 120, IgnoreLiteralOnly: true, FoldSigns: true}},
+			want: Duplication{MinTokens: 60, MinTokensCross: 120, IgnoreLiteralOnly: true, FoldSigns: true}},
 		{name: "min_tokens_cross off", section: "duplication:\n  min_tokens_cross: 0\n",
-			want: Duplication{MinTokens: 40, IgnoreLiteralOnly: true, FoldSigns: true}},
+			want: Duplication{MinTokens: 60, IgnoreLiteralOnly: true, FoldSigns: true}},
 		{name: "only fold_signs", section: "duplication:\n  fold_signs: false\n",
-			want: Duplication{MinTokens: 40, MinTokensCross: 80, IgnoreLiteralOnly: true, FoldSigns: false}},
+			want: Duplication{MinTokens: 60, MinTokensCross: 80, IgnoreLiteralOnly: true, FoldSigns: false}},
 		{name: "split_literal_runs on", section: "duplication:\n  split_literal_runs: true\n",
-			want: Duplication{MinTokens: 40, MinTokensCross: 80, IgnoreLiteralOnly: true, FoldSigns: true, SplitLiteralRuns: true}},
+			want: Duplication{MinTokens: 60, MinTokensCross: 80, IgnoreLiteralOnly: true, FoldSigns: true, SplitLiteralRuns: true}},
 		{name: "split_literal_runs off", section: "duplication:\n  split_literal_runs: false\n", want: defaults},
 		{name: "full section with split_literal_runs", section: "duplication:\n  min_tokens: 30\n  ignore_literal_only: true\n" +
 			"  fold_signs: false\n  split_literal_runs: true\n",
@@ -560,8 +569,8 @@ func TestParseAcceptsCouplingMetrics(t *testing.T) {
 func TestResolveOrder(t *testing.T) {
 	t.Parallel()
 
-	custom := replace(t, "config_version: rebuild-2026-09-28-claude-code-opus", "config_version: custom")
-	flagged := replace(t, "config_version: rebuild-2026-09-28-claude-code-opus", "config_version: flagged")
+	custom := replace(t, "config_version: thresholds-2026-10-14", "config_version: custom")
+	flagged := replace(t, "config_version: thresholds-2026-10-14", "config_version: flagged")
 
 	tests := []struct {
 		name        string
@@ -570,7 +579,7 @@ func TestResolveOrder(t *testing.T) {
 		wantSource  string
 		wantVersion string
 	}{
-		{name: "embedded", wantSource: SourceEmbedded, wantVersion: "rebuild-2026-09-28-claude-code-opus"},
+		{name: "embedded", wantSource: SourceEmbedded, wantVersion: "thresholds-2026-10-14"},
 		{name: "working dir", localFile: true, wantSource: SourceWorkDir, wantVersion: "custom"},
 		{name: "flag over nothing", flag: true, wantSource: SourceFlag, wantVersion: "flagged"},
 		{name: "flag over working dir", localFile: true, flag: true, wantSource: SourceFlag, wantVersion: "flagged"},
@@ -636,7 +645,7 @@ func TestResolveErrors(t *testing.T) {
 // TestResolveUsesWorkingDir checks the exported entry point reads ./astimate.yaml.
 func TestResolveUsesWorkingDir(t *testing.T) {
 	dir := t.TempDir()
-	custom := replace(t, "config_version: rebuild-2026-09-28-claude-code-opus", "config_version: cwd")
+	custom := replace(t, "config_version: thresholds-2026-10-14", "config_version: cwd")
 	if err := os.WriteFile(filepath.Join(dir, FileName), []byte(custom), 0o600); err != nil {
 		t.Fatal(err)
 	}

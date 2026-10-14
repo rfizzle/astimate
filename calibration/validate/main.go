@@ -14,9 +14,13 @@
 //	    [--config <file>] [--candidate <file>] [--out <report.md>] [--agent-only=false] [--date YYYY-MM-DD]
 //
 // The configuration must be the one the replays gated with (the rows'
-// config_version): which rules fired is read from the rows' recorded
-// violations, and the sweeps re-evaluate each rule from the rows' stored
-// metrics with internal/gate. --candidate names a second configuration
+// config_version), or measure as it did: which rules fired is read from
+// the rows' recorded violations, and the sweeps re-evaluate each rule from
+// the rows' stored metrics with internal/gate. Rows replayed under another
+// configuration committed under calibration/thresholds, with the same
+// duplication settings, chars_per_token and exemptions and the same rules
+// at other limits, are accepted: each rule whose limits differ is
+// re-evaluated on the stored metrics in place of the recorded breaches. --candidate names a second configuration
 // whose top-level rules on metrics the first does not gate are measured
 // as candidates: re-evaluated on every row they would judge, swept, and
 // scored beside the gate as replayed, without becoming part of it.
@@ -32,7 +36,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/rfizzle/astimate/calibration/replay/labels"
@@ -50,8 +53,9 @@ type options struct {
 	// candidate is the configuration whose rules on metrics config does
 	// not gate are measured as candidates; empty for none.
 	candidate string
-	// thresholdsDir holds the committed threshold candidates, by which a
-	// replay made under thresholds-<date> is matched to the rules it used.
+	// thresholdsDir holds the committed configurations, by which rows
+	// replayed under another config_version are matched to the settings
+	// and rules they were replayed with.
 	thresholdsDir string
 	date          string
 	agentOnly     bool
@@ -159,33 +163,58 @@ func loadConfig(o *options) (*config.Config, string, error) {
 	return cfg, "the embedded default", err
 }
 
-// gatesAs reports whether cfg gates as the configuration a replay recorded
-// as version did: the same config_version, or, for a thresholds-<date>
-// version, the same rules as its candidate committed under dir. A rebuild
-// fit (rebuild-<date>-<agent>) changes the estimate's parameters and never
-// a rule, so replays made under the thresholds it was fitted on still hold.
-// The rules are compared without their severities: a severity decides only
-// whether a breach fails, and the scoring reads the recorded breaches of
-// either severity, so a rule the replay failed can be measured as a warn
-// rule and the other way round.
-func gatesAs(cfg *config.Config, version, dir string) bool {
+// reevaluated returns the rules of cfg, by their index in rules (cfg's
+// measure.NewRules), that rows a replay recorded as version ran at other
+// limits, and so must be re-evaluated on the rows' stored metrics. Rows
+// replayed under cfg's own config_version need none. Otherwise the
+// replay's configuration must be committed as dir/astimate-<version>.yaml
+// and measure as cfg does (sameMeasurement), since the rows' stored
+// metrics are what its settings measured, and its rules must be cfg's in
+// the same order, each on the same metric, kind and language, at limits
+// that may differ. A rule that differs only in severity is not
+// re-evaluated: a severity decides only whether a breach fails, and the
+// scoring reads the recorded breaches of either severity.
+func reevaluated(cfg *config.Config, rules *measure.Rules, version, dir string) ([]int, error) {
 	if cfg.Version == version {
-		return true
+		return nil, nil
 	}
-	if !strings.HasPrefix(version, "thresholds-") {
-		return false
+	path := filepath.Join(dir, "astimate-"+version+".yaml")
+	prev, err := config.Load(path)
+	if err != nil {
+		return nil, fmt.Errorf("replayed under %s, not %s, and that configuration cannot be read: %w", version, cfg.Version, err)
 	}
-	prev, err := config.Load(filepath.Join(dir, "astimate-"+version+".yaml"))
-	return err == nil && reflect.DeepEqual(withoutSeverity(prev.Thresholds), withoutSeverity(cfg.Thresholds))
+	if !sameMeasurement(cfg, prev) {
+		return nil, fmt.Errorf("replayed under %s, whose chars_per_token, duplication settings or exemptions differ from %s's, so its rows hold other metrics", version, cfg.Version)
+	}
+	then := measure.NewRules(prev).List
+	if len(then) != len(rules.List) {
+		return nil, fmt.Errorf("replayed under %s, which has %d rules where %s has %d", version, len(then), cfg.Version, len(rules.List))
+	}
+	var out []int
+	for i, r := range rules.List {
+		p := then[i]
+		if r.Language != p.Language || r.Threshold.Metric != p.Threshold.Metric || r.Threshold.Kind != p.Threshold.Kind {
+			return nil, fmt.Errorf("replayed under %s, whose rule %d is %s where %s has %s", version, i+1, p.Name(), cfg.Version, r.Name())
+		}
+		if !reflect.DeepEqual(withoutSeverity(r.Threshold), withoutSeverity(p.Threshold)) {
+			out = append(out, i)
+		}
+	}
+	return out, nil
 }
 
-// withoutSeverity returns a copy of ts with every severity cleared.
-func withoutSeverity(ts []gate.Threshold) []gate.Threshold {
-	out := slices.Clone(ts)
-	for i := range out {
-		out[i].Severity = ""
-	}
-	return out
+// sameMeasurement reports whether a and b give the same stored metrics
+// and verdict inputs: the same chars_per_token, duplication settings and
+// exemptions. A language override changes none of them.
+func sameMeasurement(a, b *config.Config) bool {
+	return a.CharsPerToken == b.CharsPerToken && a.Duplication == b.Duplication &&
+		reflect.DeepEqual(a.Exemptions, b.Exemptions)
+}
+
+// withoutSeverity returns t with its severity cleared.
+func withoutSeverity(t gate.Threshold) gate.Threshold {
+	t.Severity = ""
+	return t
 }
 
 // measureAll loads every corpus and computes the report's input.
@@ -195,6 +224,25 @@ func measureAll(o *options) (*report.Input, error) {
 		return nil, err
 	}
 	rules := measure.NewRules(cfg)
+	in := &report.Input{Date: o.date, Version: cfg.Version, ConfigSource: from, CandidateSource: o.candidate}
+	loaded := make([]*corpus.Corpus, 0, len(o.sources))
+	for _, src := range o.sources {
+		c, err := corpus.Load(src, o.agentOnly)
+		var differ []int
+		if err == nil {
+			differ, err = reevaluated(cfg, rules, c.ConfigVersion, o.thresholdsDir)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("corpus %s: %w", src.Name, err)
+		}
+		for _, i := range differ {
+			rules.Reevaluate(i)
+		}
+		if c.ConfigVersion != cfg.Version && !slices.Contains(in.Replayed, c.ConfigVersion) {
+			in.Replayed = append(in.Replayed, c.ConfigVersion)
+		}
+		loaded = append(loaded, c)
+	}
 	if err := addCandidates(rules, o.candidate); err != nil {
 		return nil, err
 	}
@@ -206,23 +254,13 @@ func measureAll(o *options) (*report.Input, error) {
 		}
 		return false
 	}
-	in := &report.Input{Date: o.date, Version: cfg.Version, ConfigSource: from, CandidateSource: o.candidate}
 	in.AgentOnly, in.Targets, in.Rules, in.Criteria = o.agentOnly, o.targets, rules.List, o.criteria
-	loaded := make([]*corpus.Corpus, 0, len(o.sources))
-	for _, src := range o.sources {
-		c, err := corpus.Load(src, o.agentOnly)
-		if err == nil && !gatesAs(cfg, c.ConfigVersion, o.thresholdsDir) {
-			err = fmt.Errorf("corpus %s was replayed under %s, not %s, and their rules differ", src.Name, c.ConfigVersion, cfg.Version)
-		}
-		var s *measure.Scored
-		if err == nil {
-			s, err = measure.Score(c, rules)
-		}
+	for i, c := range loaded {
+		s, err := measure.Score(c, rules)
 		if err != nil {
 			return nil, err
 		}
-		loaded = append(loaded, c)
-		in.Corpora = append(in.Corpora, describe(src, s, capacity))
+		in.Corpora = append(in.Corpora, describe(o.sources[i], s, capacity))
 	}
 	views := viewsOf(loaded, capacity)
 	scored := make([]*measure.Scored, len(views))
@@ -393,6 +431,7 @@ func fill(in *report.Input, scored []*measure.Scored, o *options) map[int]*gate.
 		_, dropped := basis.Swap(i, nil)
 		a := measure.Advise(basis.Rule(i), basis.Judged(i), curves, o.criteria)
 		in.Curves, in.Dropped, in.Advice = append(in.Curves, curves), append(in.Dropped, dropped), append(in.Advice, a)
+		in.Parts = append(in.Parts, basis.Alone(i))
 		switch {
 		case r.Candidate:
 		case a.Action == measure.Drop:

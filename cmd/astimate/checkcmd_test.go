@@ -74,8 +74,8 @@ func fixtureBaseline(t *testing.T) string {
 // function records existed do not.
 func writeFixtureBaseline(t *testing.T, withFunctions bool) string {
 	t.Helper()
-	// Extract as check does, with the extractor the default config builds.
-	tg, err := engine.LoadTarget(fixtureDir, engine.TargetOptions{Tokenizer: tokenizerEst})
+	// Extract as check does, with the extractor the pinned default config builds.
+	tg, err := engine.LoadTarget(fixtureDir, engine.TargetOptions{Config: pinnedConfig(t), Tokenizer: tokenizerEst})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,7 +161,7 @@ func TestCheckFixtures(t *testing.T) {
 			check := func(t *testing.T, format string) (stdout, stderr string) {
 				t.Helper()
 				var out, errOut bytes.Buffer
-				args := []string{"check", fx.dir, "--all", "--baseline", base, "--format", format}
+				args := []string{"check", fx.dir, "--all", "--baseline", base, "--config", pinnedConfigFile(t), "--format", format}
 				want := fx.wantCode
 				if format == formatHook {
 					want = exitOK // the hook's JSON carries the decision (SPEC.md 8.5)
@@ -363,12 +363,12 @@ func assertNoEstimate(t *testing.T, out string) {
 	}
 }
 
-// uncalibratedConfig writes the embedded default with its config_version
+// uncalibratedConfig writes the pinned default with its config_version
 // replaced by a thresholds-only calibration's, so its rebuild estimate
 // counts as uncalibrated (score.Calibrated), and returns its path.
 func uncalibratedConfig(t *testing.T) string {
 	t.Helper()
-	lines := strings.Split(string(config.Default()), "\n")
+	lines := strings.Split(string(pinnedDefault()), "\n")
 	replaced := false
 	for i, l := range lines {
 		if strings.HasPrefix(l, "config_version: ") {
@@ -386,7 +386,7 @@ func uncalibratedConfig(t *testing.T) string {
 }
 
 // TestCheckCalibratedText runs check on the degraded fixture under the
-// embedded default, whose rebuild estimate is calibrated, and under a config
+// pinned default, whose rebuild estimate is calibrated, and under a config
 // whose version marks it uncalibrated. Only the calibrated run's text
 // summary lines carry agent passes, tier and the change from the baseline;
 // the hook reason carries neither in both, and the JSON reports differ only
@@ -399,10 +399,11 @@ func TestCheckCalibratedText(t *testing.T) {
 
 	base := fixtureBaseline(t)
 	uncalCfg := uncalibratedConfig(t)
-	check := func(t *testing.T, format string, extra ...string) string {
+	calCfg := pinnedConfigFile(t)
+	check := func(t *testing.T, format, cfg string) string {
 		t.Helper()
 		var out, errOut bytes.Buffer
-		args := append([]string{"check", degradedDir, "--all", "--baseline", base, "--format", format}, extra...)
+		args := []string{"check", degradedDir, "--all", "--baseline", base, "--config", cfg, "--format", format}
 		want := exitGateFailed
 		if format == formatHook {
 			want = exitOK
@@ -416,12 +417,12 @@ func TestCheckCalibratedText(t *testing.T) {
 	t.Run("text", func(t *testing.T) {
 		t.Parallel()
 
-		uncal := check(t, formatText, "--config", uncalCfg)
+		uncal := check(t, formatText, uncalCfg)
 		assertNoEstimate(t, uncal)
 		if !strings.Contains("\n"+uncal, "\ntested: 4 violations, 0 warnings, 0 exempted\n") {
 			t.Errorf("uncalibrated text has no plain summary line for tested:\n%s", uncal)
 		}
-		cal := check(t, formatText)
+		cal := check(t, formatText, calCfg)
 		for _, pkg := range fixturePackages() {
 			line := ""
 			for l := range strings.SplitSeq(cal, "\n") {
@@ -437,15 +438,15 @@ func TestCheckCalibratedText(t *testing.T) {
 	t.Run("hook", func(t *testing.T) {
 		t.Parallel()
 
-		for _, extra := range [][]string{nil, {"--config", uncalCfg}} {
-			assertNoEstimate(t, check(t, formatHook, extra...))
+		for _, cfg := range []string{calCfg, uncalCfg} {
+			assertNoEstimate(t, check(t, formatHook, cfg))
 		}
 	})
 	t.Run("json", func(t *testing.T) {
 		t.Parallel()
 
-		uncal := check(t, formatJSON, "--config", uncalCfg)
-		cal := check(t, formatJSON)
+		uncal := check(t, formatJSON, uncalCfg)
+		cal := check(t, formatJSON, calCfg)
 		def, err := config.Parse(config.Default())
 		if err != nil {
 			t.Fatal(err)
@@ -552,7 +553,7 @@ func TestCheckJSONModuleLocation(t *testing.T) {
 	}
 	t.Parallel()
 
-	tg, err := engine.LoadTarget(fixtureDir, engine.TargetOptions{Tokenizer: tokenizerEst})
+	tg, err := engine.LoadTarget(fixtureDir, engine.TargetOptions{Config: pinnedConfig(t), Tokenizer: tokenizerEst})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -633,7 +634,7 @@ func TestChangedFunctionNeedsBaseline(t *testing.T) {
 		t.Parallel()
 		base := writeFixtureBaseline(t, false)
 		var out, errOut bytes.Buffer
-		args := []string{"check", degradedDir, "--all", "--baseline", base, "--format", formatJSON}
+		args := []string{"check", degradedDir, "--all", "--baseline", base, "--config", pinnedConfigFile(t), "--format", formatJSON}
 		if got := run(args, &out, &errOut); got != exitGateFailed {
 			t.Fatalf("run(%q) = %d, want the other degraded rules to fail; stderr:\n%s", args, got, errOut.String())
 		}
@@ -671,7 +672,7 @@ func TestCheckGitRef(t *testing.T) {
 	gitIn(t, repo, "commit", "-q", "--no-verify", "-m", "pristine fixture")
 	copyTree(t, filepath.Join(degradedDir, "tested"), filepath.Join(repo, "fixture", "tested"))
 
-	tg, err := engine.LoadTarget(filepath.Join(repo, "fixture"), engine.TargetOptions{Tokenizer: tokenizerEst})
+	tg, err := engine.LoadTarget(filepath.Join(repo, "fixture"), engine.TargetOptions{Config: pinnedConfig(t), Tokenizer: tokenizerEst})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -745,7 +746,7 @@ func TestCheckStaged(t *testing.T) {
 	// reports and stderr, and the roots head was listed at.
 	check := func(t *testing.T, all bool) (int, []report.Report, string, map[string]int) {
 		t.Helper()
-		tg, err := engine.LoadTarget(filepath.Join(repo, "fixture"), engine.TargetOptions{Tokenizer: tokenizerEst})
+		tg, err := engine.LoadTarget(filepath.Join(repo, "fixture"), engine.TargetOptions{Config: pinnedConfig(t), Tokenizer: tokenizerEst})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -981,7 +982,7 @@ func TestCheckHookStdin(t *testing.T) {
 			t.Parallel()
 
 			var stdout, stderr bytes.Buffer
-			args := []string{"--all", "--baseline", base, "--format", "hook", degradedDir}
+			args := []string{"--all", "--baseline", base, "--config", pinnedConfigFile(t), "--format", "hook", degradedDir}
 			if got := runCheckInput(args, tt.stdin, &stdout, &stderr); got != exitOK {
 				t.Fatalf("exit code = %d, want %d\nstderr:\n%s", got, exitOK, stderr.String())
 			}
@@ -1007,7 +1008,7 @@ func TestCheckHookStdin(t *testing.T) {
 			read = true
 			return strings.NewReader(`{"stop_hook_active":true}`)
 		}
-		args := []string{"--all", "--baseline", base, "--format", "json", degradedDir}
+		args := []string{"--all", "--baseline", base, "--config", pinnedConfigFile(t), "--format", "json", degradedDir}
 		if got := runCheckInput(args, stdin, &stdout, &stderr); got != exitGateFailed || read {
 			t.Errorf("json format: exit code = %d, stdin read = %v; want %d and no read", got, read, exitGateFailed)
 		}

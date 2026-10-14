@@ -71,7 +71,7 @@ func TestCheckPackageCoverageSource(t *testing.T) {
 	}
 	t.Parallel()
 
-	cfg, err := config.Parse([]byte(strings.Replace(string(config.Default()), "    # source: coverage\n", "    source: coverage\n", 1)))
+	cfg, err := config.Parse([]byte(strings.Replace(string(pinnedDefault()), "    # source: coverage\n", "    source: coverage\n", 1)))
 	if err != nil {
 		t.Fatalf("parsing the source: coverage config: %v", err)
 	}

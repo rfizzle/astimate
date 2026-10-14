@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/report"
 )
 
@@ -94,8 +93,8 @@ func TestCoverageUntestedExports(t *testing.T) {
 	staticCfg := filepath.Join(t.TempDir(), "static.yaml")
 	coverCfg := filepath.Join(t.TempDir(), "coverage.yaml")
 	for path, data := range map[string]string{
-		staticCfg: string(config.Default()),
-		coverCfg:  strings.Replace(string(config.Default()), "    # source: coverage\n", "    source: coverage\n", 1),
+		staticCfg: string(pinnedDefault()),
+		coverCfg:  strings.Replace(string(pinnedDefault()), "    # source: coverage\n", "    source: coverage\n", 1),
 	} {
 		if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
 			t.Fatal(err)

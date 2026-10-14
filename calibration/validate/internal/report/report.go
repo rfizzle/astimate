@@ -75,6 +75,13 @@ type Input struct {
 	// CandidateSource is the configuration the candidate rules came from,
 	// empty without candidates.
 	CandidateSource string
+	// Replayed lists the config_version of each replay whose rows were
+	// gated under another configuration than Version, which measures as it
+	// does (calibration/validate); the rules marked
+	// measure.Rule.Reevaluated are those it ran at other limits.
+	Replayed []string
+	// Parts holds measure.Scored.Alone on the basis for each rule.
+	Parts []measure.Rates
 	// AgentOnly says labels with agent: false were dropped.
 	AgentOnly bool
 	Targets   Targets
@@ -113,7 +120,7 @@ func (in *Input) basis() *View { return &in.Views[len(in.Views)-1] }
 // Render returns the report as Markdown.
 func Render(in *Input) string {
 	var b strings.Builder
-	sections := []func(*strings.Builder, *Input){header, method, headline, labelSets, candidates, corpora, perRule, size, sweeps, legacy, advice, missed}
+	sections := []func(*strings.Builder, *Input){header, method, headline, labelSets, candidates, corpora, perRule, parts, size, sweeps, legacy, advice, missed}
 	for _, section := range sections {
 		section(&b, in)
 	}
@@ -165,7 +172,29 @@ func method(b *strings.Builder, in *Input) {
 	if in.warnRules() {
 		b.WriteString(warnMethodText)
 	}
+	if len(in.Replayed) > 0 {
+		var names []string
+		for _, r := range in.Rules {
+			if r.Reevaluated {
+				names = append(names, code(r.Name()))
+			}
+		}
+		which := "none of its rules"
+		if len(names) > 0 {
+			which = strconv.Itoa(len(names)) + " of its rules, " + strings.Join(names, ", ") + ","
+		}
+		fmt.Fprintf(b, replayedMethodText, codes(in.Replayed), code(in.Version), which)
+	}
 	b.WriteString("\n")
+}
+
+// codes formats each of ss as code, joined by commas.
+func codes(ss []string) string {
+	out := make([]string, len(ss))
+	for i, s := range ss {
+		out[i] = code(s)
+	}
+	return strings.Join(out, ", ")
 }
 
 // warnRules reports whether the configuration has a warn rule
@@ -224,6 +253,7 @@ func headline(b *strings.Builder, in *Input) {
 				c.Source.Name, c.SetAside, block-c.SetAside, strconv.FormatFloat(100*share(1, block-c.SetAside), 'f', 1, 64))
 		}
 	}
+	handSample(b, in)
 	if len(ruled) > 0 {
 		fmt.Fprintf(b, "The `block` labels of %s are fix-ups (Method): their recall is the share of changes a later fix touched that the gate failed, and their `allow` labels include every bad change nobody fixed within 20 commits, which inflates the false-failure rate by an unknown amount.\n\n", strings.Join(ruled, ", "))
 	}
@@ -268,6 +298,51 @@ func perRule(b *strings.Builder, in *Input) {
 		rows = append(rows, rateRow(gateRow, v.Gate), rateRow("size-only, "+code("sloc_delta > "+strconv.Itoa(in.SizeT)), v.Size))
 		table(b, []string{"Rule", "Fired on `block`", "Fired on `allow`", "Precision", "Recall", "False-failure share"}, rows)
 	}
+}
+
+// parts writes each rule's part in the gate on the basis view: the
+// commits it fired on and those no other rule that fails fired on, which
+// the gate fails on its account alone (measure.Scored.Alone).
+func parts(b *strings.Builder, in *Input) {
+	v := in.basis()
+	fmt.Fprintf(b, partsText, v.Name, v.Gate.AllowFailed)
+	rows := make([][]string, 0, len(in.Rules))
+	for i, r := range in.Rules {
+		if r.Candidate || v.Judged[i] == 0 {
+			continue
+		}
+		own, alone := v.Rules[i], in.Parts[i]
+		share, aloneShare := "", ""
+		if !r.Threshold.Warns() {
+			share = frac(own.AllowFailed, v.Gate.AllowFailed)
+			aloneShare = frac(alone.AllowFailed, v.Gate.AllowFailed)
+		}
+		rows = append(rows, []string{code(ruleName(in.Rules, i)), strconv.Itoa(own.BlockFailed), strconv.Itoa(alone.BlockFailed),
+			strconv.Itoa(own.AllowFailed), strconv.Itoa(alone.AllowFailed), share, aloneShare})
+	}
+	table(b, []string{"Rule", "Fired on `block`", "Only it, `block`", "Fired on `allow`", "Only it, `allow`", "Share of the gate's false failures", "Only it, share"}, rows)
+}
+
+// handSample writes, for hand labels that mark the passed commits read
+// as a sample and those left unread, how many of each the scored commits
+// hold: recall counts only the block commits found among the commits
+// read.
+func handSample(b *strings.Builder, in *Input) {
+	read, unread := 0, 0
+	for _, c := range in.Corpora {
+		for i := range c.Loaded.Commits {
+			switch reason := c.Loaded.Commits[i].Label.Reason; {
+			case strings.HasPrefix(reason, sampledReason):
+				read++
+			case strings.HasPrefix(reason, unreadReason):
+				unread++
+			}
+		}
+	}
+	if read+unread == 0 {
+		return
+	}
+	fmt.Fprintf(b, handSampleText, read+unread, read, unread)
 }
 
 // rateRow is one row of a per-rule table.

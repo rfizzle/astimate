@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -225,19 +226,23 @@ func TestCommittedCandidate(t *testing.T) {
 }
 
 // committedRebuild is the rebuild fit (calibration/rebuild/fit) made on top
-// of committedCandidate, which the embedded default is.
+// of committedCandidate, which the embedded default carries.
 const committedRebuild = "../rebuild/astimate-rebuild-2026-09-28-claude-code-opus.yaml"
+
+// shippedRetune is the embedded default's config_version: the gate
+// validation's retune (SPEC.md 11.4) of the rebuild fit's configuration.
+const shippedRetune = "thresholds-2026-10-14"
 
 // TestDefaultIsCommittedCandidate checks the embedded default carries
 // exactly the committed threshold candidate's rules and extraction
 // settings, so the shipped thresholds are the fitted ones, and the committed
-// rebuild fit's parameters and config_version, which it was built from. The
-// one exception is each over_max_delta, which this fit does not produce:
-// calibration/validate fits the capacity rules' from the replayed commits
-// (SPEC.md 11.4), and changed_func_cognitive_max's is set by hand until
-// replays record changed functions, so they are compared apart, and so are
-// the density floors, set by hand (takeFloors), and the package roles
-// (takeRoles).
+// rebuild fit's parameters, which it was built from, under the gate
+// retune's config_version. The exceptions are what the gate validation
+// sets (SPEC.md 11.4), which this fit does not produce: each
+// over_max_delta, the severities and duplication.min_tokens, compared
+// apart, and so are changed_func_cognitive_max's over_max_delta, set by
+// hand, the density floors, set by hand (takeFloors), and the package
+// roles (takeRoles).
 func TestDefaultIsCommittedCandidate(t *testing.T) {
 	cand, err := config.Load(committedCandidate)
 	if err != nil {
@@ -258,9 +263,16 @@ func TestDefaultIsCommittedCandidate(t *testing.T) {
 			def.Thresholds[i].OverMaxDelta = nil
 		}
 	}
-	if want := map[string]float64{"tokens_est": 1000, "largest_file_sloc": 5, "exported_symbols": 5, "internal_imports": 1, "sloc": 100, "changed_func_cognitive_max": 5}; !maps.Equal(overMax, want) {
+	if want := map[string]float64{"tokens_est": 2000, "largest_file_sloc": 50, "exported_symbols": 5, "internal_imports": 1, "sloc": 150, "changed_func_cognitive_max": 5}; !maps.Equal(overMax, want) {
 		t.Errorf("default over_max_delta = %v, want the validation fit %v", overMax, want)
 	}
+	if warns := takeSeverities(def.Thresholds); !slices.Equal(warns, wantWarns()) {
+		t.Errorf("default warn rules = %v, want %v", warns, wantWarns())
+	}
+	if def.Duplication.MinTokens != 60 {
+		t.Errorf("default duplication.min_tokens = %d, want the validation's 60", def.Duplication.MinTokens)
+	}
+	def.Duplication.MinTokens = cand.Duplication.MinTokens
 	if floors := takeFloors(def.Thresholds); !maps.Equal(floors, wantFloors()) {
 		t.Errorf("default floors = %v, want %v", floors, wantFloors())
 	}
@@ -270,8 +282,8 @@ func TestDefaultIsCommittedCandidate(t *testing.T) {
 	if def.Thresholds, roles = takeRoles(def.Thresholds); !maps.Equal(roles, wantRoles()) {
 		t.Errorf("default roles = %v, want %v", roles, wantRoles())
 	}
-	if def.Version != rebuild.Version {
-		t.Errorf("default config_version = %q, rebuild fit %q", def.Version, rebuild.Version)
+	if def.Version != shippedRetune {
+		t.Errorf("default config_version = %q, want %q", def.Version, shippedRetune)
 	}
 	if !reflect.DeepEqual(def.Thresholds, cand.Thresholds) || !reflect.DeepEqual(rebuild.Thresholds, cand.Thresholds) {
 		t.Errorf("default or rebuild-fit thresholds differ from the committed candidate:\n%+v\n%+v", def.Thresholds, cand.Thresholds)

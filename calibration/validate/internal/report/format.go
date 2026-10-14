@@ -27,6 +27,26 @@ const methodText = "## Method\n\n" +
 // configuration has one.
 const warnMethodText = "- A rule with `severity: warn`, marked `(warn)`, reports its breaches as warnings and never fails a commit, so the gate's verdict and every gate column leave it out, whatever severity the replay ran it at. Its breach, recorded as a violation or as a warning with severity `warn`, still counts as the rule firing, so its row has precision and recall like any other and measures it before it is made to fail.\n"
 
+// replayedMethodText is the Method bullet on rows replayed under another
+// configuration; its verbs are the replays' config_version values, the
+// configuration's, and which of its rules are re-evaluated.
+const replayedMethodText = "- The rows were replayed under %s, not %s, with the same `chars_per_token`, duplication settings and exemptions, so their stored metrics are the ones this configuration measures; the replay ran %s at other limits. Each such rule is re-evaluated on every row it judges, as a sweep re-evaluates a rule, in place of the breaches the replay recorded for it, and the recheck leaves it out; a rule that differs only in severity is read as recorded.\n"
+
+// partsText introduces the table of each rule's part in the gate; its
+// verbs are the basis view and the gate's failed allow commits there.
+const partsText = "## Each rule's part in the gate\n\nOn the %s view, where the gate fails %d `allow` commits: the commits each rule fired on, and those no other rule that fails fired on, which the gate fails on its account alone. A rule that fails no `block` commit alone adds no recall to the gate, and the `allow` commits it fails alone are the false failures that dropping it, or making it a warn rule, would remove. For a warn rule the share columns are empty, and its only-it columns count the commits it would fail alone were it made to fail.\n\n"
+
+// sampledReason and unreadReason begin the reason of a hand label for a
+// passed commit read as part of the sample and for one not read.
+const (
+	sampledReason = "sampled pass"
+	unreadReason  = "passed, outside the hand sample"
+)
+
+// handSampleText says how far recall rests on a hand sample; its verbs
+// are the passed commits the reasons classify, those read and those not.
+const handSampleText = "Recall rests on the commits read by hand: the labels mark %d passed commits that touched a package, of which %d were read as a sample and %d were not and count as `allow` by assumption, so a regression among those %[3]d is not in the `block` count.\n\n"
+
 // legacyText introduces the capacity table; its verb is the basis view.
 const legacyText = "On the %s view: the commits each capacity rule fired on, and those where every package it fired on was already over the `max` at the parent, so the violation was growth past a ceiling passed earlier rather than a crossing. A retuned `max` does not change how often such a package grows; the `over_max_delta` sweep (Sweeps) is the setting that does.\n\n"
 

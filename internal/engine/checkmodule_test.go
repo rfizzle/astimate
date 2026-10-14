@@ -214,7 +214,7 @@ func TestCollectModuleRow(t *testing.T) {
 // row included.
 func crossPackageTarget(t *testing.T) (*Target, map[string]metrics.RawMetrics) {
 	t.Helper()
-	cfg, err := config.Parse(config.Default())
+	cfg, err := config.Parse(pinnedDefault())
 	if err != nil {
 		t.Fatal(err)
 	}
