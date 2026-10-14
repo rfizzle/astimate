@@ -35,6 +35,11 @@ type Rule struct {
 	// (Rules.Reevaluate): it fires where it is re-evaluated on a row's
 	// stored metrics, not where the replay recorded a breach.
 	Reevaluated bool
+	// Replaced is the metric the replay's rule in this rule's place
+	// judged, when that was another metric of the same kind
+	// (Rules.Replace), such as dup_blocks for a rule on dup_blocks_code;
+	// empty otherwise. Such a rule is Reevaluated.
+	Replaced string
 }
 
 // Name is the rule's metric, followed by its override's language in
@@ -112,6 +117,20 @@ func (s *Rules) AddCandidate(t gate.Threshold) (int, error) {
 // rule at other limits: Score then re-evaluates it on every row it judges
 // in place of the breaches the replay recorded.
 func (s *Rules) Reevaluate(i int) { s.List[i].Reevaluated = true }
+
+// Replace marks rule i Reevaluated and Replaced by metric, for rows a
+// replay gated with a rule on metric in its place: Score re-evaluates it
+// on the rows' stored metrics, and reads the breaches the replay recorded
+// of metric, which no rule of s may gate, as nobody's.
+func (s *Rules) Replace(i int, metric string) {
+	s.List[i].Reevaluated, s.List[i].Replaced = true, metric
+}
+
+// replaced reports whether metric is the metric a Replaced rule of s
+// stands in for.
+func (s *Rules) replaced(metric string) bool {
+	return slices.ContainsFunc(s.List, func(r Rule) bool { return r.Replaced == metric })
+}
 
 // Candidates returns the List indexes of the candidate rules, in order.
 func (s *Rules) Candidates() []int {

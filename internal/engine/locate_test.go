@@ -1,12 +1,14 @@
 package engine
 
 import (
+	"bytes"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/baseline"
+	"github.com/rfizzle/astimate/internal/config"
 )
 
 // degradedDir is the degraded copy of the fixture: its tested package adds
@@ -18,7 +20,9 @@ const degradedDir = "../../testdata/go/fixture-degraded"
 // located on the line the degraded copy added, module-relative, the
 // duplicate block it cites is said to be added in this change and the
 // untested export it added is named first, and the check carries the
-// module root's directory in its repository.
+// module root's directory in its repository. The copy is a code block, so
+// it fails under the default's dup_blocks rule and under a dup_blocks_code
+// rule in its place alike.
 func TestCheckLocatesDegradedFindings(t *testing.T) {
 	if testing.Short() {
 		t.Skip("integration test: loads Go packages")
@@ -48,7 +52,22 @@ func TestCheckLocatesDegradedFindings(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tg, err := LoadTarget(degradedDir, TargetOptions{Config: pinnedConfig(t), Tokenizer: TokenizerEst})
+	checkDegraded(t, path, pinnedConfig(t), "dup_blocks",
+		"1 duplicate block of any kind (1 code) covers 12.2% of lines; extract shared helpers, starting with degraded.go:15-20, added in this change.")
+	code, err := config.Parse(bytes.Replace(pinnedDefault(), []byte("  - metric: dup_blocks\n"), []byte("  - metric: dup_blocks_code\n"), 1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkDegraded(t, path, code, "dup_blocks_code",
+		"1 duplicate code block (of 1 of any kind; not declarative, idiom or self-overlap); extract shared helpers, starting with degraded.go:15-20, added in this change.")
+}
+
+// checkDegraded checks the degraded fixture under cfg against the
+// baseline file at path, its duplication judged by the rule on dup, whose
+// suggestion is dupText.
+func checkDegraded(t *testing.T, path string, cfg *config.Config, dup, dupText string) {
+	t.Helper()
+	tg, err := LoadTarget(degradedDir, TargetOptions{Config: cfg, Tokenizer: TokenizerEst})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,12 +90,12 @@ func TestCheckLocatesDegradedFindings(t *testing.T) {
 	}
 	want := map[string]string{
 		"changed_func_cognitive_max": "tested/grade.go:8",
-		"dup_blocks":                 "tested/degraded.go:15",
+		dup:                          "tested/degraded.go:15",
 		"globals":                    "tested/degraded.go:9",
 		"untested_exports":           "tested/degraded.go:13",
 	}
 	wantText := map[string]string{
-		"dup_blocks":       "starting with degraded.go:15-20, added in this change.",
+		dup:                dupText,
 		"untested_exports": "no test (JoinAgain)",
 	}
 	seen := 0

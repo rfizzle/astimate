@@ -30,7 +30,7 @@ const warnMethodText = "- A rule with `severity: warn`, marked `(warn)`, reports
 // replayedMethodText is the Method bullet on rows replayed under another
 // configuration; its verbs are the replays' config_version values, the
 // configuration's, and which of its rules are re-evaluated.
-const replayedMethodText = "- The rows were replayed under %s, not %s, with the same `chars_per_token`, duplication settings and exemptions, so their stored metrics are the ones this configuration measures; the replay ran %s at other limits. Each such rule is re-evaluated on every row it judges, as a sweep re-evaluates a rule, in place of the breaches the replay recorded for it, and the recheck leaves it out; a rule that differs only in severity is read as recorded.\n"
+const replayedMethodText = "- The rows were replayed under %s, not %s, with the same `chars_per_token`, duplication settings and exemptions, so their stored metrics are the ones this configuration measures; the replay ran %s. Each such rule is re-evaluated on every row it judges, as a sweep re-evaluates a rule, in place of the breaches the replay recorded for it, and the recheck leaves it out; a rule that differs only in severity is read as recorded.\n"
 
 // partsText introduces the table of each rule's part in the gate; its
 // verbs are the basis view and the gate's failed allow commits there.

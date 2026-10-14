@@ -69,7 +69,7 @@ func describeChanged(f *metrics.FunctionInfo) *changedFunction {
 // say:
 //
 //   - dup_blocks, duplication_pct and duplicated_lines on a duplicate
-//     block's occurrence,
+//     block's occurrence, and dup_blocks_code on a code block's,
 //   - untested_exports on an untested export's declaration,
 //   - globals on a global's declaration,
 //   - sloc, largest_file_sloc, tokens_est and tokens_est_with_tests on the
@@ -80,7 +80,8 @@ func describeChanged(f *metrics.FunctionInfo) *changedFunction {
 //
 // Among several candidates it takes the first in a file holding a changed
 // function, so the annotation lands on the diff, else the first; but when
-// lead says the change added the first duplicate block or untested export,
+// lead says the change added the first duplicate block (of kind code, for
+// dup_blocks_code) or untested export,
 // which d then lists first (rankNew), that finding takes the first. Files
 // are made module-relative by joining r's package path. A finding with no
 // candidate keeps no location, and renderers fall back to the package
@@ -119,6 +120,8 @@ func findingPosition(metric string, d *metrics.Details, worst *changedFunction, 
 	switch metric {
 	case "dup_blocks", "duplication_pct", "duplicated_lines":
 		pos = pickPosition(dupPositions(d.DupLocations), preferred(changed, lead.dup))
+	case "dup_blocks_code":
+		pos = pickPosition(dupPositions(codeLocations(d.DupBlocks)), preferred(changed, lead.code))
 	case "untested_exports":
 		pos = pickPosition(d.UntestedPositions, preferred(changed, lead.untested))
 	case "globals":

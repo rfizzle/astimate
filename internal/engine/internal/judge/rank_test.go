@@ -37,6 +37,45 @@ func legacyRow() baseline.Row {
 	return baseline.Row{HasNamed: true, Named: baseline.Named{DupBlocks: []uint64{1, 2}, UntestedExports: []string{"Legacy"}}}
 }
 
+// TestRankNewCodeBlocks checks the names a dup_blocks_code finding cites:
+// the code blocks only, an added one first, and whether the change added
+// it, which an added block of another kind does not make it.
+func TestRankNewCodeBlocks(t *testing.T) {
+	t.Parallel()
+
+	legacy := metrics.DupBlock{Anchors: [2]uint64{1, 2}, Kind: "code", Locations: []string{"a.go:1-30", "a.go:40-69"}}
+	overlap := metrics.DupBlock{Anchors: [2]uint64{3, 4}, Kind: "self-overlap", Locations: []string{"s.go:1-9", "s.go:5-13"}}
+	pasted := metrics.DupBlock{Anchors: [2]uint64{5, 6}, Kind: "code", Locations: []string{"p.go:2-20", "q.go:8-26"}}
+	row := baseline.Row{HasNamed: true, Named: baseline.Named{DupBlocks: []uint64{1, 2}}}
+	tests := []struct {
+		name     string
+		blocks   []metrics.DupBlock
+		wantCode []string
+		want     leads
+	}{
+		{name: "an added code block leads", blocks: []metrics.DupBlock{legacy, overlap, pasted},
+			wantCode: []string{"p.go:2-20", "q.go:8-26", "a.go:1-30", "a.go:40-69"}, want: leads{dup: true, code: true}},
+		{name: "an added self-overlap block is no added code block", blocks: []metrics.DupBlock{legacy, overlap},
+			wantCode: []string{"a.go:1-30", "a.go:40-69"}, want: leads{dup: true}},
+		{name: "no code block", blocks: []metrics.DupBlock{overlap}, want: leads{dup: true}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			d := metrics.Details{DupBlocks: tt.blocks}
+			var names score.Names
+			if got := rankNew(&d, &names, &row, true); got != tt.want {
+				t.Errorf("leads = %+v, want %+v", got, tt.want)
+			}
+			if !slices.Equal(names.DupCodeLocations, tt.wantCode) || names.DupCodeAdded != tt.want.code {
+				t.Errorf("code locations %q (added %v), want %q (added %v)", names.DupCodeLocations, names.DupCodeAdded,
+					tt.wantCode, tt.want.code)
+			}
+		})
+	}
+}
+
 func TestRankNew(t *testing.T) {
 	t.Parallel()
 

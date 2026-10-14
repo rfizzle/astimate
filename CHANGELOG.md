@@ -12,6 +12,18 @@ history.
 
 ### Added
 
+- A configuration may gate `dup_blocks_code`, the code blocks of
+  `dup_blocks`, in place of `dup_blocks`: its finding carries
+  `duplication_pct` and `duplicated_lines` as `dup_blocks` would, merges
+  into `dup_blocks` when both are gated, cites the first code block (an
+  added one first) and is located on it. The default keeps `dup_blocks`:
+  on the relabelled hand labels of 2026-10-14 the code-block rule lowers
+  the rule's J from +60.8 to +50.4 points and the gate's from +76.4 to
+  +72.0, with recall 80.0% against 86.7%
+  (`calibration/notes/dup-blocks-code-2026-10-14.md`). `calibration/validate`
+  accepts such a rule in a replayed rule's place and re-evaluates it on the
+  stored metrics.
+
 - A package that existed at the baseline but failed to load there (a type
   error, a missing module) is no longer judged as new. It is judged
   against the capacity and density `max` values only, with the ratchets
@@ -325,6 +337,10 @@ history.
   their declaration headers stop counting as duplication.
 
 ### Changed
+
+- The `dup_blocks` suggestion says it counts blocks of any kind and how
+  many of them are code, and `explain_metric` says which kinds the
+  default gate judges.
 
 - The embedded default is `thresholds-2026-10-14`, retuned on 14
   hand-labelled `block` and 138 `allow` agent commits from five

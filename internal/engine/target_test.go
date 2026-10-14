@@ -117,7 +117,7 @@ func TestDupesDuplicationSuggestionNamesLocation(t *testing.T) {
 		t.Fatalf("Names: %v", err)
 	}
 	got := score.MetricSuggestion("dup_blocks", float64(m.DupBlocks), m, names)
-	want := "1 duplicate block covers 80.6% of lines; extract shared helpers, starting with dupes.go:9-26."
+	want := "1 duplicate block of any kind (1 code) covers 80.6% of lines; extract shared helpers, starting with dupes.go:9-26."
 	if got != want {
 		t.Errorf("dup_blocks suggestion = %q, want %q", got, want)
 	}

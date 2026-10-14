@@ -30,6 +30,14 @@ type Names struct {
 	// DupAdded reports that the change added the block DupLocations
 	// starts with (RankDupBlocks), so the suggestion says so.
 	DupAdded bool
+	// DupCodeLocations lists the occurrences of the duplicate blocks of
+	// kind code (SPEC.md 6.3), the ones dup_blocks_code counts, in the
+	// order of DupLocations, the one to cite first; nil when the blocks
+	// are not grouped by kind or none is code.
+	DupCodeLocations []string
+	// DupCodeAdded reports that the change added the block
+	// DupCodeLocations starts with, so the suggestion says so.
+	DupCodeAdded bool
 	// ChangedFunction names the most complex function added or modified
 	// since the baseline, the one changed_func_cognitive_max reports, with
 	// its location when known, for example "Parser.next (parse.go:40)".
@@ -102,14 +110,16 @@ func driverSuggestion(d Driver, m *metrics.RawMetrics, n Names) string {
 // on metric, whose value at head is head. m supplies related values quoted in
 // the text and n the names, when known. It returns "" for a metric without a
 // template; every metric with a default threshold in SPEC.md 8.2 has one, and
-// so do dup_blocks_cross_pkg, duplicated_lines, the informational flags uses_cgo,
+// so do dup_blocks_cross_pkg, dup_blocks_code, duplicated_lines, the informational flags uses_cgo,
 // uses_reflect and generated_files, and tokens_est_generated, which a config
 // may gate.
 func MetricSuggestion(metric string, head float64, m metrics.RawMetrics, n Names) string {
 	v := formatNum(head)
 	switch metric {
 	case "dup_blocks":
-		return dupSentence(int(head), formatPct(m.DuplicationPct), n.DupLocations, n.DupAdded)
+		return kindsSentence(int(head), m.DupBlocksCode, formatPct(m.DuplicationPct), n.DupLocations, n.DupAdded)
+	case "dup_blocks_code":
+		return codeSentence(int(head), m.DupBlocks, n.DupCodeLocations, n.DupCodeAdded)
 	case "duplication_pct":
 		return dupSentence(m.DupBlocks, formatPct(head), n.DupLocations, n.DupAdded)
 	case "duplicated_lines":
@@ -164,7 +174,37 @@ const addedNote = ", added in this change"
 // dupSentence renders the duplication template, citing the first location
 // when one is known, and saying the change added its block when added.
 func dupSentence(blocks int, pct string, locations []string, added bool) string {
-	s := count(blocks, "duplicate block covers", "duplicate blocks cover") + " " + pct + "% of lines; extract shared helpers"
+	return citeBlock(count(blocks, "duplicate block covers", "duplicate blocks cover")+" "+pct+"% of lines", locations, added)
+}
+
+// kindsSentence renders the dup_blocks template. dup_blocks counts blocks
+// of every kind (SPEC.md 6.3), so when code, the package's dup_blocks_code,
+// is known the count says so and how many of the blocks are code.
+func kindsSentence(blocks int, code *int, pct string, locations []string, added bool) string {
+	if code == nil {
+		return dupSentence(blocks, pct, locations, added)
+	}
+	verb := " cover "
+	if blocks == 1 {
+		verb = " covers "
+	}
+	return citeBlock(count(blocks, "duplicate block", "duplicate blocks")+" of any kind ("+strconv.Itoa(*code)+" code)"+
+		verb+pct+"% of lines", locations, added)
+}
+
+// codeSentence renders the dup_blocks_code template for code duplicate
+// blocks out of blocks of every kind, citing the first code block when one
+// is known and saying the change added it when added.
+func codeSentence(code, blocks int, locations []string, added bool) string {
+	return citeBlock(count(code, "duplicate code block", "duplicate code blocks")+" (of "+strconv.Itoa(blocks)+
+		" of any kind; not declarative, idiom or self-overlap)", locations, added)
+}
+
+// citeBlock completes a duplication template from its subject: the advice
+// to extract shared helpers, the first location when one is known, and
+// that the change added its block when added.
+func citeBlock(subject string, locations []string, added bool) string {
+	s := subject + "; extract shared helpers"
 	if len(locations) > 0 {
 		s += ", starting with " + locations[0]
 		if added {

@@ -78,7 +78,8 @@ type Input struct {
 	// Replayed lists the config_version of each replay whose rows were
 	// gated under another configuration than Version, which measures as it
 	// does (calibration/validate); the rules marked
-	// measure.Rule.Reevaluated are those it ran at other limits.
+	// measure.Rule.Reevaluated are those it ran at other limits, or on
+	// another metric (measure.Rule.Replaced).
 	Replayed []string
 	// Parts holds measure.Scored.Alone on the basis for each rule.
 	Parts []measure.Rates
@@ -174,14 +175,19 @@ func method(b *strings.Builder, in *Input) {
 	}
 	if len(in.Replayed) > 0 {
 		var names []string
+		where := " at other limits"
 		for _, r := range in.Rules {
-			if r.Reevaluated {
+			switch {
+			case r.Replaced != "":
+				names = append(names, code(r.Name())+" (on "+code(r.Replaced)+" in the replay)")
+				where = " at other limits or on another metric"
+			case r.Reevaluated:
 				names = append(names, code(r.Name()))
 			}
 		}
-		which := "none of its rules"
+		which := "none of its rules" + where
 		if len(names) > 0 {
-			which = strconv.Itoa(len(names)) + " of its rules, " + strings.Join(names, ", ") + ","
+			which = strconv.Itoa(len(names)) + " of its rules, " + strings.Join(names, ", ") + "," + where
 		}
 		fmt.Fprintf(b, replayedMethodText, codes(in.Replayed), code(in.Version), which)
 	}

@@ -127,13 +127,13 @@ func texts() []entry {
 		},
 		{
 			"dup_blocks", "gated",
-			"Distinct maximal duplicate token sequences of at least duplication.min_tokens within the package.{generated}",
-			"{duplication}",
+			"Distinct maximal duplicate token sequences of at least duplication.min_tokens within the package, blocks of every kind: declarative, idiom, self-overlap and code (dup_blocks_code counts the code ones).{generated}",
+			"{duplication} The default gate judges blocks of every kind. Judging the code blocks only, a dup_blocks_code rule in its place, was measured on the 2026-10-14 hand labels and not taken: the rule's J fell from +60.8 to +50.4 points and the gate's from +76.4 to +72.0, its recall from 86.7% to 80.0%.",
 		},
 		{
 			"dup_blocks_code", "",
 			"The dup_blocks blocks that are code: not only declarations and literals, not only error returns, call statements and call assignments, and not overlapping their own previous copy.{generated}",
-			"{duplication} Reported, not gated, while its gate rule is measured.",
+			"{duplication} Not gated by default: the default judges dup_blocks, blocks of every kind. A configuration may gate dup_blocks_code in its place, with the same limits, to judge code blocks only; its finding cites the first code block, an added one first. On the 2026-10-14 hand labels that rule failed 53.3% of block and 2.9% of allow commits against dup_blocks' 66.7% and 5.8%, a lower J.",
 		},
 		{
 			"duplication_pct", "gated",

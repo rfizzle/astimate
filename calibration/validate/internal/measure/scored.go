@@ -80,7 +80,8 @@ type Scored struct {
 // a breach of a candidate's metric (Rule.Candidate), which the replay
 // cannot have gated if it ran with this configuration. A rule marked
 // Reevaluated fires where it breaches on a row's stored metrics instead,
-// whatever the replay recorded for it.
+// whatever the replay recorded for it; a recorded breach of the metric a
+// Replaced rule stands in for, which no rule gates, is skipped.
 func Score(c *corpus.Corpus, s *Rules) (*Scored, error) {
 	sc := &Scored{Corpus: c, Rules: s, fired: make([][]bool, len(c.Commits))}
 	for ci := range c.Commits {
@@ -90,6 +91,9 @@ func Score(c *corpus.Corpus, s *Rules) (*Scored, error) {
 			r := &cm.Rows[ri]
 			for _, m := range slices.Concat(r.Violated, r.Warned) {
 				i, ok := s.For(r, m)
+				if !ok && s.replaced(m) {
+					continue
+				}
 				if !ok || s.List[i].Candidate {
 					return nil, fmt.Errorf("commit %s row %s: violation of %s, which no rule gates there", cm.Hash, r.Package, m)
 				}

@@ -218,6 +218,39 @@ func TestDuplicationNamesFirstLocation(t *testing.T) {
 	}
 }
 
+// TestDuplicationKinds checks that the dup_blocks suggestion says it
+// counts blocks of every kind, and how many are code, when
+// dup_blocks_code is known, and that the dup_blocks_code suggestion cites
+// the first code block, not the first block of any kind.
+func TestDuplicationKinds(t *testing.T) {
+	t.Parallel()
+
+	code := 1
+	m := metrics.RawMetrics{DupBlocks: 3, DupBlocksCode: &code, DuplicationPct: 12.5}
+	n := Names{DupLocations: []string{"keys.go:4-12", "keys.go:20-28", "parse.go:40-52", "lex.go:7-19"},
+		DupCodeLocations: []string{"parse.go:40-52", "lex.go:7-19"}, DupCodeAdded: true}
+	tests := []struct {
+		metric string
+		head   float64
+		m      metrics.RawMetrics
+		want   string
+	}{
+		{"dup_blocks", 3, m, "3 duplicate blocks of any kind (1 code) cover 12.5% of lines; extract shared helpers, starting with keys.go:4-12."},
+		{"dup_blocks", 1, metrics.RawMetrics{DupBlocks: 1, DupBlocksCode: new(int), DuplicationPct: 4},
+			"1 duplicate block of any kind (0 code) covers 4% of lines; extract shared helpers, starting with keys.go:4-12."},
+		{"dup_blocks_code", 1, m, "1 duplicate code block (of 3 of any kind; not declarative, idiom or self-overlap); extract shared helpers, starting with parse.go:40-52, added in this change."},
+		{"dup_blocks_code", 2, metrics.RawMetrics{DupBlocks: 2}, "2 duplicate code blocks (of 2 of any kind; not declarative, idiom or self-overlap); extract shared helpers, starting with parse.go:40-52, added in this change."},
+	}
+	for _, tt := range tests {
+		if got := MetricSuggestion(tt.metric, tt.head, tt.m, n); got != tt.want {
+			t.Errorf("%s at %v:\ngot  %q\nwant %q", tt.metric, tt.head, got, tt.want)
+		}
+	}
+	if got := MetricSuggestion("dup_blocks_code", 0, m, Names{}); got != "0 duplicate code blocks (of 3 of any kind; not declarative, idiom or self-overlap); extract shared helpers." {
+		t.Errorf("no code locations: got %q", got)
+	}
+}
+
 func TestDriverSuggestionEveryTerm(t *testing.T) {
 	t.Parallel()
 

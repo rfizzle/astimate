@@ -25,14 +25,17 @@ type mergePair struct {
 // only when duplicated_lines rose, so all three are one finding on
 // dup_blocks; when dup_blocks did not fire (a copy that merged two blocks
 // into one longer one), duplication_pct merges into duplicated_lines.
+// dup_blocks_code, the code blocks of dup_blocks, stands in for dup_blocks
+// in a configuration that gates it instead (SPEC.md 8.2): a code paste
+// raises it with dup_blocks, so it merges into dup_blocks when both are
+// gated, and otherwise carries duplication_pct and duplicated_lines as
+// dup_blocks would.
 func mergePairs() []mergePair {
-	return []mergePair{
-		{},
-		{keep: "sloc", drop: "tokens_est"},
-		{keep: "dup_blocks", drop: "duplication_pct"},
-		{keep: "dup_blocks", drop: "duplicated_lines"},
-		{keep: "duplicated_lines", drop: "duplication_pct"},
+	pairs := []mergePair{{}, {keep: "sloc", drop: "tokens_est"}, {keep: "dup_blocks", drop: "dup_blocks_code"}}
+	for _, blocks := range []string{"dup_blocks", "dup_blocks_code"} {
+		pairs = append(pairs, mergePair{keep: blocks, drop: "duplication_pct"}, mergePair{keep: blocks, drop: "duplicated_lines"})
 	}
+	return append(pairs, mergePair{keep: "duplicated_lines", drop: "duplication_pct"})
 }
 
 // MergedInto returns the metric whose finding a finding of metric is

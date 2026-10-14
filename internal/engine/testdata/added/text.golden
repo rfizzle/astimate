@@ -1,6 +1,6 @@
 violations:
   p
-    dup_blocks: 1 -> 2, max_delta +0. 2 duplicate blocks cover 93.5% of lines; extract shared helpers, starting with z.go:6-12, added in this change.
+    dup_blocks: 1 -> 2, max_delta +0. 2 duplicate blocks of any kind (1 code) cover 93.5% of lines; extract shared helpers, starting with z.go:6-12, added in this change.
     untested_exports: 2 -> 4, max_delta +0. 4 exported functions have no test (Zeta1, Zeta2, Legacy1, Legacy2); a rebuild would have to reverse-engineer their behavior.
 <module>: dup_blocks_cross_pkg 0, 0 violations, 0 warnings, 0 exempted
 p: 0.0 passes (ONE_PASS), 2 violations, 0 warnings, 0 exempted, +0.0 passes from baseline

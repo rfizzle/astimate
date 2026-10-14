@@ -194,6 +194,20 @@ func TestReevaluated(t *testing.T) {
 		{"a rule of another kind", "reordered-1", nil, "where"},
 		{"no committed configuration", "thresholds-1999-01-01", nil, "cannot be read"},
 	}
+	code, err := config.Parse([]byte(edit("  - metric: dup_blocks\n", "  - metric: dup_blocks_code\n")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Run("a rule on another metric in a replayed rule's place", func(t *testing.T) {
+		codeRules := measure.NewRules(code)
+		got, err := reevaluated(code, codeRules, "same-1", dir)
+		if err != nil || len(got) != 1 {
+			t.Fatalf("reevaluated = %v, %v, want one rule", got, err)
+		}
+		if r := codeRules.List[got[0]]; r.Threshold.Metric != "dup_blocks_code" || r.Replaced != "dup_blocks" || !r.Reevaluated {
+			t.Errorf("rule %+v, want dup_blocks_code replacing dup_blocks", r)
+		}
+	})
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := reevaluated(def, rules, tt.version, dir)
@@ -206,6 +220,65 @@ func TestReevaluated(t *testing.T) {
 				t.Errorf("reevaluated(%q) = %v, want %v", tt.version, got, tt.want)
 			}
 		})
+	}
+}
+
+// TestRunCodeBlocks validates a configuration that gates dup_blocks_code
+// on rows a dup_blocks rule gated, each row storing both counts: the
+// commit that added only a self-overlap block passes, the code paste
+// still fails, and the Method names the rule and the metric it replaced.
+func TestRunCodeBlocks(t *testing.T) {
+	t.Chdir(t.TempDir())
+	def := string(config.Default())
+	cfg, err := config.Parse(config.Default())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join("calibration", "thresholds"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	replayed := strings.Replace(def, "config_version: "+cfg.Version+"\n", "config_version: blocks-1\n", 1)
+	code := strings.Replace(def, "  - metric: dup_blocks\n", "  - metric: dup_blocks_code\n", 1)
+	if replayed == def || code == def {
+		t.Fatal("the embedded default has no config_version or dup_blocks rule to edit")
+	}
+	if err := os.WriteFile(filepath.Join("calibration", "thresholds", "astimate-blocks-1.yaml"), []byte(replayed), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile("code.yaml", []byte(code), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c := func(hash string) string {
+		return `{"commit":"` + hash + `","subject":"subject ` + hash + `","config_version":"blocks-1","baseline":"parent","loaded":true,"passed":false}` + "\n"
+	}
+	row := func(hash, base, head string) string {
+		return `{"commit":"` + hash + `","package":"a","language":"go","metrics":{"sloc":200,"has_tests":true,` + head +
+			`},"base":{"sloc":190,"has_tests":true,` + base + `},"sloc_delta":10,"violations":[{"metric":"dup_blocks"}]}` + "\n"
+	}
+	kinds := fixture(t, ".", "kinds", c("k1")+c("k2"),
+		row("k1", `"dup_blocks":1,"dup_blocks_code":1`, `"dup_blocks":2,"dup_blocks_code":1`)+
+			row("k2", `"dup_blocks":1,"dup_blocks_code":0`, `"dup_blocks":2,"dup_blocks_code":1`),
+		`source: {repository: r, range: x, data: d}
+commits:
+  - {hash: k1, verdict: allow, reason: a run of calls matching itself a line down, provenance: confirmed, agent: true}
+  - {hash: k2, verdict: block, reason: a pasted function, provenance: confirmed, agent: true}
+`)
+	var stdout, stderr bytes.Buffer
+	if err := run([]string{"--corpus", kinds, "--config", "code.yaml", "--out", "report.md", "--date", "2026-10-14"}, &stdout, &stderr); err != nil {
+		t.Fatalf("run: %v; stderr %s", err, stderr.String())
+	}
+	data, err := os.ReadFile("report.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"| kinds | 1 of 1 (100.0%) | met | 0 of 1 (0.0%) | met |",
+		"`dup_blocks_code` (on `dup_blocks` in the replay)",
+		"at other limits or on another metric.",
+	} {
+		if !strings.Contains(string(data), want) {
+			t.Errorf("report lacks %q", want)
+		}
 	}
 }
 

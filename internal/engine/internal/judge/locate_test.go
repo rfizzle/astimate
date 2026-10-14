@@ -19,6 +19,10 @@ func TestFindingPosition(t *testing.T) {
 		SourceFiles:       []string{"a.go", "b.go", "doc.go"},
 	}
 	worst := &changedFunction{file: "b.go", line: 11, files: map[string]bool{"b.go": true}}
+	kinds := &metrics.Details{DupBlocks: []metrics.DupBlock{
+		{Kind: "declarative", Locations: []string{"a.go:3-9", "b.go:12-18"}},
+		{Kind: "code", Locations: []string{"c.go:30-41", "b.go:40-51"}},
+	}}
 	tests := []struct {
 		name   string
 		metric string
@@ -42,6 +46,10 @@ func TestFindingPosition(t *testing.T) {
 		{name: "first file without doc.go", metric: "fan_in", d: &metrics.Details{SourceFiles: []string{"x.go", "y.go"}},
 			want: metrics.Position{File: "x.go", Line: 1}},
 		{name: "nothing recorded", metric: "globals", d: &metrics.Details{}},
+		{name: "code duplicate skips a declarative block", metric: "dup_blocks_code", d: kinds, want: metrics.Position{File: "c.go", Line: 30}},
+		{name: "code duplicate in a changed file", metric: "dup_blocks_code", d: kinds, worst: worst, want: metrics.Position{File: "b.go", Line: 40}},
+		{name: "added code duplicate over a changed file", metric: "dup_blocks_code", d: kinds, worst: worst, lead: leads{code: true},
+			want: metrics.Position{File: "c.go", Line: 30}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

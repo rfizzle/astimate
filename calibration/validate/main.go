@@ -20,7 +20,10 @@
 // configuration committed under calibration/thresholds, with the same
 // duplication settings, chars_per_token and exemptions and the same rules
 // at other limits, are accepted: each rule whose limits differ is
-// re-evaluated on the stored metrics in place of the recorded breaches. --candidate names a second configuration
+// re-evaluated on the stored metrics in place of the recorded breaches, and
+// so is a rule on another metric of the same kind in a replayed rule's
+// place (dup_blocks_code for dup_blocks), when no rule gates the replayed
+// one. --candidate names a second configuration
 // whose top-level rules on metrics the first does not gate are measured
 // as candidates: re-evaluated on every row they would judge, swept, and
 // scored beside the gate as replayed, without becoming part of it.
@@ -171,9 +174,13 @@ func loadConfig(o *options) (*config.Config, string, error) {
 // and measure as cfg does (sameMeasurement), since the rows' stored
 // metrics are what its settings measured, and its rules must be cfg's in
 // the same order, each on the same metric, kind and language, at limits
-// that may differ. A rule that differs only in severity is not
-// re-evaluated: a severity decides only whether a breach fails, and the
-// scoring reads the recorded breaches of either severity.
+// that may differ. A rule on another metric of the same kind and language
+// is accepted too, when no rule of cfg gates the replay's metric: it is
+// re-evaluated in place of the replay's rule (measure.Rules.Replace), as a
+// dup_blocks_code rule is on rows a dup_blocks rule gated, since the rows
+// store both. A rule that differs only in severity is not re-evaluated: a
+// severity decides only whether a breach fails, and the scoring reads the
+// recorded breaches of either severity.
 func reevaluated(cfg *config.Config, rules *measure.Rules, version, dir string) ([]int, error) {
 	if cfg.Version == version {
 		return nil, nil
@@ -193,14 +200,24 @@ func reevaluated(cfg *config.Config, rules *measure.Rules, version, dir string) 
 	var out []int
 	for i, r := range rules.List {
 		p := then[i]
-		if r.Language != p.Language || r.Threshold.Metric != p.Threshold.Metric || r.Threshold.Kind != p.Threshold.Kind {
+		if r.Language != p.Language || r.Threshold.Kind != p.Threshold.Kind ||
+			(r.Threshold.Metric != p.Threshold.Metric && gates(rules, p.Threshold.Metric)) {
 			return nil, fmt.Errorf("replayed under %s, whose rule %d is %s where %s has %s", version, i+1, p.Name(), cfg.Version, r.Name())
 		}
-		if !reflect.DeepEqual(withoutSeverity(r.Threshold), withoutSeverity(p.Threshold)) {
+		switch {
+		case r.Threshold.Metric != p.Threshold.Metric:
+			rules.Replace(i, p.Threshold.Metric)
+			out = append(out, i)
+		case !reflect.DeepEqual(withoutSeverity(r.Threshold), withoutSeverity(p.Threshold)):
 			out = append(out, i)
 		}
 	}
 	return out, nil
+}
+
+// gates reports whether a rule of rules is on metric.
+func gates(rules *measure.Rules, metric string) bool {
+	return slices.ContainsFunc(rules.List, func(r measure.Rule) bool { return r.Threshold.Metric == metric })
 }
 
 // sameMeasurement reports whether a and b give the same stored metrics

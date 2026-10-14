@@ -103,7 +103,11 @@ rebuild:
 # role, as in a baseline or replay written before roles existed, is a
 # library.
 thresholds:
-  # No new duplicate blocks; copy-paste is the primary target.
+  # No new duplicate blocks; copy-paste is the primary target. Blocks of
+  # every kind count: declarative, idiom, self-overlap and code (SPEC.md
+  # 6.3). A rule on dup_blocks_code would judge code blocks only; on the
+  # 2026-10-14 hand labels it lowered the rule's J and the gate's, and
+  # the gate's recall to 80% (calibration/notes/dup-blocks-code-2026-10-14.md).
   - metric: dup_blocks
     kind: density
     max_delta: 0

@@ -163,7 +163,7 @@ func TestEvaluateMergeLeavesCapacityWarnings(t *testing.T) {
 func TestMergedInto(t *testing.T) {
 	t.Parallel()
 
-	for metric, want := range map[string]string{"tokens_est": "sloc", "duplication_pct": "dup_blocks", "duplicated_lines": "dup_blocks", "sloc": "", "globals": ""} {
+	for metric, want := range map[string]string{"tokens_est": "sloc", "duplication_pct": "dup_blocks", "duplicated_lines": "dup_blocks", "dup_blocks_code": "dup_blocks", "sloc": "", "globals": ""} {
 		got, ok := gate.MergedInto(metric)
 		if got != want || ok != (want != "") {
 			t.Errorf("MergedInto(%q) = %q, %t, want %q", metric, got, ok, want)

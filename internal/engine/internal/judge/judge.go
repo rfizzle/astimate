@@ -313,7 +313,7 @@ func Details(ctx context.Context, ext metrics.Extractor, mod *metrics.ModuleCont
 		return metrics.Details{}, score.Names{}, fmt.Errorf("naming suggestions for %s: %w", pkg, err)
 	}
 	names := score.Names{UntestedExports: det.UntestedExports, DupLocations: det.DupLocations,
-		CrossBlocks: det.CrossBlocks, Globals: det.GlobalNames}
+		DupCodeLocations: codeLocations(det.DupBlocks), CrossBlocks: det.CrossBlocks, Globals: det.GlobalNames}
 	return det, names, nil
 }
 
