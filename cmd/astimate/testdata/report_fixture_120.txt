@@ -1,0 +1,33 @@
+Fixture  example.com/fixture · thresholds-2026-10-14b
+
+Fixture has no package too big to rebuild in one go.
+12 packages · 2 weeks to rebuild · 11 fine · 1 watch · 0 split · 7 without tests
+
+Start here  by days to rebuild
+
+ 1  hidden  FINE  2 days
+    It is inside every limit, and it has no tests at all.
+    Do this → Nothing. Leave it alone.
+
+ 2  immut  FINE  2 days
+    It is inside every limit, and it has no tests at all.
+    Do this → Nothing. Leave it alone.
+
+ 3  a  FINE  1 day
+    It is inside every limit, and it has no tests at all.
+    Do this → Nothing. Leave it alone.
+
+Every package  by days to rebuild · * is over its size limit
+
+ PACKAGE       BAND   TIME  LINES   COPIED  UNTESTED  CHANGES
+ hidden        FINE    2 d     32       0%         1        -
+ immut         FINE    2 d     31       0%         3        -
+ a             FINE    1 d     22       0%         2        -
+ b             FINE    1 d     22       0%         2        -
+ hub           FINE    1 d     20       0%         3        -
+ tested        FINE    1 d     27       0%         0        -
+ dupes         WATCH   1 d     67    80.6%         3        -
+ support       FINE    1 d      8       0%         0        -
+ errs          FINE    1 d      6       0%         1        -
+ trivial       FINE    1 d      4       0%         1        -
+ … 2 more · --all for every row · --format json · --format md · --format html

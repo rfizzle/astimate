@@ -183,6 +183,10 @@ trivial     0.0   0.9  ONE_PASS       1     214   0.0      -  library
 ```
 <!-- /sample:rank-ts -->
 
+### report
+
+`astimate report [<module-root>]` describes the module in plain words (`SPEC.md` section 10.3): a verdict sentence, the packages counted as Split (too big to rebuild in one go), Watch (close to a limit) and Fine, "Start here" with the three packages that change most often times cost most to rebuild, each with what is wrong and what to do, and "Every package", the ten costliest by rebuild days (`--all` lists every one). `--base <ref>` adds the change report `check` prints. `--format json` prints the data, `--format md` the Markdown and `--format html` writes the page; the text, the default, follows the terminal's width (100 columns in a pipe) and is coloured only on a terminal without `NO_COLOR` (`--color always|never` overrides). It reports and does not gate: it exits 0 whatever the change's verdict.
+
 ### baseline write
 
 `astimate baseline write [<module-root>]` writes every package's metrics to `.astimate/baseline.json` (or `--out`) for a repository that prefers an explicit, reviewable baseline to a git ref, or that runs outside git. Commit the file and pass it to `check --baseline`.
@@ -196,39 +200,33 @@ wrote /tmp/fixture-baseline.json (12 packages)
 
 ### check
 
-`astimate check [<module-root>]` is the gate. It compares the packages changed since the baseline, or every package with `--all`, against the thresholds and exits 3 when any has a violation. The baseline is the merge-base of `HEAD` and `--base <ref>` (default `origin/master`, then `master`, `origin/main`, `main`), checked out into a temporary worktree, or a file written by `baseline write` with `--baseline <file>`. `--staged` judges the git index instead of the working tree, as a commit would record it. `--format` is `text` (default), `json`, `hook` (Claude Code Stop hook) or `github` (workflow annotations).
+`astimate check [<module-root>]` is the gate. It compares the packages changed since the baseline, or every package with `--all`, against the thresholds and exits 3 when any has a violation. The baseline is the merge-base of `HEAD` and `--base <ref>` (default `origin/master`, then `master`, `origin/main`, `main`), checked out into a temporary worktree, or a file written by `baseline write` with `--baseline <file>`. `--staged` judges the git index instead of the working tree, as a commit would record it. `--format` is `text` (default), `json`, `hook` (Claude Code Stop hook), `github` (workflow annotations) or `md` (the Markdown for a pull request).
 
-`testdata/go/fixture-degraded` is the fixture after an agent copied a function into package `tested`, added an untested export and a package variable, and grew a function's branching. Checked against a baseline of the pristine fixture, the complex function fails; the untested export and the package variable are reported as warnings, since the default ships those rules at `severity: warn`, and the copied function is shorter than the 60 tokens a duplicate block needs:
+The text is the change report: `FAIL` or `PASS` first, the counts, then each failing package behind `✗` with its findings, one line of heads-ups (warnings, which never fail the gate) by rule, and the exit code. `--warnings` lists every warning with its package, limit and suggestion. It follows the terminal's width (100 columns in a pipe, as below; at 80 columns or fewer each finding takes one line) and is coloured only on a terminal without `NO_COLOR`; `--color always|never` overrides, and every severity is a word or sign first, so a CI log reads the same.
+
+`testdata/go/fixture-degraded` is the fixture after an agent copied a function into package `tested`, added an untested export and a package variable, and grew a function's branching. Checked against a baseline of the pristine fixture, the complex function fails; the untested export and the package variable are counted as heads-ups, warnings, since the default ships those rules at `severity: warn`, and the copied function is shorter than the 60 tokens a duplicate block needs:
 
 <!-- sample:check -->
 ```
 $ astimate check testdata/go/fixture-degraded --baseline /tmp/fixture-baseline.json --all
-violations:
-  tested
-    changed_func_cognitive_max: 51 (changed since baseline), max 50. Changed function grade (grade.go:8) has cognitive complexity 51; split it into smaller functions or flatten its branching.
-warnings:
-  tested
-    globals: 0 -> 1, max_delta +0. 1 mutable package-level variable holds state no signature reveals (joins); pass it explicitly or move it into a struct.
-    untested_exports: 0 -> 1, max_delta +0. 1 exported function has no test (JoinAgain); a rebuild would have to reverse-engineer its behavior.
-<module>: dup_blocks_cross_pkg 1, 0 violations, 0 warnings, 0 exempted
-a: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 0 exempted, +0.0 passes from baseline
-b: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 0 exempted, +0.0 passes from baseline
-consumer: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 0 exempted, +0.0 passes from baseline
-dupes: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 0 exempted, +0.0 passes from baseline
-errs: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 0 exempted, +0.0 passes from baseline
-hidden: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 0 exempted, +0.0 passes from baseline
-hub: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 0 exempted, +0.0 passes from baseline
-immut: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 0 exempted, +0.0 passes from baseline
-sibling: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 0 exempted, +0.0 passes from baseline
-support: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 0 exempted, +0.0 passes from baseline
-tested: 0.0 passes (ONE_PASS), 1 violation, 2 warnings, 0 exempted, +0.0 passes from baseline
-trivial: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 0 exempted, +0.0 passes from baseline
+FAIL  1 package needs attention before this merges.  against fixture-baseline.json
+      12 changed · 1 fail · 2 heads up · 11 pass clean · copies between packages 1 → 1
+
+ ✗ tested  1 finding · 4.5 days to rebuild
+   changed func cognitive max  51  max 50
+   A function this complex is the one a rebuild gets wrong.
+   open tested/grade.go:8
+
+ ! 2 heads up: globals 1, untested exports 1
+   astimate check --warnings lists them; they never block
+
+ exit 3
 $ echo $?
 3
 ```
 <!-- /sample:check -->
 
-Each finding reads `metric: baseline -> head, limit. suggestion`, one per cause: a rule over both its `max_delta` and its `max`, `tokens_est` beside `sloc` and `duplication_pct` beside `dup_blocks` are each one finding whose limit names both. [docs/reading-violations.md](docs/reading-violations.md) explains them and the order to fix them in. The `<module>` row carries module-wide metrics, today `dup_blocks_cross_pkg`, the code copied between packages; it is reported first, and the default rule fails a change that adds a cross-package block of at least `min_tokens_cross` tokens (120) that is neither moved by a package split nor a declarative block shared only by `main` packages (`max_delta: 0` on the baseline count plus the added blocks); a module with no baseline, or a baseline file, is held to the count (`max: 450`, the corpus p90).
+Each finding names its metric in words, baseline → head and how far it moved against what the rule allows (else the rule's limit), why the gate cares or else what to do, and the file and line to open; `--format json`, `hook` and `github` carry each finding's full `limit` and suggestion. There is one finding per cause: a rule over both its `max_delta` and its `max`, `tokens_est` beside `sloc` and `duplication_pct` beside `dup_blocks` are each one finding whose limit names both. [docs/reading-violations.md](docs/reading-violations.md) explains them and the order to fix them in. The `<module>` row carries module-wide metrics, today `dup_blocks_cross_pkg`, the code copied between packages; it is reported first, and the default rule fails a change that adds a cross-package block of at least `min_tokens_cross` tokens (120) that is neither moved by a package split nor a declarative block shared only by `main` packages (`max_delta: 0` on the baseline count plus the added blocks); a module with no baseline, or a baseline file, is held to the count (`max: 450`, the corpus p90).
 
 #### Gate semantics
 
@@ -457,7 +455,9 @@ internal/score/                 Rebuild estimate, tiers, drivers, suggestions
 internal/gate/                  Thresholds and evaluation
 internal/baseline/              Git-ref and file baselines
 internal/churn/                 Churn per package from one git log over a window of commits
-internal/report/                Output formats
+internal/report/                Output formats of the gate and the estimate
+internal/narrate/               The module report, its sentences (compose) and its formats (render, term, markdown)
+internal/cli/                   Flag, output, width and colour plumbing the commands share
 internal/report/rows/           Rank rows and their writers
 internal/report/details/        The details block of a report
 internal/narrate/               The module report astimate report renders, and its builder

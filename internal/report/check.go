@@ -47,6 +47,26 @@ type Check struct {
 	// Every format lists them after the rows' findings; JSON carries them
 	// on the module row.
 	Skipped []Skipped
+	// Listed is the number of packages the module has at head, from
+	// which the module report counts the packages the check left
+	// unchanged; 0 when the check was given its packages.
+	Listed int
+}
+
+// Notices returns the check's notices, one line each, as the text format
+// ends with them: a package whose baseline is unavailable
+// (unavailableText), then each skipped package (skippedText).
+func (c *Check) Notices() []string {
+	var out []string
+	for i := range c.Packages {
+		if r := &c.Packages[i].Report; r.BaselineUnavailable != "" {
+			out = append(out, unavailableText(r))
+		}
+	}
+	for i := range c.Skipped {
+		out = append(out, skippedText(&c.Skipped[i]))
+	}
+	return out
 }
 
 // CheckedPackage is one checked package: its report with the gate outcome

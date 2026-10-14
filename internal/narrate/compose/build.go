@@ -204,8 +204,12 @@ func change(c *report.Check, base string, m *narrate.Module) *narrate.Change {
 		byPath[m.Packages[i].Path] = &m.Packages[i]
 	}
 	ch := &narrate.Change{Base: base, Changed: len(c.Packages), Failing: []narrate.Failing{}, WarningGroups: []narrate.WarningGroup{},
-		PassedPaths: []string{}, Deleted: c.Deleted}
-	ch.Unchanged = max(0, len(m.Packages)-ch.Changed)
+		PassedPaths: []string{}, Deleted: c.Deleted, Notices: c.Notices()}
+	total := c.Listed
+	if total == 0 {
+		total = len(m.Packages)
+	}
+	ch.Unchanged = max(0, total-ch.Changed)
 	rows := make([]*report.Report, 0, len(c.Packages)+1)
 	if c.Module != nil {
 		rows = append(rows, &c.Module.Report)
@@ -226,6 +230,11 @@ func change(c *report.Check, base string, m *narrate.Module) *narrate.Change {
 		if b := r.Baseline; b != nil && ch.BaseCommit == "" {
 			ch.BaseCommit = b.Ref
 		}
+		for i := range r.Exemptions {
+			e := &r.Exemptions[i]
+			ch.Exempted = append(ch.Exempted, narrate.Exempted{Path: r.PackagePath, Metric: e.Metric,
+				Label: strings.ReplaceAll(e.Metric, "_", " "), Reason: e.Reason})
+		}
 		for i := range r.Warnings {
 			w := &r.Warnings[i]
 			untested = untested || w.Metric == "untested_exports"
@@ -234,7 +243,8 @@ func change(c *report.Check, base string, m *narrate.Module) *narrate.Change {
 				g = &narrate.WarningGroup{Metric: w.Metric, Label: strings.ReplaceAll(w.Metric, "_", " "), Why: warnWhy(w.Metric, m.Limits)}
 				groups[w.Metric] = g
 			}
-			g.Packages = append(g.Packages, narrate.Warned{Path: r.PackagePath, Base: w.Base, Head: w.Head})
+			g.Packages = append(g.Packages, narrate.Warned{Path: r.PackagePath, Base: w.Base, Head: w.Head,
+				Limit: w.Limit, Do: firstClause(w.Suggestion)})
 			ch.Warnings++
 		}
 		if len(r.Violations) == 0 {

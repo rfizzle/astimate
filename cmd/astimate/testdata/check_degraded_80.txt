@@ -1,0 +1,12 @@
+FAIL  1 package needs attention before this merges.  against master
+      1 changed · 1 fail · 0 heads up · 0 pass clean
+      copies between packages 1 → 1
+
+ ✗ tested  4 findings
+   changed func cognitive max  51     max 50
+   open tested/grade.go:8
+   dup blocks                  0 → 1  1 new copy, none allowed
+   globals                     0 → 1  max_delta +0
+   untested exports            0 → 1  max_delta +0
+
+ exit 3

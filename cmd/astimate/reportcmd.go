@@ -13,18 +13,19 @@ import (
 )
 
 // runReport prints the module report of a module: `report [<module-root>]
-// [--base ref] [--format json|md|html] [--out file] [--open] [--config
-// path] [--tokenizer est|o200k]` (SPEC.md 10.3). The root defaults to the
-// current directory. Without --format it notes on stderr that text output
-// is coming and prints the JSON. A package that fails is logged and left
-// out, and the command exits 2 after printing the rest. A failing change
-// is reported, not gated.
+// [--base ref] [--format text|json|md|html] [--all] [--out file] [--open]
+// [--color auto|always|never] [--config path] [--tokenizer est|o200k]`
+// (SPEC.md 10.3). The root defaults to the current directory. A package
+// that fails is logged and left out, and the command exits 2 after
+// printing the rest. A failing change is reported, not gated.
 func runReport(args []string, stdout, stderr io.Writer) int {
-	fs := cli.NewFlagSet("report", "usage: astimate report [<module-root>] [--base ref] [--format "+
-		strings.Join(render.Formats(), "|")+"] [--out file] [--open] [--config path] [--tokenizer est|o200k]", stderr)
+	formats := strings.Join(render.Formats(), "|")
+	fs := cli.NewFlagSet("report", "usage: astimate report [<module-root>] [--base ref] [--format "+formats+
+		"] [--all] [--out file] [--open] [--color auto|always|never] [--config path] [--tokenizer est|o200k]", stderr)
 	base := fs.String("base", "", "add the change against the merge-base of HEAD and this git ref")
-	format := fs.String("format", "", "output format: "+strings.Join(render.Formats(), ", "))
+	format := fs.String("format", render.FormatText, "output format: "+strings.Join(render.Formats(), ", "))
 	opts := render.Flags(fs)
+	color := fs.String("color", cli.ColorAuto, "colour the text format: auto (a terminal without NO_COLOR), always or never")
 	var tf targetFlags
 	tf.register(fs, false)
 	dir, ok := cli.ParseModuleArgs("report", fs, args, stderr)
@@ -34,13 +35,14 @@ func runReport(args []string, stdout, stderr io.Writer) int {
 	if _, ok := tf.validate("report", stderr); !ok {
 		return exitUsage
 	}
-	if *format == "" {
-		_, _ = fmt.Fprintln(stderr, "astimate: report: text output is coming; printing JSON (--format json)")
-		*format = render.FormatJSON
-	}
 	if !slices.Contains(render.Formats(), *format) {
 		_, _ = fmt.Fprintf(stderr, "astimate: report: unknown format %q: want one of %s\n",
 			*format, strings.Join(render.Formats(), ", "))
+		return exitUsage
+	}
+	var err error
+	if opts.Width, opts.Color, err = cli.Terminal(stdout, *color); err != nil {
+		_, _ = fmt.Fprintf(stderr, "astimate: report: %v\n", err)
 		return exitUsage
 	}
 	logger := cli.NewLogger(stderr)

@@ -296,6 +296,24 @@ type Change struct {
 	PassedSummary string `json:"passed_summary"`
 	// Deleted are packages the baseline had and head does not.
 	Deleted []string `json:"deleted,omitempty"`
+	// Exempted are the violations an exemption accepted, each with its
+	// reason (SPEC.md 8.6); omitted when there are none.
+	Exempted []Exempted `json:"exempted,omitempty"`
+	// Notices are the check's notices, one sentence each: a package whose
+	// baseline is unavailable, or that was skipped because it does not
+	// load (SPEC.md 8.5); omitted when there are none.
+	Notices []string `json:"notices,omitempty"`
+}
+
+// Exempted is a violation an exemption accepted.
+type Exempted struct {
+	// Path is the package path, or <module> for the module row.
+	Path string `json:"path"`
+	// Metric is the rule's metric; Label the same for people.
+	Metric string `json:"metric"`
+	Label  string `json:"label"`
+	// Reason is the exemption's recorded reason.
+	Reason string `json:"reason"`
 }
 
 // Cross is dup_blocks_cross_pkg at base and head.
@@ -355,4 +373,8 @@ type Warned struct {
 	Path string   `json:"path"`
 	Base *float64 `json:"base"`
 	Head float64  `json:"head"`
+	// Limit is the gate's limit text and Do the first clause of its
+	// suggestion, as on a Finding.
+	Limit string `json:"limit"`
+	Do    string `json:"do"`
 }

@@ -298,6 +298,7 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 		ModuleDir: baseline.RepoDir(ctx, t.Mod.Root),
 		Tokenizer: t.tokenizer(),
 		Skipped:   skipped.Report(t.Mod.ModulePath, selected),
+		Listed:    len(head),
 	}
 	now := opts.Now
 	if now.IsZero() {

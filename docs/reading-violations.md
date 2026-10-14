@@ -4,6 +4,27 @@ This page is for the agent (or person) that `astimate check` has just refused. I
 
 ## The output
 
+In a terminal or a CI log, `astimate check` prints the change report (the counts and days here are illustrative):
+
+```
+FAIL  1 package needs attention before this merges.  against master
+      2 changed · 1 fail · 1 heads up · 0 pass clean · copies between packages 1 → 1
+
+ ✗ tested  1 finding · 4.5 days to rebuild
+   untested exports  0 → 1  max_delta +0
+   1 exported function has no test (JoinAgain).
+   open tested/degraded.go:13
+
+ ! 1 heads up: tokens est 1
+   astimate check --warnings lists them; they never block
+
+ exit 3
+```
+
+`FAIL` or `PASS` comes first, then the counts: the packages that changed, failed, carry warnings (heads-ups) or pass clean, and the code copied between packages at the baseline and now. Each failing package follows behind `✗`, any exempted violations after the heads-ups (see [Exemptions](#exemptions)). A finding gives its metric in words, baseline → head, and how far it moved against what the rule allows (`grew 416, allowed 150` for a package already past its ceiling, `4 new copies, none allowed` for new duplicates), else the rule's limit; then why the gate cares, or else what to do; then the file and line to open. At 80 columns or fewer each finding takes one line and only the package's first place to open is named. The warnings are counted by rule on the `!` line; `astimate check --warnings` lists each with its package, limit and suggestion. The failing package's summary gives its rebuild days and how often it changed lately only when the rebuild parameters are calibrated, as the embedded default's are (its `config_version` starts `rebuild-`): an uncalibrated estimate can contradict the gate, rating a duplicated package one pass while the gate asks for a split. `astimate assess` and `rank` always show the estimate, labeled calibrated or uncalibrated.
+
+The Claude Code hook sends the findings in full as its `reason`, one line each, without the counts:
+
 ```
 violations:
   tested
@@ -11,11 +32,9 @@ violations:
 warnings:
   big
     tokens_est: 11000 -> 12800, max 16000. at 80% of the 16000 ceiling; plan a split before the next feature. The package is 12800 tokens of non-test source; split it so a rebuild fits one agent pass.
-tested: 0.1 passes (ONE_PASS), 1 violation, 0 warnings, 0 exempted, +0.1 passes from baseline
-big: 0.3 passes (ONE_PASS), 0 violations, 1 warning, 0 exempted, +0.0 passes from baseline
 ```
 
-Violations come first, then warnings, then any exempted violations (see [Exemptions](#exemptions)), each grouped under the package directory, then one summary line per package (the `big` lines are illustrative). The summary line leads with the rebuild estimate's agent passes and tier, counts the findings, says `new since baseline` for a package the baseline lacks, and ends with the change in passes from the baseline. The embedded default's rebuild parameters are calibrated (its `config_version` starts `rebuild-`). Under a configuration whose parameters are not, the line leaves the estimate out and reads `tested: 1 violation, 0 warnings, 0 exempted`, because an uncalibrated estimate can contradict the gate, rating a duplicated package one pass while the gate asks for a split. `astimate assess` and `rank` always show the estimate, labeled calibrated or uncalibrated. Each finding line is `metric: baseline -> head, limit. suggestion`; a package new since the baseline shows `head (no baseline)` instead, and `changed_func_cognitive_max`, which is itself measured against the baseline, shows `head (changed since baseline)` for a new function and the function's own `base -> head` for one that existed at the baseline. One cause is one finding: a rule over both its `max_delta` and its `max` reads `max_delta +6 and max 40`, and a `tokens_est` breach on the same growth as a `sloc` one, or a `duplication_pct` breach beside a `dup_blocks` one, is folded into the `sloc` or `dup_blocks` finding, whose limit names the other's values (`max 1000; tokens_est 15000 -> 17500, max 16000`) and whose JSON lists it under `also`. The suggestion names the identifiers or file lines to start with when the extractor knows them. A `dup_blocks` suggestion ending `added in this change` marks the block that sits in your own copy of the code, the one to extract; the other copy was already there. An `untested_exports` suggestion lists the exports your change added first, then the older untested ones, so the first names are the ones you owe a test. The Claude Code hook sends the same findings, without the summary lines, as its `reason`; the JSON format carries the same fields as `violations`, `warnings` and `exemptions` arrays.
+Each finding line is `metric: baseline -> head, limit. suggestion`; a package new since the baseline shows `head (no baseline)` instead, and `changed_func_cognitive_max`, which is itself measured against the baseline, shows `head (changed since baseline)` for a new function and the function's own `base -> head` for one that existed at the baseline. One cause is one finding: a rule over both its `max_delta` and its `max` reads `max_delta +6 and max 40`, and a `tokens_est` breach on the same growth as a `sloc` one, or a `duplication_pct` breach beside a `dup_blocks` one, is folded into the `sloc` or `dup_blocks` finding, whose limit names the other's values (`max 1000; tokens_est 15000 -> 17500, max 16000`) and whose JSON lists it under `also`. The suggestion names the identifiers or file lines to start with when the extractor knows them. A `dup_blocks` suggestion ending `added in this change` marks the block that sits in your own copy of the code, the one to extract; the other copy was already there. An `untested_exports` suggestion lists the exports your change added first, then the older untested ones, so the first names are the ones you owe a test. The JSON format carries the same fields as `violations`, `warnings` and `exemptions` arrays, and `--format github` writes each finding line as an annotation on the file and line it names.
 
 **Fix every violation; read the warnings.** Violations fail the gate (exit 3, or a block decision in the hook). Warnings never do: they say a package is approaching a size ceiling, or they are the breach of a rule the configuration sets to `severity: warn`, which reads exactly like a violation (and carries `"severity": "warn"` in JSON) but is reported without failing. Treat such a warning as a violation you are not forced to fix: fix it when it is in the code you changed. Do not trade a violation for a warning, and do not spend the turn on warnings while a violation remains.
 
@@ -47,7 +66,7 @@ exemptions:
     expires: 2026-12-31           # optional; the exemption applies through that day
 ```
 
-An exempted violation does not fail the gate, but it never disappears: every format still reports it, with its reason. The text format lists it under `exempted:` after the warnings, each line ending `Exempted: <reason>`, and the summary line counts it (`K exempted`); the JSON report moves it from `violations` to an `exemptions` array whose entries add a `reason` (the array is empty, not absent, whenever a gate ran); the hook puts it in the block reason on failure and on stderr on success; and the GitHub format writes it as a `::notice` annotation. Warnings are never exempted, since they never fail, except the breach of a `severity: warn` rule, which an exemption on its rule moves to `exemptions` as it would the violation. An exemption past its `expires` date is ignored, so the violation fails again, and a warning names it. `check --all` also warns about an exemption that matched no violation, on its package or, for a package the module no longer has, on `<module>`, so stale ones get removed; a check of the changed packages cannot tell and says nothing.
+An exempted violation does not fail the gate, but it never disappears: every format still reports it, with its reason. The text format lists it after the heads-ups, `exempted` with its package and metric and the reason under it; the JSON report moves it from `violations` to an `exemptions` array whose entries add a `reason` (the array is empty, not absent, whenever a gate ran); the hook puts it in the block reason on failure and on stderr on success; and the GitHub format writes it as a `::notice` annotation. Warnings are never exempted, since they never fail, except the breach of a `severity: warn` rule, which an exemption on its rule moves to `exemptions` as it would the violation. An exemption past its `expires` date is ignored, so the violation fails again, and a warning names it. `check --all` also warns about an exemption that matched no violation, on its package or, for a package the module no longer has, on `<module>`, so stale ones get removed; a check of the changed packages cannot tell and says nothing.
 
 If you are an agent, do not add, widen or extend an exemption to get past the gate: that is the same as editing a threshold. Exemptions are a person's decision, and the reason is there for the reviewer who reads it. Treat an exempted finding as settled and leave it alone.
 

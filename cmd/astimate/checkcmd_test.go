@@ -127,6 +127,12 @@ func containsAll(got, want []string) bool {
 	return true
 }
 
+// oneLine collapses every run of whitespace in s, line breaks included, to
+// one space, so a test can look for a sentence the text format wrapped.
+func oneLine(s string) string {
+	return strings.Join(strings.Fields(s), " ")
+}
+
 // decodeReports decodes the check JSON array, rejecting unknown fields.
 func decodeReports(t *testing.T, data []byte) []report.Report {
 	t.Helper()
@@ -255,27 +261,29 @@ func TestCheckFixtures(t *testing.T) {
 			t.Run("text", func(t *testing.T) {
 				t.Parallel()
 
+				// The text format is the change report: the verdict word
+				// first, the counts with the module row's cross-package
+				// copies, then each failing package with its findings.
 				out, _ := check(t, formatText)
-				if !strings.Contains("\n"+out, "\n<module>: dup_blocks_cross_pkg 1, 0 violations, 0 warnings, 0 exempted\n") {
-					t.Errorf("text has no module summary line:\n%s", out)
+				flat := oneLine(out)
+				verdict, exit := "PASS ", " exit 0"
+				if failing {
+					verdict, exit = "FAIL ", " exit 3"
 				}
-				// The embedded default's rebuild estimate is calibrated, so
-				// each summary line carries it (TestCheckCalibratedText).
-				for _, pkg := range fixturePackages() {
-					if !strings.Contains(out, "\n"+pkg+": ") && !strings.HasPrefix(out, pkg+": ") {
-						t.Errorf("text has no summary line for %s:\n%s", pkg, out)
-					}
-					if !strings.Contains(out, pkg+": 0.") || !strings.Contains(out, " passes (ONE_PASS), ") {
-						t.Errorf("summary line for %s lacks the calibrated estimate:\n%s", pkg, out)
-					}
+				if !strings.HasPrefix(out, verdict) || !strings.HasSuffix(flat, exit) {
+					t.Errorf("text does not open with %q and end with %q:\n%s", verdict, exit, out)
+				}
+				want := strconv.Itoa(len(fixturePackages())) + " changed"
+				if !strings.Contains(flat, want) || !strings.Contains(flat, "copies between packages 1 → 1") {
+					t.Errorf("text does not count %q and the module row's copies:\n%s", want, out)
 				}
 				for _, m := range degradedMetrics() {
-					if got := strings.Contains(out, "    "+m+": "); got != failing {
+					if got := strings.Contains(out, "   "+strings.ReplaceAll(m, "_", " ")+" "); got != failing {
 						t.Errorf("text names %s = %v, want %v:\n%s", m, got, failing, out)
 					}
 				}
-				if got := strings.Contains(out, degradedGrade); got != failing {
-					t.Errorf("text names the complex function = %v, want %v:\n%s", got, failing, out)
+				if got := strings.Contains(out, " ✗ tested ") && strings.Contains(out, "open tested/grade.go:8"); got != failing {
+					t.Errorf("text names tested and the complex function = %v, want %v:\n%s", got, failing, out)
 				}
 			})
 			t.Run("hook", func(t *testing.T) {
@@ -388,10 +396,10 @@ func uncalibratedConfig(t *testing.T) string {
 
 // TestCheckCalibratedText runs check on the degraded fixture under the
 // pinned default, whose rebuild estimate is calibrated, and under a config
-// whose version marks it uncalibrated. Only the calibrated run's text
-// summary lines carry agent passes, tier and the change from the baseline;
-// the hook reason carries neither in both, and the JSON reports differ only
-// in config_version and rebuild.calibrated.
+// whose version marks it uncalibrated. Only the calibrated run's text names
+// a failing package's days to rebuild, and neither names agent passes or
+// tier; the hook reason carries neither in both, and the JSON reports
+// differ only in config_version and rebuild.calibrated.
 func TestCheckCalibratedText(t *testing.T) {
 	if testing.Short() {
 		t.Skip("integration test: loads Go packages")
@@ -418,22 +426,17 @@ func TestCheckCalibratedText(t *testing.T) {
 	t.Run("text", func(t *testing.T) {
 		t.Parallel()
 
+		// The change report names no passes or tier either way; only the
+		// calibrated run's failing package names its days to rebuild.
 		uncal := check(t, formatText, uncalCfg)
 		assertNoEstimate(t, uncal)
-		if !strings.Contains("\n"+uncal, "\ntested: 4 violations, 0 warnings, 0 exempted\n") {
-			t.Errorf("uncalibrated text has no plain summary line for tested:\n%s", uncal)
+		if !strings.Contains(uncal, " ✗ tested  4 findings\n") {
+			t.Errorf("uncalibrated text does not count tested's findings alone:\n%s", uncal)
 		}
 		cal := check(t, formatText, calCfg)
-		for _, pkg := range fixturePackages() {
-			line := ""
-			for l := range strings.SplitSeq(cal, "\n") {
-				if strings.HasPrefix(l, pkg+": ") {
-					line = l
-				}
-			}
-			if !strings.Contains(line, " passes (") || !strings.HasSuffix(line, " passes from baseline") {
-				t.Errorf("calibrated summary line for %s = %q, want agent passes, tier and change from baseline", pkg, line)
-			}
+		assertNoEstimate(t, cal)
+		if !strings.Contains(cal, " ✗ tested  4 findings · ") || !strings.Contains(cal, " days to rebuild") {
+			t.Errorf("calibrated text does not give tested's days to rebuild:\n%s", cal)
 		}
 	})
 	t.Run("hook", func(t *testing.T) {
@@ -877,6 +880,7 @@ func TestCheckUsageErrors(t *testing.T) {
 	}{
 		{"base and baseline", []string{"--base", "main", "--baseline", "b.json"}, exitUsage, "mutually exclusive"},
 		{"unknown format", []string{"--format", "xml"}, exitUsage, "unknown format"},
+		{"unknown colour", []string{"--color", "sometimes"}, exitUsage, "--color must be auto, always or never"},
 		{"unknown tokenizer", []string{"--tokenizer", "bpe"}, exitUsage, "unknown tokenizer"},
 		{"two roots", []string{"a", "b"}, exitUsage, "want at most one module root"},
 		{"unknown flag", []string{"--nope"}, exitUsage, "flag provided but not defined"},

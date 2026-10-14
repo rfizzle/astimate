@@ -23,7 +23,8 @@ func TestImportBoundary(t *testing.T) {
 		"./markdown":             {"internal/narrate"},
 		"./html":                 {"internal/narrate", "internal/narrate/html/internal/layout"},
 		"./html/internal/layout": {},
-		"./render":               {"internal/narrate", "internal/narrate/markdown", "internal/narrate/html"},
+		"./render":               {"internal/narrate", "internal/narrate/markdown", "internal/narrate/html", "internal/narrate/term"},
+		"./term":                 {"internal/narrate"},
 	} {
 		out, err := exec.CommandContext(t.Context(), "go", "list", "-f", `{{join .Imports "\n"}}`, pkg).Output()
 		if err != nil {

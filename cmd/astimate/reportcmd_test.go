@@ -39,8 +39,8 @@ func TestReportJSONGolden(t *testing.T) {
 	if got := run(args, &stdout, &stderr); got != exitOK {
 		t.Fatalf("run(%q) exit code = %d, want %d; stderr = %q", args, got, exitOK, stderr.String())
 	}
-	if strings.Contains(stderr.String(), "text output is coming") {
-		t.Errorf("stderr = %q, want no notice with --format json", stderr.String())
+	if stderr.Len() != 0 {
+		t.Errorf("stderr = %q, want none", stderr.String())
 	}
 	got := strings.Replace(stdout.String(), `"astimate_version": "`+astimateVersion()+`"`, `"astimate_version": "test"`, 1)
 
@@ -84,13 +84,10 @@ func TestReportBase(t *testing.T) {
 	copyTree(t, filepath.Join(degradedDir, "tested"), filepath.Join(fixture, "tested"))
 
 	var stdout, stderr bytes.Buffer
-	args := []string{"report", fixture, "--base", "master", "--config", pinnedConfigFile(t)}
+	args := []string{"report", fixture, "--base", "master", "--format", "json", "--config", pinnedConfigFile(t)}
 	if got := run(args, &stdout, &stderr); got != exitOK {
 		t.Fatalf("run(%q) exit code = %d, want %d: a failing change is reported, not gated; stderr = %q",
 			args, got, exitOK, stderr.String())
-	}
-	if !strings.Contains(stderr.String(), "text output is coming") {
-		t.Errorf("stderr = %q, want the notice that text output is coming", stderr.String())
 	}
 	var m narrate.Module
 	if err := json.Unmarshal(stdout.Bytes(), &m); err != nil {
@@ -122,6 +119,7 @@ func TestReportUsage(t *testing.T) {
 		want string
 	}{
 		{"unknown format", []string{"report", "--format", "pdf"}, `unknown format "pdf"`},
+		{"unknown colour", []string{"report", "--color", "sometimes"}, "--color must be auto, always or never"},
 		{"two roots", []string{"report", "a", "b"}, "want at most one module root"},
 		{"bad tokenizer", []string{"report", "--tokenizer", "nope"}, "unknown tokenizer"},
 	}

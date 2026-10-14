@@ -1,6 +1,7 @@
 // Package cli holds the plumbing every astimate command shares: its flag
 // set, the module root among its arguments, its logger and its buffered
-// output. It imports the standard library only.
+// output, and the width and colour of its text reports. It imports the
+// standard library and golang.org/x/term only.
 package cli
 
 import (

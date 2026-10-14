@@ -66,7 +66,7 @@ func TestCheckSkippedPackage(t *testing.T) {
 		},
 		{
 			name: "another package changed, text", file: "app/app.go", format: formatText, wantCode: exitOK,
-			wantOut: []string{"app: ", "remote skipped, it does not load (missing module)"},
+			wantOut: []string{"1 changed", "remote skipped, it does not load (missing module)"},
 		},
 		{
 			name: "skipped package changed", file: "remote/remote.go", format: formatText, wantCode: exitAnalysis,

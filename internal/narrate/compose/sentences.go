@@ -65,7 +65,7 @@ func warnWhy(metric string, limits []narrate.Limit) string {
 	ceiling := func() string {
 		for _, l := range limits {
 			if l.Metric == metric {
-				return num(l.Max)
+				return narrate.Num(l.Max)
 			}
 		}
 		return ""
@@ -114,7 +114,7 @@ func story(p *narrate.Package) string {
 			strings.Join(labels, ", ")+")")
 	}
 	if p.Copies.Pct >= 20 {
-		s = append(s, num(p.Copies.Pct)+"% of its lines are copies of each other")
+		s = append(s, narrate.Num(p.Copies.Pct)+"% of its lines are copies of each other")
 	}
 	if p.Tests.Untested >= 5 {
 		s = append(s, strconv.Itoa(p.Tests.Untested)+" of its "+strconv.Itoa(p.Tests.Exports)+" exports have no test")
@@ -154,8 +154,8 @@ func changes(p *narrate.Package, window int) string {
 // facts returns the labelled facts of a package's detail.
 func facts(p *narrate.Package, window int) []narrate.Fact {
 	out := []narrate.Fact{
-		{Label: "Rebuild", Text: num(p.Rebuild.AgentPasses) + " agent passes · " + num(p.Rebuild.HumanDays) + " human days"},
-		{Label: "Copies", Text: plural(p.Copies.Blocks, "duplicate block covers ", "duplicate blocks cover ") + num(p.Copies.Pct) + "% of lines"},
+		{Label: "Rebuild", Text: narrate.Num(p.Rebuild.AgentPasses) + " agent passes · " + narrate.Num(p.Rebuild.HumanDays) + " human days"},
+		{Label: "Copies", Text: plural(p.Copies.Blocks, "duplicate block covers ", "duplicate blocks cover ") + narrate.Num(p.Copies.Pct) + "% of lines"},
 		{Label: "Complexity", Text: "cognitive p90 " + strconv.Itoa(p.Complexity.CognitiveP90) + " · cyclomatic p90 " +
 			strconv.Itoa(p.Complexity.CyclomaticP90) + " · nesting " + strconv.Itoa(p.Complexity.Nesting)},
 		{Label: "Tests", Text: plural(p.Tests.TestFuncs, "test function", "test functions") + " · " + strconv.Itoa(p.Tests.Untested) + " of " +
@@ -271,7 +271,7 @@ func lead(m *narrate.Module, hottest *narrate.Package) string {
 		pick(c.Split, " needs", " need") + " a split."
 	if hottest != nil && hottest.Churn != nil && m.ChurnWindow > 0 {
 		s += " The hottest of those changed " + strconv.Itoa(hottest.Churn.Commits) + " times in the last " +
-			strconv.Itoa(m.ChurnWindow) + " commits and " + num(hottest.Copies.Pct) + "% of it is copied code."
+			strconv.Itoa(m.ChurnWindow) + " commits and " + narrate.Num(hottest.Copies.Pct) + "% of it is copied code."
 	}
 	return s
 }
@@ -310,7 +310,7 @@ func failingSummary(n int, p *narrate.Package) string {
 	if p == nil {
 		return s
 	}
-	s += " · " + num(p.Rebuild.HumanDays) + " days to rebuild"
+	s += " · " + narrate.Num(p.Rebuild.HumanDays) + " days to rebuild"
 	if p.Churn != nil {
 		s += " · " + plural(p.Churn.Commits, "change lately", "changes lately")
 	}
@@ -325,8 +325,8 @@ func moved(f *narrate.Finding) (page, term string) {
 	}
 	grew := f.Head - *f.Base
 	if f.Allowed != nil {
-		return "grew " + num(grew) + ", allowed " + num(*f.Allowed) + " while over the limit",
-			"grew " + num(grew) + ", allowed " + num(*f.Allowed)
+		return "grew " + narrate.Num(grew) + ", allowed " + narrate.Num(*f.Allowed) + " while over the limit",
+			"grew " + narrate.Num(grew) + ", allowed " + narrate.Num(*f.Allowed)
 	}
 	if rule, _, _ := strings.Cut(f.Limit, ";"); f.Metric == "dup_blocks" && rule == "max_delta +0" {
 		n := int(grew)
@@ -384,7 +384,7 @@ func Glossary(language string, limits []narrate.Limit, minTokens, window int) []
 func limitsText(limits []narrate.Limit) string {
 	parts := make([]string, 0, len(limits))
 	for _, l := range limits {
-		v := num(l.Max)
+		v := narrate.Num(l.Max)
 		switch l.Metric {
 		case "sloc":
 			parts = append(parts, v+" lines")
@@ -419,37 +419,13 @@ func human(d float64) string {
 func humanShort(d float64) string {
 	switch {
 	case d >= daysPerYear:
-		return num(round1(d/daysPerYear)) + " yr"
+		return narrate.Num(round1(d/daysPerYear)) + " yr"
 	case d >= daysPerMonth:
 		return strconv.Itoa(int(math.Round(d/daysPerMonth))) + " mo"
 	case d >= daysPerWeek:
 		return strconv.Itoa(int(math.Round(d/daysPerWeek))) + " wk"
 	}
 	return strconv.Itoa(max(1, int(math.Round(d)))) + " d"
-}
-
-// num formats v as en-US with thousands separators and at most one
-// decimal.
-func num(v float64) string {
-	v = round1(v)
-	neg := v < 0
-	v = math.Abs(v)
-	whole := math.Floor(v)
-	digits := strconv.FormatFloat(whole, 'f', 0, 64)
-	var b strings.Builder
-	if neg {
-		b.WriteByte('-')
-	}
-	for i, r := range digits {
-		if i > 0 && (len(digits)-i)%3 == 0 {
-			b.WriteByte(',')
-		}
-		b.WriteRune(r)
-	}
-	if frac := int(math.Round((v - whole) * 10)); frac > 0 {
-		b.WriteString("." + strconv.Itoa(frac))
-	}
-	return b.String()
 }
 
 // plural is n followed by one or many.

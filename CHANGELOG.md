@@ -12,6 +12,26 @@ history.
 
 ### Added
 
+- Terminal text for the module report. `astimate report` now prints, by
+  default, a verdict sentence, the packages counted as Split, Watch and
+  Fine, "Start here" with the three hottest packages and what to do about
+  each, and the ten costliest packages (`--all` for every one); with
+  `--base` the change report follows. `--format json` prints the data as
+  before, and no notice is written. Every sentence comes from the report's
+  data, so the text says what the JSON, Markdown and HTML say.
+- `astimate check --format text` (the default) is now the change report:
+  `FAIL` or `PASS`, the counts, each failing package with its findings
+  (what moved against what is allowed, why it matters, where to open),
+  one line of heads-ups by rule (`--warnings` lists each), the exempted
+  findings with their reasons, skipped packages and the exit code. It no
+  longer prints a summary line per package or agent passes; a failing
+  package names its rebuild days when the estimate is calibrated. Exit
+  codes and the `json`, `hook`, `github` and `md` formats are unchanged.
+- Width and colour for both: the terminal's width (100 columns in a
+  pipe), the copied and untested columns from 100 columns, one line per
+  finding at 80 columns or fewer, long paths cut from the left; colour and
+  bars only on a terminal without `NO_COLOR`, or with
+  `--color always`. Severity is always a word or sign first.
 - `astimate report [dir] [--base ref] --format json`: a module report in
   plain words, the data model every report format will share (SPEC.md
   10.3). Each package gets a band (Split when its rebuild tier is

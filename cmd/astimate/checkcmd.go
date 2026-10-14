@@ -14,6 +14,7 @@ import (
 
 	"github.com/rfizzle/astimate/internal/cli"
 	"github.com/rfizzle/astimate/internal/engine"
+	"github.com/rfizzle/astimate/internal/narrate/render"
 	"github.com/rfizzle/astimate/internal/report"
 )
 
@@ -55,6 +56,8 @@ type checkOptions struct {
 	// hookStdin returns the Claude Code hook input read in the hook format,
 	// or nil when there is none; nil hookStdin means no input.
 	hookStdin func() io.Reader
+	// text lays out the text format: width, colour and --warnings.
+	text render.Options
 }
 
 // processHookStdin returns os.Stdin when it is not a terminal, and nil when
@@ -71,8 +74,9 @@ func processHookStdin() io.Reader {
 // runCheck gates the packages of a module against a baseline and the
 // configured thresholds: `check [<module-root>] [--base ref | --baseline
 // file] [--all] [--staged] [--config|--thresholds file] [--format
-// text|json|hook|github] [--tokenizer est|o200k] [--coverage]
-// [--coverage-timeout d]`. It exits 3 when any
+// text|json|hook|github|md] [--warnings] [--color auto|always|never]
+// [--tokenizer est|o200k] [--coverage] [--coverage-timeout d]`; the text
+// format is the change report (SPEC.md 8.5). It exits 3 when any
 // package has a violation (0 with --format hook, whose JSON carries the
 // decision), 2 when analysis failed, and 0 otherwise; warnings never change
 // the exit code. In the hook format it reads the Stop hook input from stdin
@@ -87,8 +91,8 @@ func runCheck(args []string, stdout, stderr io.Writer) int {
 // blocking again could keep the agent looping.
 func runCheckInput(args []string, hookStdin func() io.Reader, stdout, stderr io.Writer) int {
 	fs := cli.NewFlagSet("check", "usage: astimate check [<module-root>] [--base ref | --baseline file] [--all] [--staged] "+
-		"[--config|--thresholds file] [--format text|json|hook|github|md] [--tokenizer est|o200k] "+
-		"[--coverage] [--coverage-timeout 2m]", stderr)
+		"[--config|--thresholds file] [--format text|json|hook|github|md] [--warnings] [--color auto|always|never] "+
+		"[--tokenizer est|o200k] [--coverage] [--coverage-timeout 2m]", stderr)
 	opts := checkOptions{hookStdin: hookStdin}
 	var tf targetFlags
 	tf.register(fs, true)
@@ -100,6 +104,8 @@ func runCheckInput(args []string, hookStdin func() io.Reader, stdout, stderr io.
 		"instead of the working tree")
 	fs.StringVar(&tf.config, "thresholds", "", "alias of --config")
 	fs.StringVar(&opts.format, "format", formatText, "output format: "+strings.Join(checkFormats(), ", "))
+	fs.BoolVar(&opts.text.Warnings, "warnings", false, "list every warning in the text format, not only their count")
+	color := fs.String("color", cli.ColorAuto, "colour the text format: auto (a terminal without NO_COLOR), always or never")
 	positional, err := cli.ParseInterspersed(fs, args)
 	if err != nil {
 		return exitUsage // the flag package has printed the error and usage
@@ -118,6 +124,10 @@ func runCheckInput(args []string, hookStdin func() io.Reader, stdout, stderr io.
 		return exitUsage
 	}
 	if opts.coverage, ok = tf.validate("check", stderr); !ok {
+		return exitUsage
+	}
+	if opts.text.Width, opts.text.Color, err = cli.Terminal(stdout, *color); err != nil {
+		_, _ = fmt.Fprintf(stderr, "astimate: check: %v\n", err)
 		return exitUsage
 	}
 
@@ -166,11 +176,13 @@ func checkTarget(ctx context.Context, t *engine.Target, opts checkOptions, stdou
 		return exitAnalysis
 	}
 
+	code := checkExitCode(opts.format, c.Failed(), len(failed))
+	opts.text.Exit, opts.text.ChangeOnly = &code, true
 	if opts.format == formatMD || opts.format == formatGitHub {
 		err = engine.WriteChange(ctx, t, c, engine.ChangeOptions{Base: opts.base, GitHub: opts.format == formatGitHub,
 			SummaryFile: os.Getenv("GITHUB_STEP_SUMMARY")}, stdout)
 	} else {
-		err = renderCheck(c, opts.format, stdout, stderr)
+		err = renderCheck(ctx, t, c, &opts, stdout, stderr)
 	}
 	if err != nil {
 		logger.Error("check failed", "root", t.Mod.Root, "err", err)
@@ -179,7 +191,7 @@ func checkTarget(ctx context.Context, t *engine.Target, opts checkOptions, stdou
 	if len(failed) > 0 {
 		logger.Error("check incomplete", "failed_packages", len(failed))
 	}
-	return checkExitCode(opts.format, c.Failed(), len(failed))
+	return code
 }
 
 // hookIndexFile returns the index a --staged check reads: the absolute form
@@ -219,12 +231,14 @@ func checkExitCode(format string, violations bool, failedPackages int) int {
 	}
 }
 
-// renderCheck renders c in format to stdout, writing hook warnings to
-// stderr. Output is buffered so a render error leaves stdout empty.
-func renderCheck(c *report.Check, format string, stdout, stderr io.Writer) error {
+// renderCheck renders c, a check of t's module, in opts.format to stdout,
+// writing hook warnings to stderr; the text format is the change report
+// (engine.CheckReport). Output is buffered so a render error leaves stdout
+// empty.
+func renderCheck(ctx context.Context, t *engine.Target, c *report.Check, opts *checkOptions, stdout, stderr io.Writer) error {
 	var buf, warnings bytes.Buffer
 	var err error
-	switch format {
+	switch opts.format {
 	case formatJSON:
 		err = report.WriteCheckJSON(&buf, c)
 	case formatHook:
@@ -232,7 +246,11 @@ func renderCheck(c *report.Check, format string, stdout, stderr io.Writer) error
 	case formatGitHub:
 		err = report.WriteGitHub(&buf, c)
 	default:
-		err = report.WriteCheckText(&buf, c)
+		base := opts.base
+		if opts.baselineFile != "" {
+			base = filepath.Base(opts.baselineFile)
+		}
+		err = render.Write(ctx, &buf, engine.CheckReport(t, c, base), render.FormatText, &opts.text)
 	}
 	if err != nil {
 		return err

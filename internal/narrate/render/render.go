@@ -14,10 +14,13 @@ import (
 	"github.com/rfizzle/astimate/internal/narrate"
 	"github.com/rfizzle/astimate/internal/narrate/html"
 	"github.com/rfizzle/astimate/internal/narrate/markdown"
+	"github.com/rfizzle/astimate/internal/narrate/term"
 )
 
 // Format names Write accepts.
 const (
+	// FormatText is the terminal report of package term.
+	FormatText = "text"
 	// FormatJSON is narrate.WriteJSON's indented JSON.
 	FormatJSON = "json"
 	// FormatMarkdown is the Markdown of package markdown.
@@ -31,25 +34,30 @@ const (
 // command reaches every format through this package alone.
 type Options = narrate.WriteOptions
 
-// Formats returns the formats Write accepts.
+// Formats returns the formats Write accepts; FormatText is the default.
 func Formats() []string {
-	return []string{FormatJSON, FormatMarkdown, FormatHTML}
+	return []string{FormatText, FormatJSON, FormatMarkdown, FormatHTML}
 }
 
-// Flags registers the formats' own flags on fs, --out and --open for the
-// page, and returns the options they set.
+// Flags registers the formats' own flags on fs, --all for the text and
+// --out and --open for the page, and returns the options they set.
 func Flags(fs *flag.FlagSet) *Options {
 	o := &Options{}
+	fs.BoolVar(&o.All, "all", false, "with --format text, list every package, not only the ten costliest")
 	fs.StringVar(&o.Out, "out", html.DefaultOut, "with --format html, the file to write")
 	fs.BoolVar(&o.Open, "open", false, "with --format html, open the written page in the browser")
 	return o
 }
 
 // Write writes m to w in format; each format reads the options it uses.
-// The page is saved to opts.Out, and opened with opts.Open, under ctx; w
-// gets its path.
+// The text's trailer names the other formats. The page is saved to
+// opts.Out, and opened with opts.Open, under ctx; w gets its path.
 func Write(ctx context.Context, w io.Writer, m *narrate.Module, format string, opts *Options) error {
 	switch format {
+	case FormatText:
+		o := *opts
+		o.Formats = Formats()
+		return term.Write(w, m, o)
 	case FormatJSON:
 		return narrate.WriteJSON(w, m)
 	case FormatMarkdown:

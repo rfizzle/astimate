@@ -69,7 +69,7 @@ func TestCheckExemptionFixture(t *testing.T) {
 		t.Parallel()
 
 		code, out, errOut := runExempt(t, base, globalsOnlyConfig(t, ""), formatText, "--all")
-		if code != exitGateFailed || !strings.Contains(out, "\ntested: 0.0 passes (ONE_PASS), 1 violation, 0 warnings, 0 exempted, +0.0 passes from baseline\n") {
+		if code != exitGateFailed || !strings.Contains(out, " ✗ tested  1 finding") {
 			t.Errorf("exit %d, want %d with one violation on tested\nstdout:\n%s\nstderr:\n%s", code, exitGateFailed, out, errOut)
 		}
 	})
@@ -80,15 +80,9 @@ func TestCheckExemptionFixture(t *testing.T) {
 		if code != exitOK {
 			t.Fatalf("exit %d, want %d\nstdout:\n%s\nstderr:\n%s", code, exitOK, out, errOut)
 		}
-		want := "exempted:\n  tested\n    globals: 0 -> 1, max_delta +0. "
-		if !strings.HasPrefix(out, want) {
-			t.Errorf("text does not open with the exempted section %q:\n%s", want, out)
-		}
-		if !strings.Contains(out, " Exempted: "+degradedGlobalsReason+"\n") {
-			t.Errorf("text does not print the reason:\n%s", out)
-		}
-		if !strings.Contains(out, "\ntested: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 1 exempted, +0.0 passes from baseline\n") {
-			t.Errorf("text has no summary line counting the exemption:\n%s", out)
+		want := "\n exempted  tested  globals\n   " + degradedGlobalsReason + "\n"
+		if !strings.HasPrefix(out, "PASS ") || !strings.Contains(out, want) {
+			t.Errorf("text does not pass and list the exempted finding with its reason %q:\n%s", want, out)
 		}
 	})
 	t.Run("json", func(t *testing.T) {
@@ -183,17 +177,17 @@ func TestCheckExemptionStale(t *testing.T) {
 		"  - package: a\n    metric: globals\n    reason: a kept a global once\n"+
 		"  - package: gone\n    metric: globals\n    reason: gone was deleted\n")
 
-	code, out, errOut := runExempt(t, base, cfg, formatText, "--all")
+	code, out, errOut := runExempt(t, base, cfg, formatText, "--all", "--warnings")
 	if code != exitOK {
 		t.Fatalf("exit %d, want %d: stale exemptions only warn\nstdout:\n%s\nstderr:\n%s", code, exitOK, out, errOut)
 	}
 	for _, want := range []string{
-		"warnings:\n  " + metrics.ModuleRowID + "\n    globals: 0 -> 0, stale exemption. The exemption for globals on gone matched no violation: the module has no such package.",
-		"\n  a\n    globals: 0 -> 0, stale exemption. The exemption for globals on a matched no violation; remove it from the config. Its reason: a kept a global once\n",
-		"\na: 0.0 passes (ONE_PASS), 0 violations, 1 warning, 0 exempted, +0.0 passes from baseline\n",
-		"\ntested: 0.0 passes (ONE_PASS), 0 violations, 0 warnings, 1 exempted, +0.0 passes from baseline\n",
+		"! 2 heads up they never block",
+		metrics.ModuleRowID + " 0 → 0 stale exemption. The exemption for globals on gone matched no violation: the module has no such package.",
+		" a 0 → 0 stale exemption. The exemption for globals on a matched no violation.",
+		"exempted tested globals " + degradedGlobalsReason,
 	} {
-		if !strings.Contains(out, want) {
+		if !strings.Contains(oneLine(out), want) {
 			t.Errorf("text does not contain %q:\n%s", want, out)
 		}
 	}

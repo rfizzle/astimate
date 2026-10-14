@@ -44,16 +44,15 @@ func TestCheckSeverityFixture(t *testing.T) {
 		t.Parallel()
 
 		code, out, errOut := runExempt(t, base, fail, formatText, "--all")
-		if code != exitGateFailed || !strings.HasPrefix(out, "violations:\n  tested\n    "+line) {
+		if code != exitGateFailed || !strings.Contains(out, " ✗ tested  1 finding") ||
+			!strings.Contains(oneLine(out), "globals 0 → 1 max_delta +0 ") {
 			t.Errorf("fail: exit %d, want %d with the globals violation\nstdout:\n%s\nstderr:\n%s", code, exitGateFailed, out, errOut)
 		}
-		violation, _, _ := strings.Cut(strings.TrimPrefix(out, "violations:\n  tested\n    "), "\n")
-		code, out, errOut = runExempt(t, base, warn, formatText, "--all")
-		if code != exitOK || !strings.HasPrefix(out, "warnings:\n  tested\n    "+violation+"\n") {
-			t.Errorf("warn: exit %d, want %d with the warning %q\nstdout:\n%s\nstderr:\n%s", code, exitOK, violation, out, errOut)
-		}
-		if !strings.Contains(out, "\ntested: 0.0 passes (ONE_PASS), 0 violations, 1 warning, 0 exempted, +0.0 passes from baseline\n") {
-			t.Errorf("warn: no summary line counting the warning:\n%s", out)
+		code, out, errOut = runExempt(t, base, warn, formatText, "--all", "--warnings")
+		want := "! 1 heads up they never block globals "
+		if code != exitOK || !strings.HasPrefix(out, "PASS ") || !strings.Contains(oneLine(out), want) ||
+			!strings.Contains(oneLine(out), " tested 0 → 1 max_delta +0. ") {
+			t.Errorf("warn: exit %d, want %d with the warning listed\nstdout:\n%s\nstderr:\n%s", code, exitOK, out, errOut)
 		}
 	})
 	t.Run("json", func(t *testing.T) {

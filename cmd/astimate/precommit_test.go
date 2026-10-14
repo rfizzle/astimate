@@ -160,7 +160,7 @@ func TestPreCommitSnippet(t *testing.T) {
 		t.Errorf("stderr does not report exit 3:\n%s", stderr)
 	}
 	for _, m := range hookDegradedMetrics() {
-		if !strings.Contains(stderr, "    "+m+": ") {
+		if !strings.Contains(stderr, "   "+strings.ReplaceAll(m, "_", " ")+" ") {
 			t.Errorf("stderr does not list the %s violation:\n%s", m, stderr)
 		}
 	}

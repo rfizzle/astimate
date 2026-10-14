@@ -18,4 +18,9 @@ type WriteOptions struct {
 	Warnings bool
 	// Exit is the exit code the change report ends with; nil prints none.
 	Exit *int
+	// ChangeOnly writes the change report alone, as check prints it.
+	ChangeOnly bool
+	// Formats are the formats the report can be written in, which the
+	// terminal report's trailer names; package render fills it.
+	Formats []string
 }

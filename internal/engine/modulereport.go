@@ -35,13 +35,7 @@ func Report(ctx context.Context, t *Target, opts ReportOptions) (m *narrate.Modu
 	}
 	extracted, order, failed := t.extractAll(ctx, pkgs)
 	fillChurn(ctx, t, extracted)
-	eff := t.langConfig()
-	in := compose.Input{
-		ModulePath: t.Mod.ModulePath, RootName: filepath.Base(t.Mod.Root), Language: t.Ext.Language(),
-		Base: opts.Base, Limits: ceilings(&eff), ChurnWindow: t.Cfg.Churn.Commits,
-		MinTokens: t.Cfg.Duplication.MinTokens, Packages: make([]report.Report, 0, len(order)),
-		AstimateVersion: t.Version, ConfigVersion: eff.Version,
-	}
+	in := t.composeInput(opts.Base, len(order))
 	for _, pkg := range order {
 		dir := judge.Rel(t.Mod.ModulePath, pkg)
 		r, err := t.build(ctx, pkg, dir, extracted[pkg])
@@ -65,6 +59,40 @@ func Report(ctx context.Context, t *Target, opts ReportOptions) (m *narrate.Modu
 	in.Head, _ = baseline.HeadCommit(ctx, t.Mod.Root)
 	built := compose.Build(&in)
 	return &built, failed, nil
+}
+
+// CheckReport narrates c, a check of t's module, as the change report
+// check --format text prints (compose.Build): the checked packages'
+// views, without the rest of the module's, and the change against base,
+// the ref or file the check compared with (empty for the default ref).
+// It reads the check's rows only, so unlike Report with
+// ReportOptions.Check it extracts nothing again; a package whose estimate
+// is uncalibrated has no view, so its summary names no rebuild days.
+func CheckReport(t *Target, c *report.Check, base string) *narrate.Module {
+	in := t.composeInput(base, len(c.Packages))
+	for i := range c.Packages {
+		// Gate output leaves an uncalibrated estimate out (SPEC.md 8.5):
+		// without its view a failing package's summary counts findings
+		// only.
+		if c.Packages[i].Report.Rebuild.Calibrated {
+			in.Packages = append(in.Packages, c.Packages[i].Report)
+		}
+	}
+	in.Check = c
+	built := compose.Build(&in)
+	return &built
+}
+
+// composeInput returns the input of compose.Build for t's module, with
+// room for n packages and the change against base.
+func (t *Target) composeInput(base string, n int) compose.Input {
+	eff := t.langConfig()
+	return compose.Input{
+		ModulePath: t.Mod.ModulePath, RootName: filepath.Base(t.Mod.Root), Language: t.Ext.Language(),
+		Base: base, Limits: ceilings(&eff), ChurnWindow: t.Cfg.Churn.Commits,
+		MinTokens: t.Cfg.Duplication.MinTokens, Packages: make([]report.Report, 0, n),
+		AstimateVersion: t.Version, ConfigVersion: eff.Version,
+	}
 }
 
 // ceilings returns the ceilings of eff's rules on the five size metrics,

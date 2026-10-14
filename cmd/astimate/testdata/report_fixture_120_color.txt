@@ -1,0 +1,34 @@
+[1mFixture[0m  [2mexample.com/fixture · thresholds-2026-10-14b[0m
+
+[1mFixture has no package too big to rebuild in one go.[0m
+12 packages · 2 weeks to rebuild · [32m11 fine[0m · [33m1 watch[0m · [31m0 split[0m · 7 without tests
+[32m██████████████████░░[0m  [2mshare of packages that are fine[0m
+
+[1mStart here[0m  [2mby days to rebuild[0m
+
+[1m 1  [0m[36mhidden[0m  [1;32mFINE[0m  2 days
+    It is inside every limit, and it has no tests at all.
+    [2mDo this → Nothing. Leave it alone.[0m
+
+[1m 2  [0m[36mimmut[0m  [1;32mFINE[0m  2 days
+    It is inside every limit, and it has no tests at all.
+    [2mDo this → Nothing. Leave it alone.[0m
+
+[1m 3  [0m[36ma[0m  [1;32mFINE[0m  1 day
+    It is inside every limit, and it has no tests at all.
+    [2mDo this → Nothing. Leave it alone.[0m
+
+[1mEvery package[0m  [2mby days to rebuild · * is over its size limit[0m
+
+[2m PACKAGE       BAND   TIME  LINES   COPIED  UNTESTED  CHANGES[0m
+ [36mhidden      [0m  [32mFINE [0m   2 d     32       0%         1        -
+ [36mimmut       [0m  [32mFINE [0m   2 d     31       0%         3        -
+ [36ma           [0m  [32mFINE [0m   1 d     22       0%         2        -
+ [36mb           [0m  [32mFINE [0m   1 d     22       0%         2        -
+ [36mhub         [0m  [32mFINE [0m   1 d     20       0%         3        -
+ [36mtested      [0m  [32mFINE [0m   1 d     27       0%         0        -
+ [36mdupes       [0m  [33mWATCH[0m   1 d     67    80.6%         3        -
+ [36msupport     [0m  [32mFINE [0m   1 d      8       0%         0        -
+ [36merrs        [0m  [32mFINE [0m   1 d      6       0%         1        -
+ [36mtrivial     [0m  [32mFINE [0m   1 d      4       0%         1        -
+ [2m… 2 more[0m · [2m--all for every row[0m · [2m--format json[0m · [2m--format md[0m · [2m--format html[0m

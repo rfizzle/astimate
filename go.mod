@@ -10,6 +10,7 @@ require (
 	github.com/pkoukk/tiktoken-go-loader v0.0.2
 	github.com/uudashr/gocognit v1.2.1
 	golang.org/x/mod v0.41.0
+	golang.org/x/term v0.45.0
 	golang.org/x/tools v0.50.0
 	gopkg.in/yaml.v3 v3.0.1
 )
