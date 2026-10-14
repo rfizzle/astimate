@@ -22,11 +22,14 @@
 # duplicate blocks start at 60 tokens, four rules that failed commits no
 # other rule failed without catching a regression only they caught warn
 # instead of failing, and three over-ceiling allowances were widened.
+# thresholds-2026-10-14b raises min_tokens_cross from 80 to 120, measured on
+# the same commits (calibration/notes/cross-floor-2026-10-14.md).
 
 # Identifies the calibration the values came from: the 2026-10-14 gate
-# retune, on top of the thresholds-2026-09-28 fit and the
-# rebuild-2026-09-28-claude-code-opus rebuild parameters.
-config_version: thresholds-2026-10-14
+# retune with its 120-token cross-package floor, on top of the
+# thresholds-2026-09-28 fit and the rebuild-2026-09-28-claude-code-opus
+# rebuild parameters.
+config_version: thresholds-2026-10-14b
 
 # Bytes of source per estimated token; tokens_est = bytes / chars_per_token.
 chars_per_token: 3.2
@@ -41,9 +44,14 @@ duplication:
   min_tokens: 60
   # Shortest cross-package block, in normalized tokens, that
   # dup_blocks_cross_pkg fails a change for adding; shorter repeats of a
-  # preamble across packages are reported but not gated. 80 is near where
-  # golangci-lint's dupl starts reporting copies.
-  min_tokens_cross: 80
+  # preamble across packages are reported but not gated. 120, at the top of
+  # the range where golangci-lint's dupl starts reporting copies: on the
+  # 2026-10-14 hand labels it lowered the gate's false failures from 10.2%
+  # to 5.8% with its recall kept at 86.7%; the copies it stops counting
+  # (functional-options scaffolds, a split block, an import alias) were
+  # allow, and every block commit it stops failing another rule fails
+  # (calibration/notes/cross-floor-2026-10-14.md).
+  min_tokens_cross: 120
   # Drop a duplicate block made only of literals and the punctuation of a
   # literal table, so repeated runs of data tables are not duplication.
   ignore_literal_only: true

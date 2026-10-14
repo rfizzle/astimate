@@ -347,6 +347,13 @@ history.
 
 ### Changed
 
+- The default judges cross-package copies from 120 tokens instead of 80
+  (`duplication.min_tokens_cross`), as `config_version:
+  thresholds-2026-10-14b`. On the 2026-10-14 hand labels (15 `block`, 137
+  `allow` agent commits) the gate's recall stays 86.7% and its false
+  failures fall from 10.2% to 5.8%; the commits it stops failing were
+  functional-options scaffolds, a block split by two struct fields and a
+  block an import alias grew (`calibration/notes/cross-floor-2026-10-14.md`).
 - The `dup_blocks` suggestion says it counts blocks of any kind and how
   many of them are code, and `explain_metric` says which kinds the
   default gate judges.

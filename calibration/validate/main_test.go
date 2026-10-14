@@ -167,7 +167,7 @@ func TestReevaluated(t *testing.T) {
 		"warned-1":    edit("  - metric: init_funcs\n    kind: density\n", "  - metric: init_funcs\n    kind: density\n    severity: warn\n"),
 		"limits-1":    edit("    max: 16000\n", "    max: 17000\n"),
 		"tokens-1":    edit("  min_tokens: 60\n", "  min_tokens: 70\n"),
-		"floor-1":     edit("  min_tokens_cross: 80\n", "  min_tokens_cross: 90\n"),
+		"floor-1":     edit("  min_tokens_cross: 120\n", "  min_tokens_cross: 90\n"),
 		"reordered-1": edit("  - metric: init_funcs\n", "  - metric: globals\n"),
 	}
 	for name, text := range replays {

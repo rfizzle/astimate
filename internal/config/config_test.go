@@ -29,13 +29,13 @@ func TestParseDefault(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Parse(Default()) error = %v", err)
 	}
-	if cfg.Version != "thresholds-2026-10-14" {
-		t.Errorf("Version = %q, want thresholds-2026-10-14", cfg.Version)
+	if cfg.Version != "thresholds-2026-10-14b" {
+		t.Errorf("Version = %q, want thresholds-2026-10-14b", cfg.Version)
 	}
 	if cfg.CharsPerToken != 3.2 {
 		t.Errorf("CharsPerToken = %v, want 3.2", cfg.CharsPerToken)
 	}
-	if want := (Duplication{MinTokens: 60, MinTokensCross: 80, IgnoreLiteralOnly: true, FoldSigns: true}); cfg.Duplication != want {
+	if want := (Duplication{MinTokens: 60, MinTokensCross: 120, IgnoreLiteralOnly: true, FoldSigns: true}); cfg.Duplication != want {
 		t.Errorf("Duplication = %+v, want %+v", cfg.Duplication, want)
 	}
 	if len(cfg.Warnings) != 0 {
@@ -344,10 +344,10 @@ func TestParseErrors(t *testing.T) {
 		{name: "missing chars_per_token", old: "chars_per_token: 3.2\n", repl: "", wantErr: "chars_per_token is required"},
 		{name: "zero chars_per_token", old: "chars_per_token: 3.2", repl: "chars_per_token: 0", wantErr: "chars_per_token must be > 0"},
 		{name: "zero min_tokens", old: "min_tokens: 60", repl: "min_tokens: 0", wantErr: "duplication.min_tokens must be > 0"},
-		{name: "negative min_tokens_cross", old: "min_tokens_cross: 80", repl: "min_tokens_cross: -1", wantErr: "duplication.min_tokens_cross must be >= 0"},
+		{name: "negative min_tokens_cross", old: "min_tokens_cross: 120", repl: "min_tokens_cross: -1", wantErr: "duplication.min_tokens_cross must be >= 0"},
 		{name: "ignore_literal_only not a bool", old: "ignore_literal_only: true", repl: "ignore_literal_only: maybe", wantErr: "`maybe` into bool"},
 		{name: "unknown duplication key", old: "  min_tokens: 60\n", repl: "  min_tokens: 60\n  min_tokenz: 40\n", wantErr: "min_tokenz"},
-		{name: "empty version", old: "config_version: thresholds-2026-10-14", repl: "config_version: \"\"", wantErr: "config_version is required"},
+		{name: "empty version", old: "config_version: thresholds-2026-10-14b", repl: "config_version: \"\"", wantErr: "config_version is required"},
 		{name: "unknown key", old: "chars_per_token: 3.2", repl: "chars_per_token: 3.2\nchars_per_tokenz: 3.2", wantErr: "chars_per_tokenz"},
 		{name: "threshold with no limit", old: "    kind: density\n    max_delta: 6\n    max: 40\n", repl: "    kind: density\n", wantErr: `"duplication_pct": density rule needs max_delta or max`},
 		{name: "capacity with max_delta", old: capacityRule, repl: capacityRule + "    max_delta: 0\n", wantErr: `"sloc": capacity rule must not set max_delta`},
@@ -401,9 +401,14 @@ const defaultDupSection = `duplication:
   min_tokens: 60
   # Shortest cross-package block, in normalized tokens, that
   # dup_blocks_cross_pkg fails a change for adding; shorter repeats of a
-  # preamble across packages are reported but not gated. 80 is near where
-  # golangci-lint's dupl starts reporting copies.
-  min_tokens_cross: 80
+  # preamble across packages are reported but not gated. 120, at the top of
+  # the range where golangci-lint's dupl starts reporting copies: on the
+  # 2026-10-14 hand labels it lowered the gate's false failures from 10.2%
+  # to 5.8% with its recall kept at 86.7%; the copies it stops counting
+  # (functional-options scaffolds, a split block, an import alias) were
+  # allow, and every block commit it stops failing another rule fails
+  # (calibration/notes/cross-floor-2026-10-14.md).
+  min_tokens_cross: 120
   # Drop a duplicate block made only of literals and the punctuation of a
   # literal table, so repeated runs of data tables are not duplication.
   ignore_literal_only: true
@@ -420,7 +425,7 @@ const defaultDupSection = `duplication:
 func TestParseDuplication(t *testing.T) {
 	t.Parallel()
 
-	defaults := Duplication{MinTokens: 60, MinTokensCross: 80, IgnoreLiteralOnly: true, FoldSigns: true}
+	defaults := Duplication{MinTokens: 60, MinTokensCross: 120, IgnoreLiteralOnly: true, FoldSigns: true}
 	tests := []struct {
 		name         string
 		section      string
@@ -431,23 +436,23 @@ func TestParseDuplication(t *testing.T) {
 		{name: "absent section", section: "", want: defaults},
 		{name: "empty section", section: "duplication: {}\n", want: defaults},
 		{name: "only min_tokens", section: "duplication:\n  min_tokens: 25\n",
-			want: Duplication{MinTokens: 25, MinTokensCross: 80, IgnoreLiteralOnly: true, FoldSigns: true}},
-		{name: "only min_tokens_cross", section: "duplication:\n  min_tokens_cross: 120\n",
-			want: Duplication{MinTokens: 60, MinTokensCross: 120, IgnoreLiteralOnly: true, FoldSigns: true}},
+			want: Duplication{MinTokens: 25, MinTokensCross: 120, IgnoreLiteralOnly: true, FoldSigns: true}},
+		{name: "only min_tokens_cross", section: "duplication:\n  min_tokens_cross: 100\n",
+			want: Duplication{MinTokens: 60, MinTokensCross: 100, IgnoreLiteralOnly: true, FoldSigns: true}},
 		{name: "min_tokens_cross off", section: "duplication:\n  min_tokens_cross: 0\n",
 			want: Duplication{MinTokens: 60, IgnoreLiteralOnly: true, FoldSigns: true}},
 		{name: "only fold_signs", section: "duplication:\n  fold_signs: false\n",
-			want: Duplication{MinTokens: 60, MinTokensCross: 80, IgnoreLiteralOnly: true, FoldSigns: false}},
+			want: Duplication{MinTokens: 60, MinTokensCross: 120, IgnoreLiteralOnly: true, FoldSigns: false}},
 		{name: "split_literal_runs on", section: "duplication:\n  split_literal_runs: true\n",
-			want: Duplication{MinTokens: 60, MinTokensCross: 80, IgnoreLiteralOnly: true, FoldSigns: true, SplitLiteralRuns: true}},
+			want: Duplication{MinTokens: 60, MinTokensCross: 120, IgnoreLiteralOnly: true, FoldSigns: true, SplitLiteralRuns: true}},
 		{name: "split_literal_runs off", section: "duplication:\n  split_literal_runs: false\n", want: defaults},
 		{name: "full section with split_literal_runs", section: "duplication:\n  min_tokens: 30\n  ignore_literal_only: true\n" +
 			"  fold_signs: false\n  split_literal_runs: true\n",
-			want: Duplication{MinTokens: 30, MinTokensCross: 80, IgnoreLiteralOnly: true, SplitLiteralRuns: true}},
+			want: Duplication{MinTokens: 30, MinTokensCross: 120, IgnoreLiteralOnly: true, SplitLiteralRuns: true}},
 		{name: "old keys", section: "dup_min_tokens: 30\ndup_ignore_literal_only: false\ndup_fold_signs: false\n",
-			want: Duplication{MinTokens: 30, MinTokensCross: 80}, wantWarnings: 1},
+			want: Duplication{MinTokens: 30, MinTokensCross: 120}, wantWarnings: 1},
 		{name: "one old key", section: "dup_min_tokens: 30\n",
-			want: Duplication{MinTokens: 30, MinTokensCross: 80, IgnoreLiteralOnly: true, FoldSigns: true}, wantWarnings: 1},
+			want: Duplication{MinTokens: 30, MinTokensCross: 120, IgnoreLiteralOnly: true, FoldSigns: true}, wantWarnings: 1},
 		{name: "both forms", section: "dup_min_tokens: 30\ndup_fold_signs: false\nduplication:\n  min_tokens: 25\n",
 			wantErr: []string{"dup_min_tokens and duplication.min_tokens", "dup_fold_signs and duplication.fold_signs"}},
 	}
@@ -569,8 +574,8 @@ func TestParseAcceptsCouplingMetrics(t *testing.T) {
 func TestResolveOrder(t *testing.T) {
 	t.Parallel()
 
-	custom := replace(t, "config_version: thresholds-2026-10-14", "config_version: custom")
-	flagged := replace(t, "config_version: thresholds-2026-10-14", "config_version: flagged")
+	custom := replace(t, "config_version: thresholds-2026-10-14b", "config_version: custom")
+	flagged := replace(t, "config_version: thresholds-2026-10-14b", "config_version: flagged")
 
 	tests := []struct {
 		name        string
@@ -579,7 +584,7 @@ func TestResolveOrder(t *testing.T) {
 		wantSource  string
 		wantVersion string
 	}{
-		{name: "embedded", wantSource: SourceEmbedded, wantVersion: "thresholds-2026-10-14"},
+		{name: "embedded", wantSource: SourceEmbedded, wantVersion: "thresholds-2026-10-14b"},
 		{name: "working dir", localFile: true, wantSource: SourceWorkDir, wantVersion: "custom"},
 		{name: "flag over nothing", flag: true, wantSource: SourceFlag, wantVersion: "flagged"},
 		{name: "flag over working dir", localFile: true, flag: true, wantSource: SourceFlag, wantVersion: "flagged"},
@@ -645,7 +650,7 @@ func TestResolveErrors(t *testing.T) {
 // TestResolveUsesWorkingDir checks the exported entry point reads ./astimate.yaml.
 func TestResolveUsesWorkingDir(t *testing.T) {
 	dir := t.TempDir()
-	custom := replace(t, "config_version: thresholds-2026-10-14", "config_version: cwd")
+	custom := replace(t, "config_version: thresholds-2026-10-14b", "config_version: cwd")
 	if err := os.WriteFile(filepath.Join(dir, FileName), []byte(custom), 0o600); err != nil {
 		t.Fatal(err)
 	}

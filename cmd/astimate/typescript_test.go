@@ -83,7 +83,7 @@ func TestTypeScriptCheckSelfBaseline(t *testing.T) {
 					t.Errorf("%s: language = %q, want typescript", r.PackagePath, r.Language)
 				}
 				// The embedded default's typescript override judged it.
-				if r.ConfigVersion != "thresholds-2026-10-14+typescript" {
+				if r.ConfigVersion != "thresholds-2026-10-14b+typescript" {
 					t.Errorf("%s: config_version = %q, want the typescript override's", r.PackagePath, r.ConfigVersion)
 				}
 			}

@@ -55,6 +55,8 @@ func TestCalibrated(t *testing.T) {
 		// A gate retune after it keeps the fitted rebuild parameters.
 		{"thresholds-2026-10-14", true},
 		{"thresholds-2026-10-14+typescript", true},
+		{"thresholds-2026-10-14b", true},
+		{"thresholds-2026-10-14b+typescript", true},
 		{"thresholds-soon", false},
 		{"rebuild-2026-10-01-claude-code", true},
 		{"", false},

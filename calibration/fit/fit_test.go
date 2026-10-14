@@ -231,7 +231,7 @@ const committedRebuild = "../rebuild/astimate-rebuild-2026-09-28-claude-code-opu
 
 // shippedRetune is the embedded default's config_version: the gate
 // validation's retune (SPEC.md 11.4) of the rebuild fit's configuration.
-const shippedRetune = "thresholds-2026-10-14"
+const shippedRetune = "thresholds-2026-10-14b"
 
 // TestDefaultIsCommittedCandidate checks the embedded default carries
 // exactly the committed threshold candidate's rules and extraction
@@ -239,8 +239,8 @@ const shippedRetune = "thresholds-2026-10-14"
 // rebuild fit's parameters, which it was built from, under the gate
 // retune's config_version. The exceptions are what the gate validation
 // sets (SPEC.md 11.4), which this fit does not produce: each
-// over_max_delta, the severities and duplication.min_tokens, compared
-// apart, and so are changed_func_cognitive_max's over_max_delta, set by
+// over_max_delta, the severities, duplication.min_tokens and
+// duplication.min_tokens_cross, compared apart, and so are changed_func_cognitive_max's over_max_delta, set by
 // hand, the density floors, set by hand (takeFloors), and the package
 // roles (takeRoles).
 func TestDefaultIsCommittedCandidate(t *testing.T) {
@@ -272,7 +272,11 @@ func TestDefaultIsCommittedCandidate(t *testing.T) {
 	if def.Duplication.MinTokens != 60 {
 		t.Errorf("default duplication.min_tokens = %d, want the validation's 60", def.Duplication.MinTokens)
 	}
+	if def.Duplication.MinTokensCross != 120 {
+		t.Errorf("default duplication.min_tokens_cross = %d, want the validation's 120", def.Duplication.MinTokensCross)
+	}
 	def.Duplication.MinTokens = cand.Duplication.MinTokens
+	def.Duplication.MinTokensCross = cand.Duplication.MinTokensCross
 	if floors := takeFloors(def.Thresholds); !maps.Equal(floors, wantFloors()) {
 		t.Errorf("default floors = %v, want %v", floors, wantFloors())
 	}

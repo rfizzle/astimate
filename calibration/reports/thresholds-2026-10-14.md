@@ -1,7 +1,7 @@
 # Gate retune thresholds-2026-10-14
 
-- Configuration: `calibration/thresholds/astimate-thresholds-2026-10-14.yaml`, the embedded default (`internal/config/default.yaml`) and this repository's `astimate.yaml`
-- Validation: `calibration/reports/gate-validation-2026-10-14.md`, the shipped default on the 60-token rows
+- Configuration: `calibration/thresholds/astimate-thresholds-2026-10-14.yaml`; the embedded default (`internal/config/default.yaml`) and this repository's `astimate.yaml` now ship it as `thresholds-2026-10-14b`, with `min_tokens_cross` 120 (Cross floor, at the end)
+- Validation: `calibration/reports/gate-validation-2026-10-14-cross-floor-80.md`, this retune on the 60-token rows as replayed again with `cross_added`; `calibration/reports/gate-validation-2026-10-14.md` now validates `thresholds-2026-10-14b` (Cross floor, at the end)
 - Rows: `calibration/data/replay-<name>-2026-10-14-min60/` for go-starter, ztp, shhh, crush (Go) and ai-shell (TypeScript), replayed under `calibration/thresholds/astimate-min-tokens-60-2026-10-14.yaml`; the 40-token rows `calibration/data/replay-<name>-2026-10-14/` only for the before view
 - Labels: the hand labels `calibration/replay/labels/<name>-hand.yaml` (`shhh-hand-2026-10-14-6dfcbc1.yaml` for shhh's moved range at 60, `shhh-hand-2026-10-14.yaml` at 40) first, the split-or-extraction labels `<name>-split-extract-2026-10-14[-min60].yaml` second
 - Inputs decided before this retune: `duplication.min_tokens` 60 with `dup_blocks` `max_delta` 0 (`calibration/notes/min-tokens-2026-10-14.md`), `duplicated_lines` left ungated (`calibration/notes/duplicated-lines-rule-2026-10-14.md`)
@@ -164,3 +164,55 @@ None of S-147 to S-152 would catch a missed hand-labelled `block` commit, so the
 ## config_version
 
 The default ships as `config_version: thresholds-2026-10-14`, the name of this retune. Its rebuild parameters are still those of `rebuild-2026-09-28-claude-code-opus`, so `score.Calibrated` now also reads a `thresholds-<date>` version dated after that fit as carrying the fitted parameters (`rebuild.calibrated` stays true and the text summary keeps its passes); a `thresholds-<date>` file dated on or before 2026-09-28 still reads as uncalibrated, as its parameters are the placeholders.
+
+## Cross floor 2026-10-14: `min_tokens_cross` 120, `thresholds-2026-10-14b`
+
+The five repositories were replayed again so each module row records the
+cross-package blocks its commit may have added (`cross_added`, SPEC.md
+11.3), and `calibration/validate` re-derives `dup_blocks_cross_pkg` from
+them at any `duplication.min_tokens_cross`. Its recheck now reproduces every
+recorded verdict (0 of 3,800 pairs at the replay's floor, against 11 of
+3,863 before), and it sets aside the six package rows of ztp 130d2c8 whose
+baseline did not load. `calibration/notes/cross-floor-2026-10-14.md` sweeps
+the floor on the same pooled view (15 `block`, 137 `allow`):
+
+| `min_tokens_cross` | Rule recall, false failures, J | Gate recall, false failures, J |
+| --- | --- | --- |
+| 60 | 66.7%, 8.8%, +57.9 | 86.7%, 12.4%, +74.3 |
+| 80 (`thresholds-2026-10-14`) | 46.7%, 5.1%, +41.6 | 86.7%, 10.2%, +76.4 |
+| 100 | 40.0%, 2.9%, +37.1 | 86.7%, 8.0%, +78.6 |
+| 120 (`thresholds-2026-10-14b`, shipped) | 26.7%, 0.7%, +25.9 | 86.7%, 5.8%, +80.8 |
+
+The default now ships 120: the gate's J is best there, its recall stays
+86.7% and its false failures fall to 5.8%, inside the 10% target (13 of 137
+was needed; 8 of 137 now). The six `allow` commits it stops failing were
+failed by this rule alone (functional-options scaffolds, a split block, an
+import alias, a de-duplication); the three `block` commits the rule stops
+firing on are failed by other rules, and the one only it catches (ztp
+6b9cbe6, a 204-token copy) stays caught. The rule's own J falls with the
+floor, so criterion 1 read on the rule alone would not take it; 60, the
+rule's best J, is a tightening criterion 4 rules out, adding three gate
+false failures for no gate recall. The floor decides which commits the gate
+fails, so it is judged by the gate here, as the warn demotions were.
+Split-or-extraction labels: 11.3% to 7.1% false failures, recall 100% kept;
+every author: 13.8% to 11.6%, recall 85.7% kept.
+
+Matching added blocks by content instead of by count per package set would
+remove the three artifacts the ztp reading named (878d5f0, c0373bb,
+bb7f0cd); at 120 the floor removes the first two and bb7f0cd still fails
+`max_nesting`, so it would pass no further commit. It is parked: cross
+blocks carry no content anchors yet, which is well over the size the change
+was allowed.
+
+The re-run of the `dup_blocks_code` comparison on these rows keeps
+`dup_blocks` (rule J +51.1 against +61.6, gate +72.0 against +76.4 at 80,
+and +76.4 against +80.8 at 120).
+
+`config_version` is now `thresholds-2026-10-14b`, in the embedded default,
+`astimate.yaml` and `calibration/thresholds/astimate-thresholds-2026-10-14b.yaml`:
+this report names one version per retune, so a later change to one value
+gets its own name. The 2026-10-14 file stays, so rows replayed under it
+remain validatable. `calibration/reports/gate-validation-2026-10-14.md` is
+now the validation of `thresholds-2026-10-14b`; the 80-token gate's is
+`gate-validation-2026-10-14-cross-floor-80.md`, and the tables above this
+section keep the numbers of `thresholds-2026-10-14`.

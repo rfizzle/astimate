@@ -111,3 +111,33 @@ scaffolding the reading named; what it loses is a catch that rested on a
 self-overlap. The difference is one `block` label in fifteen, so the next
 relabel or replay (the 2026-10-14 re-replay of the five repositories)
 should re-run the command above before the question is closed.
+
+## Re-run 2026-10-14, on the re-replayed rows
+
+The five repositories were replayed again the same day so their module
+rows record the cross-package blocks each commit added
+(`calibration/notes/cross-floor-2026-10-14.md`); every stored metric is
+unchanged, and `calibration/validate` now sets aside the six ztp 130d2c8
+package rows whose baseline did not load, with their one violation. The
+command above, re-run, regenerated
+`calibration/reports/gate-validation-2026-10-14-dup-blocks-code.md`; the
+shipped side is `gate-validation-2026-10-14-cross-floor-80.md`, the same
+rows under the `thresholds-2026-10-14` file the candidate was built from.
+
+| Pooled hand labels, capacity-only set aside | Recall | False failures | J |
+| --- | --- | --- | --- |
+| `dup_blocks`, `max_delta` 0 | 10 of 15 (66.7%) | 7 of 137 (5.1%) | +61.6 pts |
+| `dup_blocks_code`, `max_delta` 0 | 8 of 15 (53.3%) | 3 of 137 (2.2%) | +51.1 pts |
+| Gate with `dup_blocks` (`min_tokens_cross` 80) | 13 of 15 (86.7%) | 14 of 137 (10.2%) | +76.4 pts |
+| Gate with `dup_blocks_code` in its place | 12 of 15 (80.0%) | 11 of 137 (8.0%) | +72.0 pts |
+
+The recheck now agrees on every pair (0 of 3,461). The set-aside rows
+removed ztp 130d2c8 (its new-looking `internal/broker`) from the `allow`
+commits of both rules, 8 to 7 for `dup_blocks` and 4 to 3 for
+`dup_blocks_code`, so the rules' J move to +61.6 and +51.1 (from +60.8 and
++50.4); the gate's numbers are the same as before. The default now ships `min_tokens_cross` 120
+(`thresholds-2026-10-14b`); with that floor, measured on a scratch copy of
+the candidate, the code-block gate fails 80.0% and 3.6% (J +76.4) against
+86.7% and 5.8% (J +80.8) for the shipped gate. `dup_blocks_code` does not
+beat `dup_blocks` on either J, so the default keeps `dup_blocks`; the
+question rests, as before, on ztp 0a8b69b.

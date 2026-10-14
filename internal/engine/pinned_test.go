@@ -8,7 +8,8 @@ import (
 )
 
 // pinnedDefault returns the embedded default configuration with the rules the
-// fixtures were written against: min_tokens 40 and no severity: warn lines.
+// fixtures were written against: min_tokens 40, min_tokens_cross 80 and no
+// severity: warn lines.
 // It pins them so a retune of the shipped default does not move the tests.
 func pinnedDefault() []byte {
 	var out []string
@@ -18,6 +19,8 @@ func pinnedDefault() []byte {
 			continue
 		case "min_tokens: 60":
 			l = strings.Replace(l, "60", "40", 1)
+		case "min_tokens_cross: 120":
+			l = strings.Replace(l, "120", "80", 1)
 		}
 		out = append(out, l)
 	}
