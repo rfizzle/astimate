@@ -23,12 +23,13 @@ const (
 	formatJSON   = "json"
 	formatHook   = "hook"
 	formatGitHub = "github"
+	formatMD     = "md"
 )
 
 // checkFormats returns the formats check --format accepts; formatText is
 // the default.
 func checkFormats() []string {
-	return []string{formatText, formatJSON, formatHook, formatGitHub}
+	return []string{formatText, formatJSON, formatHook, formatGitHub, formatMD}
 }
 
 // checkOptions are the check flags that select the baseline, the packages
@@ -109,7 +110,7 @@ func runCheck(args []string, stdout, stderr io.Writer) int {
 // blocking again could keep the agent looping.
 func runCheckInput(args []string, hookStdin func() io.Reader, stdout, stderr io.Writer) int {
 	fs := newFlagSet("check", "usage: astimate check [<module-root>] [--base ref | --baseline file] [--all] [--staged] "+
-		"[--config|--thresholds file] [--format text|json|hook|github] [--tokenizer est|o200k] "+
+		"[--config|--thresholds file] [--format text|json|hook|github|md] [--tokenizer est|o200k] "+
 		"[--coverage] [--coverage-timeout 2m]", stderr)
 	opts := checkOptions{hookStdin: hookStdin}
 	var tf targetFlags
@@ -188,7 +189,13 @@ func checkTarget(ctx context.Context, t *engine.Target, opts checkOptions, stdou
 		return exitAnalysis
 	}
 
-	if err := renderCheck(c, opts.format, stdout, stderr); err != nil {
+	if opts.format == formatMD || opts.format == formatGitHub {
+		err = engine.WriteChange(ctx, t, c, engine.ChangeOptions{Base: opts.base, GitHub: opts.format == formatGitHub,
+			SummaryFile: os.Getenv("GITHUB_STEP_SUMMARY")}, stdout)
+	} else {
+		err = renderCheck(c, opts.format, stdout, stderr)
+	}
+	if err != nil {
 		logger.Error("check failed", "root", t.Mod.Root, "err", err)
 		return exitAnalysis
 	}

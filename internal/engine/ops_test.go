@@ -265,7 +265,7 @@ func TestGoExtractorBoundary(t *testing.T) {
 	if err != nil {
 		t.Fatalf("go list: %v", err)
 	}
-	forbidden := []string{"/internal/engine", "/internal/report", "/internal/report/rows", "/internal/report/details", "/internal/narrate", "/internal/gate", "/internal/score", "/internal/config"}
+	forbidden := []string{"/internal/engine", "/internal/report", "/internal/report/rows", "/internal/report/details", "/internal/narrate", "/internal/narrate/markdown", "/internal/gate", "/internal/score", "/internal/config"}
 	for dep := range strings.FieldsSeq(string(out)) {
 		for _, f := range forbidden {
 			if strings.HasSuffix(dep, f) {

@@ -33,9 +33,27 @@ inputs:
     required: false
     default: "."
   format:
-    description: Output format passed to astimate check; github emits ::error and ::warning annotations.
+    description: >-
+      Output format passed to astimate check; github emits at most ten
+      ::error and ten ::warning annotations, ranked as the report ranks
+      packages, and appends the Markdown report to the job summary.
     required: false
     default: github
+  html:
+    description: >-
+      "true" also writes the HTML report (astimate report --format html)
+      and uploads it as the astimate-report artifact.
+    required: false
+    default: "false"
+  comment:
+    description: >-
+      "true" posts the Markdown report as one comment on a pull request,
+      and updates that comment on the next run (found by the hidden marker
+      <!-- astimate-report -->), through GITHUB_TOKEN and the REST API. The
+      job needs permissions: pull-requests: write; a pull request from a
+      fork cannot comment, and the step then only warns.
+    required: false
+    default: "false"
 
 runs:
   using: composite
@@ -57,3 +75,35 @@ runs:
         ASTIMATE_PATH: ${{ inputs.path }}
         ACTION_DIR: ${{ github.action_path }}
       run: '"$ACTION_DIR/run.sh"'
+
+    - name: Write the HTML report
+      if: ${{ !cancelled() && inputs.html == 'true' }}
+      shell: bash
+      env:
+        ASTIMATE_BASE: ${{ inputs.base }}
+        ASTIMATE_CONFIG: ${{ inputs.config }}
+        ASTIMATE_PATH: ${{ inputs.path }}
+        ACTION_DIR: ${{ github.action_path }}
+      run: '"$ACTION_DIR/html.sh"'
+
+    - name: Upload the HTML report
+      if: ${{ !cancelled() && inputs.html == 'true' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: astimate-report
+        path: astimate-report.html
+        if-no-files-found: warn
+
+    - name: Comment on the pull request
+      if: ${{ !cancelled() && inputs.comment == 'true' && github.event_name == 'pull_request' }}
+      shell: bash
+      env:
+        ASTIMATE_BASE: ${{ inputs.base }}
+        ASTIMATE_CONFIG: ${{ inputs.config }}
+        ASTIMATE_ALL: ${{ inputs.all }}
+        ASTIMATE_PATH: ${{ inputs.path }}
+        ASTIMATE_HTML: ${{ inputs.html }}
+        ASTIMATE_PR_NUMBER: ${{ github.event.pull_request.number }}
+        GITHUB_TOKEN: ${{ github.token }}
+        ACTION_DIR: ${{ github.action_path }}
+      run: '"$ACTION_DIR/comment.sh"'

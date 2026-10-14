@@ -17,6 +17,9 @@ type ReportOptions struct {
 	// Base is the git ref the change section is checked against, as
 	// CheckOptions.Base; empty leaves the section out.
 	Base string
+	// Check, when set, is the check of the change the caller
+	// already ran; Report narrates it instead of running Check again.
+	Check *report.Check
 }
 
 // Report builds the module report of t's module (compose.Build): every
@@ -49,7 +52,9 @@ func Report(ctx context.Context, t *Target, opts ReportOptions) (m *narrate.Modu
 		}
 		in.Packages = append(in.Packages, *r)
 	}
-	if opts.Base != "" {
+	if opts.Check != nil {
+		in.Check = opts.Check
+	} else if opts.Base != "" {
 		c, cf, err := Check(ctx, t, CheckOptions{Base: opts.Base})
 		if err != nil {
 			return nil, failed, err

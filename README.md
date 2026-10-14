@@ -406,6 +406,27 @@ jobs:
 | `all` | `false` | `true` checks every package, not only those changed since the merge-base. |
 | `path` | `.` | Module root to check, relative to the repository root, for a module below it such as `services/api`. Annotation paths stay relative to the repository root. |
 | `format` | `github` | `check --format` value. |
+| `html` | `false` | `true` also writes the HTML report (`astimate report --base <base> --format html --out astimate-report.html`) and uploads it with `actions/upload-artifact` as the `astimate-report` artifact. |
+| `comment` | `false` | `true` posts the Markdown report as one comment on a pull request and updates that comment on the next run. Needs `permissions: pull-requests: write` on the job. |
+
+With `--format github` the action writes at most ten `::error` and ten `::warning` annotations (GitHub shows ten of each per step), taken in the order the report ranks its failing packages, and appends the Markdown report (`astimate check --format md`: a heading with the verdict, a table of the findings with where to open each, the heads-ups by rule, the passed count and the cross-package copies before and after) to the job summary when `GITHUB_STEP_SUMMARY` is set. The summary ends with a line saying how many findings and warnings were not annotated; the table lists them all. `astimate report --format md` renders the whole repository report as Markdown, with the change block first under `--base`.
+
+With `comment: true` the Markdown is posted through the REST API with `GITHUB_TOKEN` and `curl`, led by the hidden marker `<!-- astimate-report -->`. The next run finds the comment by that marker and edits it, so a pull request never gets two. The job must grant the token write access to pull requests; a pull request from a fork cannot comment, and the step then only warns.
+
+```yaml
+permissions:
+  contents: read
+  pull-requests: write   # only for comment: true
+steps:
+  - uses: actions/checkout@v5
+    with:
+      fetch-depth: 0
+  - uses: rfizzle/astimate/action@master
+    with:
+      base: origin/${{ github.base_ref }}
+      html: true
+      comment: true
+```
 
 `fetch-depth: 0` is required: with the default shallow clone the merge-base does not exist and the action stops with exit 2 (`base ref ... not found`) or warns that the clone is shallow. For a `pull_request` event the checkout is the merge commit, so the packages checked are those the pull request changes. If `origin/<base>` might be missing, fetch it first with `git fetch --no-tags origin "+refs/heads/<base>:refs/remotes/origin/<base>"`, as this repository's `gate` job in [`ci.yml`](.github/workflows/ci.yml) does.
 

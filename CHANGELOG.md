@@ -29,6 +29,19 @@ history.
   look. It reports and does not gate: it exits 0 whatever the verdict.
   Without `--format` it notes that text output is coming and prints the
   JSON; `check`, `rank` and `assess` output is unchanged.
+- `--format md` on `report` and `check`: the module report as Markdown for
+  a pull request comment or a step summary (SPEC.md 8.5 and 10.3). `check
+  --format md` prints the change block: a heading with the verdict and
+  counts, a table of the findings (package, what moved, base to head,
+  where to open), the heads-ups by rule, the passed count and the
+  cross-package copies before and after. `report --format md` adds the
+  headline, the lead, the three packages to start with and the ten largest
+  packages, the change block first under `--base`.
+- The GitHub Action takes `html: true`, which writes the HTML report and
+  uploads it as the `astimate-report` artifact, and `comment: true`, which
+  posts the Markdown as one pull request comment through `GITHUB_TOKEN`
+  and updates it in place on the next run, found by a hidden marker (the
+  job needs `pull-requests: write`).
 - Cyclomatic complexity beside cognitive complexity: `cyclomatic_total`
   and `cyclomatic_p90` per package, and each function's count, McCabe's as
   gocyclo computes it (1 plus each `if`, `for`, `range`, non-default
@@ -385,6 +398,13 @@ history.
 
 ### Changed
 
+- `check --format github` writes at most ten `::error` and ten `::warning`
+  annotations, the failing packages ranked as the module report ranks them
+  (GitHub shows ten of each per step), and ends with a plain line saying
+  how many findings and warnings it left out. When `GITHUB_STEP_SUMMARY`
+  is set it appends the Markdown change block to that file, with the same
+  count, so the job summary lists every finding. Within the cap and
+  without the variable the output is unchanged.
 - The default judges cross-package copies from 120 tokens instead of 80
   (`duplication.min_tokens_cross`), as `config_version:
   thresholds-2026-10-14b`. On the 2026-10-14 hand labels (15 `block`, 137

@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"slices"
 
 	"github.com/rfizzle/astimate/internal/engine"
 	"github.com/rfizzle/astimate/internal/narrate"
+	"github.com/rfizzle/astimate/internal/narrate/markdown"
 )
 
 // runReport prints the module report of a module: `report [<module-root>]
@@ -16,10 +18,10 @@ import (
 // JSON. A package that fails is logged and left out, and the command exits
 // 2 after printing the rest. A failing change is reported, not gated.
 func runReport(args []string, stdout, stderr io.Writer) int {
-	fs := newFlagSet("report", "usage: astimate report [<module-root>] [--base ref] [--format json] "+
+	fs := newFlagSet("report", "usage: astimate report [<module-root>] [--base ref] [--format json|md] "+
 		"[--config path] [--tokenizer est|o200k]", stderr)
 	base := fs.String("base", "", "add the change against the merge-base of HEAD and this git ref")
-	format := fs.String("format", "", "output format: json")
+	format := fs.String("format", "", "output format: json, md")
 	var tf targetFlags
 	tf.register(fs, false)
 	dir, ok := parseModuleArgs("report", fs, args, stderr)
@@ -29,8 +31,8 @@ func runReport(args []string, stdout, stderr io.Writer) int {
 	if _, ok := tf.validate("report", stderr); !ok {
 		return exitUsage
 	}
-	if *format != "json" && *format != "" {
-		_, _ = fmt.Fprintf(stderr, "astimate: report: unknown format %q: want json\n", *format)
+	if !slices.Contains([]string{"json", "md", ""}, *format) {
+		_, _ = fmt.Fprintf(stderr, "astimate: report: unknown format %q: want json or md\n", *format)
 		return exitUsage
 	}
 	if *format == "" {
@@ -47,5 +49,10 @@ func runReport(args []string, stdout, stderr io.Writer) int {
 		logger.Error("report failed", "dir", dir, "err", err)
 		return exitAnalysis
 	}
-	return emit("report", t, failed, stdout, logger, func(w io.Writer) error { return narrate.WriteJSON(w, m) })
+	return emit("report", t, failed, stdout, logger, func(w io.Writer) error {
+		if *format == "md" {
+			return markdown.Write(w, m, markdown.Options{})
+		}
+		return narrate.WriteJSON(w, m)
+	})
 }

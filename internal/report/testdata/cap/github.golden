@@ -1,0 +1,21 @@
+::error file=pkg00::dup_blocks: 0 -> 2, max_delta +0. Extract helpers.
+::warning file=pkg00::globals: 1 (no baseline), max_delta +0. Pass it explicitly.
+::error file=pkg01::dup_blocks: 0 -> 2, max_delta +0. Extract helpers.
+::warning file=pkg01::globals: 1 (no baseline), max_delta +0. Pass it explicitly.
+::error file=pkg02::dup_blocks: 0 -> 2, max_delta +0. Extract helpers.
+::warning file=pkg02::globals: 1 (no baseline), max_delta +0. Pass it explicitly.
+::error file=pkg03::dup_blocks: 0 -> 2, max_delta +0. Extract helpers.
+::warning file=pkg03::globals: 1 (no baseline), max_delta +0. Pass it explicitly.
+::error file=pkg04::dup_blocks: 0 -> 2, max_delta +0. Extract helpers.
+::warning file=pkg04::globals: 1 (no baseline), max_delta +0. Pass it explicitly.
+::error file=pkg05::dup_blocks: 0 -> 2, max_delta +0. Extract helpers.
+::warning file=pkg05::globals: 1 (no baseline), max_delta +0. Pass it explicitly.
+::error file=pkg06::dup_blocks: 0 -> 2, max_delta +0. Extract helpers.
+::warning file=pkg06::globals: 1 (no baseline), max_delta +0. Pass it explicitly.
+::error file=pkg07::dup_blocks: 0 -> 2, max_delta +0. Extract helpers.
+::warning file=pkg07::globals: 1 (no baseline), max_delta +0. Pass it explicitly.
+::error file=pkg08::dup_blocks: 0 -> 2, max_delta +0. Extract helpers.
+::warning file=pkg08::globals: 1 (no baseline), max_delta +0. Pass it explicitly.
+::error file=pkg09::dup_blocks: 0 -> 2, max_delta +0. Extract helpers.
+::warning file=pkg09::globals: 1 (no baseline), max_delta +0. Pass it explicitly.
+astimate: 15 more findings and 15 more warnings are not annotated; the report lists them all

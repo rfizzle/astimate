@@ -2,6 +2,8 @@ package report
 
 import (
 	"bufio"
+	"bytes"
+	"cmp"
 	"fmt"
 	"io"
 	"math"
@@ -459,28 +461,94 @@ func WriteHook(w, warnings io.Writer, c *Check) error {
 // an annotation is read by a person, and carries no package path to match.
 const githubModuleLead = "module: "
 
-// WriteGitHub writes GitHub Actions workflow commands (SPEC.md 8.5): one
-// "::error" annotation per violation, one "::warning" per warning and one
-// "::notice" per exempted violation, whose message ends with the
-// exemption's reason (exemptedText), package by package, with the property and message escaped per the
-// workflow-command rules. A finding with a location (Finding.Location)
-// is annotated "file=<file>,line=<line>" on it, so it lands on the
-// line that caused it; a package finding without one is annotated
-// "file=<dir>" on its package directory. Every file is prefixed with
-// c.ModuleDir, so paths are relative to the repository top level. The
-// module row's findings come first and their message leads with
-// "module: "; the module row has no directory, so one of its findings
-// without a location carries no file. A baseline whose token counts are
-// not comparable adds one "::warning title=astimate::" line saying so,
-// before the findings. Each package whose baseline is unavailable adds one
-// "::notice" on its directory after them (unavailableText), and each
-// skipped package one "::warning" (skippedText).
+// MaxAnnotations is the most "::error" annotations, and the most
+// "::warning" annotations, WriteGitHub writes: GitHub shows ten of each
+// per step and drops the rest, so the cap keeps the ones worth having.
+const MaxAnnotations = 10
+
+// Omitted counts the findings and warnings WriteGitHubRanked left
+// without an annotation because of MaxAnnotations.
+type Omitted struct {
+	// Findings are the violations not annotated; Warnings the warnings.
+	Findings, Warnings int
+}
+
+// WriteGitHub writes GitHub Actions workflow commands as
+// WriteGitHubRanked does, with the rows in check order, and, when it left
+// annotations out, says on a last plain line how many.
 func WriteGitHub(w io.Writer, c *Check) error {
+	var buf bytes.Buffer
+	omitted, err := WriteGitHubRanked(&buf, c, nil)
+	if err != nil {
+		return err
+	}
+	if text := OmittedText(omitted); text != "" {
+		buf.WriteString("astimate: " + text + "\n")
+	}
+	if _, err := w.Write(buf.Bytes()); err != nil {
+		return fmt.Errorf("writing github annotations: %w", err)
+	}
+	return nil
+}
+
+// OmittedText says how many findings and warnings WriteGitHubRanked left
+// without an annotation, for the step summary and the log; empty when
+// none.
+func OmittedText(o Omitted) string {
+	var parts []string
+	if o.Findings > 0 {
+		parts = append(parts, strconv.Itoa(o.Findings)+" more findings")
+	}
+	if o.Warnings > 0 {
+		parts = append(parts, strconv.Itoa(o.Warnings)+" more warnings")
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return strings.Join(parts, " and ") + " are not annotated; the report lists them all"
+}
+
+// WriteGitHubRanked writes GitHub Actions workflow commands (SPEC.md 8.5):
+// one "::error" annotation per violation, one "::warning" per warning and
+// one "::notice" per exempted violation, whose message ends with the
+// exemption's reason (exemptedText), row by row, with the property and
+// message escaped per the workflow-command rules. Rows are taken in the
+// order of rank, the paths of the rows with violations, most pressing
+// first (the module report's failing packages, "<module>" for the module
+// row); rows it does not name follow in check order. At most MaxAnnotations
+// errors and MaxAnnotations warnings are written, from the first rows on;
+// the returned Omitted counts the rest. A finding with a location
+// (Finding.Location) is annotated "file=<file>,line=<line>" on it, so it
+// lands on the line that caused it; a package finding without one is
+// annotated "file=<dir>" on its package directory. Every file is prefixed
+// with c.ModuleDir, so paths are relative to the repository top level. The
+// module row's findings lead with "module: "; the module row has no
+// directory, so one of its findings without a location carries no file. A
+// baseline whose token counts are not comparable adds one "::warning
+// title=astimate::" line saying so, before the findings. Each package whose
+// baseline is unavailable adds one "::notice" on its directory after them
+// (unavailableText), and each skipped package one "::warning"
+// (skippedText).
+func WriteGitHubRanked(w io.Writer, c *Check, rank []string) (Omitted, error) {
+	var omitted Omitted
 	bw := bufio.NewWriter(w)
 	if note := tokenizerNote(c); note != "" {
 		_, _ = bw.WriteString("::warning title=astimate::" + escapeData(note) + "\n")
 	}
-	for _, p := range c.rows() {
+	rows := c.rows()
+	at := func(p *CheckedPackage) int {
+		path := p.Report.PackagePath
+		if p == c.Module {
+			path = metrics.ModuleRowID
+		}
+		if i := slices.Index(rank, path); i >= 0 {
+			return i
+		}
+		return len(rank)
+	}
+	slices.SortStableFunc(rows, func(a, b *CheckedPackage) int { return cmp.Compare(at(a), at(b)) })
+	errs, warns := 0, 0
+	for _, p := range rows {
 		r := &p.Report
 		prop, lead := " file="+escapeProperty(c.repoPath(r.PackagePath)), ""
 		if p == c.Module {
@@ -488,10 +556,18 @@ func WriteGitHub(w io.Writer, c *Check) error {
 		}
 		for j := range r.Violations {
 			f := &r.Violations[j]
+			if errs++; errs > MaxAnnotations {
+				omitted.Findings++
+				continue
+			}
 			_, _ = bw.WriteString("::error" + c.findingProperty(prop, f) + "::" + escapeData(lead+findingText(f)) + "\n")
 		}
 		for j := range r.Warnings {
 			f := &r.Warnings[j]
+			if warns++; warns > MaxAnnotations {
+				omitted.Warnings++
+				continue
+			}
 			_, _ = bw.WriteString("::warning" + c.findingProperty(prop, f) + "::" + escapeData(lead+findingText(f)) + "\n")
 		}
 		for j := range r.Exemptions {
@@ -509,9 +585,9 @@ func WriteGitHub(w io.Writer, c *Check) error {
 		_, _ = bw.WriteString("::warning file=" + escapeProperty(c.repoPath(s.Package)) + "::" + escapeData(skippedText(s)) + "\n")
 	}
 	if err := bw.Flush(); err != nil {
-		return fmt.Errorf("writing github annotations: %w", err)
+		return omitted, fmt.Errorf("writing github annotations: %w", err)
 	}
-	return nil
+	return omitted, nil
 }
 
 // repoPath returns the module-relative path p relative to the repository

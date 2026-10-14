@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// TestImportBoundary checks that narrate and compose import only the
+// TestImportBoundary checks that narrate, compose and markdown import only the
 // report packages and metrics from this module, never an extractor,
 // score, gate or baseline.
 func TestImportBoundary(t *testing.T) {
@@ -17,8 +17,9 @@ func TestImportBoundary(t *testing.T) {
 	t.Parallel()
 
 	for pkg, allowed := range map[string][]string{
-		".":         {"internal/report"},
-		"./compose": {"internal/report", "internal/report/rows", "internal/report/details", "internal/metrics", "internal/narrate"},
+		".":          {"internal/report"},
+		"./compose":  {"internal/report", "internal/report/rows", "internal/report/details", "internal/metrics", "internal/narrate"},
+		"./markdown": {"internal/narrate"},
 	} {
 		out, err := exec.CommandContext(t.Context(), "go", "list", "-f", `{{join .Imports "\n"}}`, pkg).Output()
 		if err != nil {
