@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -57,6 +58,11 @@ func sortValue(r *report.Row, key string) float64 {
 		return float64(r.TokensEst)
 	case report.SortDuplication:
 		return r.DuplicationPct
+	case report.SortChurn:
+		if r.ChurnCommits == nil {
+			return -1
+		}
+		return float64(*r.ChurnCommits)
 	default:
 		return r.AgentPasses
 	}
@@ -119,7 +125,7 @@ func TestRankTop(t *testing.T) {
 			if len(rows) != want {
 				t.Fatalf("--top %d returned %d rows, want %d", n, len(rows), want)
 			}
-			if !slices.Equal(rows, all[:want]) {
+			if !reflect.DeepEqual(rows, all[:want]) {
 				t.Errorf("--top %d rows = %q, want the first %d of %q", n, rowPaths(rows), want, rowPaths(all))
 			}
 		})
@@ -135,7 +141,7 @@ func TestRankTable(t *testing.T) {
 		t.Fatalf("run(%q) exit code = %d, want %d; stderr = %q", args, got, exitOK, stderr.String())
 	}
 	lines := strings.Split(strings.TrimSuffix(stdout.String(), "\n"), "\n")
-	if len(lines) != 3 || strings.Join(strings.Fields(lines[0]), " ") != "PATH PASSES DAYS TIER FAN_IN TOKENS DUP% ROLE" {
+	if len(lines) != 3 || strings.Join(strings.Fields(lines[0]), " ") != "PATH PASSES DAYS TIER FAN_IN TOKENS DUP% CHURN ROLE" {
 		t.Errorf("table output = %q, want the header and two rows", stdout.String())
 	}
 }

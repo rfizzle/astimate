@@ -10,13 +10,15 @@ import (
 	"github.com/rfizzle/astimate/internal/score"
 )
 
-// rankRows are rows with ties on every sort key, in no particular order.
+// rankRows are rows with ties on every sort key, in no particular order;
+// c has no churn, which sorts after b's 0.
 func rankRows() []Row {
+	churn := func(n int) *int { return &n }
 	return []Row{
 		{Path: "c", AgentPasses: 0.5, HumanDays: 2, FanIn: 1, TokensEst: 100, DuplicationPct: 0},
-		{Path: "a", AgentPasses: 0.5, HumanDays: 1, FanIn: 3, TokensEst: 300, DuplicationPct: 10},
-		{Path: "d", AgentPasses: 1.5, HumanDays: 1, FanIn: 1, TokensEst: 100, DuplicationPct: 10},
-		{Path: "b", AgentPasses: 0.1, HumanDays: 2, FanIn: 0, TokensEst: 200, DuplicationPct: 30},
+		{Path: "a", AgentPasses: 0.5, HumanDays: 1, FanIn: 3, TokensEst: 300, DuplicationPct: 10, ChurnCommits: churn(5)},
+		{Path: "d", AgentPasses: 1.5, HumanDays: 1, FanIn: 1, TokensEst: 100, DuplicationPct: 10, ChurnCommits: churn(5)},
+		{Path: "b", AgentPasses: 0.1, HumanDays: 2, FanIn: 0, TokensEst: 200, DuplicationPct: 30, ChurnCommits: churn(0)},
 	}
 }
 
@@ -40,6 +42,7 @@ func TestSortRowsStableOrdering(t *testing.T) {
 		{SortFanIn, []string{"a", "c", "d", "b"}},
 		{SortTokens, []string{"a", "b", "c", "d"}},
 		{SortDuplication, []string{"b", "a", "d", "c"}},
+		{SortChurn, []string{"a", "d", "b", "c"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.key, func(t *testing.T) {
@@ -106,9 +109,10 @@ func TestWriteRowsJSONEmpty(t *testing.T) {
 func TestWriteRowsTable(t *testing.T) {
 	t.Parallel()
 
+	billingChurn := 42
 	rows := []Row{
 		{Path: "internal/billing", AgentPasses: 1.2, HumanDays: 55.2, Tier: score.TierFewPasses,
-			FanIn: 7, TokensEst: 10000, DuplicationPct: 20, Role: "library"},
+			FanIn: 7, TokensEst: 10000, DuplicationPct: 20, ChurnCommits: &billingChurn, Role: "library"},
 		{Path: "cmd/app", AgentPasses: 0.1, HumanDays: 2.5, Tier: score.TierOnePass, TokensEst: 900, Role: "main"},
 		{Path: ".", AgentPasses: 0, HumanDays: 0.3, Tier: score.TierOnePass, TokensEst: 55},
 	}
@@ -116,12 +120,12 @@ func TestWriteRowsTable(t *testing.T) {
 	if err := WriteRowsTable(&buf, rows); err != nil {
 		t.Fatalf("WriteRowsTable error = %v", err)
 	}
-	// A row whose extractor records no role shows a dash.
+	// A row whose extractor records no role, or without churn, shows a dash.
 	want := strings.Join([]string{
-		"PATH              PASSES  DAYS  TIER        FAN_IN  TOKENS  DUP%  ROLE",
-		"internal/billing     1.2  55.2  FEW_PASSES       7   10000  20.0  library",
-		"cmd/app              0.1   2.5  ONE_PASS         0     900   0.0  main",
-		".                    0.0   0.3  ONE_PASS         0      55   0.0  -",
+		"PATH              PASSES  DAYS  TIER        FAN_IN  TOKENS  DUP%  CHURN  ROLE",
+		"internal/billing     1.2  55.2  FEW_PASSES       7   10000  20.0     42  library",
+		"cmd/app              0.1   2.5  ONE_PASS         0     900   0.0      -  main",
+		".                    0.0   0.3  ONE_PASS         0      55   0.0      -  -",
 		"",
 	}, "\n")
 	if got := buf.String(); got != want {

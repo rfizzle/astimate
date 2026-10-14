@@ -142,12 +142,14 @@ func collectModule(ctx context.Context, dir, commit string, cfg *config.Config, 
 // packageRows extracts each of pkgs from the loaded target t and returns
 // their rows sorted by import path, tagged with commit, and the packages
 // that failed. When the extractor lists functions (metrics.FunctionLister),
-// each row carries its package's per-function cognitive counts.
+// each row carries its package's per-function cognitive counts. Each row
+// carries its churn at the module's HEAD (engine.MeasureChurn).
 func packageRows(ctx context.Context, t *engine.Target, pkgs []string, commit string, cfg *config.Config,
 	logger *slog.Logger,
 ) (rows []Row, failed []packageFailure) {
 	modPath := t.Mod.ModulePath
 	lister, _ := t.Ext.(metrics.FunctionLister)
+	fillChurn := engine.MeasureChurn(ctx, t)
 	rows = make([]Row, 0, len(pkgs))
 	for _, pkg := range pkgs {
 		m, err := t.Ext.Extract(ctx, t.Mod, pkg)
@@ -156,6 +158,7 @@ func packageRows(ctx context.Context, t *engine.Target, pkgs []string, commit st
 			failed = append(failed, packageFailure{Package: pkg, Err: err.Error()})
 			continue
 		}
+		fillChurn(pkg, &m)
 		var fns []metrics.FunctionInfo
 		if lister != nil {
 			// Functions reads what the Extract above recorded.

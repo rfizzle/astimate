@@ -24,6 +24,7 @@ Per package, from non-test files unless noted:
 | `max_nesting`, `cognitive_p90`, `changed_func_cognitive_max` | Structural complexity, including that of the most complex function changed since the baseline |
 | `cyclomatic_total`, `cyclomatic_p90` | McCabe's cyclomatic complexity per function as gocyclo counts it, summed and at the 90th percentile; reported, not gated, with each function's value beside its cognitive complexity in the JSON report's `details.functions` |
 | `test_files`, `test_funcs`, `has_tests` | Whether the next agent has a feedback loop |
+| `churn_commits`, `churn_authors` | How often the package changes: the commits of the last `churn.commits` (default 200) first-parent commits that touched its non-test, non-generated files, and their distinct authors. A weight for ordering work, not a defect; reported, never gated, and `n/a` outside a git repository or in a shallow clone |
 
 The full list, definitions and counting rules are in `SPEC.md` section 6.
 
@@ -71,7 +72,7 @@ The samples below are the real output for the fixture modules under `testdata/`,
 
 ### assess
 
-`astimate assess <package-dir>` scores one package: its rebuild estimate, the terms driving it, suggestions and every metric.
+`astimate assess <package-dir>` scores one package: its rebuild estimate, the terms driving it, suggestions and every metric. The command samples in this README turn churn off (`churn.commits: 0`), so `assess` reads `n/a` and `rank` `-` for it: the fixtures share this repository's history, which moves with every commit.
 
 <!-- sample:assess -->
 ```
@@ -104,6 +105,7 @@ metrics:
   untested_exports       3      dup_blocks_cross_pkg  0
   uses_cgo               false  uses_reflect          false
   generated_files        0      tokens_est_generated  0
+  churn_commits          n/a    churn_authors         n/a
 ```
 <!-- /sample:assess -->
 
@@ -143,24 +145,24 @@ $ astimate assess testdata/go/fixture/dupes --json | head -25
 
 ### rank
 
-`astimate rank [<module-root>]` ranks every package of the module containing the directory (default the current one) by rebuild effort, largest first. `--sort passes|days|fan_in|tokens|duplication` changes the key, `--top N` keeps the first N rows and `--json` prints an array. Each row names the package's role: `main` for a composition root (a Go `package main`, or a TypeScript package a `bin` entry names or that exports nothing), `test-support` for a package only tests use, `generated-only`, or `library`.
+`astimate rank [<module-root>]` ranks every package of the module containing the directory (default the current one) by rebuild effort, largest first. `--sort passes|days|fan_in|tokens|duplication|churn` changes the key, `--top N` keeps the first N rows and `--json` prints an array. `CHURN` is the package's `churn_commits`, `-` outside a git repository: a package high on both `PASSES` and `CHURN` is the one to split first, since it is both hard to rebuild and where the next change most likely lands. Churn moves neither the estimate nor the tier. Each row names the package's role: `main` for a composition root (a Go `package main`, or a TypeScript package a `bin` entry names or that exports nothing), `test-support` for a package only tests use, `generated-only`, or `library`.
 
 <!-- sample:rank -->
 ```
 $ astimate rank testdata/go/fixture
-PATH      PASSES  DAYS  TIER      FAN_IN  TOKENS  DUP%  ROLE
-a            0.0   1.3  ONE_PASS       0     159   0.0  library
-b            0.0   1.3  ONE_PASS       0     179   0.0  library
-consumer     0.0   0.1  ONE_PASS       0      45   0.0  library
-dupes        0.0   0.7  ONE_PASS       0     506  80.6  library
-errs         0.0   0.2  ONE_PASS       0     178   0.0  library
-hidden       0.0   1.9  ONE_PASS       0     226   0.0  library
-hub          0.0   1.1  ONE_PASS       4     177   0.0  library
-immut        0.0   1.5  ONE_PASS       0     344   0.0  library
-sibling      0.0   0.1  ONE_PASS       0      82   0.0  test-support
-support      0.0   0.3  ONE_PASS       0      85   0.0  test-support
-tested       0.0   1.0  ONE_PASS       0     237   0.0  library
-trivial      0.0   0.2  ONE_PASS       0      47   0.0  library
+PATH      PASSES  DAYS  TIER      FAN_IN  TOKENS  DUP%  CHURN  ROLE
+a            0.0   1.3  ONE_PASS       0     159   0.0      -  library
+b            0.0   1.3  ONE_PASS       0     179   0.0      -  library
+consumer     0.0   0.1  ONE_PASS       0      45   0.0      -  library
+dupes        0.0   0.7  ONE_PASS       0     506  80.6      -  library
+errs         0.0   0.2  ONE_PASS       0     178   0.0      -  library
+hidden       0.0   1.9  ONE_PASS       0     226   0.0      -  library
+hub          0.0   1.1  ONE_PASS       4     177   0.0      -  library
+immut        0.0   1.5  ONE_PASS       0     344   0.0      -  library
+sibling      0.0   0.1  ONE_PASS       0      82   0.0      -  test-support
+support      0.0   0.3  ONE_PASS       0      85   0.0      -  test-support
+tested       0.0   1.0  ONE_PASS       0     237   0.0      -  library
+trivial      0.0   0.2  ONE_PASS       0      47   0.0      -  library
 ```
 <!-- /sample:rank -->
 
@@ -169,15 +171,15 @@ A TypeScript module ranks the same way; the language is detected from the module
 <!-- sample:rank-ts -->
 ```
 $ astimate rank testdata/ts/fixture
-PATH     PASSES  DAYS  TIER      FAN_IN  TOKENS  DUP%  ROLE
-a           0.0   0.2  ONE_PASS       0      48   0.0  library
-b           0.0   1.0  ONE_PASS       0     344   0.0  library
-covered     0.0   0.3  ONE_PASS       0      81   0.0  library
-dupes       0.0   0.5  ONE_PASS       0     527  81.8  library
-hidden      0.0   1.3  ONE_PASS       0     210   0.0  library
-hub         0.0   1.7  ONE_PASS       4     232   0.0  library
-tested      0.0   0.9  ONE_PASS       0     216   0.0  library
-trivial     0.0   0.9  ONE_PASS       1     214   0.0  library
+PATH     PASSES  DAYS  TIER      FAN_IN  TOKENS  DUP%  CHURN  ROLE
+a           0.0   0.2  ONE_PASS       0      48   0.0      -  library
+b           0.0   1.0  ONE_PASS       0     344   0.0      -  library
+covered     0.0   0.3  ONE_PASS       0      81   0.0      -  library
+dupes       0.0   0.5  ONE_PASS       0     527  81.8      -  library
+hidden      0.0   1.3  ONE_PASS       0     210   0.0      -  library
+hub         0.0   1.7  ONE_PASS       4     232   0.0      -  library
+tested      0.0   0.9  ONE_PASS       0     216   0.0      -  library
+trivial     0.0   0.9  ONE_PASS       1     214   0.0      -  library
 ```
 <!-- /sample:rank-ts -->
 
@@ -312,7 +314,7 @@ On this repository, the last 60 first-parent commits (to `b1f008a`) took 2 min 4
 
 ## Configuration
 
-One file, `astimate.yaml`, holds the rebuild-estimate parameters and the gate thresholds. `astimate config init` writes the defaults with a comment on every line. Resolution order is `--config` (`--thresholds` is an alias on `check`), then `./astimate.yaml`, then the embedded default. The top-level keys `config_version`, `chars_per_token`, `rebuild` and `thresholds` are required: a missing one is an error, not filled from the default, so start from the file `config init` writes. Sections that group optional tuning, today `duplication` (`min_tokens`, `min_tokens_cross`, `ignore_literal_only`, `fold_signs`, `split_literal_runs`), may be partial or absent, and absent keys take the embedded defaults. An optional `languages:` section, keyed by language id (`go` or `typescript`), overrides the configuration for one language: its `rebuild:` sets only the parameters it names, the rest coming from the top-level `rebuild`; its `thresholds:` rules replace the top-level rule on the same metric or add one, and `- metric: <name>` with `disabled: true` drops that metric's rules for the language. Everything else is shared. Reports judged with an override show `config_version` suffixed with `+<language>`. The embedded default ships a `typescript` override, fitted on a corpus of 20 TypeScript repositories (`calibration/reports/thresholds-2026-09-28-typescript.md`), so TypeScript packages are judged by `thresholds-2026-10-14b+typescript`: larger size limits (`sloc` 2,500, `tokens_est` 35,000, `largest_file_sloc` 900) and slightly looser complexity limits than Go's. `SPEC.md` section 9 has the full rules.
+One file, `astimate.yaml`, holds the rebuild-estimate parameters and the gate thresholds. `astimate config init` writes the defaults with a comment on every line. Resolution order is `--config` (`--thresholds` is an alias on `check`), then `./astimate.yaml`, then the embedded default. The top-level keys `config_version`, `chars_per_token`, `rebuild` and `thresholds` are required: a missing one is an error, not filled from the default, so start from the file `config init` writes. Sections that group optional tuning, today `duplication` (`min_tokens`, `min_tokens_cross`, `ignore_literal_only`, `fold_signs`, `split_literal_runs`) and `churn` (`commits`, the window, 0 to turn churn off), may be partial or absent, and absent keys take the embedded defaults. An optional `languages:` section, keyed by language id (`go` or `typescript`), overrides the configuration for one language: its `rebuild:` sets only the parameters it names, the rest coming from the top-level `rebuild`; its `thresholds:` rules replace the top-level rule on the same metric or add one, and `- metric: <name>` with `disabled: true` drops that metric's rules for the language. Everything else is shared. Reports judged with an override show `config_version` suffixed with `+<language>`. The embedded default ships a `typescript` override, fitted on a corpus of 20 TypeScript repositories (`calibration/reports/thresholds-2026-09-28-typescript.md`), so TypeScript packages are judged by `thresholds-2026-10-14b+typescript`: larger size limits (`sloc` 2,500, `tokens_est` 35,000, `largest_file_sloc` 900) and slightly looser complexity limits than Go's. `SPEC.md` section 9 has the full rules.
 
 The default's `config_version` is `thresholds-2026-10-14b`: a retune by `calibration/validate` (`SPEC.md` section 11.4, [the retune](calibration/reports/thresholds-2026-10-14.md), [its validation](calibration/reports/gate-validation-2026-10-14.md)) on 15 hand-labelled `block` and 137 `allow` agent commits from five repositories. It counts duplicate blocks from 60 tokens instead of 40, makes four rules warn instead of fail, widens the over-ceiling allowances of `sloc`, `tokens_est` and `largest_file_sloc`, and judges cross-package copies from 120 tokens instead of 80 ([the floor](calibration/notes/cross-floor-2026-10-14.md)); there the gate fails 86.7% of the `block` commits and 5.8% of the `allow` ones, against 86.7% and 10.2% with the 80-token floor and 93.3% and 27.3% for the previous default (targets: at least 80% and at most 10%). The limits it retuned (fitted as `thresholds-2026-09-28`, with the rebuild fit `rebuild-2026-09-28-claude-code-opus` made on top of them) are the rounded 90th percentiles of a reference corpus of the standard library and 36 well-regarded Go modules, fitted by `calibration/fit` (`SPEC.md` section 11.1), except `changed_func_cognitive_max`, which is the rounded 99th percentile of the corpus's per-function cognitive complexity (50); [calibration/reports/thresholds-2026-09-28.md](calibration/reports/thresholds-2026-09-28.md) has the distributions and a before and after table, and `configs/uncalibrated.yaml` keeps the earlier placeholders. The zero-tolerance ratchets stay at 0 by policy. On 688 rule-labeled agent-authored commits from this repository and three public ones (`SPEC.md` section 11.4, [the report](calibration/reports/gate-validation-2026-09-28.md)) the 2026-09-28 gate failed 87.8% of the changes labeled `block` and 51.5% of those labeled `allow`; those labels mark later-fixed changes rather than maintainability, and the hand labels above replace them as the measure. The rebuild parameters are fitted by `calibration/rebuild/fit` from 85 measured rebuilds of 31 packages, three runs each (`SPEC.md` section 11.2, [the report](calibration/reports/rebuild-2026-09-28-claude-code-opus.md)): `context_budget` 37,500 (the budget the data preferred), `tokens_per_untested_export` 300, `tokens_per_export` and `tokens_per_hidden_state` 0 (both fitted negative, so clamped), and `superlinear_exponent` 1 (past the knee the measured cost grows no faster than the estimate, in the package runs and in 14 whole-tree runs). One estimate token corresponds to about 7.6 tokens of the agent's session footprint, so an agent pass is a unit of the estimate, not literally one context window.
 
@@ -425,6 +427,7 @@ internal/config/                Embedded default config and loader
 internal/score/                 Rebuild estimate, tiers, drivers, suggestions
 internal/gate/                  Thresholds and evaluation
 internal/baseline/              Git-ref and file baselines
+internal/churn/                 Churn per package from one git log over a window of commits
 internal/report/                Output formats
 internal/replay/                The gate over a repository's history (dryrun and the calibration replay)
 internal/gocache/               A per-run Go build cache (dryrun and the calibration commands)

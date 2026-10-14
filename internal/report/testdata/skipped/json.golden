@@ -50,7 +50,9 @@
       "generated_files": null,
       "tokens_est_generated": null,
       "coverage_pct": null,
-      "changed_func_cognitive_max": null
+      "changed_func_cognitive_max": null,
+      "churn_commits": null,
+      "churn_authors": null
     },
     "baseline": {
       "ref": "a1b2c3d",
@@ -92,7 +94,9 @@
         "generated_files": null,
         "tokens_est_generated": null,
         "coverage_pct": null,
-        "changed_func_cognitive_max": null
+        "changed_func_cognitive_max": null,
+        "churn_commits": null,
+        "churn_authors": null
       },
       "tokens_comparable": false
     },
@@ -167,7 +171,9 @@
       "generated_files": null,
       "tokens_est_generated": null,
       "coverage_pct": null,
-      "changed_func_cognitive_max": null
+      "changed_func_cognitive_max": null,
+      "churn_commits": null,
+      "churn_authors": null
     },
     "baseline": {
       "ref": "a1b2c3d",
@@ -209,7 +215,9 @@
         "generated_files": null,
         "tokens_est_generated": null,
         "coverage_pct": null,
-        "changed_func_cognitive_max": null
+        "changed_func_cognitive_max": null,
+        "churn_commits": null,
+        "churn_authors": null
       },
       "tokens_comparable": false
     },

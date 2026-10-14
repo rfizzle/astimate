@@ -18,7 +18,7 @@ func v1Names() []string {
 	return []string{
 		"dup_blocks_code", "duplicated_lines", "dup_blocks_cross_pkg", "instability", "abstractness", "main_sequence_distance",
 		"uses_cgo", "uses_reflect", "generated_files", "tokens_est_generated", "coverage_pct", "untested_exports_covered",
-		"changed_func_cognitive_max",
+		"changed_func_cognitive_max", "churn_commits", "churn_authors",
 	}
 }
 
@@ -62,6 +62,8 @@ func fullMetrics() RawMetrics {
 		CoveragePct:             ptr(87.5),
 		UntestedExportsCovered:  ptr(2),
 		ChangedFuncCognitiveMax: ptr(25),
+		ChurnCommits:            ptr(29),
+		ChurnAuthors:            ptr(3),
 	}
 }
 

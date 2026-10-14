@@ -64,6 +64,15 @@ duplication:
   # so tables that declaration headers join into one block are data too.
   split_literal_runs: false
 
+# Churn: how often each package changes, from git history. Reported, not
+# gated: a weight for ordering work, not a defect. This section is
+# optional: left out, it takes the value shown here.
+churn:
+  # The window: the last first-parent commits from HEAD whose changed files
+  # churn_commits and churn_authors count, read with one git log per run.
+  # 0 turns churn off, and the two metrics are null.
+  commits: 200
+
 # Rebuild estimate parameters (SPEC.md sections 7.2 to 7.4).
 rebuild:
   # Tokens one agent can hold in context for a rebuild; past it work is split.

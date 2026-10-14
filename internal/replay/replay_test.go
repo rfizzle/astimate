@@ -236,6 +236,17 @@ func TestReplayRows(t *testing.T) {
 	if mod := packageRowOf(t, pkgs, hashes[0], "<module>"); !mod.New || mod.Base != nil {
 		t.Errorf("root commit module row: new %v, base %v", mod.New, mod.Base)
 	}
+	// Churn is read from each commit's own history, so a's row counts the
+	// commits up to that one; a git baseline and the module row carry none.
+	for i, want := range []int{1, 2} {
+		m := packageRowOf(t, pkgs, hashes[i], "a").Metrics
+		if m.ChurnCommits == nil || *m.ChurnCommits != want || m.ChurnAuthors == nil || *m.ChurnAuthors != 1 {
+			t.Errorf("commit %d row of a: churn %v by %v, want %d commits by 1 author", i, m.ChurnCommits, m.ChurnAuthors, want)
+		}
+	}
+	if mod := packageRowOf(t, pkgs, hashes[1], "<module>"); dup.Base.ChurnCommits != nil || mod.Metrics.ChurnCommits != nil {
+		t.Errorf("churn on the git baseline %v or the module row %v, want neither", dup.Base.ChurnCommits, mod.Metrics.ChurnCommits)
+	}
 	if got := commits[1].Trailers["Refs"]; !slices.Equal(got, []string{"12"}) {
 		t.Errorf("trailers %v", commits[1].Trailers)
 	}

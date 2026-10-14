@@ -28,3 +28,4 @@ metrics:
   dup_blocks_cross_pkg      0      uses_cgo          false
   uses_reflect              false  generated_files   0
   tokens_est_generated      0      coverage_pct      80
+  churn_commits             n/a    churn_authors     n/a

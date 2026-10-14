@@ -23,6 +23,16 @@ history.
   from the next run. On this repository the count equals gocyclo's on all
   1,659 functions and its Spearman correlation with cognitive complexity
   is 0.96 (`calibration/notes/cyclomatic-2026-10-14.md`).
+- Churn: `churn_commits`, the first-parent commits of a window that
+  touched a package's non-test, non-generated files, and `churn_authors`,
+  their distinct author emails, read with one `git log` per run. The
+  window is the new optional `churn.commits` setting (default 200; 0
+  turns churn off). Both are reported, not gated: in `assess` (`n/a`
+  outside a git repository or in a shallow clone), `check --format json`, the MCP tools,
+  `baseline write`, the replay and `dryrun` rows (each from its commit's
+  own history) and the corpus rows. `rank` gains a `CHURN` column, a
+  `churn_commits` field in its JSON and `--sort churn`; churn moves
+  neither the rebuild estimate nor the tier.
 - Replay rows record, on the module row, the cross-package blocks each
   commit may have added (`cross_added`): per set of packages, the blocks'
   lengths, kinds, packages and occurrences with the parent's block lengths

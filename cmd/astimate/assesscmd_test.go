@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/report"
 	"github.com/rfizzle/astimate/internal/score"
@@ -128,8 +129,15 @@ func TestAssessTrivialTier(t *testing.T) {
 func TestAssessTableGolden(t *testing.T) {
 	t.Parallel()
 
+	// The fixture lies in this repository, whose history grows with every
+	// commit, so the golden turns churn off and shows it as n/a.
+	cfg := filepath.Join(t.TempDir(), "astimate.yaml")
+	noChurn := strings.Replace(string(config.Default()), "  commits: 200\n", "  commits: 0\n", 1)
+	if err := os.WriteFile(cfg, []byte(noChurn), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	var stdout, stderr bytes.Buffer
-	args := []string{"assess", filepath.Join(fixtureDir, "trivial")}
+	args := []string{"assess", filepath.Join(fixtureDir, "trivial"), "--config", cfg}
 	if got := run(args, &stdout, &stderr); got != exitOK {
 		t.Fatalf("run(%q) exit code = %d, want %d; stderr = %q", args, got, exitOK, stderr.String())
 	}

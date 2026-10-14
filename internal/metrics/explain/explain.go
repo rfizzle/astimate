@@ -84,6 +84,9 @@ const (
 		"and a check measures head only, so there is no delta to gate."
 	evidenceOpacity = "Opacity: code the next agent cannot follow from Go source alone (C, reflection, " +
 		"unsafe memory, generator output). Informational: reported, not gated, and no default threshold."
+	evidenceChurn = "Churn is a weight for ordering work, not a defect: a package that changes often is " +
+		"where an agent's next change most likely lands, so a package high on both rebuild passes and churn " +
+		"is the one to split first. Reported, not gated, and no default threshold."
 )
 
 // generatedExcluded ends the definition of every size and structure metric
@@ -107,5 +110,6 @@ func explainText(s string) string {
 		"{coupling}", evidenceCoupling,
 		"{coverage}", evidenceCoverage,
 		"{opacity}", evidenceOpacity,
+		"{churn}", evidenceChurn,
 	).Replace(s)
 }

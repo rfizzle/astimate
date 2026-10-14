@@ -118,6 +118,15 @@ type RawMetrics struct {
 	// functions added or modified since baseline; nil without a baseline diff
 	// (v1).
 	ChangedFuncCognitiveMax *int `json:"changed_func_cognitive_max"`
+	// ChurnCommits is how many first-parent commits of the churn window,
+	// the last churn.commits commits from HEAD, touched a non-test,
+	// non-generated file of the package (SPEC.md 6.6). Nil outside a git
+	// repository, with the window off and on the module row (v1).
+	// Reported, not gated: a weight for ordering work, not a defect.
+	ChurnCommits *int `json:"churn_commits"`
+	// ChurnAuthors is the number of distinct author emails among the
+	// commits ChurnCommits counts; nil whenever ChurnCommits is (v1).
+	ChurnAuthors *int `json:"churn_authors"`
 
 	// Role is what the package is for in its module, one of the names of
 	// package metrics/role (SPEC.md 6.5), set by the extractor; a

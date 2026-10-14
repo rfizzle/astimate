@@ -580,3 +580,33 @@ Thresholds in the loaded config: none
   "thresholds": []
 }
 
+== churn_commits ==
+churn_commits (v1, not gated by default)
+Definition: How many commits of the churn window touched a non-test, non-generated file of the package. The window is the last churn.commits first-parent commits from HEAD (default 200; 0 turns churn off), read with one git log per run; a commit that touched a file under an old name counts for the old package. Null outside a git repository, in a shallow clone, with the window off, on the module row and in a git baseline.
+Evidence: Churn is a weight for ordering work, not a defect: a package that changes often is where an agent's next change most likely lands, so a package high on both rebuild passes and churn is the one to split first. Reported, not gated, and no default threshold.
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "How many commits of the churn window touched a non-test, non-generated file of the package. The window is the last churn.commits first-parent commits from HEAD (default 200; 0 turns churn off), read with one git log per run; a commit that touched a file under an old name counts for the old package. Null outside a git repository, in a shallow clone, with the window off, on the module row and in a git baseline.",
+  "evidence": "Churn is a weight for ordering work, not a defect: a package that changes often is where an agent's next change most likely lands, so a package high on both rebuild passes and churn is the one to split first. Reported, not gated, and no default threshold.",
+  "gated": false,
+  "name": "churn_commits",
+  "release": "v1",
+  "thresholds": []
+}
+
+== churn_authors ==
+churn_authors (v1, not gated by default)
+Definition: Distinct author emails among the commits churn_commits counts, over the same window. Null whenever churn_commits is.
+Evidence: Churn is a weight for ordering work, not a defect: a package that changes often is where an agent's next change most likely lands, so a package high on both rebuild passes and churn is the one to split first. Reported, not gated, and no default threshold.
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "Distinct author emails among the commits churn_commits counts, over the same window. Null whenever churn_commits is.",
+  "evidence": "Churn is a weight for ordering work, not a defect: a package that changes often is where an agent's next change most likely lands, so a package high on both rebuild passes and churn is the one to split first. Reported, not gated, and no default threshold.",
+  "gated": false,
+  "name": "churn_authors",
+  "release": "v1",
+  "thresholds": []
+}
+

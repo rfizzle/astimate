@@ -197,6 +197,10 @@ func (c *BaselineCache) get(key string, load func() (baseline.Baseline, error)) 
 // against the baseline's untested exports less those head's run executed
 // (judge).
 //
+// Each selected package's churn is read at HEAD of t's repository, from
+// one history walk (MeasureChurn), and reported only: a git baseline
+// carries none, a baseline file what it recorded, and no rule reads it.
+//
 // With opts.Staged the head packages are listed and extracted from a
 // temporary copy of the index (stagedTarget), removed before Check
 // returns, also on SIGINT or SIGTERM; git commands and the baseline still
@@ -325,6 +329,8 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 		order = append(order, pkg)
 	}
 	measureCoverage(ctx, ht, opts.Coverage, extracted, order)
+	// Churn reads the history of the repository, never the staged copy.
+	fillChurn(ctx, t, extracted)
 	noFunctions := false
 	for _, pkg := range order {
 		p, unrecorded, err := jc.Package(ctx, pkg, *extracted[pkg])

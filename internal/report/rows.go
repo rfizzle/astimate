@@ -22,6 +22,7 @@ const (
 	SortFanIn       = "fan_in"
 	SortTokens      = "tokens"
 	SortDuplication = "duplication"
+	SortChurn       = "churn"
 )
 
 // ErrUnknownSortKey is returned by SortRows for a key not in SortKeys.
@@ -45,6 +46,8 @@ type Row struct {
 	TokensEst int `json:"tokens_est"`
 	// DuplicationPct is the package's duplication_pct metric.
 	DuplicationPct float64 `json:"duplication_pct"`
+	// ChurnCommits is churn_commits, nil when not measured.
+	ChurnCommits *int `json:"churn_commits"`
 	// Role is the package's role (metrics.RawMetrics.Role, SPEC.md 6.5);
 	// omitted when the extractor records none.
 	Role string `json:"role,omitempty"`
@@ -62,13 +65,14 @@ func NewRow(path string, m *metrics.RawMetrics, p score.RebuildParams) Row {
 		FanIn:          m.FanIn,
 		TokensEst:      m.TokensEst,
 		DuplicationPct: m.DuplicationPct,
+		ChurnCommits:   m.ChurnCommits,
 		Role:           m.Role,
 	}
 }
 
 // SortKeys returns the keys SortRows accepts; SortPasses is the default.
 func SortKeys() []string {
-	return []string{SortPasses, SortDays, SortFanIn, SortTokens, SortDuplication}
+	return []string{SortPasses, SortDays, SortFanIn, SortTokens, SortDuplication, SortChurn}
 }
 
 // SortRows sorts rows in place by key, descending, with Path ascending as the
@@ -87,6 +91,14 @@ func SortRows(rows []Row, key string) error {
 		value = func(r *Row) float64 { return float64(r.TokensEst) }
 	case SortDuplication:
 		value = func(r *Row) float64 { return r.DuplicationPct }
+	case SortChurn:
+		// Unmeasured churn sorts last.
+		value = func(r *Row) float64 {
+			if r.ChurnCommits == nil {
+				return -1
+			}
+			return float64(*r.ChurnCommits)
+		}
 	default:
 		return fmt.Errorf("%w %q: want one of %s", ErrUnknownSortKey, key, strings.Join(SortKeys(), ", "))
 	}
@@ -114,13 +126,13 @@ func WriteRowsJSON(w io.Writer, rows []Row) error {
 
 // rowColumns are the ranking table's column headers.
 func rowColumns() []string {
-	return []string{"PATH", "PASSES", "DAYS", "TIER", "FAN_IN", "TOKENS", "DUP%", "ROLE"}
+	return []string{"PATH", "PASSES", "DAYS", "TIER", "FAN_IN", "TOKENS", "DUP%", "CHURN", "ROLE"}
 }
 
 // numericColumn reports whether column i of the ranking table holds numbers,
 // which are right-aligned; PATH, TIER and ROLE are text.
 func numericColumn(i int) bool {
-	return i != 0 && i != 3 && i != 7
+	return i != 0 && i != 3 && i != 8
 }
 
 // WriteRowsTable writes rows for a human reader: one header line, then one
@@ -139,6 +151,7 @@ func WriteRowsTable(w io.Writer, rows []Row) error {
 			strconv.Itoa(r.FanIn),
 			strconv.Itoa(r.TokensEst),
 			strconv.FormatFloat(r.DuplicationPct, 'f', 1, 64),
+			churnText(r.ChurnCommits),
 			cmp.Or(r.Role, "-"),
 		})
 	}
@@ -174,4 +187,12 @@ func WriteRowsTable(w io.Writer, rows []Row) error {
 		return fmt.Errorf("writing table ranking: %w", err)
 	}
 	return nil
+}
+
+// churnText is the CHURN cell, "-" when not measured.
+func churnText(n *int) string {
+	if n == nil {
+		return "-"
+	}
+	return strconv.Itoa(*n)
 }

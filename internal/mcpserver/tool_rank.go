@@ -21,7 +21,7 @@ const rankToolName = "rank_packages"
 // rankToolDescription tells the agent what rank_packages is for.
 const rankToolDescription = "Rank every package of a Go module by estimated rebuild effort, so you can " +
 	"see where technical debt is concentrated before choosing what to touch. Each row gives the " +
-	"package path, agent_passes, human_days, tier, fan_in, tokens_est, duplication_pct and role " +
+	"package path, agent_passes, human_days, tier, fan_in, tokens_est, duplication_pct, churn_commits and role " +
 	"(main for a composition root, library, test-support or generated-only), sorted " +
 	"descending by the sort key. Packages that fail to analyze are listed as skipped; the rest are " +
 	"still ranked."
@@ -33,7 +33,7 @@ type RankInput struct {
 	// Top keeps only the first Top rows; 0 keeps every row.
 	Top int `json:"top,omitempty" jsonschema:"Return only the first top rows after sorting. 0 or omitted returns every package."`
 	// Sort is the sort key, one of report.SortKeys.
-	Sort string `json:"sort,omitempty" jsonschema:"Sort key, descending: passes (default), days, fan_in, tokens or duplication."`
+	Sort string `json:"sort,omitempty" jsonschema:"Sort key, descending: passes (default), days, fan_in, tokens, duplication or churn (churn_commits)."`
 	// Coverage measures coverage_pct for every package (engine.RankOptions.Coverage).
 	Coverage bool `json:"coverage,omitempty" jsonschema:"Run the module's tests with go test -cover and scale each estimate's unspecified term by the package's coverage. Slower. Defaults to false."`
 }

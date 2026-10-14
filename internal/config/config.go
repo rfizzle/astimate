@@ -48,6 +48,8 @@ type Config struct {
 	CharsPerToken float64
 	// Duplication holds the duplicate-block detection settings.
 	Duplication Duplication
+	// Churn holds the churn window.
+	Churn Churn
 	// Rebuild holds the rebuild-estimate parameters.
 	Rebuild score.RebuildParams
 	// Thresholds holds the gate rules in file order.
@@ -93,6 +95,7 @@ type fileConfig struct {
 	ConfigVersion string           `yaml:"config_version"`
 	CharsPerToken *float64         `yaml:"chars_per_token"`
 	Duplication   *fileDuplication `yaml:"duplication"`
+	Churn         *fileChurn       `yaml:"churn"`
 	Rebuild       *fileRebuild     `yaml:"rebuild"`
 	Thresholds    []fileThreshold  `yaml:"thresholds"`
 	Exemptions    []fileExemption  `yaml:"exemptions"`
@@ -254,6 +257,9 @@ func (c *Config) Validate() error {
 	if c.Duplication.MinTokensCross < 0 {
 		errs = append(errs, fmt.Errorf("duplication.min_tokens_cross must be >= 0, got %d", c.Duplication.MinTokensCross))
 	}
+	if err := c.validateChurn(); err != nil {
+		errs = append(errs, err)
+	}
 	if err := c.Rebuild.Validate(); err != nil {
 		errs = append(errs, fmt.Errorf("rebuild: %w", err))
 	}
@@ -335,6 +341,9 @@ func (fc *fileConfig) build() (*Config, error) {
 		cfg.CharsPerToken = *fc.CharsPerToken
 	}
 	if err := fc.buildDuplication(cfg); err != nil {
+		errs = append(errs, err)
+	}
+	if err := fc.buildChurn(cfg); err != nil {
 		errs = append(errs, err)
 	}
 	if fc.Rebuild == nil {

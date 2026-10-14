@@ -3,7 +3,7 @@ package metrics
 import "strings"
 
 // numFields is the number of RawMetrics fields, the rows of fieldTable.
-const numFields = 38
+const numFields = 40
 
 // field is one row of SPEC.md section 6's metric table: what MetricNames,
 // Value, Delta, Validate and ModuleWide know about a RawMetrics field. Its
@@ -77,6 +77,8 @@ func fieldTable() [numFields]field {
 		{"tokens_est_generated", "v1", 0, ""},
 		{"coverage_pct", "v1", 100, ""},
 		{"changed_func_cognitive_max", "v1", 0, ""},
+		{"churn_commits", "v1", 0, ""},
+		{"churn_authors", "v1", 0, ""},
 	}
 }
 
@@ -102,6 +104,7 @@ func (m *RawMetrics) slots() [numFields]any {
 		&m.DupBlocksCode, &m.DuplicationPct, &m.DuplicatedLines, &m.TestFiles, &m.TestFuncs, &m.HasTests,
 		&m.UntestedExportsCovered, &m.UntestedExports, &m.DupBlocksCrossPkg, &m.Instability, &m.Abstractness, &m.MainSequenceDistance, &m.UsesCgo,
 		&m.UsesReflect, &m.GeneratedFiles, &m.TokensEstGenerated, &m.CoveragePct, &m.ChangedFuncCognitiveMax,
+		&m.ChurnCommits, &m.ChurnAuthors,
 	}
 }
 

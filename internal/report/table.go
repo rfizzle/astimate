@@ -94,10 +94,13 @@ func writeMetrics(w io.Writer, m *metrics.RawMetrics) error {
 
 // metricText formats one metric for the table: booleans as true or false,
 // numbers to at most two decimals. It reports false for a v1 field that was
-// not computed.
+// not computed, but a null churn metric reads n/a (SPEC.md 6.6).
 func metricText(m *metrics.RawMetrics, name string) (string, bool) {
 	v, ok := m.Value(name)
 	if !ok {
+		if name == "churn_commits" || name == "churn_authors" {
+			return "n/a", true
+		}
 		return "", false
 	}
 	switch name {

@@ -72,8 +72,12 @@ sample() {
 # embedded default. They run from the repository root, whose own
 # astimate.yaml (the default plus this repository's exemptions) would
 # otherwise be resolved, so each command that reads a configuration is
-# given the default explicitly.
-def=internal/config/default.yaml
+# given the default explicitly. Churn is turned off in it: the fixtures'
+# history is this repository's, which moves with every commit, so their
+# churn would make the check fail on a commit that changed nothing here.
+def="$tmp/default.yaml"
+sed 's/^  commits: 200$/  commits: 0/' internal/config/default.yaml >"$def"
+grep -q '^  commits: 0$' "$def"
 sample assess "astimate assess testdata/go/fixture/dupes" 0 -- \
 	"$bin" assess testdata/go/fixture/dupes --config "$def"
 sample assess-json "astimate assess testdata/go/fixture/dupes --json | head -25" 25 -- \

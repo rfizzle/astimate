@@ -73,14 +73,17 @@ func (t *Target) langConfig() config.Effective {
 }
 
 // Assess extracts the metrics of t's package, measures its coverage when
-// opts.Coverage asks (measureCoverage), and builds its report with the
-// configuration of its language (config.Config.ForLanguage).
+// opts.Coverage asks (measureCoverage), sets its churn (MeasureChurn), and
+// builds its report with the configuration of its language
+// (config.Config.ForLanguage).
 func Assess(ctx context.Context, t *Target, opts AssessOptions) (*report.Report, error) {
 	m, err := t.Ext.Extract(ctx, t.Mod, t.ImportPath)
 	if err != nil {
 		return nil, err
 	}
-	measureCoverage(ctx, t, opts.Coverage, map[string]*metrics.RawMetrics{t.ImportPath: &m}, []string{t.ImportPath})
+	ms := map[string]*metrics.RawMetrics{t.ImportPath: &m}
+	measureCoverage(ctx, t, opts.Coverage, ms, []string{t.ImportPath})
+	fillChurn(ctx, t, ms)
 	det, names, err := judge.Details(ctx, t.Ext, t.Mod, t.ImportPath)
 	if err != nil {
 		return nil, err
@@ -112,7 +115,8 @@ func (t *Target) details(d *metrics.Details) *report.Details {
 // report.ErrUnknownSortKey). A package that fails to extract is logged,
 // left out of the rows and returned as a *PackageError in failed. With
 // opts.Coverage every extracted package's coverage is measured in one run
-// (measureCoverage) before the rows are estimated.
+// (measureCoverage) before the rows are estimated; every package's churn
+// is read from one history walk (MeasureChurn), for the CHURN column.
 func Rank(ctx context.Context, t *Target, opts RankOptions) (rows []report.Row, failed []error, err error) {
 	pkgs, err := t.Ext.Packages(t.Mod.Root)
 	if err != nil {
@@ -134,6 +138,7 @@ func Rank(ctx context.Context, t *Target, opts RankOptions) (rows []report.Row, 
 		order = append(order, pkg)
 	}
 	measureCoverage(ctx, t, opts.Coverage, extracted, order)
+	fillChurn(ctx, t, extracted)
 	rows = make([]report.Row, 0, len(order))
 	for _, pkg := range order {
 		rows = append(rows, report.NewRow(judge.Rel(t.Mod.ModulePath, pkg), extracted[pkg], params))
@@ -157,7 +162,8 @@ func Rank(ctx context.Context, t *Target, opts RankOptions) (rows []report.Row, 
 // when it implements metrics.FunctionLister each package's functions, so a
 // check against the file can compute changed_func_cognitive_max, and when
 // it implements metrics.Detailer each package's duplicate blocks and
-// untested exports, so the check can name what the change added first. It
+// untested exports, so the check can name what the change added first.
+// Each package row records its churn at that commit (MeasureChurn). It
 // returns the path written and the number of packages, not counting that
 // row.
 func WriteBaseline(ctx context.Context, t *Target, out string) (path string, n int, err error) {
@@ -172,6 +178,14 @@ func WriteBaseline(ctx context.Context, t *Target, out string) (path string, n i
 	}
 	if err != nil {
 		return "", 0, err
+	}
+	// Churn is recorded as of the commit the file names (MeasureChurn).
+	fill := MeasureChurn(ctx, t)
+	for name, m := range pkgs {
+		if name != metrics.ModuleRowID {
+			fill(name, &m)
+			pkgs[name] = m
+		}
 	}
 	// Outside git, or before the first commit, the file records no ref.
 	ref, _ := baseline.HeadCommit(ctx, t.Mod.Root)
