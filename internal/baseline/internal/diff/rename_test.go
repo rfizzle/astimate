@@ -18,7 +18,7 @@ func TestParseRenames(t *testing.T) {
 		{
 			name: "mixed",
 			out:  "M\x00a/a.go\x00R097\x00a/x.go\x00a/sub/x.go\x00C100\x00b/b.go\x00c/b.go\x00D\x00d/d.go\x00",
-			want: [][2]string{{"a/x.go", "a/sub/x.go"}},
+			want: [][2]string{{"a/x.go", "a/sub/x.go"}, {"b/b.go", "c/b.go"}},
 		},
 		{name: "truncated rename", out: "R100\x00a/x.go\x00", wantErr: true},
 	}

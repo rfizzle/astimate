@@ -228,3 +228,67 @@ func TestCheckCarvedPackage(t *testing.T) {
 		t.Errorf("text output lacks %q:\n%s", want, text.String())
 	}
 }
+
+// TestCheckCarvedImporters carves big/carved out of big and checks the
+// packages that import it at head. user imported big at the baseline and
+// imports both big and big/carved at head: the new edge only follows code
+// to where it now lives, so user's baseline internal_imports counts it.
+// swap imported big and imports only big/carved at head, which is no rise
+// to exempt. fresh imports big/carved without ever having imported big,
+// which still counts.
+func TestCheckCarvedImporters(t *testing.T) {
+	if testing.Short() {
+		t.Skip("integration test: loads Go packages")
+	}
+	t.Parallel()
+
+	useBig := func(pkg string) string {
+		return "package " + pkg + "\n\nimport \"example.com/m/big\"\n\n// Use calls big.\nfunc Use() int { return big.Keep() }\n"
+	}
+	dir := gitRepoAt(t, map[string]string{
+		"go.mod":       "module example.com/m\n\ngo 1.22\n",
+		"big/keep.go":  "package big\n\n// Keep folds a pair.\nfunc Keep() int { return Calc1([]int{1, 2}) }\n",
+		"big/mover.go": moverSource("big"),
+		"user/user.go": useBig("user"),
+		"swap/swap.go": useBig("swap"),
+		"fresh/new.go": "package fresh\n\n// Use returns one.\nfunc Use() int { return 1 }\n",
+	})
+	if err := os.MkdirAll(filepath.Join(dir, "big", "carved"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	gitIn(t, dir, "mv", "big/mover.go", "big/carved/mover.go")
+	useCarved := func(pkg string) string {
+		return "package " + pkg + "\n\nimport \"example.com/m/big/carved\"\n\n" +
+			"// Use calls carved.\nfunc Use() int { return carved.Calc2([]int{3}) }\n"
+	}
+	writeFiles(t, dir, map[string]string{
+		"big/carved/mover.go": moverSource("carved"),
+		"big/keep.go": "package big\n\nimport \"example.com/m/big/carved\"\n\n" +
+			"// Keep folds a pair.\nfunc Keep() int { return carved.Calc1([]int{1, 2}) }\n",
+		"user/user.go": "package user\n\nimport (\n\t\"example.com/m/big\"\n\t\"example.com/m/big/carved\"\n)\n\n" +
+			"// Use calls big and carved.\nfunc Use() int { return big.Keep() + carved.Calc2([]int{3}) }\n",
+		"swap/swap.go": useCarved("swap"),
+		"fresh/new.go": useCarved("fresh"),
+	})
+	gitIn(t, dir, "commit", "-q", "-a", "--no-verify", "-m", "carve")
+
+	c, logs := checkAgainstBase(t, dir, true)
+	for _, tt := range []struct {
+		pkg        string
+		head, base int
+	}{
+		{pkg: "user", head: 2, base: 2},
+		{pkg: "swap", head: 1, base: 1},
+		{pkg: "fresh", head: 1, base: 0},
+		{pkg: "big", head: 1, base: 1},
+	} {
+		r := findRow(c, tt.pkg)
+		if r == nil || r.Baseline == nil {
+			t.Fatalf("no row with a baseline for %s; logs:\n%s", tt.pkg, logs)
+		}
+		if r.Metrics.InternalImports != tt.head || r.Baseline.Metrics.InternalImports != tt.base {
+			t.Errorf("%s internal_imports head %d, baseline %d, want %d and %d",
+				tt.pkg, r.Metrics.InternalImports, r.Baseline.Metrics.InternalImports, tt.head, tt.base)
+		}
+	}
+}

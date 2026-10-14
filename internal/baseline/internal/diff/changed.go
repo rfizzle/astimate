@@ -192,15 +192,17 @@ func modulePrefix(ctx context.Context, root, mergeBase string) (string, error) {
 
 // nameStatus returns the output of git diff --name-status -z between the
 // commit mergeBase and head: the working tree, or the index when
-// head.Staged. renames turns git's rename detection on (-M); otherwise it
-// is off whatever the configuration says. Paths are relative to the
-// repository top level whatever diff.relative says.
+// head.Staged. renames turns git's rename and copy detection on (-M -C:
+// a copy's source is a file the same diff modified, so code moved out of
+// a file that kept its path is listed as a copy); otherwise both are off
+// whatever the configuration says. Paths are relative to the repository
+// top level whatever diff.relative says.
 func nameStatus(ctx context.Context, root, mergeBase string, head Head, renames bool) (string, error) {
-	mode := "--no-renames"
+	mode := []string{"--no-renames"}
 	if renames {
-		mode = "-M"
+		mode = []string{"-M", "-C"}
 	}
-	args := []string{"diff", "--name-status", "-z", mode, "--no-relative", mergeBase, "--"}
+	args := slices.Concat([]string{"diff", "--name-status", "-z"}, mode, []string{"--no-relative", mergeBase, "--"})
 	var env []string
 	if head.Staged {
 		top, err := Git(ctx, root, "rev-parse", "--show-toplevel")

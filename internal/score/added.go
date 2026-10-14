@@ -1,7 +1,9 @@
 package score
 
 import (
+	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/metrics/role"
@@ -25,16 +27,19 @@ import (
 // nil when nothing was renamed. head is not modified.
 //
 // Blocks are matched by the set of packages they touch, as NewCrossBlocks
-// does, but only among the blocks that clear the floor and are not exempt
-// on both sides, so a short legacy block cannot hide a long copy between
-// the same packages, nor a long legacy block be blamed for a short repeat
-// added beside it.
+// does, each package replaced by its rename group, so a legacy block that
+// the rename carried from a source into the package carved out of it, its
+// copy in a third package staying put, is matched with its baseline
+// self. Only the blocks that clear the floor and are not exempt on both
+// sides are matched, so a short legacy block cannot hide a long copy
+// between the same packages, nor a long legacy block be blamed for a short
+// repeat added beside it.
 func AddedCrossBlocks(head, base []metrics.CrossBlock, floor int, from map[string][]string, roles map[string]string) []metrics.CrossBlock {
 	group := renameGroups(from)
 	old := make(map[string]int, len(base))
 	for i := range base {
 		if !underFloor(&base[i], floor) && !mainOnly(&base[i], roles) {
-			old[packageSet(&base[i])]++
+			old[groupSet(&base[i], group)]++
 		}
 	}
 	var out []metrics.CrossBlock
@@ -43,7 +48,7 @@ func AddedCrossBlocks(head, base []metrics.CrossBlock, floor int, from map[strin
 		if underFloor(b, floor) || mainOnly(b, roles) || moved(b, group) {
 			continue
 		}
-		if k := packageSet(b); old[k] > 0 {
+		if k := groupSet(b, group); old[k] > 0 {
 			old[k]--
 			continue
 		}
@@ -102,6 +107,21 @@ func renameGroups(from map[string][]string) map[string]string {
 		group[p] = find(p)
 	}
 	return group
+}
+
+// groupSet returns the set of packages b touches, as packageSet does, with
+// each package that group holds replaced by its group's representative.
+func groupSet(b *metrics.CrossBlock, group map[string]string) string {
+	pkgs := make([]string, 0, len(b.Occurrences))
+	for _, o := range b.Occurrences {
+		p := o.Package
+		if g, ok := group[p]; ok {
+			p = g
+		}
+		pkgs = append(pkgs, p)
+	}
+	slices.Sort(pkgs)
+	return strings.Join(slices.Compact(pkgs), "\x00")
 }
 
 // moved reports whether every package b touches lies in one rename group.

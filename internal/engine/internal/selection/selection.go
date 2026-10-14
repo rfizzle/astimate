@@ -255,7 +255,9 @@ func changedImportPaths(modPath string, change baseline.Change) map[string]bool 
 // (baseline.FindRenames, baseline.Seeded), so a package whose non-test
 // files were moved since the baseline is judged against the packages they
 // came from rather than as new (SPEC.md 8.4). r.Head's import graph says
-// which source imports a package carved out of it, when r.Ext implements
+// which source imports a package carved out of it, and which importer of
+// a source at the baseline (base.Importers) imports both the source and
+// the carved-out package at head, when r.Ext implements
 // metrics.ImporterLister. base is returned unchanged when r.Ext does not
 // implement metrics.SourceClassifier, and for a baseline file that
 // records no ref or one that does not resolve, since no merge-base is
@@ -293,10 +295,13 @@ func Seed(ctx context.Context, r Request, base baseline.Baseline) (baseline.Base
 }
 
 // carvedEdges returns, for each package of renames without a row of its own
-// in base, the module-relative directories of the packages importing it in
-// r.Head's import graph; nil when r.Ext does not implement
-// metrics.ImporterLister. A renamed-into directory that is no package at
-// head has no importers.
+// in base and for each package it was renamed from, the module-relative
+// directories of the packages importing it in r.Head's import graph; nil
+// when r.Ext does not implement metrics.ImporterLister. baseline.Seeded
+// reads it to tell a source's edge to the package carved out of it, and an
+// importer of a source that still imports the source and now imports the
+// carved-out package too. A directory that is no package at head has no
+// importers.
 func carvedEdges(ctx context.Context, r Request, base baseline.Baseline, renames baseline.Renames,
 ) (map[string]map[string]bool, error) {
 	il, ok := r.Ext.(metrics.ImporterLister)
@@ -304,23 +309,38 @@ func carvedEdges(ctx context.Context, r Request, base baseline.Baseline, renames
 		return nil, nil
 	}
 	modPath := r.Head.ModulePath
-	edges := make(map[string]map[string]bool, len(renames))
-	for to := range renames {
-		if _, own := base.Row(to); own {
-			continue
+	edges := make(map[string]map[string]bool, 2*len(renames))
+	list := func(dir string) error {
+		if _, done := edges[dir]; done {
+			return nil
 		}
-		importers, err := il.Importers(ctx, r.Head, judge.ImportPath(modPath, to))
+		importers, err := il.Importers(ctx, r.Head, judge.ImportPath(modPath, dir))
 		if errors.Is(err, metrics.ErrUnknownPackage) {
-			continue
+			edges[dir] = nil
+			return nil
 		}
 		if err != nil {
-			return nil, fmt.Errorf("listing the importers of %s: %w", to, err)
+			return fmt.Errorf("listing the importers of %s: %w", dir, err)
 		}
 		set := make(map[string]bool, len(importers))
 		for _, imp := range importers {
 			set[judge.Rel(modPath, imp)] = true
 		}
-		edges[to] = set
+		edges[dir] = set
+		return nil
+	}
+	for to, srcs := range renames {
+		if _, own := base.Row(to); own {
+			continue
+		}
+		if err := list(to); err != nil {
+			return nil, err
+		}
+		for _, src := range srcs {
+			if err := list(src.Dir); err != nil {
+				return nil, err
+			}
+		}
 	}
 	return edges, nil
 }

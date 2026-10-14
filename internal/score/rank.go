@@ -2,7 +2,6 @@ package score
 
 import (
 	"slices"
-	"strings"
 
 	"github.com/rfizzle/astimate/internal/metrics"
 )
@@ -75,12 +74,7 @@ func NewCrossBlocks(head, base []metrics.CrossBlock) []bool {
 
 // packageSet identifies b by the sorted set of packages it touches.
 func packageSet(b *metrics.CrossBlock) string {
-	pkgs := make([]string, 0, len(b.Occurrences))
-	for _, o := range b.Occurrences {
-		pkgs = append(pkgs, o.Package)
-	}
-	slices.Sort(pkgs)
-	return strings.Join(slices.Compact(pkgs), "\x00")
+	return groupSet(b, nil)
 }
 
 // newFirst returns a copy of items with those isNew marks first, each part

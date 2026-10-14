@@ -15,11 +15,62 @@ import (
 // moverSource is a Go file of package name long enough that a rename that
 // changes only its package clause is detected as one.
 func moverSource(name string) string {
+	return funcsSource(name, "One", "Two", "Three", "Four", "Five", "Six")
+}
+
+// funcsSource is a Go file of package name declaring one function per name
+// in funcs.
+func funcsSource(name string, funcs ...string) string {
 	body := "package " + name + "\n\n"
-	for _, f := range []string{"One", "Two", "Three", "Four", "Five", "Six"} {
+	for _, f := range funcs {
 		body += "// " + f + " returns its name.\nfunc " + f + "() string {\n\ts := \"" + f + "\"\n\treturn s + s\n}\n\n"
 	}
 	return body
+}
+
+// TestFindRenamesAcrossEdits follows a file renamed in one commit and
+// edited in a later one, and code moved out of a file that kept its path
+// into a new package, which git lists as a copy.
+func TestFindRenamesAcrossEdits(t *testing.T) {
+	t.Parallel()
+
+	r := newRepo(t, "master")
+	r.write("go.mod", "module example.com/m\n\ngo 1.27\n")
+	greek := []string{"Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta"}
+	colors := []string{"Red", "Green", "Blue", "Cyan", "Magenta", "Yellow"}
+	r.write("f/old.go", funcsSource("f", greek...))
+	r.write("g/big.go", moverSource("g"))
+	r.write("u/same.go", funcsSource("u", colors...))
+	base := r.commit("base")
+
+	if err := os.MkdirAll(filepath.Join(r.dir, "h"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	r.git("mv", "f/old.go", "h/old.go")
+	r.commit("move")
+	// The moved file is edited after the move: its package clause and two
+	// more functions.
+	r.write("h/old.go", funcsSource("h", append(greek, "Eta", "Theta")...))
+	r.commit("edit")
+	// Four of g's six functions move out to g/part; big.go keeps its path.
+	r.write("g/big.go", funcsSource("g", "One", "Two"))
+	r.write("g/part/part.go", funcsSource("part", "Three", "Four", "Five", "Six"))
+	// A copy of a file no commit modified is not followed: git lists no
+	// copy from an unchanged source.
+	r.write("v/same.go", funcsSource("v", colors...))
+	r.commit("split")
+
+	got, err := FindRenames(context.Background(), r.dir, base, golang.New(), Head{})
+	if err != nil {
+		t.Fatalf("FindRenames: %v", err)
+	}
+	want := Renames{
+		"h":      {{Dir: "f", Files: 1}},
+		"g/part": {{Dir: "g", Files: 1}},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("FindRenames = %+v, want %+v", got, want)
+	}
 }
 
 func TestFindRenames(t *testing.T) {
@@ -147,6 +198,62 @@ func TestSeeded(t *testing.T) {
 	}
 	if got := Seeded(base, nil, nil); got != Baseline(base) {
 		t.Error("Seeded with no renames did not return the baseline itself")
+	}
+}
+
+// TestSeededMixedNamed seeds from two sources, one of which recorded no
+// duplicate blocks or untested exports: the seeded row records none
+// rather than reading the other source's as the whole baseline.
+func TestSeededMixedNamed(t *testing.T) {
+	t.Parallel()
+
+	withNamed := Row{Named: Named{DupBlocks: []uint64{2, 1}, UntestedExports: []string{"F"}}, HasNamed: true}
+	base := rowsBaseline(map[string]Row{"a": withNamed, "b": {}, "c": withNamed})
+	s := Seeded(base, Renames{
+		"mixed": {{Dir: "a", Files: 2}, {Dir: "b", Files: 1}},
+		"named": {{Dir: "a", Files: 1}, {Dir: "c", Files: 1}},
+	}, nil)
+
+	if r, ok := s.Row("mixed"); !ok || r.HasNamed || len(r.Named.DupBlocks)+len(r.Named.UntestedExports) != 0 {
+		t.Errorf("Row(mixed) = %+v, %v, want a row without named details", r, ok)
+	}
+	r, ok := s.Row("named")
+	if !ok || !r.HasNamed || !slices.Equal(r.Named.DupBlocks, []uint64{1, 2}) ||
+		!slices.Equal(r.Named.UntestedExports, []string{"F", "F"}) {
+		t.Errorf("Row(named) = %+v, %v, want both sources' details", r, ok)
+	}
+}
+
+// TestSeededImporters exempts from internal_imports the edge to a package
+// carved out in this change of a package that imported one of its sources
+// at the baseline and still imports it at head.
+func TestSeededImporters(t *testing.T) {
+	t.Parallel()
+
+	two := metrics.RawMetrics{InternalImports: 2}
+	base := rowsBaseline(map[string]Row{
+		"a": {}, "user": {Metrics: two}, "swap": {Metrics: two}, "fresh": {Metrics: two}, "other": {Metrics: two},
+	})
+	base.importers = map[string][]string{"a": {"other", "swap", "user"}}
+	base.importersKnown = true
+	// At head user imports a and a/sub, swap only a/sub, fresh only a/sub
+	// (it never imported a), other only a.
+	head := map[[2]string]bool{
+		{"a", "a/sub"}: true, {"user", "a/sub"}: true, {"user", "a"}: true,
+		{"swap", "a/sub"}: true, {"fresh", "a/sub"}: true, {"other", "a"}: true,
+	}
+	s := Seeded(base, Renames{"a/sub": {{Dir: "a", Files: 1}}}, func(from, to string) bool { return head[[2]string{from, to}] })
+
+	for dir, want := range map[string]int{"a": 1, "user": 3, "swap": 2, "fresh": 2, "other": 2} {
+		if r, _ := s.Row(dir); r.Metrics.InternalImports != want {
+			t.Errorf("Row(%s).Metrics.InternalImports = %d, want %d", dir, r.Metrics.InternalImports, want)
+		}
+	}
+	// Without a recorded import graph only the source's edge is exempt.
+	base.importersKnown, base.importers = false, nil
+	s = Seeded(base, Renames{"a/sub": {{Dir: "a", Files: 1}}}, func(from, to string) bool { return head[[2]string{from, to}] })
+	if r, _ := s.Row("user"); r.Metrics.InternalImports != 2 {
+		t.Errorf("without a graph Row(user).Metrics.InternalImports = %d, want 2", r.Metrics.InternalImports)
 	}
 }
 

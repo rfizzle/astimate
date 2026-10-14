@@ -477,6 +477,22 @@ history.
 
 ### Fixed
 
+- A package carved out of code that moved from a file which keeps its
+  path is seeded from that file's package: rename detection also lists
+  copies (`git diff -M -C`), and a copy from a file the same diff modified
+  counts as a rename. Before, such a package read "no baseline" on every
+  rule.
+- A legacy cross-package block that a carved-out package took with it from
+  its source, its copy in a third package staying put, is matched with its
+  baseline self instead of counting as added: the matching reads each
+  package a rename joined as its whole group.
+- A seeded row records duplicate blocks and untested exports only when
+  every source does, so a source without them no longer makes the other
+  source's blocks read as added.
+- In the change that carves a package out of another, a package that
+  imported the source at the baseline and imports both the source and the
+  carved-out package at head no longer rises in `internal_imports`; one
+  that imports the carved-out package for the first time still does.
 - The commit rows of a replay and of `dryrun --json` name the failed
   package in `packages_failed`: the replay scrubbed a package's error to
   plain text before the row read its package, so `package` was always

@@ -24,7 +24,8 @@ type RenameSource struct {
 // renamed from, most files first, then by directory.
 type Renames map[string][]RenameSource
 
-// FindRenames returns the renames git detects (git diff -M) between the
+// FindRenames returns the renames git detects (git diff -M -C, a copy from
+// a file the diff also modified counting as a rename) between the
 // commit mergeBase and head in the module at root: for each package, the
 // other packages its non-test source files were renamed from, with sc
 // saying which files are source, which are tests and which package each
@@ -88,9 +89,12 @@ func rankSources(files map[string]int) []RenameSource {
 	return srcs
 }
 
-// parseRenames returns the renames in the output of git diff --name-status
-// -z -M, each as its old and new path; other entries are skipped. An entry
-// is a status and one path, or two for a rename (R) or copy (C).
+// parseRenames returns the renames and copies in the output of git diff
+// --name-status -z -M -C, each as its old and new path; other entries are
+// skipped. An entry is a status and one path, or two for a rename (R) or
+// copy (C). A copy counts as a rename: git lists one only from a file the
+// same diff modified, which is how a file reads when part of it was moved
+// out to a new file and the rest kept its path.
 func parseRenames(out string) ([][2]string, error) {
 	fields := splitNUL(out)
 	var pairs [][2]string
@@ -103,7 +107,7 @@ func parseRenames(out string) ([][2]string, error) {
 		if i+n >= len(fields) {
 			return nil, fmt.Errorf("parsing git diff --name-status: truncated entry %q", status)
 		}
-		if status[0] == 'R' {
+		if n == 2 {
 			pairs = append(pairs, [2]string{fields[i+1], fields[i+2]})
 		}
 		i += n + 1
