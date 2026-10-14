@@ -12,6 +12,23 @@ history.
 
 ### Added
 
+- `astimate report [dir] [--base ref] --format json`: a module report in
+  plain words, the data model every report format will share (SPEC.md
+  10.3). Each package gets a band (Split when its rebuild tier is
+  PARTITION or it is over two of the five size ceilings, Watch when over
+  one, at FEW_PASSES or 25% copied, else Fine), a hotspot score
+  (`churn_commits` times `human_days`), its ceilings, its rebuild cost as
+  one engineer's time (21 working days a month, 220 a year) and as agent
+  sittings (one up to 1 pass, a few up to 3, split it first above), its
+  copied code with the two longest repeats, its functions bucketed as easy
+  (cognitive complexity up to 10), needing care (11 to 20) or hard (over
+  20) with the three hardest named, and the sentences that say what is
+  wrong and what to do. With `--base` the report adds the change: the
+  check of the changed packages with each finding's base, head, the
+  over-the-ceiling and allowed numbers, why the gate cares and where to
+  look. It reports and does not gate: it exits 0 whatever the verdict.
+  Without `--format` it notes that text output is coming and prints the
+  JSON; `check`, `rank` and `assess` output is unchanged.
 - Cyclomatic complexity beside cognitive complexity: `cyclomatic_total`
   and `cyclomatic_p90` per package, and each function's count, McCabe's as
   gocyclo computes it (1 plus each `if`, `for`, `range`, non-default
