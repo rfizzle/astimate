@@ -12,6 +12,15 @@ history.
 
 ### Added
 
+- `calibration/validate` reports each rule's part in the gate (the
+  commits it fired on and those no other failing rule fired on), and, for
+  hand labels that mark their sample, how many passed commits were read
+  and how many were not.
+- `calibration/validate` accepts rows replayed under another configuration
+  committed under `calibration/thresholds` when it has the same
+  `chars_per_token`, duplication settings, exemptions and rules: each rule
+  whose limits differ is re-evaluated on the stored metrics. It used to
+  refuse any other `config_version` with "their rules differ".
 - A configuration may gate `duplicated_lines` as a density rule: its
   finding names the duplicated lines, cites a duplicate block like the
   other duplication rules and is located on it, and merges into a
@@ -307,6 +316,21 @@ history.
 
 ### Changed
 
+- The embedded default is `thresholds-2026-10-14`, retuned on 14
+  hand-labelled `block` and 138 `allow` agent commits from five
+  repositories (`calibration/reports/thresholds-2026-10-14.md`): duplicate
+  blocks count from `duplication.min_tokens` 60 (was 40);
+  `untested_exports`, `globals`, `cognitive_p90` and `internal_imports`
+  ship at `severity: warn`; `over_max_delta` is 150 for `sloc` (was 100),
+  2,000 for `tokens_est` (was 1,000) and 50 for `largest_file_sloc` (was
+  5), with the TypeScript override's scaled to 375, 4,400 and 75. On those
+  commits the gate fails 85.7% of `block` and 10.9% of `allow` commits,
+  against 92.9% and 27.9% for the previous default at 40 tokens (85.7%
+  and 26.8% at 60 tokens with the previous rules). A configuration without a `duplication`
+  section now counts blocks from 60 tokens.
+- `rebuild.calibrated` is also true for a `thresholds-<date>` version dated
+  after the 2026-09-28 rebuild fit, so the retuned default keeps its
+  calibrated estimate.
 - `astimate dryrun --suggest` also sets `warn` on a rule whose every
   violation was merged into by a rule over the budget (the over-budget
   metric is in its `also` list). Before, the over-budget rule warned and
@@ -497,6 +521,9 @@ history.
 
 ### Fixed
 
+- `calibration/fit --language` keeps the base rule's `floor`, `severity`
+  and a density rule's `over_max_delta` in a refitted override rule; it
+  dropped them.
 - A package carved out of code that moved from a file which keeps its
   path is seeded from that file's package: rename detection also lists
   copies (`git diff -M -C`), and a copy from a file the same diff modified
