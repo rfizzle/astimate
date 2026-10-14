@@ -216,7 +216,7 @@ func TestDryrunSummaryGolden(t *testing.T) {
 		},
 	}
 	var buf bytes.Buffer
-	if err := writeDryrun(&buf, s, dryrunHeader{Selected: 50, Budget: 0.1, Wall: 3*time.Minute + 12*time.Second}); err != nil {
+	if err := summary.WriteText(&buf, s, summary.Header{Selected: 50, Budget: 0.1, Wall: 3*time.Minute + 12*time.Second}); err != nil {
 		t.Fatal(err)
 	}
 	golden := filepath.Join("testdata", "dryrun_summary.txt")
