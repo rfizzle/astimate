@@ -22,6 +22,17 @@ Every decision holds on the relabelled labels. c4af29e fires only `dup_blocks` a
 
 The shipped gate's false failures fall from 10.9% to 10.2% (14 of 137), still one commit over the target.
 
+## Code blocks 2026-10-14: `dup_blocks_code` measured, not shipped
+
+`calibration/notes/dup-blocks-code-2026-10-14.md` measures a `dup_blocks_code` rule (the code blocks of `dup_blocks`, SPEC.md 6.3) in place of `dup_blocks`, at `max_delta` 0 with `ratchet_from_zero`, on the relabelled pool; the validation is `calibration/reports/gate-validation-2026-10-14-dup-blocks-code.md`, of `calibration/candidates/dup-blocks-code-2026-10-14.yaml`.
+
+| Setting | Rule recall, false failures, J | Gate recall, false failures, J |
+| --- | --- | --- |
+| `dup_blocks` (shipped) | 66.7%, 5.8%, +60.8 | 86.7%, 10.2%, +76.4 |
+| `dup_blocks_code` in its place | 53.3%, 2.9%, +50.4 | 80.0%, 8.0%, +72.0 |
+
+Both J fall, so by criterion 1 the rule stays on `dup_blocks`, whatever its kinds; the gate would meet its false-failure target but sit exactly at its recall floor, losing ztp 0a8b69b, which the shipped gate catches only on a self-overlap. `duplication_pct` and `duplicated_lines` over code blocks only cannot be measured from the rows, which store no code-block lines; since `duplication_pct` fails no `allow` commit alone, no recount of it lowers the shipped gate's false failures. The default and `config_version` are unchanged.
+
 ## Method
 
 Every number is on the pooled hand-label view with the two capacity-only `block` labels set aside (ztp f430f2f, shhh ac1110f): 14 `block` and 138 `allow` agent-authored commits, as in the min-tokens note, when the retune was decided, and 15 and 137 in the two tables re-run after the relabel (above). A rule's recall is the share of `block` commits it fires on, its false-failure share the share of `allow` commits, and J their difference. A rule fires whatever its severity, so a warn rule keeps its own rates.
