@@ -73,18 +73,26 @@ func rankTarget(ctx context.Context, t *engine.Target, opts engine.RankOptions, 
 		return exitAnalysis
 	}
 
-	err = writeBuffered(stdout, func(w io.Writer) error {
+	return emit("rank", t, failed, stdout, logger, func(w io.Writer) error {
 		if asJSON {
 			return rows.WriteRowsJSON(w, ranked)
 		}
 		return rows.WriteRowsTable(w, ranked)
 	})
-	if err != nil {
-		logger.Error("rank failed", "root", t.Mod.Root, "err", err)
+}
+
+// emit writes what render renders to stdout (writeBuffered) and returns
+// the exit code of the module-wide command name on t: exitAnalysis when
+// writing fails or any package failed, each logged, else exitOK.
+func emit(name string, t *engine.Target, failed []error, stdout io.Writer, logger *slog.Logger,
+	render func(io.Writer) error,
+) int {
+	if err := writeBuffered(stdout, render); err != nil {
+		logger.Error(name+" failed", "root", t.Mod.Root, "err", err)
 		return exitAnalysis
 	}
 	if len(failed) > 0 {
-		logger.Error("rank incomplete", "failed_packages", len(failed))
+		logger.Error(name+" incomplete", "failed_packages", len(failed))
 		return exitAnalysis
 	}
 	return exitOK

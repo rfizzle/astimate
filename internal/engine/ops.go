@@ -86,16 +86,23 @@ func Assess(ctx context.Context, t *Target, opts AssessOptions) (*report.Report,
 	ms := map[string]*metrics.RawMetrics{t.ImportPath: &m}
 	measureCoverage(ctx, t, opts.Coverage, ms, []string{t.ImportPath})
 	fillChurn(ctx, t, ms)
-	det, names, err := judge.Details(ctx, t.Ext, t.Mod, t.ImportPath)
+	return t.build(ctx, t.ImportPath, t.Dir, &m)
+}
+
+// build returns the report of package pkg, whose directory is dir and
+// metrics m, with its details block, under the configuration of t's
+// language.
+func (t *Target) build(ctx context.Context, pkg, dir string, m *metrics.RawMetrics) (*report.Report, error) {
+	det, names, err := judge.Details(ctx, t.Ext, t.Mod, pkg)
 	if err != nil {
 		return nil, err
 	}
 	eff := t.langConfig()
 	r := report.Build(&report.Input{
 		Language:        t.Ext.Language(),
-		PackagePath:     t.Dir,
+		PackagePath:     dir,
 		ModulePath:      t.Mod.ModulePath,
-		Metrics:         m,
+		Metrics:         *m,
 		Names:           names,
 		Params:          eff.Rebuild,
 		ConfigVersion:   eff.Version,
@@ -124,21 +131,8 @@ func Rank(ctx context.Context, t *Target, opts RankOptions) (ranked []rows.Row, 
 	if err != nil {
 		return nil, nil, err
 	}
-	logger := t.logger()
 	params := t.langConfig().Rebuild
-	extracted := make(map[string]*metrics.RawMetrics, len(pkgs))
-	order := make([]string, 0, len(pkgs))
-	for _, pkg := range pkgs {
-		m, err := t.Ext.Extract(ctx, t.Mod, pkg)
-		if err != nil {
-			path := judge.Rel(t.Mod.ModulePath, pkg)
-			logger.Error("extracting package failed", "path", path, "err", err)
-			failed = append(failed, &PackageError{Path: path, Err: err})
-			continue
-		}
-		extracted[pkg] = &m
-		order = append(order, pkg)
-	}
+	extracted, order, failed := t.extractAll(ctx, pkgs)
 	measureCoverage(ctx, t, opts.Coverage, extracted, order)
 	fillChurn(ctx, t, extracted)
 	ranked = make([]rows.Row, 0, len(order))
@@ -152,6 +146,26 @@ func Rank(ctx context.Context, t *Target, opts RankOptions) (ranked []rows.Row, 
 		ranked = ranked[:opts.Top]
 	}
 	return ranked, failed, nil
+}
+
+// extractAll extracts every package of pkgs, keyed by identifier, in
+// order. A package that fails is logged, left out and returned as a
+// *PackageError in failed.
+func (t *Target) extractAll(ctx context.Context, pkgs []string) (extracted map[string]*metrics.RawMetrics, order []string, failed []error) {
+	extracted = make(map[string]*metrics.RawMetrics, len(pkgs))
+	order = make([]string, 0, len(pkgs))
+	for _, pkg := range pkgs {
+		m, err := t.Ext.Extract(ctx, t.Mod, pkg)
+		if err != nil {
+			path := judge.Rel(t.Mod.ModulePath, pkg)
+			t.logger().Error("extracting package failed", "path", path, "err", err)
+			failed = append(failed, &PackageError{Path: path, Err: err})
+			continue
+		}
+		extracted[pkg] = &m
+		order = append(order, pkg)
+	}
+	return extracted, order, failed
 }
 
 // WriteBaseline extracts every package of t's module and writes them as a

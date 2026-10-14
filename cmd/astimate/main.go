@@ -16,6 +16,7 @@ Commands:
   baseline write  write a baseline file for the module
   assess          score one package
   rank            rank packages in a module
+  report          report on a module, and on a change against a base
   dryrun          replay the gate over recent history to see how often it would fail
   serve           start the MCP server on stdio
   config init     write a default configuration file
@@ -35,6 +36,7 @@ func commands() map[string]command {
 		"config":   runConfig,
 		"dryrun":   runDryrun,
 		"rank":     runRank,
+		"report":   runReport,
 		"serve":    runServe,
 		"version":  runVersion,
 	}

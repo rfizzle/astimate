@@ -1,0 +1,1917 @@
+{
+  "module_path": "example.com/fixture",
+  "name": "Fixture",
+  "language": "go",
+  "limits": [
+    {
+      "metric": "sloc",
+      "max": 1000
+    },
+    {
+      "metric": "tokens_est",
+      "max": 16000
+    },
+    {
+      "metric": "largest_file_sloc",
+      "max": 600
+    },
+    {
+      "metric": "exported_symbols",
+      "max": 60,
+      "roles": [
+        "library",
+        "test-support",
+        "generated-only"
+      ]
+    },
+    {
+      "metric": "internal_imports",
+      "max": 10,
+      "roles": [
+        "library",
+        "test-support",
+        "generated-only"
+      ]
+    }
+  ],
+  "churn_window": 200,
+  "counts": {
+    "packages": 12,
+    "split": 0,
+    "watch": 1,
+    "fine": 11,
+    "without_tests": 7,
+    "human_days": 10,
+    "human_time": "2 weeks"
+  },
+  "headline": "Fixture has no package too big to rebuild in one go.",
+  "lead": "12 packages, about 2 weeks of one engineer's time to rebuild from their tests. 11 are fine, 1 is close to a limit, and 0 need a split.",
+  "hotspots": [
+    "hidden",
+    "immut",
+    "a",
+    "b",
+    "hub"
+  ],
+  "packages": [
+    {
+      "path": "a",
+      "role": "library",
+      "tier": "ONE_PASS",
+      "band": "fine",
+      "over": [],
+      "hotspot": 0,
+      "ceilings": [
+        {
+          "metric": "sloc",
+          "label": "size",
+          "value": 22,
+          "max": 1000,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "tokens_est",
+          "label": "tokens",
+          "value": 159,
+          "max": 16000,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "largest_file_sloc",
+          "label": "largest file",
+          "value": 22,
+          "max": 600,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "exported_symbols",
+          "label": "exports",
+          "value": 2,
+          "max": 60,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "internal_imports",
+          "label": "imports",
+          "value": 1,
+          "max": 10,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        }
+      ],
+      "rebuild": {
+        "agent_passes": 0,
+        "human_days": 1.3,
+        "human_time": "1 day",
+        "human_short": "1 d",
+        "rebuild_tokens": 759,
+        "sittings": "one sitting",
+        "sittings_text": "one sitting",
+        "drivers": [
+          {
+            "term": "unspecified",
+            "tokens": 600,
+            "pct": 79
+          },
+          {
+            "term": "volume",
+            "label": "the amount of code",
+            "tokens": 159,
+            "pct": 21
+          }
+        ],
+        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 1 day."
+      },
+      "copies": {
+        "pct": 0,
+        "blocks": 0,
+        "code_blocks": 0,
+        "lines": 22,
+        "level": "fine",
+        "chunks": [],
+        "say": "Very little repetition. Nothing to do."
+      },
+      "complexity": {
+        "functions": 2,
+        "buckets": {
+          "easy": 2,
+          "care": 0,
+          "hard": 0
+        },
+        "cognitive_p90": 5,
+        "cyclomatic_p90": 5,
+        "nesting": 2,
+        "hardest": [
+          {
+            "name": "Checksum",
+            "file": "a.go",
+            "line": 7,
+            "cognitive": 5,
+            "cyclomatic": 5,
+            "level": "fine"
+          },
+          {
+            "name": "Label",
+            "file": "a.go",
+            "line": 26,
+            "cognitive": 0,
+            "cyclomatic": 1,
+            "level": "fine"
+          }
+        ],
+        "say": "Every function here is easy to follow. The hardest tenth of functions score 5 or more; code nests up to 2 levels deep."
+      },
+      "tests": {
+        "test_funcs": 0,
+        "has_tests": false,
+        "untested": 2,
+        "exports": 2
+      },
+      "churn": null,
+      "fan_in": 0,
+      "story": "It is inside every limit, and it has no tests at all.",
+      "todo": "Nothing. Leave it alone.",
+      "facts": [
+        {
+          "label": "Rebuild",
+          "text": "0 agent passes · 1.3 human days"
+        },
+        {
+          "label": "Copies",
+          "text": "0 duplicate blocks cover 0% of lines"
+        },
+        {
+          "label": "Complexity",
+          "text": "cognitive p90 5 · cyclomatic p90 5 · nesting 2"
+        },
+        {
+          "label": "Tests",
+          "text": "0 test functions · 2 of 2 exports untested"
+        },
+        {
+          "label": "Used by",
+          "text": "0 internal packages"
+        }
+      ]
+    },
+    {
+      "path": "b",
+      "role": "library",
+      "tier": "ONE_PASS",
+      "band": "fine",
+      "over": [],
+      "hotspot": 0,
+      "ceilings": [
+        {
+          "metric": "sloc",
+          "label": "size",
+          "value": 22,
+          "max": 1000,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "tokens_est",
+          "label": "tokens",
+          "value": 179,
+          "max": 16000,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "largest_file_sloc",
+          "label": "largest file",
+          "value": 22,
+          "max": 600,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "exported_symbols",
+          "label": "exports",
+          "value": 2,
+          "max": 60,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "internal_imports",
+          "label": "imports",
+          "value": 1,
+          "max": 10,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        }
+      ],
+      "rebuild": {
+        "agent_passes": 0,
+        "human_days": 1.3,
+        "human_time": "1 day",
+        "human_short": "1 d",
+        "rebuild_tokens": 779,
+        "sittings": "one sitting",
+        "sittings_text": "one sitting",
+        "drivers": [
+          {
+            "term": "unspecified",
+            "tokens": 600,
+            "pct": 77
+          },
+          {
+            "term": "volume",
+            "label": "the amount of code",
+            "tokens": 179,
+            "pct": 23
+          }
+        ],
+        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 1 day."
+      },
+      "copies": {
+        "pct": 0,
+        "blocks": 0,
+        "code_blocks": 0,
+        "lines": 22,
+        "level": "fine",
+        "chunks": [],
+        "say": "Very little repetition. Nothing to do."
+      },
+      "complexity": {
+        "functions": 2,
+        "buckets": {
+          "easy": 2,
+          "care": 0,
+          "hard": 0
+        },
+        "cognitive_p90": 5,
+        "cyclomatic_p90": 5,
+        "nesting": 2,
+        "hardest": [
+          {
+            "name": "Digest",
+            "file": "b.go",
+            "line": 13,
+            "cognitive": 5,
+            "cyclomatic": 5,
+            "level": "fine"
+          },
+          {
+            "name": "Limit",
+            "file": "b.go",
+            "line": 7,
+            "cognitive": 0,
+            "cyclomatic": 1,
+            "level": "fine"
+          }
+        ],
+        "say": "Every function here is easy to follow. The hardest tenth of functions score 5 or more; code nests up to 2 levels deep."
+      },
+      "tests": {
+        "test_funcs": 0,
+        "has_tests": false,
+        "untested": 2,
+        "exports": 2
+      },
+      "churn": null,
+      "fan_in": 0,
+      "story": "It is inside every limit, and it has no tests at all.",
+      "todo": "Nothing. Leave it alone.",
+      "facts": [
+        {
+          "label": "Rebuild",
+          "text": "0 agent passes · 1.3 human days"
+        },
+        {
+          "label": "Copies",
+          "text": "0 duplicate blocks cover 0% of lines"
+        },
+        {
+          "label": "Complexity",
+          "text": "cognitive p90 5 · cyclomatic p90 5 · nesting 2"
+        },
+        {
+          "label": "Tests",
+          "text": "0 test functions · 2 of 2 exports untested"
+        },
+        {
+          "label": "Used by",
+          "text": "0 internal packages"
+        }
+      ]
+    },
+    {
+      "path": "consumer",
+      "role": "library",
+      "tier": "ONE_PASS",
+      "band": "fine",
+      "over": [],
+      "hotspot": 0,
+      "ceilings": [
+        {
+          "metric": "sloc",
+          "label": "size",
+          "value": 2,
+          "max": 1000,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "tokens_est",
+          "label": "tokens",
+          "value": 45,
+          "max": 16000,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "largest_file_sloc",
+          "label": "largest file",
+          "value": 2,
+          "max": 600,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "exported_symbols",
+          "label": "exports",
+          "value": 1,
+          "max": 60,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "internal_imports",
+          "label": "imports",
+          "value": 0,
+          "max": 10,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        }
+      ],
+      "rebuild": {
+        "agent_passes": 0,
+        "human_days": 0.1,
+        "human_time": "1 day",
+        "human_short": "1 d",
+        "rebuild_tokens": 105,
+        "sittings": "one sitting",
+        "sittings_text": "one sitting",
+        "drivers": [
+          {
+            "term": "spec",
+            "label": "the tests it must satisfy",
+            "tokens": 60,
+            "pct": 57
+          },
+          {
+            "term": "volume",
+            "label": "the amount of code",
+            "tokens": 45,
+            "pct": 43
+          }
+        ],
+        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 1 day."
+      },
+      "copies": {
+        "pct": 0,
+        "blocks": 0,
+        "code_blocks": 0,
+        "lines": 2,
+        "level": "fine",
+        "chunks": [],
+        "say": "Very little repetition. Nothing to do."
+      },
+      "complexity": {
+        "functions": 1,
+        "buckets": {
+          "easy": 1,
+          "care": 0,
+          "hard": 0
+        },
+        "cognitive_p90": 0,
+        "cyclomatic_p90": 1,
+        "nesting": 0,
+        "hardest": [
+          {
+            "name": "Name",
+            "file": "consumer.go",
+            "line": 5,
+            "cognitive": 0,
+            "cyclomatic": 1,
+            "level": "fine"
+          }
+        ],
+        "say": "Every function here is easy to follow. The hardest tenth of functions score 0 or more; code nests up to 0 levels deep."
+      },
+      "tests": {
+        "test_funcs": 1,
+        "has_tests": true,
+        "untested": 0,
+        "exports": 1
+      },
+      "churn": null,
+      "fan_in": 0,
+      "story": "It is inside every limit.",
+      "todo": "Nothing. Leave it alone.",
+      "facts": [
+        {
+          "label": "Rebuild",
+          "text": "0 agent passes · 0.1 human days"
+        },
+        {
+          "label": "Copies",
+          "text": "0 duplicate blocks cover 0% of lines"
+        },
+        {
+          "label": "Complexity",
+          "text": "cognitive p90 0 · cyclomatic p90 1 · nesting 0"
+        },
+        {
+          "label": "Tests",
+          "text": "1 test function · 0 of 1 exports untested"
+        },
+        {
+          "label": "Used by",
+          "text": "0 internal packages"
+        }
+      ]
+    },
+    {
+      "path": "dupes",
+      "role": "library",
+      "tier": "ONE_PASS",
+      "band": "watch",
+      "over": [],
+      "hotspot": 0,
+      "ceilings": [
+        {
+          "metric": "sloc",
+          "label": "size",
+          "value": 67,
+          "max": 1000,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "tokens_est",
+          "label": "tokens",
+          "value": 506,
+          "max": 16000,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "largest_file_sloc",
+          "label": "largest file",
+          "value": 67,
+          "max": 600,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "exported_symbols",
+          "label": "exports",
+          "value": 4,
+          "max": 60,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "internal_imports",
+          "label": "imports",
+          "value": 0,
+          "max": 10,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        }
+      ],
+      "rebuild": {
+        "agent_passes": 0,
+        "human_days": 0.7,
+        "human_time": "1 day",
+        "human_short": "1 d",
+        "rebuild_tokens": 1053,
+        "sittings": "one sitting",
+        "sittings_text": "one sitting",
+        "drivers": [
+          {
+            "term": "unspecified",
+            "tokens": 900,
+            "pct": 85
+          },
+          {
+            "term": "volume",
+            "label": "the amount of code",
+            "tokens": 98,
+            "pct": 9
+          }
+        ],
+        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 1 day."
+      },
+      "copies": {
+        "pct": 80.6,
+        "blocks": 1,
+        "code_blocks": 1,
+        "lines": 67,
+        "level": "split",
+        "chunks": [
+          {
+            "file": "dupes.go",
+            "start": 9,
+            "end": 26,
+            "lines": 18
+          },
+          {
+            "file": "dupes.go",
+            "start": 31,
+            "end": 48,
+            "lines": 18
+          }
+        ],
+        "say": "Nearly half of this code exists at least twice. A bug fixed in one copy stays alive in the others, and every copy is more for a rebuild to read.",
+        "longest": "Longest repeat: dupes.go:9-26 (18 lines), again at dupes.go:31-48."
+      },
+      "complexity": {
+        "functions": 4,
+        "buckets": {
+          "easy": 4,
+          "care": 0,
+          "hard": 0
+        },
+        "cognitive_p90": 6,
+        "cyclomatic_p90": 5,
+        "nesting": 2,
+        "hardest": [
+          {
+            "name": "SumOrders",
+            "file": "dupes.go",
+            "line": 9,
+            "cognitive": 6,
+            "cyclomatic": 5,
+            "level": "fine"
+          },
+          {
+            "name": "TallyScores",
+            "file": "dupes.go",
+            "line": 31,
+            "cognitive": 6,
+            "cyclomatic": 5,
+            "level": "fine"
+          },
+          {
+            "name": "CountVisits",
+            "file": "dupes.go",
+            "line": 53,
+            "cognitive": 6,
+            "cyclomatic": 5,
+            "level": "fine"
+          }
+        ],
+        "say": "Every function here is easy to follow. The hardest tenth of functions score 6 or more; code nests up to 2 levels deep."
+      },
+      "tests": {
+        "test_funcs": 1,
+        "has_tests": true,
+        "untested": 3,
+        "exports": 4
+      },
+      "churn": null,
+      "fan_in": 0,
+      "story": "It is inside every limit, and 80.6% of its lines are copies of each other.",
+      "todo": "Nothing yet. Keep an eye on it.",
+      "facts": [
+        {
+          "label": "Rebuild",
+          "text": "0 agent passes · 0.7 human days"
+        },
+        {
+          "label": "Copies",
+          "text": "1 duplicate block covers 80.6% of lines"
+        },
+        {
+          "label": "Complexity",
+          "text": "cognitive p90 6 · cyclomatic p90 5 · nesting 2"
+        },
+        {
+          "label": "Tests",
+          "text": "1 test function · 3 of 4 exports untested"
+        },
+        {
+          "label": "Used by",
+          "text": "0 internal packages"
+        }
+      ]
+    },
+    {
+      "path": "errs",
+      "role": "library",
+      "tier": "ONE_PASS",
+      "band": "fine",
+      "over": [],
+      "hotspot": 0,
+      "ceilings": [
+        {
+          "metric": "sloc",
+          "label": "size",
+          "value": 6,
+          "max": 1000,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "tokens_est",
+          "label": "tokens",
+          "value": 178,
+          "max": 16000,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "largest_file_sloc",
+          "label": "largest file",
+          "value": 6,
+          "max": 600,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "exported_symbols",
+          "label": "exports",
+          "value": 5,
+          "max": 60,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "internal_imports",
+          "label": "imports",
+          "value": 0,
+          "max": 10,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        }
+      ],
+      "rebuild": {
+        "agent_passes": 0,
+        "human_days": 0.2,
+        "human_time": "1 day",
+        "human_short": "1 d",
+        "rebuild_tokens": 478,
+        "sittings": "one sitting",
+        "sittings_text": "one sitting",
+        "drivers": [
+          {
+            "term": "unspecified",
+            "tokens": 300,
+            "pct": 63
+          },
+          {
+            "term": "volume",
+            "label": "the amount of code",
+            "tokens": 178,
+            "pct": 37
+          }
+        ],
+        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 1 day."
+      },
+      "copies": {
+        "pct": 0,
+        "blocks": 0,
+        "code_blocks": 0,
+        "lines": 6,
+        "level": "fine",
+        "chunks": [],
+        "say": "Very little repetition. Nothing to do."
+      },
+      "complexity": {
+        "functions": 3,
+        "buckets": {
+          "easy": 3,
+          "care": 0,
+          "hard": 0
+        },
+        "cognitive_p90": 0,
+        "cyclomatic_p90": 1,
+        "nesting": 0,
+        "hardest": [
+          {
+            "name": "NotFound.Error",
+            "file": "errs.go",
+            "line": 9,
+            "cognitive": 0,
+            "cyclomatic": 1,
+            "level": "fine"
+          },
+          {
+            "name": "NotFound.Unwrap",
+            "file": "errs.go",
+            "line": 12,
+            "cognitive": 0,
+            "cyclomatic": 1,
+            "level": "fine"
+          },
+          {
+            "name": "Code.Error",
+            "file": "errs.go",
+            "line": 18,
+            "cognitive": 0,
+            "cyclomatic": 1,
+            "level": "fine"
+          }
+        ],
+        "say": "Every function here is easy to follow. The hardest tenth of functions score 0 or more; code nests up to 0 levels deep."
+      },
+      "tests": {
+        "test_funcs": 0,
+        "has_tests": false,
+        "untested": 1,
+        "exports": 5
+      },
+      "churn": null,
+      "fan_in": 0,
+      "story": "It is inside every limit, and it has no tests at all.",
+      "todo": "Nothing. Leave it alone.",
+      "facts": [
+        {
+          "label": "Rebuild",
+          "text": "0 agent passes · 0.2 human days"
+        },
+        {
+          "label": "Copies",
+          "text": "0 duplicate blocks cover 0% of lines"
+        },
+        {
+          "label": "Complexity",
+          "text": "cognitive p90 0 · cyclomatic p90 1 · nesting 0"
+        },
+        {
+          "label": "Tests",
+          "text": "0 test functions · 1 of 5 exports untested"
+        },
+        {
+          "label": "Used by",
+          "text": "0 internal packages"
+        }
+      ]
+    },
+    {
+      "path": "hidden",
+      "role": "library",
+      "tier": "ONE_PASS",
+      "band": "fine",
+      "over": [],
+      "hotspot": 0,
+      "ceilings": [
+        {
+          "metric": "sloc",
+          "label": "size",
+          "value": 32,
+          "max": 1000,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "tokens_est",
+          "label": "tokens",
+          "value": 226,
+          "max": 16000,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "largest_file_sloc",
+          "label": "largest file",
+          "value": 27,
+          "max": 600,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "exported_symbols",
+          "label": "exports",
+          "value": 1,
+          "max": 60,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "internal_imports",
+          "label": "imports",
+          "value": 1,
+          "max": 10,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        }
+      ],
+      "rebuild": {
+        "agent_passes": 0,
+        "human_days": 1.9,
+        "human_time": "2 days",
+        "human_short": "2 d",
+        "rebuild_tokens": 526,
+        "sittings": "one sitting",
+        "sittings_text": "one sitting",
+        "drivers": [
+          {
+            "term": "unspecified",
+            "tokens": 300,
+            "pct": 57
+          },
+          {
+            "term": "volume",
+            "label": "the amount of code",
+            "tokens": 226,
+            "pct": 43
+          }
+        ],
+        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 2 days."
+      },
+      "copies": {
+        "pct": 0,
+        "blocks": 0,
+        "code_blocks": 0,
+        "lines": 32,
+        "level": "fine",
+        "chunks": [],
+        "say": "Very little repetition. Nothing to do."
+      },
+      "complexity": {
+        "functions": 3,
+        "buckets": {
+          "easy": 3,
+          "care": 0,
+          "hard": 0
+        },
+        "cognitive_p90": 10,
+        "cyclomatic_p90": 6,
+        "nesting": 4,
+        "hardest": [
+          {
+            "name": "Drain",
+            "file": "hidden.go",
+            "line": 20,
+            "cognitive": 10,
+            "cyclomatic": 6,
+            "level": "fine"
+          },
+          {
+            "name": "init",
+            "file": "hidden.go",
+            "line": 15,
+            "cognitive": 0,
+            "cyclomatic": 1,
+            "level": "fine"
+          },
+          {
+            "name": "init",
+            "file": "setup.go",
+            "line": 5,
+            "cognitive": 0,
+            "cyclomatic": 1,
+            "level": "fine"
+          }
+        ],
+        "say": "Every function here is easy to follow. The hardest tenth of functions score 10 or more; code nests up to 4 levels deep."
+      },
+      "tests": {
+        "test_funcs": 0,
+        "has_tests": false,
+        "untested": 1,
+        "exports": 1
+      },
+      "churn": null,
+      "fan_in": 0,
+      "story": "It is inside every limit, and it has no tests at all.",
+      "todo": "Nothing. Leave it alone.",
+      "facts": [
+        {
+          "label": "Rebuild",
+          "text": "0 agent passes · 1.9 human days"
+        },
+        {
+          "label": "Copies",
+          "text": "0 duplicate blocks cover 0% of lines"
+        },
+        {
+          "label": "Complexity",
+          "text": "cognitive p90 10 · cyclomatic p90 6 · nesting 4"
+        },
+        {
+          "label": "Tests",
+          "text": "0 test functions · 1 of 1 exports untested"
+        },
+        {
+          "label": "Used by",
+          "text": "0 internal packages"
+        }
+      ]
+    },
+    {
+      "path": "hub",
+      "role": "library",
+      "tier": "ONE_PASS",
+      "band": "fine",
+      "over": [],
+      "hotspot": 0,
+      "ceilings": [
+        {
+          "metric": "sloc",
+          "label": "size",
+          "value": 20,
+          "max": 1000,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "tokens_est",
+          "label": "tokens",
+          "value": 177,
+          "max": 16000,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "largest_file_sloc",
+          "label": "largest file",
+          "value": 20,
+          "max": 600,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "exported_symbols",
+          "label": "exports",
+          "value": 3,
+          "max": 60,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "internal_imports",
+          "label": "imports",
+          "value": 0,
+          "max": 10,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        }
+      ],
+      "rebuild": {
+        "agent_passes": 0,
+        "human_days": 1.1,
+        "human_time": "1 day",
+        "human_short": "1 d",
+        "rebuild_tokens": 1077,
+        "sittings": "one sitting",
+        "sittings_text": "one sitting",
+        "drivers": [
+          {
+            "term": "unspecified",
+            "tokens": 900,
+            "pct": 84
+          },
+          {
+            "term": "volume",
+            "label": "the amount of code",
+            "tokens": 177,
+            "pct": 16
+          }
+        ],
+        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 1 day."
+      },
+      "copies": {
+        "pct": 0,
+        "blocks": 0,
+        "code_blocks": 0,
+        "lines": 20,
+        "level": "fine",
+        "chunks": [],
+        "say": "Very little repetition. Nothing to do."
+      },
+      "complexity": {
+        "functions": 3,
+        "buckets": {
+          "easy": 3,
+          "care": 0,
+          "hard": 0
+        },
+        "cognitive_p90": 2,
+        "cyclomatic_p90": 3,
+        "nesting": 1,
+        "hardest": [
+          {
+            "name": "Clamp",
+            "file": "hub.go",
+            "line": 17,
+            "cognitive": 2,
+            "cyclomatic": 3,
+            "level": "fine"
+          },
+          {
+            "name": "Normalize",
+            "file": "hub.go",
+            "line": 12,
+            "cognitive": 0,
+            "cyclomatic": 1,
+            "level": "fine"
+          },
+          {
+            "name": "Twice",
+            "file": "hub.go",
+            "line": 28,
+            "cognitive": 0,
+            "cyclomatic": 1,
+            "level": "fine"
+          }
+        ],
+        "say": "Every function here is easy to follow. The hardest tenth of functions score 2 or more; code nests up to 1 levels deep."
+      },
+      "tests": {
+        "test_funcs": 0,
+        "has_tests": false,
+        "untested": 3,
+        "exports": 3
+      },
+      "churn": null,
+      "fan_in": 4,
+      "story": "It is inside every limit, and it has no tests at all.",
+      "todo": "Nothing. Leave it alone.",
+      "facts": [
+        {
+          "label": "Rebuild",
+          "text": "0 agent passes · 1.1 human days"
+        },
+        {
+          "label": "Copies",
+          "text": "0 duplicate blocks cover 0% of lines"
+        },
+        {
+          "label": "Complexity",
+          "text": "cognitive p90 2 · cyclomatic p90 3 · nesting 1"
+        },
+        {
+          "label": "Tests",
+          "text": "0 test functions · 3 of 3 exports untested"
+        },
+        {
+          "label": "Used by",
+          "text": "4 internal packages"
+        }
+      ]
+    },
+    {
+      "path": "immut",
+      "role": "library",
+      "tier": "ONE_PASS",
+      "band": "fine",
+      "over": [],
+      "hotspot": 0,
+      "ceilings": [
+        {
+          "metric": "sloc",
+          "label": "size",
+          "value": 31,
+          "max": 1000,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "tokens_est",
+          "label": "tokens",
+          "value": 344,
+          "max": 16000,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "largest_file_sloc",
+          "label": "largest file",
+          "value": 31,
+          "max": 600,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "exported_symbols",
+          "label": "exports",
+          "value": 6,
+          "max": 60,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "internal_imports",
+          "label": "imports",
+          "value": 0,
+          "max": 10,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        }
+      ],
+      "rebuild": {
+        "agent_passes": 0,
+        "human_days": 1.5,
+        "human_time": "2 days",
+        "human_short": "2 d",
+        "rebuild_tokens": 1244,
+        "sittings": "one sitting",
+        "sittings_text": "one sitting",
+        "drivers": [
+          {
+            "term": "unspecified",
+            "tokens": 900,
+            "pct": 72
+          },
+          {
+            "term": "volume",
+            "label": "the amount of code",
+            "tokens": 344,
+            "pct": 28
+          }
+        ],
+        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 2 days."
+      },
+      "copies": {
+        "pct": 0,
+        "blocks": 0,
+        "code_blocks": 0,
+        "lines": 31,
+        "level": "fine",
+        "chunks": [],
+        "say": "Very little repetition. Nothing to do."
+      },
+      "complexity": {
+        "functions": 3,
+        "buckets": {
+          "easy": 3,
+          "care": 0,
+          "hard": 0
+        },
+        "cognitive_p90": 2,
+        "cyclomatic_p90": 3,
+        "nesting": 1,
+        "hardest": [
+          {
+            "name": "Lookup",
+            "file": "immut.go",
+            "line": 33,
+            "cognitive": 2,
+            "cyclomatic": 3,
+            "level": "fine"
+          },
+          {
+            "name": "Describe",
+            "file": "immut.go",
+            "line": 45,
+            "cognitive": 0,
+            "cyclomatic": 1,
+            "level": "fine"
+          },
+          {
+            "name": "SetMode",
+            "file": "immut.go",
+            "line": 51,
+            "cognitive": 0,
+            "cyclomatic": 1,
+            "level": "fine"
+          }
+        ],
+        "say": "Every function here is easy to follow. The hardest tenth of functions score 2 or more; code nests up to 1 levels deep."
+      },
+      "tests": {
+        "test_funcs": 0,
+        "has_tests": false,
+        "untested": 3,
+        "exports": 6
+      },
+      "churn": null,
+      "fan_in": 0,
+      "story": "It is inside every limit, and it has no tests at all.",
+      "todo": "Nothing. Leave it alone.",
+      "facts": [
+        {
+          "label": "Rebuild",
+          "text": "0 agent passes · 1.5 human days"
+        },
+        {
+          "label": "Copies",
+          "text": "0 duplicate blocks cover 0% of lines"
+        },
+        {
+          "label": "Complexity",
+          "text": "cognitive p90 2 · cyclomatic p90 3 · nesting 1"
+        },
+        {
+          "label": "Tests",
+          "text": "0 test functions · 3 of 6 exports untested"
+        },
+        {
+          "label": "Used by",
+          "text": "0 internal packages"
+        }
+      ]
+    },
+    {
+      "path": "sibling",
+      "role": "test-support",
+      "tier": "ONE_PASS",
+      "band": "fine",
+      "over": [],
+      "hotspot": 0,
+      "ceilings": [
+        {
+          "metric": "sloc",
+          "label": "size",
+          "value": 3,
+          "max": 1000,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "tokens_est",
+          "label": "tokens",
+          "value": 82,
+          "max": 16000,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "largest_file_sloc",
+          "label": "largest file",
+          "value": 3,
+          "max": 600,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "exported_symbols",
+          "label": "exports",
+          "value": 2,
+          "max": 60,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "internal_imports",
+          "label": "imports",
+          "value": 0,
+          "max": 10,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        }
+      ],
+      "rebuild": {
+        "agent_passes": 0,
+        "human_days": 0.1,
+        "human_time": "1 day",
+        "human_short": "1 d",
+        "rebuild_tokens": 382,
+        "sittings": "one sitting",
+        "sittings_text": "one sitting",
+        "drivers": [
+          {
+            "term": "unspecified",
+            "tokens": 300,
+            "pct": 79
+          },
+          {
+            "term": "volume",
+            "label": "the amount of code",
+            "tokens": 82,
+            "pct": 21
+          }
+        ],
+        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 1 day."
+      },
+      "copies": {
+        "pct": 0,
+        "blocks": 0,
+        "code_blocks": 0,
+        "lines": 3,
+        "level": "fine",
+        "chunks": [],
+        "say": "Very little repetition. Nothing to do."
+      },
+      "complexity": {
+        "functions": 2,
+        "buckets": {
+          "easy": 2,
+          "care": 0,
+          "hard": 0
+        },
+        "cognitive_p90": 0,
+        "cyclomatic_p90": 1,
+        "nesting": 0,
+        "hardest": [
+          {
+            "name": "New",
+            "file": "sibling.go",
+            "line": 6,
+            "cognitive": 0,
+            "cyclomatic": 1,
+            "level": "fine"
+          },
+          {
+            "name": "Orphan",
+            "file": "sibling.go",
+            "line": 9,
+            "cognitive": 0,
+            "cyclomatic": 1,
+            "level": "fine"
+          }
+        ],
+        "say": "Every function here is easy to follow. The hardest tenth of functions score 0 or more; code nests up to 0 levels deep."
+      },
+      "tests": {
+        "test_funcs": 0,
+        "has_tests": true,
+        "untested": 1,
+        "exports": 2
+      },
+      "churn": null,
+      "fan_in": 0,
+      "story": "It is inside every limit.",
+      "todo": "Nothing. Leave it alone.",
+      "facts": [
+        {
+          "label": "Rebuild",
+          "text": "0 agent passes · 0.1 human days"
+        },
+        {
+          "label": "Copies",
+          "text": "0 duplicate blocks cover 0% of lines"
+        },
+        {
+          "label": "Complexity",
+          "text": "cognitive p90 0 · cyclomatic p90 1 · nesting 0"
+        },
+        {
+          "label": "Tests",
+          "text": "0 test functions · 1 of 2 exports untested"
+        },
+        {
+          "label": "Used by",
+          "text": "0 internal packages"
+        }
+      ]
+    },
+    {
+      "path": "support",
+      "role": "test-support",
+      "tier": "ONE_PASS",
+      "band": "fine",
+      "over": [],
+      "hotspot": 0,
+      "ceilings": [
+        {
+          "metric": "sloc",
+          "label": "size",
+          "value": 8,
+          "max": 1000,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "tokens_est",
+          "label": "tokens",
+          "value": 85,
+          "max": 16000,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "largest_file_sloc",
+          "label": "largest file",
+          "value": 8,
+          "max": 600,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "exported_symbols",
+          "label": "exports",
+          "value": 1,
+          "max": 60,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "internal_imports",
+          "label": "imports",
+          "value": 0,
+          "max": 10,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        }
+      ],
+      "rebuild": {
+        "agent_passes": 0,
+        "human_days": 0.3,
+        "human_time": "1 day",
+        "human_short": "1 d",
+        "rebuild_tokens": 85,
+        "sittings": "one sitting",
+        "sittings_text": "one sitting",
+        "drivers": [
+          {
+            "term": "volume",
+            "label": "the amount of code",
+            "tokens": 85,
+            "pct": 100
+          }
+        ],
+        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 1 day."
+      },
+      "copies": {
+        "pct": 0,
+        "blocks": 0,
+        "code_blocks": 0,
+        "lines": 8,
+        "level": "fine",
+        "chunks": [],
+        "say": "Very little repetition. Nothing to do."
+      },
+      "complexity": {
+        "functions": 1,
+        "buckets": {
+          "easy": 1,
+          "care": 0,
+          "hard": 0
+        },
+        "cognitive_p90": 1,
+        "cyclomatic_p90": 2,
+        "nesting": 1,
+        "hardest": [
+          {
+            "name": "Equal",
+            "file": "support.go",
+            "line": 7,
+            "cognitive": 1,
+            "cyclomatic": 2,
+            "level": "fine"
+          }
+        ],
+        "say": "Every function here is easy to follow. The hardest tenth of functions score 1 or more; code nests up to 1 levels deep."
+      },
+      "tests": {
+        "test_funcs": 0,
+        "has_tests": true,
+        "untested": 0,
+        "exports": 1
+      },
+      "churn": null,
+      "fan_in": 0,
+      "story": "It is inside every limit.",
+      "todo": "Nothing. Leave it alone.",
+      "facts": [
+        {
+          "label": "Rebuild",
+          "text": "0 agent passes · 0.3 human days"
+        },
+        {
+          "label": "Copies",
+          "text": "0 duplicate blocks cover 0% of lines"
+        },
+        {
+          "label": "Complexity",
+          "text": "cognitive p90 1 · cyclomatic p90 2 · nesting 1"
+        },
+        {
+          "label": "Tests",
+          "text": "0 test functions · 0 of 1 exports untested"
+        },
+        {
+          "label": "Used by",
+          "text": "0 internal packages"
+        }
+      ]
+    },
+    {
+      "path": "tested",
+      "role": "library",
+      "tier": "ONE_PASS",
+      "band": "fine",
+      "over": [],
+      "hotspot": 0,
+      "ceilings": [
+        {
+          "metric": "sloc",
+          "label": "size",
+          "value": 27,
+          "max": 1000,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "tokens_est",
+          "label": "tokens",
+          "value": 237,
+          "max": 16000,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "largest_file_sloc",
+          "label": "largest file",
+          "value": 16,
+          "max": 600,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "exported_symbols",
+          "label": "exports",
+          "value": 3,
+          "max": 60,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "internal_imports",
+          "label": "imports",
+          "value": 1,
+          "max": 10,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        }
+      ],
+      "rebuild": {
+        "agent_passes": 0,
+        "human_days": 1,
+        "human_time": "1 day",
+        "human_short": "1 d",
+        "rebuild_tokens": 457,
+        "sittings": "one sitting",
+        "sittings_text": "one sitting",
+        "drivers": [
+          {
+            "term": "volume",
+            "label": "the amount of code",
+            "tokens": 237,
+            "pct": 52
+          },
+          {
+            "term": "spec",
+            "label": "the tests it must satisfy",
+            "tokens": 220,
+            "pct": 48
+          }
+        ],
+        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 1 day."
+      },
+      "copies": {
+        "pct": 0,
+        "blocks": 0,
+        "code_blocks": 0,
+        "lines": 27,
+        "level": "fine",
+        "chunks": [],
+        "say": "Very little repetition. Nothing to do."
+      },
+      "complexity": {
+        "functions": 3,
+        "buckets": {
+          "easy": 3,
+          "care": 0,
+          "hard": 0
+        },
+        "cognitive_p90": 4,
+        "cyclomatic_p90": 4,
+        "nesting": 2,
+        "hardest": [
+          {
+            "name": "CountUpper",
+            "file": "count.go",
+            "line": 6,
+            "cognitive": 4,
+            "cyclomatic": 4,
+            "level": "fine"
+          },
+          {
+            "name": "Join",
+            "file": "tested.go",
+            "line": 12,
+            "cognitive": 1,
+            "cyclomatic": 2,
+            "level": "fine"
+          },
+          {
+            "name": "Bounded",
+            "file": "tested.go",
+            "line": 21,
+            "cognitive": 0,
+            "cyclomatic": 1,
+            "level": "fine"
+          }
+        ],
+        "say": "Every function here is easy to follow. The hardest tenth of functions score 4 or more; code nests up to 2 levels deep."
+      },
+      "tests": {
+        "test_funcs": 4,
+        "has_tests": true,
+        "untested": 0,
+        "exports": 3
+      },
+      "churn": null,
+      "fan_in": 0,
+      "story": "It is inside every limit.",
+      "todo": "Nothing. Leave it alone.",
+      "facts": [
+        {
+          "label": "Rebuild",
+          "text": "0 agent passes · 1 human days"
+        },
+        {
+          "label": "Copies",
+          "text": "0 duplicate blocks cover 0% of lines"
+        },
+        {
+          "label": "Complexity",
+          "text": "cognitive p90 4 · cyclomatic p90 4 · nesting 2"
+        },
+        {
+          "label": "Tests",
+          "text": "4 test functions · 0 of 3 exports untested"
+        },
+        {
+          "label": "Used by",
+          "text": "0 internal packages"
+        }
+      ]
+    },
+    {
+      "path": "trivial",
+      "role": "library",
+      "tier": "ONE_PASS",
+      "band": "fine",
+      "over": [],
+      "hotspot": 0,
+      "ceilings": [
+        {
+          "metric": "sloc",
+          "label": "size",
+          "value": 4,
+          "max": 1000,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "tokens_est",
+          "label": "tokens",
+          "value": 47,
+          "max": 16000,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "largest_file_sloc",
+          "label": "largest file",
+          "value": 4,
+          "max": 600,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "exported_symbols",
+          "label": "exports",
+          "value": 1,
+          "max": 60,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "internal_imports",
+          "label": "imports",
+          "value": 0,
+          "max": 10,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        }
+      ],
+      "rebuild": {
+        "agent_passes": 0,
+        "human_days": 0.2,
+        "human_time": "1 day",
+        "human_short": "1 d",
+        "rebuild_tokens": 347,
+        "sittings": "one sitting",
+        "sittings_text": "one sitting",
+        "drivers": [
+          {
+            "term": "unspecified",
+            "tokens": 300,
+            "pct": 86
+          },
+          {
+            "term": "volume",
+            "label": "the amount of code",
+            "tokens": 47,
+            "pct": 14
+          }
+        ],
+        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 1 day."
+      },
+      "copies": {
+        "pct": 0,
+        "blocks": 0,
+        "code_blocks": 0,
+        "lines": 4,
+        "level": "fine",
+        "chunks": [],
+        "say": "Very little repetition. Nothing to do."
+      },
+      "complexity": {
+        "functions": 1,
+        "buckets": {
+          "easy": 1,
+          "care": 0,
+          "hard": 0
+        },
+        "cognitive_p90": 0,
+        "cyclomatic_p90": 1,
+        "nesting": 0,
+        "hardest": [
+          {
+            "name": "Answer",
+            "file": "trivial.go",
+            "line": 5,
+            "cognitive": 0,
+            "cyclomatic": 1,
+            "level": "fine"
+          }
+        ],
+        "say": "Every function here is easy to follow. The hardest tenth of functions score 0 or more; code nests up to 0 levels deep."
+      },
+      "tests": {
+        "test_funcs": 0,
+        "has_tests": false,
+        "untested": 1,
+        "exports": 1
+      },
+      "churn": null,
+      "fan_in": 0,
+      "story": "It is inside every limit, and it has no tests at all.",
+      "todo": "Nothing. Leave it alone.",
+      "facts": [
+        {
+          "label": "Rebuild",
+          "text": "0 agent passes · 0.2 human days"
+        },
+        {
+          "label": "Copies",
+          "text": "0 duplicate blocks cover 0% of lines"
+        },
+        {
+          "label": "Complexity",
+          "text": "cognitive p90 0 · cyclomatic p90 1 · nesting 0"
+        },
+        {
+          "label": "Tests",
+          "text": "0 test functions · 1 of 1 exports untested"
+        },
+        {
+          "label": "Used by",
+          "text": "0 internal packages"
+        }
+      ]
+    }
+  ],
+  "glossary": [
+    {
+      "term": "Rebuild cost",
+      "text": "How long it would take to rewrite the package from its tests. Shown as one engineer's working time, and as agent sittings: how many times an AI agent would have to start over with a fresh context window. One sitting means it fits in one go; over three means the package has to be split before anyone can rebuild it."
+    },
+    {
+      "term": "Split",
+      "text": "The package is past what one agent pass can hold, or over two of its limits. Carve it into smaller packages before adding to it."
+    },
+    {
+      "term": "Watch",
+      "text": "Over one limit, or large enough to need a few passes. The next growth here will start failing the gate."
+    },
+    {
+      "term": "Copied",
+      "text": "The share of lines inside duplicate blocks of 40 or more tokens. Every copy is a second place a fix has to land."
+    },
+    {
+      "term": "Untested",
+      "text": "Exported functions no test touches. A rebuild would have to guess their behaviour."
+    },
+    {
+      "term": "Changes",
+      "text": "Commits touching the package in the last 200. Hot code is where a split pays back soonest."
+    },
+    {
+      "term": "Limits",
+      "text": "Per package: 1,000 lines, 16,000 tokens, a 600-line largest file, 60 exports, 10 internal imports. Fitted from well-regarded Go modules."
+    },
+    {
+      "term": "Hard to follow",
+      "text": "Each function gets a cognitive complexity score: how much branching and nesting a reader has to hold in their head. Up to 10 is easy, 11 to 20 needs care, over 20 is hard and the usual linter limit. \"Paths\" is the cyclomatic count, the number of distinct routes through the function a test would have to cover."
+    }
+  ],
+  "astimate_version": "test",
+  "config_version": "thresholds-2026-10-14b"
+}
