@@ -121,7 +121,7 @@ func TestReportUsage(t *testing.T) {
 		args []string
 		want string
 	}{
-		{"unknown format", []string{"report", "--format", "html"}, `unknown format "html"`},
+		{"unknown format", []string{"report", "--format", "pdf"}, `unknown format "pdf"`},
 		{"two roots", []string{"report", "a", "b"}, "want at most one module root"},
 		{"bad tokenizer", []string{"report", "--tokenizer", "nope"}, "unknown tokenizer"},
 	}
@@ -136,5 +136,32 @@ func TestReportUsage(t *testing.T) {
 				t.Errorf("stderr = %q, want %q and no stdout", stderr.String(), tt.want)
 			}
 		})
+	}
+}
+
+// TestReportHTML checks report --format html --out on the fixture: the page
+// is written where --out says, its path is printed, and nothing else is.
+func TestReportHTML(t *testing.T) {
+	if testing.Short() {
+		t.Skip("integration test: loads Go packages")
+	}
+	t.Parallel()
+
+	_, fixture := reportFixture(t)
+	out := filepath.Join(t.TempDir(), "page.html")
+	var stdout, stderr bytes.Buffer
+	args := []string{"report", fixture, "--format", "html", "--out", out, "--config", pinnedConfigFile(t)}
+	if got := run(args, &stdout, &stderr); got != exitOK {
+		t.Fatalf("run(%q) exit code = %d, want %d; stderr = %q", args, got, exitOK, stderr.String())
+	}
+	if stdout.String() != out+"\n" {
+		t.Errorf("stdout = %q, want the page's path", stdout.String())
+	}
+	page, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.HasPrefix(page, []byte("<!DOCTYPE html>")) || !bytes.Contains(page, []byte("Fixture has no package too big")) {
+		t.Errorf("page = %.200q, want the fixture's report", page)
 	}
 }

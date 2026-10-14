@@ -1,0 +1,81 @@
+{{define "script"}}
+(function () {
+  'use strict';
+  const $ = (s, el) => (el || document).querySelector(s);
+  const $$ = (s, el) => Array.prototype.slice.call((el || document).querySelectorAll(s));
+
+  /* tabs */
+  const tabs = $$('nav button');
+  function showTab(b) {
+    tabs.forEach(x => { x.setAttribute('aria-selected', x === b); const s = document.getElementById(x.dataset.tab); if (s) s.hidden = x !== b; });
+    try { localStorage.setItem('astimate-tab', b.dataset.tab); } catch (e) {}
+  }
+  tabs.forEach(b => b.addEventListener('click', () => showTab(b)));
+  try { const t = document.getElementById('tab-' + localStorage.getItem('astimate-tab')); if (t) showTab(t); } catch (e) {}
+
+  /* tooltip: each mark's svg title becomes its tip */
+  const tip = $('#tip');
+  $$('svg title').forEach(t => { t.parentNode.dataset.tip = t.textContent; t.remove(); });
+  function showTip(e, el) {
+    const lines = el.dataset.tip.split('\n');
+    tip.textContent = '';
+    const b = document.createElement('b'); b.textContent = lines[0]; tip.appendChild(b);
+    lines.slice(1).forEach(l => { tip.appendChild(document.createElement('br')); tip.appendChild(document.createTextNode(l)); });
+    tip.hidden = false;
+    tip.style.left = Math.max(8, Math.min(e.clientX + 14, window.innerWidth - 300)) + 'px';
+    tip.style.top = (e.clientY + 14) + 'px';
+  }
+  const hideTip = () => { tip.hidden = true; };
+
+  /* table */
+  const tbody = $('#pkgs tbody'), none = $('tr.none', tbody), q = $('#q');
+  const rows = $$('tr.row', tbody).sort((a, b) => a.dataset.i - b.dataset.i);
+  const details = new Map(rows.map(tr => [tr, tr.nextElementSibling]));
+  let sortK = 'days', sortDir = -1, band = 'all', query = '';
+  const key = tr => sortK === 'path' ? tr.dataset.path : parseFloat(tr.dataset[sortK]);
+  function render() {
+    let shown = 0;
+    rows.slice().sort((a, b) => { const x = key(a), y = key(b); return (typeof x === 'string' ? x.localeCompare(y) : x - y) * sortDir; }).forEach(tr => {
+      const ok = (band === 'all' || tr.dataset.band === band) && (!query || tr.dataset.path.toLowerCase().includes(query));
+      tr.hidden = !ok; if (ok) shown++;
+      const d = details.get(tr); d.hidden = true;
+      tbody.insertBefore(tr, none); tbody.insertBefore(d, none);
+    });
+    none.hidden = shown > 0;
+    $$('#pkgs th').forEach(th => th.setAttribute('aria-sort', th.dataset.k === sortK ? (sortDir < 0 ? 'descending' : 'ascending') : 'none'));
+  }
+  function toggle(tr) {
+    const d = details.get(tr), open = d.hidden;
+    details.forEach(x => { x.hidden = true; });
+    d.hidden = !open;
+  }
+  function openRow(i) {
+    band = 'all'; query = ''; q.value = '';
+    $$('.chip').forEach(c => c.setAttribute('aria-pressed', c.dataset.band === 'all'));
+    render();
+    const tr = rows.find(r => r.dataset.i === i); if (!tr) return;
+    toggle(tr); tr.focus({ preventScroll: true });
+    $('#pkgs').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  $$('#pkgs th').forEach(th => {
+    const go = () => { if (sortK === th.dataset.k) sortDir = -sortDir; else { sortK = th.dataset.k; sortDir = sortK === 'path' ? 1 : -1; } render(); };
+    th.addEventListener('click', go);
+    th.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+  });
+  tbody.addEventListener('click', e => { const tr = e.target.closest('tr.row'); if (tr) toggle(tr); });
+  tbody.addEventListener('keydown', e => { const tr = e.target.closest('tr.row'); if (tr && e.target === tr && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toggle(tr); } });
+  $$('.chip').forEach(c => c.addEventListener('click', () => { band = c.dataset.band; $$('.chip').forEach(x => x.setAttribute('aria-pressed', x === c)); render(); }));
+  q.addEventListener('input', () => { query = q.value.trim().toLowerCase(); render(); });
+
+  /* map: the view switch, tips and a click opening the package's row */
+  $$('.seg button').forEach(b => b.addEventListener('click', () => {
+    $$('.seg button').forEach(x => x.setAttribute('aria-pressed', x === b));
+    $('#bubbles').hidden = b.dataset.view !== 'bubbles'; $('#scatter').hidden = b.dataset.view !== 'scatter';
+  }));
+  $$('#bubbles, #scatter').forEach(svg => {
+    svg.addEventListener('mousemove', e => { const el = e.target.closest('[data-tip]'); if (el) showTip(e, el); else hideTip(); });
+    svg.addEventListener('mouseleave', hideTip);
+    svg.addEventListener('click', e => { const el = e.target.closest('[data-i]'); if (el) { hideTip(); openRow(el.dataset.i); } });
+  });
+})();
+{{end}}

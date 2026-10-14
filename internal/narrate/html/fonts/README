@@ -1,0 +1,43 @@
+Fonts embedded in the HTML report
+
+The page `astimate report --format html` writes embeds these three files as
+@font-face data URIs, so it loads nothing; the style sheet falls back to
+the system stacks when a browser cannot use them.
+
+  bricolage-grotesque-latin.woff2  Bricolage Grotesque, variable (opsz, wght)
+  dm-sans-latin.woff2              DM Sans, variable (opsz, wght), upright
+  jetbrains-mono-latin.woff2       JetBrains Mono, variable (wght)
+
+Each is under the SIL Open Font License 1.1; the licence of each family is
+beside it (OFL-BricolageGrotesque.txt, OFL-DMSans.txt, OFL-JetBrainsMono.txt),
+copied from the google/fonts repository (ofl/<family>/OFL.txt).
+
+Source and subset. The files are the "latin" subsets Google Fonts serves
+for the same request the report mockup made
+(docs/design/report-mockup-2026-10-14.html), fetched on 2026-10-15. The
+subset is Google's latin unicode-range, which fonts.go declares:
+
+  U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+  U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+  U+2212, U+2215, U+FEFF, U+FFFD
+
+To fetch them again, ask the CSS API with a browser user agent (it then
+answers with woff2) and take the URL under each "/* latin */" comment:
+
+  curl -A 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36' \
+    'https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600&family=JetBrains+Mono:wght@400;600&display=swap'
+
+The URLs fetched were:
+
+  https://fonts.gstatic.com/s/bricolagegrotesque/v9/3y9K6as8bTXq_nANBjzKo3IeZx8z6up5BeSl9D4dj_x9PpZBMlGIInHWVyNJ.woff2
+  https://fonts.gstatic.com/s/dmsans/v17/rP2Hp2ywxg089UriCZOIHTWEBlw.woff2
+  https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxDcwgknk-4.woff2
+
+To subset from the families' own releases instead, with fontTools:
+
+  pyftsubset <Family>[wght].ttf --flavor=woff2 --layout-features='*' \
+    --unicodes='U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD' \
+    --output-file=<family>-latin.woff2
+
+The italic of DM Sans the mockup requested is left out: the page sets no
+italic text, and the three files keep the page under 1 MB.

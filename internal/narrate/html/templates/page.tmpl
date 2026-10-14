@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="astimate {{.M.AstimateVersion}}">
+<title>{{.M.Name}} maintainability report</title>
+<style>
+{{.Fonts}}
+{{template "style"}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <span class="logo"><i></i>astimate</span>
+  <nav role="tablist">
+    <button role="tab" aria-selected="true" data-tab="repo" id="tab-repo">Repository</button>{{if .Change}}
+    <button role="tab" aria-selected="false" data-tab="change" id="tab-change">This change</button>{{end}}
+  </nav>
+</header>
+
+<section id="repo">
+  <div class="hero">
+    <div>
+      <div class="eyebrow">{{.Eyebrow}}</div>
+      <h1>{{.M.Headline}}</h1>
+      <p class="lead">{{.M.Lead}}</p>
+      <div class="stickers">{{range .Stickers}}<span class="sticker {{.Class}}"><b class="num">{{.Value}}</b>{{.Label}}</span>{{end}}</div>
+    </div>
+    <div class="ring"><svg viewBox="0 0 100 100" aria-hidden="true">{{range .Ring}}<circle r="40" cx="50" cy="50" fill="none" stroke="var(--{{.Band}})" stroke-width="12" stroke-dasharray="{{.Dash}}" stroke-dashoffset="{{.Offset}}"/>{{end}}</svg><div class="c"><b>{{.M.Counts.Fine}}</b><span>of {{.M.Counts.Packages}} fine</span></div></div>
+  </div>
+{{if .Steps}}
+  <h2>Start here</h2>
+  <p class="note">Three packages, in the order a split pays back soonest. The ranking is how often a package changes, times what it would cost to rebuild from its tests.</p>
+  <div class="steps">{{range .Steps}}
+    <div class="step {{.P.Band}}">
+      <div class="n">{{.N}}</div>
+      <div class="name">{{.P.Path}}</div>
+      <div class="say"><b>{{.P.Story}}</b>{{with .P.Changes}} {{.}}{{end}}</div>
+      <div class="facts"><span class="fact"><b class="num">{{.P.Rebuild.HumanTime}}</b> to rebuild</span><span class="fact"><b class="num">{{int .P.Copies.Lines}}</b> lines</span><span class="fact"><b class="num">{{num .P.Copies.Pct}}%</b> copied</span><span class="fact"><b class="num">{{.P.Tests.Untested}}</b> untested</span></div>
+      <div class="meter {{.P.Band}}" title="hotspot score {{num .P.Hotspot}}"><span style="width:{{.Meter}}%"></span></div>
+      <div class="do">{{.P.Todo}}</div>
+    </div>{{end}}
+  </div>
+{{end}}
+  <h2>The map</h2>
+  <p class="note">Every package as a bubble. Bigger means more code. Red needs a split, amber is close to a limit, green is fine. Hover for the story, click to open it below.</p>
+  <div class="mapcard">
+    <div class="maphead">
+      <div class="seg" role="group" aria-label="Map view"><button aria-pressed="true" data-view="bubbles">Bubbles</button><button aria-pressed="false" data-view="scatter">Hot vs costly</button></div>
+      <div class="legend"><span><i class="b-split"></i>Split</span><span><i class="b-watch"></i>Watch</span><span><i class="b-fine"></i>Fine</span></div>
+    </div>
+    <svg class="bub" id="bubbles" viewBox="0 0 1000 560" width="100%" aria-label="Packages as bubbles sized by code">{{range .Bubbles}}
+      <g transform="translate({{.X}},{{.Y}})" data-i="{{.I}}"><title>{{.Tip}}</title><circle r="{{.R}}" class="{{.Band}}"/>{{if .Label}}<text y="4" style="font-size:{{.Font}}px">{{.Label}}</text>{{end}}{{if .Sub}}<text class="sub" y="18">{{.Sub}}</text>{{end}}</g>{{end}}
+    </svg>
+    {{with .Scatter}}<svg class="sc" id="scatter" viewBox="0 0 1000 560" width="100%" aria-label="Churn against rebuild cost" hidden>
+      <g>{{range .XTicks}}<line class="axis" stroke-dasharray="2 5" x1="{{.At}}" x2="{{.At}}" y1="{{$.Scatter.Bottom}}" y2="{{$.Scatter.Top}}"/><text class="tick" x="{{.At}}" y="{{$.Scatter.Below}}" dy=".71em" text-anchor="middle">{{.Label}}</text>{{end}}</g>
+      <g>{{range .YTicks}}<line class="axis" stroke-dasharray="2 5" x1="{{$.Scatter.Left}}" x2="{{$.Scatter.Right}}" y1="{{.At}}" y2="{{.At}}"/><text class="tick" x="{{$.Scatter.Beside}}" y="{{.At}}" dy=".32em" text-anchor="end">{{.Label}}</text>{{end}}</g>
+      <text class="tick" x="{{.MidX}}" y="542" text-anchor="middle">{{.XTitle}}  →</text>
+      <text class="tick" transform="translate(22 {{.MidY}}) rotate(-90)" text-anchor="middle">days to rebuild  →</text>
+      <text class="zone" x="960" y="48" text-anchor="end">hot and costly: fix first</text>
+      <text class="zone" x="80" y="490">quiet and cheap: leave alone</text>{{range .Points}}
+      <circle class="{{.Band}}" cx="{{.X}}" cy="{{.Y}}" r="{{.R}}" data-i="{{.I}}"><title>{{.Tip}}</title></circle>{{end}}{{range .Labels}}
+      <text class="lbl" x="{{.X}}" y="{{.Y}}" text-anchor="end">{{.Text}}</text>{{end}}
+    </svg>{{end}}
+  </div>
+
+  <h2>Browse every package</h2>
+  <div class="toolbar">
+    <div class="chips" role="group" aria-label="Filter by band"><button class="chip" aria-pressed="true" data-band="all">All {{.M.Counts.Packages}}</button><button class="chip split" aria-pressed="false" data-band="split">Split {{.M.Counts.Split}}</button><button class="chip watch" aria-pressed="false" data-band="watch">Watch {{.M.Counts.Watch}}</button><button class="chip fine" aria-pressed="false" data-band="fine">Fine {{.M.Counts.Fine}}</button></div>
+    <input type="search" id="q" placeholder="Find a package…" aria-label="Find a package">
+  </div>
+  <div class="tablewrap"><table id="pkgs"><thead><tr>
+    <th data-k="path" aria-sort="none" tabindex="0">Package</th><th data-k="sloc" aria-sort="none" tabindex="0">Size vs limit</th><th data-k="days" aria-sort="descending" tabindex="0">Rebuild</th><th data-k="dup_pct" aria-sort="none" tabindex="0">Copied</th><th data-k="untested" aria-sort="none" tabindex="0">Untested</th><th data-k="churn" aria-sort="none" tabindex="0">Changes</th>
+  </tr></thead><tbody>{{range .Rows}}
+    <tr class="row" tabindex="0" data-i="{{.I}}" data-band="{{.P.Band}}" data-path="{{.P.Path}}" data-sloc="{{.Sloc}}" data-days="{{.Days}}" data-dup_pct="{{.P.Copies.Pct}}" data-untested="{{.P.Tests.Untested}}" data-churn="{{.Churn}}">
+      <td class="path" title="{{.P.Path}}"><i class="dot b-{{.P.Band}}"></i>{{.P.Path}}</td>
+      <td><span class="mini"><span{{if .Over}} class="over"{{end}} style="width:{{.Mini}}%"></span></span><span class="num{{if .Over}} over{{end}}">{{num .Sloc}}</span></td>
+      <td class="num" title="{{num .Days}} working days for one engineer">{{.P.Rebuild.HumanShort}}</td><td class="num{{if eq .P.Copies.Level "split"}} over{{end}}">{{num .P.Copies.Pct}}%</td><td class="num">{{.P.Tests.Untested}}</td><td class="num">{{if ge .Churn 0}}{{.Churn}}{{else}}n/a{{end}}</td>
+    </tr>
+    <tr class="detail" hidden><td colspan="6">{{template "detail" .}}</td></tr>{{end}}
+    <tr class="none" hidden><td colspan="6" class="muted">No package matches.</td></tr>
+  </tbody></table></div>
+  <p class="note">Click a row for the full story of that package. Rebuild is one engineer's working time to rewrite it from its tests{{if .Window}}; Changes is commits touching the package in the last {{.Window}}{{end}}.</p>
+
+  <h2>What the words mean</h2>
+  <div class="glossary">{{range .M.Glossary}}
+    <div class="term"><b>{{.Term}}</b>{{.Text}}</div>{{end}}
+  </div>
+</section>
+{{with .Change}}
+<section id="change" hidden>
+  <div class="ribbon">
+    <div class="verdict {{if .Fail}}fail{{else}}pass{{end}}">{{.C.Verdict}}</div>
+    <div>
+      <div class="eyebrow">{{.Eyebrow}}</div>
+      <h1 style="font-size:clamp(24px,3.6vw,36px)">{{.C.Headline}}</h1>
+      <p class="lead">{{.C.Lead}}</p>
+      <div class="stickers">{{range .Stickers}}<span class="sticker {{.Class}}"><b class="num">{{.Value}}</b>{{.Label}}</span>{{end}}</div>
+    </div>
+  </div>
+{{if .Failing}}
+  <h2>Before this merges</h2>
+  <p class="note">Each package that fails, with what moved, why the gate cares, and the first place to open. Fix these and the gate passes.</p>
+  <div class="list">{{range .Failing}}
+    <div class="pkgcard"><div class="top"><span class="pill fail">FAIL</span><span class="name">{{.F.Path}}</span><span class="muted">{{.F.Summary}}</span></div>{{range .Findings}}
+      <div class="finding"><div class="h"><span class="m">{{.F.Label}}</span><span class="d">{{.Change}}</span></div><div class="why">{{.F.Why}} <span class="muted">{{.F.Do}}</span></div>{{if .F.Moved}}<div class="ov"><span>{{.F.Moved}}</span>{{if .HasMeter}}<div class="meter split"><span style="width:{{.Grew}}%"></span><span class="allow" style="width:{{.Allowed}}%"></span></div>{{else}}<div></div>{{end}}</div>{{end}}{{with .Open}}<span class="open">Open {{.}} ↗</span>{{end}}</div>{{end}}
+    </div>{{end}}
+  </div>
+{{end}}{{if .Warns}}
+  <h2>Heads up</h2>
+  <p class="note">Advice, never a block. Packages close to a limit, exports without a test, complexity drifting up.</p>
+  <div class="list">{{range .Warns}}
+    <div class="warncard"><div><span class="pill warn">HEADS UP</span> &nbsp;<span class="m">{{.G.Label}}</span> <span class="muted">· {{.G.Why}} · {{.Count}}</span></div><div class="who">{{.Who}}</div></div>{{end}}
+  </div>
+{{end}}
+  <details><summary>{{.C.PassedSummary}}</summary><p>{{.Passed}}</p></details>
+</section>
+{{end}}
+</div>
+<div class="tip" id="tip" hidden></div>
+<script>{{template "script"}}</script>
+</body>
+</html>
+{{define "detail"}}<div class="detail"><p class="say"><b>{{.P.Story}}</b> {{.P.Todo}}</p>
+<div class="widgets">{{with .Detail.Rebuild}}
+<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests</span></h4>
+<div class="big {{.Tier}}-t">{{$.P.Rebuild.HumanTime}}<small>for one engineer · {{.Passes}}</small></div>
+<div class="track"><i class="fine{{if eq .Tier "fine"}} on{{end}}"></i><i class="watch{{if eq .Tier "watch"}} on{{end}}"></i><i class="split{{if eq .Tier "split"}} on{{end}}"></i><span class="mk" style="left:{{.Pos}}%"></span></div>
+<div class="tracklbl"><span>one sitting</span><span>a few sittings</span><span>split it first</span></div>
+<p>{{$.P.Rebuild.Say}}</p>
+<div class="share">{{range .Shares}}<i class="{{.Class}}" style="width:{{.Width}}%"></i>{{end}}<i class="rest" style="width:{{.Rest}}%"></i></div>
+<div class="sharelbl">{{range .Shares}}<span><i class="{{.Class}}"></i>{{.Label}}</span>{{end}}</div></div>{{end}}{{with .Detail.Copies}}
+<div class="w"><h4>Copied code <span>lines that appear more than once</span></h4>
+<div class="big {{$.P.Copies.Level}}-t">{{num $.P.Copies.Pct}}%<small>of {{int $.P.Copies.Lines}} lines · {{$.P.Copies.Blocks}} repeated chunk{{if ne $.P.Copies.Blocks 1}}s{{end}}</small></div>
+<div class="waffle" title="each square is 1% of the package's lines">{{range .Cells}}<i{{if .}} class="{{.}}"{{end}}></i>{{end}}</div>
+<div class="sharelbl"><span><i class="b-split"></i>logic that repeats</span><span><i class="b-watch"></i>tables and boilerplate</span><span><i class="b-soft"></i>written once</span></div>
+<p>{{$.P.Copies.Say}}</p>{{if .Longest}}<div class="chunk">{{.Longest}}</div>{{end}}</div>{{end}}{{with .Detail.Complexity}}
+<div class="w"><h4>How hard it is to follow <span>cognitive complexity per function</span></h4>
+<div class="big {{.Class}}-t">{{.Hard}}<small>of {{.N}} functions are hard to follow · {{.Care}} need care</small></div>
+<div class="share"><i class="b-fine" style="width:{{.EasyW}}%"></i><i class="b-watch" style="width:{{.CareW}}%"></i><i class="b-split" style="width:{{.HardW}}%"></i></div>
+<div class="sharelbl"><span><i class="b-fine"></i>easy, up to 10</span><span><i class="b-watch"></i>needs care, 11 to 20</span><span><i class="b-split"></i>hard, over 20</span></div>
+{{with $.P.Complexity.Say}}<p>{{.}}</p>{{end}}
+<div class="scale" title="where the hardest tenth of functions sits"><span class="mk" style="left:{{.Pos}}%"></span></div><div class="scalelbl"><span>easy</span><span>needs care</span><span>hard</span></div>{{if .Fns}}
+<div class="fnlist">{{range .Fns}}<div class="f"><span>{{.F.Name}}</span><span class="sc {{.F.Level}}-t">{{.F.Cognitive}}</span><span class="where">{{.F.File}}:{{.F.Line}}</span><span class="where">{{.F.Cyclomatic}} paths</span><span class="m"><i class="b-{{.F.Level}}" style="width:{{.Width}}%"></i></span></div>{{end}}</div>{{end}}</div>{{end}}
+</div>
+<div class="grid">{{range .Detail.Meters}}<div class="row2"><div class="l"><span>{{.Label}}</span><span><b class="num">{{.Value}}</b> of {{.Max}}</span></div><div class="meter {{.Level}}"><span style="width:{{.Width}}%"></span></div></div>{{end}}</div>
+<div class="grid">{{range .P.Facts}}<div class="kv"><span>{{.Label}}</span>{{.Text}}</div>{{end}}</div></div>{{end}}

@@ -17,9 +17,11 @@ func TestImportBoundary(t *testing.T) {
 	t.Parallel()
 
 	for pkg, allowed := range map[string][]string{
-		".":          {"internal/report"},
-		"./compose":  {"internal/report", "internal/report/rows", "internal/report/details", "internal/metrics", "internal/narrate"},
-		"./markdown": {"internal/narrate"},
+		".":                      {"internal/report"},
+		"./compose":              {"internal/report", "internal/report/rows", "internal/report/details", "internal/metrics", "internal/narrate"},
+		"./markdown":             {"internal/narrate"},
+		"./html":                 {"internal/narrate", "internal/narrate/html/internal/layout"},
+		"./html/internal/layout": {},
 	} {
 		out, err := exec.CommandContext(t.Context(), "go", "list", "-f", `{{join .Imports "\n"}}`, pkg).Output()
 		if err != nil {

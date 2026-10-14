@@ -37,6 +37,16 @@ history.
   cross-package copies before and after. `report --format md` adds the
   headline, the lead, the three packages to start with and the ten largest
   packages, the change block first under `--base`.
+- `--format html` on `report`, with `--out` (default
+  `astimate-report.html`) and `--open`: the module report as one
+  self-contained page, the Repository tab and, with `--base`, the "This
+  change" tab of the report design (SPEC.md 10.3). It loads nothing: the
+  fonts are embedded latin subsets of Bricolage Grotesque, DM Sans and
+  JetBrains Mono (SIL Open Font License), and the bubble map, the
+  churn-against-cost scatter and the band ring are laid out in Go (circle
+  packing as d3.pack does it) and written as SVG. The page's script only
+  switches tabs, sorts, filters, opens rows and shows tooltips; light and
+  dark follow the system. Under 1 MB for a 60-package module.
 - The GitHub Action takes `html: true`, which writes the HTML report and
   uploads it as the `astimate-report` artifact, and `comment: true`, which
   posts the Markdown as one pull request comment through `GITHUB_TOKEN`

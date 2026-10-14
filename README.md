@@ -244,6 +244,14 @@ Density rules measure how the code is written (duplicate blocks, untested export
 | `sloc` `max: 1000`, `over_max_delta: 150` | capacity | 1,050 | 1,250 | violation: grew 200 while over the ceiling, more than the 150 allowed |
 | `sloc` `max: 1000` | capacity | 950 | 1,010 | violation: the change crossed the ceiling |
 
+### The HTML report
+
+`astimate report [<module-root>] --format html` writes the module report as one page, `astimate-report.html` in the working directory or the file `--out` names, and prints the path it wrote; `--open` also opens it in the default browser (`xdg-open`, `open` or `rundll32`), never by default. With `--base <ref>` the page gains a "This change" tab.
+
+The Repository tab leads with the headline and a ring of the packages that are fine, close to a limit or in need of a split, then "Start here": the three packages where a split pays back soonest, ranked by how often they change times what they would cost to rebuild. A map draws every package as a bubble, bigger for more code and coloured by band, or, under "Hot vs costly", as a scatter of changes against rebuild days. Below it every package is in a table that sorts, filters by band and searches by path; a row, or a bubble, opens the package's story with its rebuild cost, copied code (with the longest repeats), the functions that are hard to follow, its five limit meters and its facts. A glossary ends the tab. The "This change" tab gives the verdict, each failing package with what moved against what one change may add, why the gate cares and where to open, then the heads-ups and the packages that passed.
+
+The page loads nothing: the fonts (latin subsets of Bricolage Grotesque, DM Sans and JetBrains Mono, under the SIL Open Font License) are embedded, the charts are laid out in Go and written as SVG, and the little script only switches tabs, sorts, filters, opens rows and shows tooltips. It follows the system's light or dark setting and stays under 1 MB for a 60-package module. A screenshot is not checked in yet; [`docs/design/report-mockup-2026-10-14.html`](docs/design/report-mockup-2026-10-14.html) is the design it follows.
+
 ### dryrun
 
 `astimate dryrun [<module-root>]` replays the gate over the last `--last N` (default 50) first-parent commits of `HEAD`, each checked against its parent in a temporary worktree under the resolved configuration, and prints how often it would have failed: the share of the commits it checked and of those that touched a package, a per-rule table (commits failed, share of the commits checked, commits that rule alone failed), the five most-failed packages and any commit it could not check. `--suggest <file>` writes the configuration with `severity: warn` on every rule whose share exceeds `--budget` (default 10, in percent), and on a rule whose every failure was merged into by one of those; `--json` prints the replay's rows instead and `--out <dir>` keeps them in a new or empty directory (see [Before you turn it on](#before-you-turn-it-on)); the replay builds into a Go build cache of its own, removed at the end; `--timeout` (default 30m) and `--parallel` (default 1) bound the run. It exits 0 whatever the gate would have said, 1 on a usage error and 2 when the replay itself fails or stops at `--timeout` or on an interrupt (after printing what it replayed).
@@ -452,6 +460,8 @@ internal/churn/                 Churn per package from one git log over a window
 internal/report/                Output formats
 internal/report/rows/           Rank rows and their writers
 internal/report/details/        The details block of a report
+internal/narrate/               The module report astimate report renders, and its builder
+internal/narrate/html/          The module report as one self-contained HTML page
 internal/replay/                The gate over a repository's history (dryrun and the calibration replay)
 internal/gocache/               A per-run Go build cache (dryrun and the calibration commands)
 internal/mcpserver/             MCP server
