@@ -7,7 +7,7 @@
     "passed": 45,
     "failed": 15,
     "package_rows": 76,
-    "wall_seconds": 4.757,
+    "wall_seconds": 3.966,
     "written": 60,
     "skipped": 0
   },
@@ -21,8 +21,8 @@
     "repository": "ai-shell"
   },
   "tool": {
-    "astimate_commit": "astimate v0.3.0-34-g2f4a136",
-    "config": "/Users/copierson/Projects/astimate/.claude/worktrees/agent-ad9721aa6525e3b53/calibration/thresholds/astimate-min-tokens-60-2026-10-14.yaml",
+    "astimate_commit": "astimate v0.4.1-6-g0d71c22-dirty",
+    "config": "/Users/copierson/Projects/astimate/.claude/worktrees/agent-a08bae9226ac0986b/calibration/thresholds/astimate-min-tokens-60-2026-10-14.yaml",
     "config_version": "min-tokens-60-2026-10-14",
     "go": "go1.27.1-X:nodwarf5 linux/arm64",
     "tokenizer": "est"
