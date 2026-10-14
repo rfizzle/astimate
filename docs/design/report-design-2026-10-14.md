@@ -1,6 +1,6 @@
 # Report design, 2026-10-14
 
-Mockup: `docs/design/report-mockup-2026-10-14.html` (open it in a browser; it loads d3 and Google Fonts from the network, which the product will not). Data: `docs/design/report-mockup-data-2026-10-14.json`, overwatch at dd3937ab against bce3876a (HEAD~30), 61 packages from `rank --json`, `check --all --format json` and `assess --json` at astimate 0ac0198, plus the derived fields the mockup adds (`band`, `over`, `hot`, `drivers`, `chunks`, `fn_easy`/`fn_tricky`/`fn_hard`, `top_fns`). Stories S-218 to S-224 build it.
+The hand-made mockup this note was drawn from is no longer in the tree, because its data came from a real repository. The reference now is the tool's own page, `astimate report testdata/go/fixture --format html`, plus the anonymised 61-package module `internal/narrate/testdata/module-61.json` (raw metrics and the derived fields the mockup added: `band`, `over`, `hot`, `drivers`, `chunks`, `fn_easy`/`fn_tricky`/`fn_hard`, `top_fns`; package, file and function names replaced, every number unchanged). Stories S-218 to S-224 build it.
 
 ## Patterns borrowed (survey by Sonnet agent, URLs in its report)
 1. One headline verdict with a colour band and a plain sentence (CodeScene code-health bands with a sentence each; Sonar quality gate Passed/Failed card; Lighthouse 3 bands, sub-scores hidden).

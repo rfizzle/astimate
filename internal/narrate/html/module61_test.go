@@ -23,11 +23,11 @@ import (
 	"github.com/rfizzle/astimate/internal/score"
 )
 
-// overwatchData is the 61-package module the report mockup was drawn
+// moduleData is the 61-package module the report mockup was drawn
 // from, with every number the mockup shows.
-const overwatchData = "../../../docs/design/report-mockup-data-2026-10-14.json"
+const moduleData = "../testdata/module-61.json"
 
-// owFinding is a violation or warning of overwatchData.
+// owFinding is a violation or warning of moduleData.
 type owFinding struct {
 	Metric     string           `json:"metric"`
 	Base       *float64         `json:"base"`
@@ -37,7 +37,7 @@ type owFinding struct {
 	Location   *report.Location `json:"location"`
 }
 
-// owFunc is one of a package's hardest functions in overwatchData.
+// owFunc is one of a package's hardest functions in moduleData.
 type owFunc struct {
 	Name string `json:"name"`
 	File string `json:"file"`
@@ -46,7 +46,7 @@ type owFunc struct {
 	Cyc  int    `json:"cyc"`
 }
 
-// owPackage is one package of overwatchData.
+// owPackage is one package of moduleData.
 type owPackage struct {
 	Path, Role, Tier                           string
 	Passes                                     float64
@@ -78,8 +78,8 @@ type owPackage struct {
 	Chunks                                     []narrate.Chunk
 }
 
-// overwatch is overwatchData decoded.
-type overwatch struct {
+// sixtyone is moduleData decoded.
+type sixtyone struct {
 	Module    string `json:"module"`
 	Head      string `json:"head"`
 	Packages  []owPackage
@@ -89,7 +89,7 @@ type overwatch struct {
 	} `json:"module_row"`
 }
 
-// findings converts overwatch findings to the gate's.
+// findings converts module findings to the gate's.
 func findings(fs []owFinding) []report.Finding {
 	out := make([]report.Finding, 0, len(fs))
 	for _, f := range fs {
@@ -124,15 +124,15 @@ func functions(p *owPackage) []details.Function {
 	return fns
 }
 
-// overwatchModule builds the module report of overwatchData, with the
+// moduleReport builds the module report of moduleData, with the
 // change the mockup's "This change" tab shows.
-func overwatchModule(t *testing.T) (*overwatch, *narrate.Module) {
+func moduleReport(t *testing.T) (*sixtyone, *narrate.Module) {
 	t.Helper()
-	raw, err := os.ReadFile(overwatchData)
+	raw, err := os.ReadFile(moduleData)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var ow overwatch
+	var ow sixtyone
 	if err := json.Unmarshal(raw, &ow); err != nil {
 		t.Fatal(err)
 	}
@@ -196,16 +196,16 @@ func circleAt(t *testing.T, page, pattern string) []float64 {
 	return out
 }
 
-// TestOverwatch renders the mockup's module and checks the page shows the
+// TestSixtyone renders the mockup's module and checks the page shows the
 // mockup's numbers: the bands, the three hotspots, the bubbles where d3
 // packs them, the scatter where the mockup's scales put it, the longest
 // repeats and hardest functions, and the change; and that it stays under
 // 1 MB with the fonts embedded. With HTML_REPORT_OUT set it also writes
 // the page there.
-func TestOverwatch(t *testing.T) {
+func TestSixtyone(t *testing.T) {
 	t.Parallel()
 
-	ow, m := overwatchModule(t)
+	ow, m := moduleReport(t)
 	var buf bytes.Buffer
 	if err := html.Write(&buf, m); err != nil {
 		t.Fatal(err)
@@ -216,7 +216,7 @@ func TestOverwatch(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	t.Logf("overwatch page: %d bytes for %d packages", buf.Len(), len(m.Packages))
+	t.Logf("61-package page: %d bytes for %d packages", buf.Len(), len(m.Packages))
 	if buf.Len() >= 1<<20 {
 		t.Errorf("page is %d bytes, want under 1 MB", buf.Len())
 	}
@@ -260,7 +260,7 @@ func TestOverwatch(t *testing.T) {
 	}
 
 	// Bubbles where d3.pack puts them; the scatter on the mockup's scales.
-	raw, err := os.ReadFile("internal/layout/testdata/d3-pack-overwatch.json")
+	raw, err := os.ReadFile("internal/layout/testdata/d3-pack-61.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -320,8 +320,8 @@ func TestOverwatch(t *testing.T) {
 			}
 		}
 	}
-	for _, want := range []string{"Longest repeat: <b>sessions.go:265-345</b> (81 lines), again at <b>sessions.go:478-558</b>.",
-		`<span class="sc split-t">56</span><span class="where">reconciliation.go:275</span><span class="where">47 paths</span>`} {
+	for _, want := range []string{"Longest repeat: <b>f15.go:265-345</b> (81 lines), again at <b>f15.go:478-558</b>.",
+		`<span class="sc split-t">56</span><span class="where">f17.go:275</span><span class="where">47 paths</span>`} {
 		if !strings.Contains(page, want) {
 			t.Errorf("page lacks %q", want)
 		}

@@ -8,15 +8,15 @@ import (
 	"testing"
 )
 
-// overwatchData is the 61-package module the report mockup was drawn
+// moduleData is the 61-package module the report mockup was drawn
 // from.
-const overwatchData = "../../../../../docs/design/report-mockup-data-2026-10-14.json"
+const moduleData = "../../../testdata/module-61.json"
 
-// overwatchValues returns the bubble values of overwatchData, as the
+// moduleValues returns the bubble values of moduleData, as the
 // report sizes them: max(tokens, 400), in path order.
-func overwatchValues(t *testing.T) []float64 {
+func moduleValues(t *testing.T) []float64 {
 	t.Helper()
-	raw, err := os.ReadFile(overwatchData)
+	raw, err := os.ReadFile(moduleData)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,10 +62,10 @@ func checkPacked(t *testing.T, values []float64, cs []Circle, w, h float64) {
 	}
 }
 
-func TestPackOverwatch(t *testing.T) {
+func TestPackSixtyone(t *testing.T) {
 	t.Parallel()
 
-	values := overwatchValues(t)
+	values := moduleValues(t)
 	if len(values) != 61 {
 		t.Fatalf("read %d packages, want 61", len(values))
 	}
@@ -86,13 +86,13 @@ func TestPackOverwatch(t *testing.T) {
 }
 
 // TestPackMatchesD3 checks Pack against the circles d3-hierarchy 3.1.2
-// computed for overwatchData, as the mockup calls it:
+// computed for moduleData, as the mockup calls it:
 // d3.pack().size([1000, 560]).padding(5) over a hierarchy summed by
-// max(tokens, 400), its leaves' [x, y, r] in testdata/d3-pack-overwatch.json.
+// max(tokens, 400), its leaves' [x, y, r] in testdata/d3-pack-61.json.
 func TestPackMatchesD3(t *testing.T) {
 	t.Parallel()
 
-	raw, err := os.ReadFile("testdata/d3-pack-overwatch.json")
+	raw, err := os.ReadFile("testdata/d3-pack-61.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +100,7 @@ func TestPackMatchesD3(t *testing.T) {
 	if err := json.Unmarshal(raw, &want); err != nil {
 		t.Fatal(err)
 	}
-	got := Pack(overwatchValues(t), 1000, 560, 5)
+	got := Pack(moduleValues(t), 1000, 560, 5)
 	if len(got) != len(want) {
 		t.Fatalf("got %d circles, want %d", len(got), len(want))
 	}

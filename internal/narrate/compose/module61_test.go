@@ -13,13 +13,13 @@ import (
 	"github.com/rfizzle/astimate/internal/score"
 )
 
-// overwatchData is the overwatch data the report mockup was rendered from:
+// moduleData is the 61-package module the report mockup was rendered from:
 // every package's raw metrics and the fields the mockup derived from them.
-const overwatchData = "../../../docs/design/report-mockup-data-2026-10-14.json"
+const moduleData = "../testdata/module-61.json"
 
-// overwatchPackage is one package of overwatchData, the fields the table
+// modulePackage is one package of moduleData, the fields the table
 // test reads.
-type overwatchPackage struct {
+type modulePackage struct {
 	Path        string         `json:"path"`
 	Role        string         `json:"role"`
 	Tier        string         `json:"tier"`
@@ -43,8 +43,8 @@ type overwatchPackage struct {
 	FuncCount   int            `json:"func_count"`
 }
 
-// overwatchMetric maps the mockup's ceiling keys to metric names.
-func overwatchMetric(key string) string {
+// moduleMetric maps the mockup's ceiling keys to metric names.
+func moduleMetric(key string) string {
 	return map[string]string{"sloc": "sloc", "tokens": "tokens_est", "largest_file": "largest_file_sloc",
 		"exports": "exported_symbols", "imports": "internal_imports"}[key]
 }
@@ -56,15 +56,15 @@ func defaultLimits() []narrate.Limit {
 		{Metric: "exported_symbols", Max: 60, Roles: notMain}, {Metric: "internal_imports", Max: 10, Roles: notMain}}
 }
 
-// overwatchReports reads overwatchData as the reports Build takes.
-func overwatchReports(t *testing.T) ([]overwatchPackage, []report.Report) {
+// moduleReports reads moduleData as the reports Build takes.
+func moduleReports(t *testing.T) ([]modulePackage, []report.Report) {
 	t.Helper()
-	raw, err := os.ReadFile(overwatchData)
+	raw, err := os.ReadFile(moduleData)
 	if err != nil {
 		t.Fatal(err)
 	}
 	var data struct {
-		Packages []overwatchPackage `json:"packages"`
+		Packages []modulePackage `json:"packages"`
 	}
 	if err := json.Unmarshal(raw, &data); err != nil {
 		t.Fatal(err)
@@ -88,14 +88,14 @@ func overwatchReports(t *testing.T) ([]overwatchPackage, []report.Report) {
 	return data.Packages, reports
 }
 
-// TestOverwatch reproduces the mockup's derived fields from overwatch's
+// TestSixtyone reproduces the mockup's derived fields from the module's
 // raw metrics: every package's band, ceilings over and hotspot score, the
 // hotspot order, and the hero sentences.
-func TestOverwatch(t *testing.T) {
+func TestSixtyone(t *testing.T) {
 	t.Parallel()
 
-	want, reports := overwatchReports(t)
-	m := Build(&Input{ModulePath: "github.com/rfizzle/overwatch", Language: "go", Limits: defaultLimits(),
+	want, reports := moduleReports(t)
+	m := Build(&Input{ModulePath: "example.com/sixtyone", Language: "go", Limits: defaultLimits(),
 		ChurnWindow: 200, Packages: reports})
 	byPath := make(map[string]*narrate.Package, len(m.Packages))
 	for i := range m.Packages {
@@ -106,7 +106,7 @@ func TestOverwatch(t *testing.T) {
 		got := byPath[w.Path]
 		over := make([]string, 0, len(w.Over))
 		for _, k := range w.Over {
-			over = append(over, overwatchMetric(k))
+			over = append(over, moduleMetric(k))
 		}
 		if got.Band != w.Band || !slices.Equal(got.Over, over) || got.Hotspot != w.Hot {
 			t.Errorf("%s: band %s over %q hotspot %v, want %s %q %v", w.Path, got.Band, got.Over, got.Hotspot, w.Band, over, w.Hot)
@@ -121,7 +121,7 @@ func TestOverwatch(t *testing.T) {
 	// The mockup ranks hot with a stable sort; every package with a
 	// score has a distinct one.
 	hot := slices.Clone(want)
-	slices.SortStableFunc(hot, func(a, b overwatchPackage) int { return cmp.Compare(b.Hot, a.Hot) })
+	slices.SortStableFunc(hot, func(a, b modulePackage) int { return cmp.Compare(b.Hot, a.Hot) })
 	wantHot := make([]string, 0, 5)
 	for _, p := range hot[:5] {
 		wantHot = append(wantHot, p.Path)
@@ -144,7 +144,7 @@ func TestOverwatch(t *testing.T) {
 		HumanDays: m.Counts.HumanDays, HumanTime: m.Counts.HumanTime}); got != want {
 		t.Errorf("counts = %+v, want %+v", got, want)
 	}
-	if want := "Overwatch has 19 packages that need a split. Start with internal/controller."; m.Headline != want {
+	if want := "Sixtyone has 19 packages that need a split. Start with m/p07."; m.Headline != want {
 		t.Errorf("headline = %q, want %q", m.Headline, want)
 	}
 	if want := "61 packages, about " + m.Counts.HumanTime + " of one engineer's time to rebuild from their tests. " +
@@ -152,7 +152,7 @@ func TestOverwatch(t *testing.T) {
 		"200 commits and 42.6% of it is copied code."; m.Lead != want {
 		t.Errorf("lead = %q, want %q", m.Lead, want)
 	}
-	c := byPath["internal/controller"]
+	c := byPath["m/p07"]
 	if want := "It is over all five of its limits (size, tokens, largest file, exports, imports), and 42.6% of its " +
 		"lines are copies of each other, and 16 of its 203 exports have no test."; c.Story != want {
 		t.Errorf("story = %q, want %q", c.Story, want)

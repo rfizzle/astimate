@@ -193,7 +193,7 @@ func TestModuleName(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct{ path, root, want string }{
-		{"github.com/rfizzle/overwatch", "x", "Overwatch"},
+		{"example.com/sixtyone", "x", "Sixtyone"},
 		{"example.com/app/v2", "x", "App"},
 		{"", "web", "Web"},
 		{"", "", ""},

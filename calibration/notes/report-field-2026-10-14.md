@@ -28,7 +28,7 @@ goKMS has fewer than 30 commits, so `--base HEAD~30` was an error ("not a commit
 
 **Overwatch timing.** With a warm Go build cache, `report` on overwatch (61 packages) took 1.6 to 2.0 s as text, 1.6 s for the page and 7.7 s for the page with `--base HEAD~30`. Its page is 661 kB and 677 kB with the change tab; the largest of the eleven is shhh's, 796 kB with the change tab (82 packages). Every page is under 1 MB with the three fonts embedded.
 
-**Screenshots.** No browser is installed on this host (`chromium`, `google-chrome` and `wkhtmltoimage` are all absent), so the three pages are committed as HTML instead, fonts included, under `docs/design/samples/`: `report-gokms-2026-10-14.html` (small, 16 packages, 366 kB), `report-overwatch-2026-10-14.html` (large, 61 packages, 677 kB) and `report-ai-shell-2026-10-14.html` (TypeScript, 3 packages, 283 kB; mark is Go). Each has both tabs (the change against `HEAD~30`, `HEAD~8` for goKMS). The screenshots are pending a browser.
+**Screenshots.** No browser is installed on this host (`chromium`, `google-chrome` and `wkhtmltoimage` are all absent), so the three pages are not checked in (they carried the user's repositories' names); screenshots are pending a browser.
 
 ## Sentences changed
 

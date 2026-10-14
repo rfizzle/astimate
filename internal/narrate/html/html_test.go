@@ -145,7 +145,7 @@ func TestFormat(t *testing.T) {
 			t.Errorf("coord(%v) = %q, want %q", v, got, want)
 		}
 	}
-	for p, want := range map[string]string{"internal/controller": "controller", "modules/x/y": "m/x/y",
+	for p, want := range map[string]string{"internal/server": "server", "modules/x/y": "m/x/y",
 		"internal/modules/z": "m/z", "cmd/app": "cmd/app"} {
 		if got := shortPath(p); got != want {
 			t.Errorf("shortPath(%q) = %q, want %q", p, got, want)

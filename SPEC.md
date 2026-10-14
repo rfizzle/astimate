@@ -547,13 +547,13 @@ A finding of a rule with `source: coverage` that judged `untested_exports_covere
   "limits": [ { "metric": "sloc", "max": 1000 }, { "metric": "exported_symbols", "max": 60, "roles": ["library", "test-support", "generated-only"] } ],
   "churn_window": 200,
   "counts": { "packages": 61, "split": 19, "watch": 11, "fine": 31, "without_tests": 9, "human_days": 1640, "human_time": "7 engineer-years" },
-  "headline": "...", "lead": "...", "hotspots": [ "internal/controller", "..." ],
+  "headline": "...", "lead": "...", "hotspots": [ "internal/server", "..." ],
   "packages": [ {
-    "path": "internal/controller", "role": "library", "tier": "PARTITION", "band": "split", "over": [ "sloc", "tokens_est" ], "hotspot": 13456.2,
+    "path": "internal/server", "role": "library", "tier": "PARTITION", "band": "split", "over": [ "sloc", "tokens_est" ], "hotspot": 13456.2,
     "ceilings": [ { "metric": "sloc", "label": "size", "value": 10980, "max": 1000, "judged": true, "over": true, "level": "split" } ],
     "rebuild": { "agent_passes": 7.8, "human_days": 328.2, "human_time": "1 engineer-year", "human_short": "1.5 yr", "rebuild_tokens": 291496,
                  "sittings": "split it first", "sittings_text": "8 sittings", "drivers": [ { "term": "spec", "label": "the tests it must satisfy", "tokens": 198254, "pct": 68 } ], "say": "..." },
-    "copies": { "pct": 42.6, "blocks": 261, "code_blocks": 216, "lines": 10980, "level": "split", "chunks": [ { "file": "sessions.go", "start": 265, "end": 345, "lines": 81 } ], "say": "...", "longest": "..." },
+    "copies": { "pct": 42.6, "blocks": 261, "code_blocks": 216, "lines": 10980, "level": "split", "chunks": [ { "file": "server.go", "start": 265, "end": 345, "lines": 81 } ], "say": "...", "longest": "..." },
     "complexity": { "functions": 434, "buckets": { "easy": 390, "care": 30, "hard": 14 }, "cognitive_p90": 11, "cyclomatic_p90": 9, "nesting": 5,
                     "hardest": [ { "name": "buildScope", "file": "reconciliation.go", "line": 275, "cognitive": 56, "cyclomatic": 47, "level": "split" } ], "say": "..." },
     "tests": { "test_funcs": 361, "has_tests": true, "untested": 16, "exports": 203 },
@@ -566,7 +566,7 @@ A finding of a rule with `source: coverage` that judged `untested_exports_covere
     "failing": [ { "path": "internal/app", "summary": "3 findings · 449.3 days to rebuild · 21 changes lately", "findings": [
       { "metric": "sloc", "label": "sloc", "base": 3973, "head": 4389, "over_by": 3389, "allowed": 150, "limit": "over max by 3389, allowed 150",
         "why": "...", "do": "...", "moved": "grew 416, allowed 150 while over the limit", "moved_short": "grew 416, allowed 150", "location": { "file": "internal/app/diagnostics.go", "line": 1 } } ] } ],
-    "warning_groups": [ { "metric": "internal_imports", "label": "internal imports", "why": "close to or over 10 internal imports", "packages": [ { "path": "internal/controller", "base": 16, "head": 16, "limit": "...", "do": "..." } ] } ],
+    "warning_groups": [ { "metric": "internal_imports", "label": "internal imports", "why": "close to or over 10 internal imports", "packages": [ { "path": "internal/server", "base": 16, "head": 16, "limit": "...", "do": "..." } ] } ],
     "exempted": [ { "path": "internal/x", "metric": "globals", "label": "globals", "reason": "..." } ], "notices": [ "..." ],
     "passed_paths": [ "..." ], "passed_summary": "3 changed packages pass clean, 49 did not change"
   },
@@ -587,7 +587,7 @@ A finding of a rule with `source: coverage` that judged `untested_exports_covere
 - **Complexity.** Each function of `details.functions` is easy at a cognitive complexity up to 10, needs care from 11 to 20 and is hard over 20 (`buckets`, null when the extractor recorded no functions); `hardest` are the three with the highest cognitive complexity, ties in declaration order, each with the `level` of its bucket (`fine`, `watch`, `split`).
 - **Change.** `changed` counts the packages the check selected and `unchanged` the rest; `failing` lists each row with violations, the module row as `<module>`, most violations first then by hotspot; `warning_groups` groups the warnings by metric, the largest group first then by metric; `passed_paths` are the changed packages with no finding; `verdict` is `FAIL` when any row fails, else `PASS`; `cross` is the module row's `dup_blocks_cross_pkg` at base and head. A finding's `over_by` and `allowed` are read from the first clause of the gate's `limit`, `over max by N, allowed M`, and are null for any other limit.
 
-The sentences are kept in one Go file (`internal/narrate/compose/sentences.go`) and are the report mockup's (`docs/design/report-mockup-2026-10-14.html`). A sentence never states a number its row does not carry: a clause whose number is missing is dropped (the hottest-package sentence of `lead`, a package's `changes` and its `Changes` fact without churn, the glossary's `Limits`, `Copied` and `Changes` entries without their settings), and counts are singular for 1. Numbers are written en-US, thousands separated, with at most one decimal.
+The sentences are kept in one Go file (`internal/narrate/compose/sentences.go`) and follow the report design of `docs/design/report-design-2026-10-14.md`. A sentence never states a number its row does not carry: a clause whose number is missing is dropped (the hottest-package sentence of `lead`, a package's `changes` and its `Changes` fact without churn, the glossary's `Limits`, `Copied` and `Changes` entries without their settings), and counts are singular for 1. Numbers are written en-US, thousands separated, with at most one decimal.
 
 - `story`: "It is over N of its five limits (labels)" ("It is over all five of its limits (labels)" when over every one), "It is over its <label> limit" or "It is inside every limit", joined by ", and " with "<duplication_pct>% of its lines are copies of each other" at 20% or more, "<untested> of its <exports> exports have no test" at 5 or more, and "it has no tests at all" when it has none. The labels are size, tokens, largest file, exports and imports.
 - `todo`: Split, "Extract the copied code first, then split the package along its responsibilities." at 20% copied, else "Split it into smaller packages before the next feature lands here."; Watch, "Plan a split now, before it grows further past its limit." when over a ceiling (it says nothing of the gate: a capacity rule lets one change grow a package past its ceiling by its `over_max_delta`, and `internal_imports` only warns, 8.2), else "Extract the copied code next time you work here; nothing needs a split yet." at 25% copied, else "Nothing yet. Keep an eye on it."; Fine, "Nothing. Leave it alone."
