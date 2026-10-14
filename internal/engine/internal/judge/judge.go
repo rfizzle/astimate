@@ -80,7 +80,10 @@ func New(o Options) *Checker {
 // The exemptions are applied to the result
 // (gate.Exemptions.Apply) before the report is built. unrecorded reports
 // that the diff was skipped because the baseline has pkg but no functions
-// for it.
+// for it. A pkg the baseline has no row for because it failed to load there
+// (baseline.Baseline.Unavailable) is judged against the maxes only, with
+// the ratchets from zero skipped, and its report says why
+// (report.Report.BaselineUnavailable).
 func (c *Checker) Package(ctx context.Context, pkg string, m metrics.RawMetrics) (p report.CheckedPackage, unrecorded bool, err error) {
 	o := &c.o
 	det, names, err := Details(ctx, o.Ext, o.Mod, pkg)
@@ -103,6 +106,15 @@ func (c *Checker) Package(ctx context.Context, pkg string, m metrics.RawMetrics)
 	}
 	var worst *changedFunction
 	var opts []gate.Option
+	// A package the baseline could not load is not new: its history is
+	// unknown, so its ratchets are skipped (gate.WithBaselineUnavailable).
+	unavailable := ""
+	if !inBase {
+		unavailable, _ = o.Base.Unavailable(path)
+		if unavailable != "" {
+			opts = append(opts, gate.WithBaselineUnavailable())
+		}
+	}
 	if listed {
 		worst = worstChanged(changed)
 		m.ChangedFuncCognitiveMax = &worst.cognitive
@@ -114,6 +126,7 @@ func (c *Checker) Package(ctx context.Context, pkg string, m metrics.RawMetrics)
 	}
 	r, res := c.row(path, m, m, bm, coveredBase(m, bm, &row, det.UntestedCovered), c.pkgRules, suggest, names, opts...)
 	r.BaselineFrom = row.From
+	r.BaselineUnavailable = unavailable
 	locateFindings(&r, &det, nameJudged(&r, &res, worst, m, names), lead)
 	r.Details = c.details(&det)
 	p = report.CheckedPackage{Report: r, ChangedFunctions: changed}

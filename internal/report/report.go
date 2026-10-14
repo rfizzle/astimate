@@ -34,6 +34,12 @@ type Report struct {
 	Metrics metrics.RawMetrics `json:"metrics"`
 	// Baseline is the metrics the package was compared against, if any.
 	Baseline *Baseline `json:"baseline,omitempty"`
+	// BaselineUnavailable says why a package that existed at the baseline
+	// has no baseline block: it failed to load there, so it could not be
+	// measured (SPEC.md 8.1). The check judged it against the maxes only
+	// and skipped the ratchets; omitted otherwise, so a package with no
+	// baseline block and no reason is new.
+	BaselineUnavailable string `json:"baseline_unavailable,omitempty"`
 	// BaselineFrom are the module-relative directories, sorted, of the
 	// baseline packages the package's baseline was seeded from because its
 	// files were renamed from them (SPEC.md 8.4); omitted when the package

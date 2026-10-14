@@ -38,6 +38,12 @@ const (
 	baselineEmpty  = "empty"
 )
 
+// baselineUnavailable is the state a package row records, in its baseline
+// field, when the package existed at the parent but failed to load there:
+// the row is New, since the parent gave it no metrics, but it was not
+// ratcheted from zero, so a validation sets it aside.
+const baselineUnavailable = "unavailable"
+
 // Options say what to replay, under which configuration, and where to.
 type Options struct {
 	// Repo is the git repository to replay.

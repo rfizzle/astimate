@@ -12,6 +12,16 @@ history.
 
 ### Added
 
+- A package that existed at the baseline but failed to load there (a type
+  error, a missing module) is no longer judged as new. It is judged
+  against the capacity and density `max` values only, with the ratchets
+  from zero and the requirement rules skipped, so a parent that did not
+  compile no longer fails the commit that fixes it on the blocks the
+  package already had. The text and hook output print `baseline
+  unavailable for <package>: <reason>; ratchets skipped`, the GitHub
+  format adds a notice, the JSON report carries `baseline_unavailable`,
+  and replay rows record `"baseline": "unavailable"` beside `"new": true`.
+  A package the baseline never had still ratchets from zero.
 - `calibration/validate` reports each rule's part in the gate (the
   commits it fired on and those no other failing rule fired on), and, for
   hand labels that mark their sample, how many passed commits were read

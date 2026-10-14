@@ -155,6 +155,12 @@ func (c *BaselineCache) get(key string, load func() (baseline.Baseline, error)) 
 // cannot be judged, so it is logged and returned in failed with an error
 // IsSkipped reports. The rest are gated as usual.
 //
+// A package the extractor skipped in a git baseline's tree, because it
+// failed to load there, has no baseline row but is not new: the baseline
+// records why (baseline.Baseline.Unavailable), and the package is judged
+// against the maxes only, with the ratchets skipped and the reason in its
+// report (judge.Checker.Package).
+//
 // When t's extractor implements metrics.ModuleMetrics and at least one
 // package is selected, the result also carries the module-level row
 // (judge.Checker.Module), gated against the baseline's row of the same id.

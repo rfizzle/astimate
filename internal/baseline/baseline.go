@@ -45,6 +45,14 @@ type Baseline interface {
 	// is a file. Changed-package detection selects a removed declaration
 	// file's former importers from it (SPEC.md 8.4).
 	Importers(dir string) ([]string, bool)
+	// Unavailable returns why the baseline has no row for the package in
+	// dir although the package existed there: it failed to load in the
+	// baseline tree (metrics.Skipper), so it could not be measured. A
+	// package that did not exist at the baseline, and any package of a
+	// baseline file, returns false. A check judges an unavailable package
+	// against the maxes only, skipping the ratchets from zero, since its
+	// history is unknown rather than empty.
+	Unavailable(dir string) (reason string, ok bool)
 }
 
 // Row is what a baseline records for one package, or for the module row.
@@ -116,6 +124,9 @@ type snapshot struct {
 	// at all.
 	importers      map[string][]string
 	importersKnown bool
+	// unavailable holds, by module-relative directory, why each package
+	// that failed to load in the baseline tree has no row.
+	unavailable map[string]string
 	// migrated says a file stored the module row under the key used
 	// before metrics.ModuleRowID was reserved.
 	migrated bool
@@ -175,6 +186,12 @@ func (s *snapshot) CrossBlocks() ([]metrics.CrossBlock, bool) {
 // Importers implements Baseline.
 func (s *snapshot) Importers(dir string) ([]string, bool) {
 	return s.importers[dir], s.importersKnown
+}
+
+// Unavailable implements Baseline.
+func (s *snapshot) Unavailable(dir string) (string, bool) {
+	r, ok := s.unavailable[dir]
+	return r, ok
 }
 
 // Row implements Baseline.

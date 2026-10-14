@@ -26,6 +26,12 @@ type packageRow struct {
 	// New is true when the baseline has no such row: the package is new at
 	// the commit, or the commit is judged against an empty baseline.
 	New bool `json:"new"`
+	// Baseline is "unavailable" when the package existed at the parent but
+	// failed to load there (report.Report.BaselineUnavailable): the row is
+	// New, with no Base, yet the gate judged it against the maxes only and
+	// skipped the ratchets from zero, so a validation sets it aside rather
+	// than counting a ratchet it never faced. Omitted on every other row.
+	Baseline string `json:"baseline,omitempty"`
 	// BaselineFrom are the module-relative directories of the parent's
 	// packages the row's baseline was seeded from because its files were
 	// renamed from them (report.Report.BaselineFrom); omitted when the row
@@ -216,6 +222,9 @@ func newPackageRow(commit string, p *report.CheckedPackage) packageRow {
 		// The metric is non-null exactly when the check diffed the row's
 		// functions.
 		ChangedFunctions: changedFuncs(p.ChangedFunctions, r.Metrics.ChangedFuncCognitiveMax != nil),
+	}
+	if r.BaselineUnavailable != "" {
+		row.Baseline = baselineUnavailable
 	}
 	for _, e := range r.Exemptions {
 		row.Exemptions = append(row.Exemptions, exempted{finding: toFinding(&e.Finding), Reason: e.Reason})

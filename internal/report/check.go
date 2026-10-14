@@ -167,7 +167,8 @@ func finding(v *gate.Violation) Finding {
 // metrics.ModuleRowID), then one summary line for the module row and one
 // per package with its finding counts (writeSummary says when the agent
 // passes, tier and change from the baseline join them), a line naming
-// deleted packages and one line per skipped package (skippedText).
+// deleted packages, one line per package whose baseline is unavailable
+// (unavailableText) and one per skipped package (skippedText).
 func WriteCheckText(w io.Writer, c *Check) error {
 	bw := bufio.NewWriter(w)
 	writeFindings(bw, c)
@@ -180,6 +181,7 @@ func WriteCheckText(w io.Writer, c *Check) error {
 	if len(c.Deleted) > 0 {
 		_, _ = bw.WriteString("deleted since baseline: " + strings.Join(c.Deleted, ", ") + "\n")
 	}
+	writeUnavailableLines(bw, c, "")
 	writeSkippedLines(bw, c, "")
 	if len(c.Packages) == 0 && len(c.Deleted) == 0 && !c.incomplete() {
 		_, _ = bw.WriteString("no changed packages\n")
@@ -274,6 +276,8 @@ func writeSummary(w *bufio.Writer, p *CheckedPackage) {
 	}
 	_, _ = w.WriteString(findingCounts(r))
 	switch {
+	case r.BaselineUnavailable != "":
+		_, _ = w.WriteString(", baseline unavailable")
 	case p.BaseAgentPasses == nil:
 		_, _ = w.WriteString(", new since baseline")
 	case calibrated:
@@ -406,7 +410,8 @@ type hookBlock struct {
 // passes, any warnings and exempted violations are written as text to
 // warnings instead, so w carries exactly one JSON object and nothing else. A baseline whose
 // token counts are not comparable adds a "warning: " line saying so, and
-// each skipped package one more (skippedText).
+// each package whose baseline is unavailable and each skipped package one
+// more (unavailableText, skippedText).
 func WriteHook(w, warnings io.Writer, c *Check) error {
 	var text strings.Builder
 	bw := bufio.NewWriter(&text)
@@ -414,6 +419,7 @@ func WriteHook(w, warnings io.Writer, c *Check) error {
 	if note := tokenizerNote(c); note != "" {
 		_, _ = bw.WriteString("warning: " + note + "\n")
 	}
+	writeUnavailableLines(bw, c, "warning: ")
 	writeSkippedLines(bw, c, "warning: ")
 	_ = bw.Flush() // a strings.Builder never fails a write
 
@@ -456,8 +462,9 @@ const githubModuleLead = "module: "
 // "module: "; the module row has no directory, so one of its findings
 // without a location carries no file. A baseline whose token counts are
 // not comparable adds one "::warning title=astimate::" line saying so,
-// before the findings. Each skipped package adds one "::warning" on its
-// directory after them (skippedText).
+// before the findings. Each package whose baseline is unavailable adds one
+// "::notice" on its directory after them (unavailableText), and each
+// skipped package one "::warning" (skippedText).
 func WriteGitHub(w io.Writer, c *Check) error {
 	bw := bufio.NewWriter(w)
 	if note := tokenizerNote(c); note != "" {
@@ -480,6 +487,11 @@ func WriteGitHub(w io.Writer, c *Check) error {
 		for j := range r.Exemptions {
 			e := &r.Exemptions[j]
 			_, _ = bw.WriteString("::notice" + c.findingProperty(prop, &e.Finding) + "::" + escapeData(lead+exemptedText(e)) + "\n")
+		}
+	}
+	for i := range c.Packages {
+		if r := &c.Packages[i].Report; r.BaselineUnavailable != "" {
+			_, _ = bw.WriteString("::notice file=" + escapeProperty(c.repoPath(r.PackagePath)) + "::" + escapeData(unavailableText(r)) + "\n")
 		}
 	}
 	for i := range c.Skipped {

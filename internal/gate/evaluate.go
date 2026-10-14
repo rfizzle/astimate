@@ -241,7 +241,7 @@ func (e *evaluator) density(r Threshold, h float64) {
 	b, hasBase, ok := e.baseValue(e.read)
 	// Intensive metrics are not ratcheted from zero: every real package has
 	// some nesting, so a new package faces only their absolute max.
-	if r.MaxDelta != nil && (e.base != nil || r.RatchetFromZero) {
+	if r.MaxDelta != nil && (e.base != nil || (r.RatchetFromZero && !e.opts.baselineUnavailable)) {
 		switch {
 		case !ok:
 			e.res.Notes = append(e.res.Notes, Note{
@@ -402,6 +402,9 @@ func (e *evaluator) requirement(r Threshold, h float64) {
 // or its sloc rose from the baseline. An unchanged legacy package is not
 // failed for a requirement it already missed.
 func (e *evaluator) grew() bool {
+	if e.opts.baselineUnavailable {
+		return false
+	}
 	return e.base == nil || e.head.SLOC > e.base.SLOC
 }
 

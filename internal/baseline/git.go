@@ -54,7 +54,9 @@ type ModulePathFunc func(root string) (string, error)
 // metrics.ModuleMetrics and metrics.ModuleDetailer, CrossBlocks
 // reports the module's cross-package blocks there (CollectCrossBlocks);
 // when it implements metrics.ImporterLister, Importers reports each
-// package's importers there (CollectImporters).
+// package's importers there (CollectImporters); when it implements
+// metrics.Skipper, Unavailable reports why each package that failed to
+// load there has no row (CollectUnavailable).
 // An extraction error names paths relative to the module root
 // (TreeRelative), not the temporary worktree.
 // When ext implements metrics.Forgetter, FromGit calls Forget on the
@@ -120,6 +122,10 @@ func FromGit(ctx context.Context, root, ref string, ext metrics.Extractor, modul
 	if err == nil {
 		importers, importersKnown, err = CollectImporters(ctx, ext, mod, pkgs)
 	}
+	var unavailable map[string]string
+	if err == nil {
+		unavailable, err = CollectUnavailable(ext, modRoot, baseModPath)
+	}
 	// The worktree is deleted on return, so nothing will ask for its load
 	// again; let an extractor that caches loads release it.
 	if f, ok := ext.(metrics.Forgetter); ok {
@@ -138,7 +144,7 @@ func FromGit(ctx context.Context, root, ref string, ext metrics.Extractor, modul
 	}
 	return &snapshot{
 		ref: sha, tokenizer: tokenizer, rows: c.rows(), cross: metrics.MapPackages(cross, dir), crossKnown: crossKnown,
-		importers: byDir, importersKnown: importersKnown,
+		importers: byDir, importersKnown: importersKnown, unavailable: unavailable,
 	}, nil
 }
 

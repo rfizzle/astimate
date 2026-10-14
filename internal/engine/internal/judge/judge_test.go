@@ -27,6 +27,7 @@ func (fakeBaseline) Ref() string                               { return "base" }
 func (fakeBaseline) Tokenizer() string                         { return "est" }
 func (fakeBaseline) CrossBlocks() ([]metrics.CrossBlock, bool) { return nil, false }
 func (fakeBaseline) Importers(string) ([]string, bool)         { return nil, false }
+func (fakeBaseline) Unavailable(string) (string, bool)         { return "", false }
 
 // checker returns a Checker over a fake module of one package a, whose
 // globals rose from base, gated by a zero-tolerance globals rule and a

@@ -17,6 +17,8 @@ type options struct {
 	// caller gave them, an empty list included.
 	changed    []metrics.ChangedFunction
 	hasChanged bool
+	// baselineUnavailable is set by WithBaselineUnavailable.
+	baselineUnavailable bool
 }
 
 // WithChangedFunctions gives Evaluate the row's functions added or
