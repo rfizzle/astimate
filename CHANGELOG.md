@@ -12,6 +12,9 @@ history.
 
 ### Added
 
+- `untested_exports` leaves out a method implementing `http.Flusher`,
+  `http.Hijacker` or `http.Pusher`, which the HTTP server calls; a response
+  writer's `Flush` is no longer counted as untested.
 - `--coverage` (and `coverage: true` on the MCP tools) now also reports
   `untested_exports_covered`: `untested_exports` less the exports whose
   body a test ran, read from `go test -coverpkg=./... -coverprofile`

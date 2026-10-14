@@ -2,6 +2,7 @@ package stdiface
 
 import (
 	"go/ast"
+	"go/importer"
 	"go/parser"
 	"go/token"
 	"go/types"
@@ -17,13 +18,13 @@ func TestStdInterfacesClosedList(t *testing.T) {
 		"Error", "String", "GoString", "MarshalText", "UnmarshalText",
 		"MarshalBinary", "UnmarshalBinary", "MarshalJSON", "UnmarshalJSON",
 		"Len", "Less", "Swap", "Push", "Pop", "Read", "Write", "Close",
-		"Scan", "Set", "Unwrap", "Is", "As",
+		"Scan", "Set", "Unwrap", "Is", "As", "Flush",
 	} {
 		if len(s.plain[name]) == 0 {
 			t.Errorf("method %s is not on the closed list", name)
 		}
 	}
-	for _, name := range []string{"Format", "ReadFrom", "WriteTo", "ServeHTTP", "Value", "LogValue"} {
+	for _, name := range []string{"Format", "ReadFrom", "WriteTo", "ServeHTTP", "Value", "LogValue", "Push"} {
 		if len(s.named[name]) == 0 {
 			t.Errorf("method %s is not on the closed list", name)
 		}
@@ -81,6 +82,59 @@ func (W) Error() int { return 0 }
 		}
 		if NamedOf(types.NewPointer(named)) == nil || !Implements(named, types.Universe.Lookup("any").Type().Underlying().(*types.Interface)) {
 			t.Errorf("%s: NamedOf or Implements fails on a named type", tc.typ)
+		}
+		if got := s.Covers(fn); got != tc.want {
+			t.Errorf("Covers(%s.%s) = %v, want %v", tc.typ, tc.method, got, tc.want)
+		}
+	}
+}
+
+// TestCoversHTTP checks http.Flusher, http.Hijacker and http.Pusher: an
+// unexported writer wrapping an http.ResponseWriter is covered by each
+// method, and the same names with another signature are not.
+func TestCoversHTTP(t *testing.T) {
+	const src = `package u
+
+import (
+	"bufio"
+	"net"
+	"net/http"
+)
+
+type w struct{ http.ResponseWriter }
+
+func (w) Flush()                                         {}
+func (w) Hijack() (net.Conn, *bufio.ReadWriter, error)   { return nil, nil, nil }
+func (w) Push(string, *http.PushOptions) error           { return nil }
+
+type o struct{}
+
+func (o) Flush() error                        { return nil }
+func (o) Hijack() (net.Conn, error)           { return nil, nil }
+func (o) Push(string) error                   { return nil }
+`
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "u.go", src, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pkg, err := (&types.Config{Importer: importer.ForCompiler(fset, "source", nil)}).Check("u", fset, []*ast.File{f}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := New()
+	for _, tc := range []struct {
+		typ, method string
+		want        bool
+	}{
+		{"w", "Flush", true}, {"w", "Hijack", true}, {"w", "Push", true},
+		{"o", "Flush", false}, {"o", "Hijack", false}, {"o", "Push", false},
+	} {
+		named := pkg.Scope().Lookup(tc.typ).Type()
+		obj, _, _ := types.LookupFieldOrMethod(named, true, pkg, tc.method)
+		fn, ok := obj.(*types.Func)
+		if !ok {
+			t.Fatalf("no method %s.%s", tc.typ, tc.method)
 		}
 		if got := s.Covers(fn); got != tc.want {
 			t.Errorf("Covers(%s.%s) = %v, want %v", tc.typ, tc.method, got, tc.want)

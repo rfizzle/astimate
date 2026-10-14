@@ -53,6 +53,7 @@ func plainStdInterfaces() [][]stdMethod {
 		{{"Close", none, one(errT)}},            // io.Closer
 		{{"Scan", one(anyT), one(errT)}},        // sql.Scanner
 		flagIf,                                  // flag.Value
+		{{"Flush", none, none}},                 // http.Flusher
 		append(slices.Clip(flagIf), stdMethod{"Type", none, one(str)}),                                      // pflag.Value
 		{{"Append", one(str), one(errT)}, {"Replace", one(strs), one(errT)}, {"GetSlice", none, one(strs)}}, // pflag.SliceValue
 		{{"Unwrap", none, one(errT)}},   // errors: Unwrap() error
@@ -86,6 +87,7 @@ func namedStdInterfaces() []namedStdInterface {
 		{"io", "ReaderFrom", "ReadFrom"},
 		{"io", "WriterTo", "WriteTo"},
 		{"net/http", "Handler", "ServeHTTP"},
+		{"net/http", "Pusher", "Push"},
 		{"database/sql/driver", "Valuer", "Value"},
 		{"log/slog", "LogValuer", "LogValue"},
 	}
@@ -156,6 +158,9 @@ func (s Set) Covers(fn *types.Func) bool {
 			return true
 		}
 	}
+	if fn.Name() == "Hijack" && isHijack(sig) {
+		return true
+	}
 	for _, n := range s.named[fn.Name()] {
 		pkg := signaturePackage(sig, n.pkg)
 		if pkg == nil {
@@ -170,6 +175,24 @@ func (s Set) Covers(fn *types.Func) bool {
 		}
 	}
 	return false
+}
+
+// isHijack reports whether sig is that of http.Hijacker's Hijack:
+// func() (net.Conn, *bufio.ReadWriter, error). Its types come from net and
+// bufio, not net/http, so it is matched by the types' own names rather
+// than looked up in the package that declares the interface.
+func isHijack(sig *types.Signature) bool {
+	res := sig.Results()
+	if sig.Params().Len() != 0 || res.Len() != 3 || sig.Variadic() {
+		return false
+	}
+	is := func(t types.Type, path, name string) bool {
+		n := NamedOf(t)
+		return n != nil && n.Obj().Pkg() != nil && n.Obj().Pkg().Path() == path && n.Obj().Name() == name
+	}
+	_, ptr := types.Unalias(res.At(1).Type()).(*types.Pointer)
+	return is(res.At(0).Type(), "net", "Conn") && ptr && is(res.At(1).Type(), "bufio", "ReadWriter") &&
+		types.Identical(res.At(2).Type(), types.Universe.Lookup("error").Type())
 }
 
 // signaturePackage returns the package at path that a named type among
