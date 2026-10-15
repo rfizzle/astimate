@@ -313,7 +313,7 @@ person_months = 2.4 * kloc_eff ^ 1.05
 human_days = person_months * days_per_month   (default 19)
 ```
 
-where `untested_ratio = untested_exports / max(exported_symbols, 1)`, clamped to [0, 1]. Labelled as an estimate in every output. For the worked example above: `untested_ratio` 0.5, `kloc_eff` = 0.96 × 1.25 = 1.2, `person_months` = 2.4 × 1.2^1.05 = 2.9064, `human_days` = 55.2211.
+where `untested_ratio = untested_exports / max(exported_symbols, 1)`, clamped to [0, 1]. The coefficients are COCOMO 81's published organic-mode values and are not calibrated by section 11.2, which fits the agent estimate only; every surface that shows the figure says so (the glossary entry "Rebuild cost", the `human_basis` field, the footnotes in the text and Markdown reports, the `assess` and `rank` text). Labelled as an estimate in every output. For the worked example above: `untested_ratio` 0.5, `kloc_eff` = 0.96 × 1.25 = 1.2, `person_months` = 2.4 × 1.2^1.05 = 2.9064, `human_days` = 55.2211.
 
 ### 7.4 Tiers, drivers and suggestions
 

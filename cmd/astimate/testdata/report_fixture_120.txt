@@ -2,6 +2,8 @@ Fixture  example.com/fixture · thresholds-2026-10-14b
 
 Fixture has no package that needs a split.
 12 packages · 2 weeks to rebuild · 11 fine · 1 watch · 0 split · 7 without tests
+Engineer time is COCOMO's textbook rule (2.4 person-months per 1,000 lines), not a measurement; agent sittings are
+measured. rebuild.cocomo_a scales it.
 
 Start here  by days to rebuild
 

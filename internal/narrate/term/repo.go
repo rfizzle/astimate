@@ -40,6 +40,7 @@ func (p *printer) repo(m *narrate.Module) {
 		strconv.Itoa(c.WithoutTests) + " without tests"}
 	codes := []string{"", "", sgrGreen, sgrYellow, sgrRed, ""}
 	p.fit(parts, "", "", func(i int) string { return p.style(parts[i], codes[i]) })
+	p.para(narrate.HumanBasisShort, "", sgrDim)
 	if bar := p.bar(float64(c.Fine), float64(c.Packages), 20); bar != "" {
 		p.line(p.style(bar, sgrGreen) + "  " + p.style("share of packages that are fine", sgrDim))
 	}

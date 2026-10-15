@@ -169,7 +169,7 @@ tr[hidden], .tip[hidden] { display: none }
       <div class="eyebrow">example.com/fixture</div>
       <h1>Fixture has no package that needs a split.</h1>
       <p class="lead">12 packages, about 2 weeks of one engineer&#39;s time to rebuild from their tests. 11 are fine, 1 needs watching, and 0 need a split. There is no change history to read, so the packages to start with are ranked by rebuild time alone.</p>
-      <div class="stickers"><span class="sticker split"><b class="num">0</b>need a split</span><span class="sticker watch"><b class="num">1</b>to watch</span><span class="sticker fine"><b class="num">11</b>fine</span><span class="sticker ink"><b class="num">2 weeks</b>to rebuild</span><span class="sticker ink"><b class="num">7</b>without tests</span></div>
+      <div class="stickers"><span class="sticker split"><b class="num">0</b>need a split</span><span class="sticker watch"><b class="num">1</b>to watch</span><span class="sticker fine"><b class="num">11</b>fine</span><span class="sticker ink" title="Engineer time is COCOMO&#39;s textbook rule (2.4 person-months per 1,000 lines), not a measurement; agent sittings are measured. rebuild.cocomo_a scales it."><b class="num">2 weeks</b>to rebuild</span><span class="sticker ink"><b class="num">7</b>without tests</span></div>
     </div>
     <div class="ring"><svg viewBox="0 0 100 100" aria-hidden="true"><circle r="40" cx="50" cy="50" fill="none" stroke="var(--fine)" stroke-width="12" stroke-dasharray="228.38 22.94" stroke-dashoffset="0"/><circle r="40" cx="50" cy="50" fill="none" stroke="var(--watch)" stroke-width="12" stroke-dasharray="18.94 232.38" stroke-dashoffset="-230.38"/><circle r="40" cx="50" cy="50" fill="none" stroke="var(--split)" stroke-width="12" stroke-dasharray="0 253.33" stroke-dashoffset="-251.33"/></svg><div class="c"><b>11</b><span>of 12 fine</span></div></div>
   </div>
@@ -294,7 +294,7 @@ It is inside every limit.
     </tr>
     <tr class="detail" hidden><td colspan="6"><div class="detail"><p class="say"><b>It is inside every limit, and it has no tests at all.</b> Nothing. Leave it alone.</p>
 <div class="widgets">
-<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests</span></h4>
+<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests; the engineer time is COCOMO's textbook rule, see the glossary</span></h4>
 <div class="big fine-t">2 days<small>for one engineer · 0 agent passes</small></div>
 <div class="track"><i class="fine on"></i><i class="watch"></i><i class="split"></i><span class="mk" style="left:0%"></span></div>
 <div class="tracklbl"><span>one sitting</span><span>a few sittings</span><span>split it first</span></div>
@@ -323,7 +323,7 @@ It is inside every limit.
     </tr>
     <tr class="detail" hidden><td colspan="6"><div class="detail"><p class="say"><b>It is inside every limit, and it has no tests at all.</b> Nothing. Leave it alone.</p>
 <div class="widgets">
-<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests</span></h4>
+<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests; the engineer time is COCOMO's textbook rule, see the glossary</span></h4>
 <div class="big fine-t">2 days<small>for one engineer · 0 agent passes</small></div>
 <div class="track"><i class="fine on"></i><i class="watch"></i><i class="split"></i><span class="mk" style="left:0%"></span></div>
 <div class="tracklbl"><span>one sitting</span><span>a few sittings</span><span>split it first</span></div>
@@ -352,7 +352,7 @@ It is inside every limit.
     </tr>
     <tr class="detail" hidden><td colspan="6"><div class="detail"><p class="say"><b>It is inside every limit, and it has no tests at all.</b> Nothing. Leave it alone.</p>
 <div class="widgets">
-<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests</span></h4>
+<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests; the engineer time is COCOMO's textbook rule, see the glossary</span></h4>
 <div class="big fine-t">1 day<small>for one engineer · 0 agent passes</small></div>
 <div class="track"><i class="fine on"></i><i class="watch"></i><i class="split"></i><span class="mk" style="left:0%"></span></div>
 <div class="tracklbl"><span>one sitting</span><span>a few sittings</span><span>split it first</span></div>
@@ -381,7 +381,7 @@ It is inside every limit.
     </tr>
     <tr class="detail" hidden><td colspan="6"><div class="detail"><p class="say"><b>It is inside every limit, and it has no tests at all.</b> Nothing. Leave it alone.</p>
 <div class="widgets">
-<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests</span></h4>
+<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests; the engineer time is COCOMO's textbook rule, see the glossary</span></h4>
 <div class="big fine-t">1 day<small>for one engineer · 0 agent passes</small></div>
 <div class="track"><i class="fine on"></i><i class="watch"></i><i class="split"></i><span class="mk" style="left:0%"></span></div>
 <div class="tracklbl"><span>one sitting</span><span>a few sittings</span><span>split it first</span></div>
@@ -410,7 +410,7 @@ It is inside every limit.
     </tr>
     <tr class="detail" hidden><td colspan="6"><div class="detail"><p class="say"><b>It is inside every limit, and it has no tests at all.</b> Nothing. Leave it alone.</p>
 <div class="widgets">
-<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests</span></h4>
+<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests; the engineer time is COCOMO's textbook rule, see the glossary</span></h4>
 <div class="big fine-t">1 day<small>for one engineer · 0 agent passes</small></div>
 <div class="track"><i class="fine on"></i><i class="watch"></i><i class="split"></i><span class="mk" style="left:0%"></span></div>
 <div class="tracklbl"><span>one sitting</span><span>a few sittings</span><span>split it first</span></div>
@@ -439,7 +439,7 @@ It is inside every limit.
     </tr>
     <tr class="detail" hidden><td colspan="6"><div class="detail"><p class="say"><b>It is inside every limit.</b> Nothing. Leave it alone.</p>
 <div class="widgets">
-<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests</span></h4>
+<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests; the engineer time is COCOMO's textbook rule, see the glossary</span></h4>
 <div class="big fine-t">1 day<small>for one engineer · 0 agent passes</small></div>
 <div class="track"><i class="fine on"></i><i class="watch"></i><i class="split"></i><span class="mk" style="left:0%"></span></div>
 <div class="tracklbl"><span>one sitting</span><span>a few sittings</span><span>split it first</span></div>
@@ -468,7 +468,7 @@ It is inside every limit.
     </tr>
     <tr class="detail" hidden><td colspan="6"><div class="detail"><p class="say"><b>It is inside every limit, and 80.6% of its lines are copies of each other.</b> Extract the copied code next time you work here; nothing needs a split yet.</p>
 <div class="widgets">
-<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests</span></h4>
+<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests; the engineer time is COCOMO's textbook rule, see the glossary</span></h4>
 <div class="big fine-t">1 day<small>for one engineer · 0 agent passes</small></div>
 <div class="track"><i class="fine on"></i><i class="watch"></i><i class="split"></i><span class="mk" style="left:0%"></span></div>
 <div class="tracklbl"><span>one sitting</span><span>a few sittings</span><span>split it first</span></div>
@@ -497,7 +497,7 @@ It is inside every limit.
     </tr>
     <tr class="detail" hidden><td colspan="6"><div class="detail"><p class="say"><b>It is inside every limit.</b> Nothing. Leave it alone.</p>
 <div class="widgets">
-<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests</span></h4>
+<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests; the engineer time is COCOMO's textbook rule, see the glossary</span></h4>
 <div class="big fine-t">1 day<small>for one engineer · 0 agent passes</small></div>
 <div class="track"><i class="fine on"></i><i class="watch"></i><i class="split"></i><span class="mk" style="left:0%"></span></div>
 <div class="tracklbl"><span>one sitting</span><span>a few sittings</span><span>split it first</span></div>
@@ -526,7 +526,7 @@ It is inside every limit.
     </tr>
     <tr class="detail" hidden><td colspan="6"><div class="detail"><p class="say"><b>It is inside every limit, and it has no tests at all.</b> Nothing. Leave it alone.</p>
 <div class="widgets">
-<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests</span></h4>
+<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests; the engineer time is COCOMO's textbook rule, see the glossary</span></h4>
 <div class="big fine-t">1 day<small>for one engineer · 0 agent passes</small></div>
 <div class="track"><i class="fine on"></i><i class="watch"></i><i class="split"></i><span class="mk" style="left:0%"></span></div>
 <div class="tracklbl"><span>one sitting</span><span>a few sittings</span><span>split it first</span></div>
@@ -555,7 +555,7 @@ It is inside every limit.
     </tr>
     <tr class="detail" hidden><td colspan="6"><div class="detail"><p class="say"><b>It is inside every limit, and it has no tests at all.</b> Nothing. Leave it alone.</p>
 <div class="widgets">
-<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests</span></h4>
+<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests; the engineer time is COCOMO's textbook rule, see the glossary</span></h4>
 <div class="big fine-t">1 day<small>for one engineer · 0 agent passes</small></div>
 <div class="track"><i class="fine on"></i><i class="watch"></i><i class="split"></i><span class="mk" style="left:0%"></span></div>
 <div class="tracklbl"><span>one sitting</span><span>a few sittings</span><span>split it first</span></div>
@@ -584,7 +584,7 @@ It is inside every limit.
     </tr>
     <tr class="detail" hidden><td colspan="6"><div class="detail"><p class="say"><b>It is inside every limit.</b> Nothing. Leave it alone.</p>
 <div class="widgets">
-<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests</span></h4>
+<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests; the engineer time is COCOMO's textbook rule, see the glossary</span></h4>
 <div class="big fine-t">1 day<small>for one engineer · 0 agent passes</small></div>
 <div class="track"><i class="fine on"></i><i class="watch"></i><i class="split"></i><span class="mk" style="left:0%"></span></div>
 <div class="tracklbl"><span>one sitting</span><span>a few sittings</span><span>split it first</span></div>
@@ -613,7 +613,7 @@ It is inside every limit.
     </tr>
     <tr class="detail" hidden><td colspan="6"><div class="detail"><p class="say"><b>It is inside every limit.</b> Nothing. Leave it alone.</p>
 <div class="widgets">
-<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests</span></h4>
+<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests; the engineer time is COCOMO's textbook rule, see the glossary</span></h4>
 <div class="big fine-t">1 day<small>for one engineer · 0 agent passes</small></div>
 <div class="track"><i class="fine on"></i><i class="watch"></i><i class="split"></i><span class="mk" style="left:0%"></span></div>
 <div class="tracklbl"><span>one sitting</span><span>a few sittings</span><span>split it first</span></div>
@@ -641,7 +641,7 @@ It is inside every limit.
 
   <h2>What the words mean</h2>
   <div class="glossary">
-    <div class="term"><b>Rebuild cost</b>How long it would take to rewrite the package from its tests. Shown as one engineer&#39;s working time, and as agent sittings: how many times an AI agent would have to start over with a fresh context window. One sitting means it fits in one go; over three means the package has to be split before anyone can rebuild it.</div>
+    <div class="term"><b>Rebuild cost</b>How long it would take to rewrite the package from its tests. Shown as one engineer&#39;s working time, and as agent sittings: how many times an AI agent would have to start over with a fresh context window. One sitting means it fits in one go; over three means the package has to be split before anyone can rebuild it. Engineer time is a textbook figure, not a measurement: COCOMO&#39;s organic-mode rule of 2.4 person-months per thousand lines (to the power 1.05), 19 working days a month, inflated by up to half where exports have no tests, summed over the packages. The agent sittings were measured on 85 rebuilds. rebuild.cocomo_a in the configuration scales the engineer time.</div>
     <div class="term"><b>Split</b>The package is past what one agent pass can hold, or over two of its limits. Carve it into smaller packages before adding to it.</div>
     <div class="term"><b>Watch</b>Over one limit, large enough to need a few passes, or a quarter or more of it copied. Plan a split or a clean-up before it grows.</div>
     <div class="term"><b>Copied</b>The share of lines inside duplicate blocks of 40 or more tokens. Every copy is a second place a fix has to land.</div>

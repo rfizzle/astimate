@@ -42,7 +42,8 @@
     "fine": 11,
     "without_tests": 7,
     "human_days": 10,
-    "human_time": "2 weeks"
+    "human_time": "2 weeks",
+    "human_basis": "Engineer time is a textbook figure, not a measurement: COCOMO's organic-mode rule of 2.4 person-months per thousand lines (to the power 1.05), 19 working days a month, inflated by up to half where exports have no tests, summed over the packages. The agent sittings were measured on 85 rebuilds. rebuild.cocomo_a in the configuration scales the engineer time."
   },
   "headline": "Fixture has no package that needs a split.",
   "lead": "12 packages, about 2 weeks of one engineer's time to rebuild from their tests. 11 are fine, 1 needs watching, and 0 need a split. There is no change history to read, so the packages to start with are ranked by rebuild time alone.",
@@ -1877,7 +1878,7 @@
   "glossary": [
     {
       "term": "Rebuild cost",
-      "text": "How long it would take to rewrite the package from its tests. Shown as one engineer's working time, and as agent sittings: how many times an AI agent would have to start over with a fresh context window. One sitting means it fits in one go; over three means the package has to be split before anyone can rebuild it."
+      "text": "How long it would take to rewrite the package from its tests. Shown as one engineer's working time, and as agent sittings: how many times an AI agent would have to start over with a fresh context window. One sitting means it fits in one go; over three means the package has to be split before anyone can rebuild it. Engineer time is a textbook figure, not a measurement: COCOMO's organic-mode rule of 2.4 person-months per thousand lines (to the power 1.05), 19 working days a month, inflated by up to half where exports have no tests, summed over the packages. The agent sittings were measured on 85 rebuilds. rebuild.cocomo_a in the configuration scales the engineer time."
     },
     {
       "term": "Split",

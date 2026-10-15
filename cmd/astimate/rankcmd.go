@@ -57,6 +57,9 @@ func runRank(args []string, stdout, stderr io.Writer) int {
 	return rankTarget(context.Background(), t, opts, *asJSON, stdout, logger)
 }
 
+// rankFooter closes the text table: it says which column is measured.
+const rankFooter = "DAYS: one engineer's working days by COCOMO's textbook rule, not measured (SPEC.md 7.3). PASSES: measured on agent rebuilds.\n"
+
 // rankTarget ranks t's module with engine.Rank and prints the rows to
 // stdout, as a JSON array when asJSON is set and a table otherwise. It
 // returns exitAnalysis when listing fails (stdout stays empty) or when any
@@ -78,7 +81,11 @@ func rankTarget(ctx context.Context, t *engine.Target, opts engine.RankOptions, 
 		if asJSON {
 			return rows.WriteRowsJSON(w, ranked)
 		}
-		return rows.WriteRowsTable(w, ranked)
+		if err := rows.WriteRowsTable(w, ranked); err != nil {
+			return err
+		}
+		_, err := io.WriteString(w, rankFooter)
+		return err
 	})
 }
 

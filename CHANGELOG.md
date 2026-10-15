@@ -453,6 +453,12 @@ history.
 
 ### Changed
 
+- The engineer time is now labelled as COCOMO's textbook rule, not a
+  measurement, wherever it appears: the glossary's "Rebuild cost" entry, a
+  new `human_basis` field beside `human_time` in the JSON report, a footnote
+  under the headline of the text and Markdown reports, the HTML page's
+  tooltip and panel heading, the `assess` line and a footer under the `rank`
+  table. The numbers are unchanged; `rebuild.cocomo_a` still scales them.
 - `check --format github` writes at most ten `::error` and ten `::warning`
   annotations, the failing packages ranked as the module report ranks them
   (GitHub shows ten of each per step), and ends with a plain line saying

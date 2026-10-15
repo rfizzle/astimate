@@ -2,6 +2,8 @@
 
 12 packages, about 2 weeks of one engineer's time to rebuild from their tests. 11 are fine, 1 needs watching, and 0 need a split. There is no change history to read, so the packages to start with are ranked by rebuild time alone.
 
+_Engineer time is COCOMO's textbook rule (2.4 person-months per 1,000 lines), not a measurement; agent sittings are measured. rebuild.cocomo_a scales it._
+
 ### Start here
 
 1. `dupes` (watch): 1 d to rebuild

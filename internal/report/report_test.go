@@ -133,8 +133,8 @@ func TestWriteTableCalibratedLabel(t *testing.T) {
 		version string
 		want    string
 	}{
-		{version: "default-uncalibrated-1", want: "rebuild: 1.2 agent passes, 55.2 human days (estimate from uncalibrated parameters)\n"},
-		{version: "rebuild-2026-10", want: "rebuild: 1.2 agent passes, 55.2 human days (estimate from calibrated parameters)\n"},
+		{version: "default-uncalibrated-1", want: "rebuild: 1.2 agent passes, 55.2 human days (estimate from uncalibrated parameters; human days by COCOMO's rule)\n"},
+		{version: "rebuild-2026-10", want: "rebuild: 1.2 agent passes, 55.2 human days (estimate from calibrated parameters; human days by COCOMO's rule)\n"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.version, func(t *testing.T) {

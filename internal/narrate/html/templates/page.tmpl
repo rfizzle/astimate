@@ -26,7 +26,7 @@
       <div class="eyebrow">{{.Eyebrow}}</div>
       <h1>{{.M.Headline}}</h1>
       <p class="lead">{{.M.Lead}}</p>
-      <div class="stickers">{{range .Stickers}}<span class="sticker {{.Class}}"><b class="num">{{.Value}}</b>{{.Label}}</span>{{end}}</div>
+      <div class="stickers">{{range .Stickers}}<span class="sticker {{.Class}}"{{if eq .Label "to rebuild"}} title="{{$.Basis}}"{{end}}><b class="num">{{.Value}}</b>{{.Label}}</span>{{end}}</div>
     </div>
     <div class="ring"><svg viewBox="0 0 100 100" aria-hidden="true">{{range .Ring}}<circle r="40" cx="50" cy="50" fill="none" stroke="var(--{{.Band}})" stroke-width="12" stroke-dasharray="{{.Dash}}" stroke-dashoffset="{{.Offset}}"/>{{end}}</svg><div class="c"><b>{{.M.Counts.Fine}}</b><span>of {{.M.Counts.Packages}} fine</span></div></div>
   </div>
@@ -97,7 +97,7 @@
       <div class="eyebrow">{{.Eyebrow}}</div>
       <h1 style="font-size:clamp(24px,3.6vw,36px)">{{.C.Headline}}</h1>
       <p class="lead">{{.C.Lead}}</p>
-      <div class="stickers">{{range .Stickers}}<span class="sticker {{.Class}}"><b class="num">{{.Value}}</b>{{.Label}}</span>{{end}}</div>
+      <div class="stickers">{{range .Stickers}}<span class="sticker {{.Class}}"{{if eq .Label "to rebuild"}} title="{{$.Basis}}"{{end}}><b class="num">{{.Value}}</b>{{.Label}}</span>{{end}}</div>
     </div>
   </div>
 {{if .Failing}}
@@ -125,7 +125,7 @@
 </html>
 {{define "detail"}}<div class="detail"><p class="say"><b>{{.P.Story}}</b> {{.P.Todo}}</p>
 <div class="widgets">{{with .Detail.Rebuild}}
-<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests</span></h4>
+<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests; the engineer time is COCOMO's textbook rule, see the glossary</span></h4>
 <div class="big {{.Tier}}-t">{{$.P.Rebuild.HumanTime}}<small>for one engineer · {{.Passes}}</small></div>
 <div class="track"><i class="fine{{if eq .Tier "fine"}} on{{end}}"></i><i class="watch{{if eq .Tier "watch"}} on{{end}}"></i><i class="split{{if eq .Tier "split"}} on{{end}}"></i><span class="mk" style="left:{{.Pos}}%"></span></div>
 <div class="tracklbl"><span>one sitting</span><span>a few sittings</span><span>split it first</span></div>

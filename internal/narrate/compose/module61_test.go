@@ -141,7 +141,7 @@ func TestSixtyone(t *testing.T) {
 	}
 
 	if got, want := m.Counts, (narrate.Counts{Packages: 61, Split: 19, Watch: 11, Fine: 31, WithoutTests: m.Counts.WithoutTests,
-		HumanDays: m.Counts.HumanDays, HumanTime: m.Counts.HumanTime}); got != want {
+		HumanDays: m.Counts.HumanDays, HumanTime: m.Counts.HumanTime, HumanBasis: narrate.HumanBasis}); got != want {
 		t.Errorf("counts = %+v, want %+v", got, want)
 	}
 	if want := "Sixtyone has 19 packages that need a split. Start with m/p07."; m.Headline != want {

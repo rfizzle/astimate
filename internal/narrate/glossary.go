@@ -12,7 +12,7 @@ import (
 // the page and the tool say the same thing.
 func Glossary(language string, limits []Limit, minTokens, window int) []Term {
 	out := []Term{
-		{Term: "Rebuild cost", Text: "How long it would take to rewrite the package from its tests. Shown as one engineer's working time, and as agent sittings: how many times an AI agent would have to start over with a fresh context window. One sitting means it fits in one go; over three means the package has to be split before anyone can rebuild it."},
+		{Term: "Rebuild cost", Text: "How long it would take to rewrite the package from its tests. Shown as one engineer's working time, and as agent sittings: how many times an AI agent would have to start over with a fresh context window. One sitting means it fits in one go; over three means the package has to be split before anyone can rebuild it. " + HumanBasis},
 		{Term: "Split", Text: "The package is past what one agent pass can hold, or over two of its limits. Carve it into smaller packages before adding to it."},
 		{Term: "Watch", Text: "Over one limit, large enough to need a few passes, or a quarter or more of it copied. Plan a split or a clean-up before it grows."},
 	}

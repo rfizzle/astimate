@@ -75,6 +75,8 @@ type Counts struct {
 	HumanDays float64 `json:"human_days"`
 	// HumanTime is HumanDays as one engineer's working time.
 	HumanTime string `json:"human_time"`
+	// HumanBasis says where the engineer time comes from.
+	HumanBasis string `json:"human_basis"`
 }
 
 // Package is one package's view.

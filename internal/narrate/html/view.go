@@ -17,11 +17,14 @@ type page struct {
 	Fonts    template.CSS
 	Eyebrow  string
 	Stickers []sticker
-	Ring     []ringArc
-	Steps    []step
-	Bubbles  []bubble
-	Scatter  scatter
-	Rows     []row
+	// Basis is the tooltip of the "to rebuild" sticker: where the
+	// engineer time comes from.
+	Basis   string
+	Ring    []ringArc
+	Steps   []step
+	Bubbles []bubble
+	Scatter scatter
+	Rows    []row
 	// Window is the churn window, 0 when churn is off.
 	Window int
 	// Churned reports whether any package has churn, so "Start here"
@@ -64,7 +67,7 @@ type row struct {
 
 // build computes the page for m.
 func build(m *narrate.Module, fonts template.CSS) *page {
-	p := &page{M: m, Fonts: fonts, Eyebrow: eyebrow(m), Window: m.ChurnWindow}
+	p := &page{M: m, Fonts: fonts, Eyebrow: eyebrow(m), Window: m.ChurnWindow, Basis: narrate.HumanBasisShort}
 	c := m.Counts
 	p.Stickers = []sticker{
 		{narrate.BandSplit, strconv.Itoa(c.Split), "need a split"},

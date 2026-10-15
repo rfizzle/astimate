@@ -34,11 +34,13 @@ rebuild:
   tokens_per_hidden_state: 400
   # Exponent on the budget ratio once a rebuild no longer fits one pass.
   superlinear_exponent: 1.3
-  # COCOMO basic organic-mode coefficient for the human estimate.
+  # COCOMO 81 basic organic-mode coefficient (published value, not fitted).
+  # It scales every human figure linearly.
   cocomo_a: 2.4
-  # COCOMO basic organic-mode exponent for the human estimate.
+  # COCOMO 81 basic organic-mode exponent (published value, not fitted).
   cocomo_b: 1.05
-  # Working days per person-month when converting the human estimate.
+  # Working days per person-month when converting the human estimate
+  # (COCOMO 81's convention, not fitted).
   days_per_month: 19
   # Upper bounds on agent_passes for each tier.
   tiers:

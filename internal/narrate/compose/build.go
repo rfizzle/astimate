@@ -85,6 +85,7 @@ func Build(in *Input) narrate.Module {
 	slices.SortFunc(m.Packages, func(a, b narrate.Package) int { return strings.Compare(a.Path, b.Path) })
 	m.Counts.HumanDays = math.Round(days)
 	m.Counts.HumanTime = human(m.Counts.HumanDays)
+	m.Counts.HumanBasis = narrate.HumanBasis
 	hot := hotOrder(m.Packages)
 	m.Hotspots = make([]string, 0, hotspotCount)
 	var first, hottest *narrate.Package
