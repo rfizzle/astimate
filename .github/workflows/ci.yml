@@ -185,4 +185,8 @@ jobs:
               { echo "no checksum line for $asset"; exit 1; }
             tar -tzf "dist/$asset" | grep -qx astimate ||
               { echo "$asset has no astimate at its root"; exit 1; }
+            tar -tzf "dist/$asset" | grep -qx THIRD_PARTY_LICENSES ||
+              { echo "$asset has no THIRD_PARTY_LICENSES"; exit 1; }
           done
+          test -f dist/homebrew/Casks/astimate.rb ||
+            { echo "no cask rendered at dist/homebrew/Casks/astimate.rb"; exit 1; }

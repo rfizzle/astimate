@@ -6,6 +6,12 @@ version: 2
 
 project_name: astimate
 
+before:
+  hooks:
+    # The license text of every module the binary links, shipped in the
+    # archive. Generated here and gitignored, so it cannot fall behind go.mod.
+    - make third-party-licenses
+
 builds:
   - id: astimate
     main: ./cmd/astimate
@@ -20,6 +26,8 @@ builds:
       - arm64
     flags:
       - -trimpath
+    # The commit's own time, so the same tag builds the same bytes.
+    mod_timestamp: "{{ .CommitTimestamp }}"
     # Embed only the TypeScript and TSX grammars; same list as BUILD_TAGS
     # in the Makefile.
     tags:
@@ -41,10 +49,54 @@ archives:
     files:
       - README.md
       - LICENSE*
+      - THIRD_PARTY_LICENSES
 
 checksum:
   name_template: checksums.txt
   algorithm: sha256
+
+# A cask, not a formula: goreleaser retired `brews` (deprecated from v2.10,
+# formally in v2.16). A cask installs the archive's binary by name and has no
+# install or test block. It needs no quarantine hook: the darwin binaries are
+# signed and notarized below, so Gatekeeper lets them run. Published to
+# rfizzle/homebrew-tap as Casks/astimate.rb; the token is a repository
+# secret with contents write on the tap (docs/release.md).
+homebrew_casks:
+  - repository:
+      owner: rfizzle
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    name: astimate
+    binaries:
+      - astimate
+    homepage: https://github.com/rfizzle/astimate
+    description: Quality gate for LLM-written Go and TypeScript code
+
+# The darwin binaries are signed with the Developer ID certificate and
+# notarized through the App Store Connect API, on this runner, with no macOS
+# machine: Quill does both for a bare binary. Enabled only where the secrets
+# are set, so a fork, a snapshot or a dry run without them still builds. The
+# identity is five repository secrets: the base64 .p12 and its password, and
+# the API key's issuer id, key id and .p8 contents (docs/release.md).
+notarize:
+  macos:
+    - enabled: '{{ isEnvSet "MACOS_SIGN_P12" }}'
+      ids:
+        - astimate
+      sign:
+        certificate: "{{ .Env.MACOS_SIGN_P12 }}"
+        password: "{{ .Env.MACOS_SIGN_PASSWORD }}"
+      notarize:
+        issuer_id: "{{ .Env.MACOS_NOTARY_ISSUER_ID }}"
+        key_id: "{{ .Env.MACOS_NOTARY_KEY_ID }}"
+        key: "{{ .Env.MACOS_NOTARY_KEY }}"
+        # Waited for, so a refusal fails the release here and not on a
+        # user's Mac. Apple usually answers in minutes; a team's first
+        # submissions are the slow ones. Twenty minutes is the most
+        # goreleaser accepts: Apple rejects authentication tokens that
+        # live longer, so a longer wait fails before anything is signed.
+        wait: true
+        timeout: 20m
 
 snapshot:
   version_template: "{{ incpatch .Version }}-next"

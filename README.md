@@ -39,15 +39,23 @@ The full list, definitions and counting rules are in `SPEC.md` section 6.
 
 ## Install
 
-The module path is `github.com/rfizzle/astimate`:
+On macOS, with [Homebrew](https://brew.sh):
+
+```
+brew install --cask rfizzle/tap/astimate
+```
+
+The cask installs the release archive's binary for your architecture and `brew upgrade` follows each release. The darwin binaries are signed with a Developer ID and notarized, so Gatekeeper runs them without a prompt. The cask is macOS only; on Linux use `go install` or the release archive.
+
+With a Go toolchain, on any platform (the module path is `github.com/rfizzle/astimate`):
 
 ```
 go install github.com/rfizzle/astimate/cmd/astimate@latest
 ```
 
-`@latest` resolves to the newest release tag, `v0.1.0` today; `@master` builds the newest commit. A `go install` build embeds every tree-sitter grammar the parser ships and is larger than `make build`'s, which embeds only the TypeScript ones; it behaves the same.
+`@latest` resolves to the newest release tag; `@master` builds the newest commit. A `go install` build embeds every tree-sitter grammar the parser ships and is larger than `make build`'s, which embeds only the TypeScript ones; it behaves the same.
 
-Each [GitHub release](https://github.com/rfizzle/astimate/releases) carries `astimate_<version>_<os>_<arch>.tar.gz` for `linux` and `darwin` on `amd64` and `arm64`, with `astimate` at the archive root, and a `checksums.txt` to verify it against (the layout the GitHub Action installs from; see below).
+Each [GitHub release](https://github.com/rfizzle/astimate/releases) carries `astimate_<version>_<os>_<arch>.tar.gz` for `linux` and `darwin` on `amd64` and `arm64`, with `astimate` at the archive root beside `README.md`, `LICENSE` and `THIRD_PARTY_LICENSES` (the license text of every module the binary links), and a `checksums.txt` to verify it against (the layout the GitHub Action installs from; see below). How a release is cut, and what it needs, is in [`docs/release.md`](docs/release.md).
 
 From a clone, `make build` writes `./astimate` with the version, commit and date injected.
 
@@ -57,6 +65,7 @@ From a clone, `make build` writes `./astimate` with the version, commit and date
 make check           # actionlint, go mod tidy, gofmt, go vet, golangci-lint, go test -race, self-check, README sample check
 make selfcheck       # build ./astimate and run its gate on this repository against master
 make build           # ./astimate with version, commit and date injected
+make third-party-licenses  # THIRD_PARTY_LICENSES for the release archive (needs the network)
 make readme-samples  # regenerate the sample outputs in this README
 ```
 

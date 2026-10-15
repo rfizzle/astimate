@@ -12,6 +12,19 @@ history.
 
 ### Added
 
+- A Homebrew cask. `brew install --cask rfizzle/tap/astimate` installs the
+  release archive's binary on macOS; goreleaser writes `Casks/astimate.rb`
+  to `rfizzle/homebrew-tap` on every release. The darwin binaries are
+  signed with a Developer ID and notarized on the release runner when the
+  signing secrets are set, so Gatekeeper runs them without a prompt; the
+  release still builds, unsigned, without them. The archive now also
+  carries `THIRD_PARTY_LICENSES`, the license text of every module the
+  binary links (`make third-party-licenses`), and builds are reproducible
+  from the tag (the commit's timestamp is the build's). The release
+  workflow waits for the commit's `ci` run to finish green before
+  goreleaser runs, and fails naming the run otherwise. `docs/release.md`
+  is the runbook: the tag, the secrets and what to check afterwards.
+
 - Terminal text for the module report. `astimate report` now prints, by
   default, a verdict sentence, the packages counted as Split, Watch and
   Fine, "Start here" with the three hottest packages and what to do about

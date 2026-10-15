@@ -1,4 +1,4 @@
-.PHONY: check actionlint tidy fmt vet lint test selfcheck race-soak build test-subset readme-samples readme-check clean-runs
+.PHONY: check actionlint tidy fmt vet lint test selfcheck race-soak build third-party-licenses test-subset readme-samples readme-check clean-runs
 .NOTPARALLEL:
 
 # Build metadata linked into the binary by `make build`. Each is overridable
@@ -73,6 +73,14 @@ race-soak:
 
 build:
 	go build -tags '$(BUILD_TAGS)' -ldflags "$(LDFLAGS)" -o astimate ./cmd/astimate
+
+# third-party-licenses writes THIRD_PARTY_LICENSES, the license text of every
+# module the binary links, for the release archive. goreleaser's before hook
+# runs it at release (and in the release-snapshot CI job); the file is
+# gitignored, so it cannot fall behind go.mod. Needs the network. Not part
+# of check.
+third-party-licenses:
+	sh scripts/third-party-licenses.sh THIRD_PARTY_LICENSES
 
 # test-subset runs the TypeScript extractor's tests under BUILD_TAGS, so a
 # tag name that drifts from gotreesitter's fails here. Not part of check,

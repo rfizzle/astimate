@@ -9,10 +9,57 @@ permissions:
   contents: write
 
 jobs:
+  # A release is cut only from a commit whose CI run finished green. The job
+  # matches runs of the workflow named "ci" (ci.yml) by head sha, not by
+  # branch, waits up to an hour for one to finish, and fails naming the run.
+  # ci.yml runs on every push, the tag's included, so a run always exists.
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    permissions:
+      actions: read
+      contents: read
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+      SHA: ${{ github.sha }}
+    steps:
+      - name: Wait for the commit's CI run
+        run: |
+          deadline=$((SECONDS + 3600))
+          grace=$((SECONDS + 300))
+          while true; do
+            runs=$(gh run list -R "$REPO" --commit "$SHA" --workflow ci --limit 20 \
+              --json status,conclusion,url,databaseId)
+            total=$(jq length <<<"$runs")
+            if [ "$total" -eq 0 ]; then
+              if [ "$SECONDS" -ge "$grace" ]; then
+                echo "::error::no ci run exists for commit $SHA; tag a commit that ci has run on"
+                exit 1
+              fi
+            else
+              if [ "$(jq '[.[] | select(.status == "completed" and .conclusion == "success")] | length' <<<"$runs")" -gt 0 ]; then
+                echo "ci is green for $SHA"
+                exit 0
+              fi
+              if [ "$(jq '[.[] | select(.status != "completed")] | length' <<<"$runs")" -eq 0 ]; then
+                jq -r '.[0] | "::error::ci did not pass for '"$SHA"': \(.conclusion) \(.url)"' <<<"$runs"
+                exit 1
+              fi
+            fi
+            if [ "$SECONDS" -ge "$deadline" ]; then
+              jq -r '.[0] | "::error::ci was still \(.status) after an hour for '"$SHA"': \(.url)"' <<<"$runs"
+              exit 1
+            fi
+            sleep 60
+          done
+
   # goreleaser builds the archives and checksums.txt that action/install.sh
-  # downloads and publishes them to the GitHub release for the tag. The full
-  # history is needed for the changelog.
+  # downloads, publishes them to the GitHub release for the tag, and writes
+  # the Homebrew cask to rfizzle/homebrew-tap. The full history is needed
+  # for the changelog.
   goreleaser:
+    needs: ci
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
@@ -33,3 +80,13 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Contents write on rfizzle/homebrew-tap, for the cask.
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          # The darwin binaries' signing identity and notary credentials
+          # (.goreleaser.yaml, notarize). Absent, the release still builds,
+          # unsigned.
+          MACOS_SIGN_P12: ${{ secrets.MACOS_SIGN_P12 }}
+          MACOS_SIGN_PASSWORD: ${{ secrets.MACOS_SIGN_PASSWORD }}
+          MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
+          MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+          MACOS_NOTARY_KEY: ${{ secrets.MACOS_NOTARY_KEY }}
