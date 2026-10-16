@@ -5,6 +5,9 @@ import (
 	"testing"
 )
 
+// validParams are the placeholder parameters of configs/uncalibrated.yaml
+// under COCOMO 81, which the hand-computed examples of SPEC.md 7.2 and 7.3
+// use.
 func validParams() RebuildParams {
 	p := RebuildParams{
 		ContextBudget:           25000,
@@ -15,6 +18,7 @@ func validParams() RebuildParams {
 		CocomoA:                 2.4,
 		CocomoB:                 1.05,
 		DaysPerMonth:            19,
+		Cocomo:                  Cocomo{Model: ModelBasic81},
 	}
 	p.Tiers.OnePassMax = 1
 	p.Tiers.FewPassesMax = 3

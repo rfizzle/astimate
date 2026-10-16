@@ -65,7 +65,7 @@ func (o languageOverride) empty() bool {
 			return false
 		}
 	}
-	return true
+	return len(o.rebuild.Cocomo) == 0
 }
 
 // Languages returns the language ids the languages section names, sorted.
@@ -96,6 +96,8 @@ func (c *Config) ForLanguage(lang string) Effective {
 				*f.dst = *f.src
 			}
 		}
+		// buildLanguages reported any key applyCocomo rejects.
+		_ = applyCocomo(o.rebuild.Cocomo, &eff.Rebuild.Cocomo, "")
 	}
 	eff.Thresholds = mergeRules(c.Thresholds, o)
 	return eff
@@ -157,6 +159,12 @@ func (fc *fileConfig) buildLanguages(cfg *Config) error {
 			continue
 		}
 		o := languageOverride{rebuild: fl.Rebuild}
+		if fl.Rebuild != nil {
+			var c score.Cocomo
+			if err := applyCocomo(fl.Rebuild.Cocomo, &c, "languages."+id+".rebuild."); err != nil {
+				errs = append(errs, err)
+			}
+		}
 		for i, ft := range fl.Thresholds {
 			prefix := fmt.Sprintf("languages.%s.thresholds[%d] %q", id, i, ft.Metric)
 			if ft.Disabled {

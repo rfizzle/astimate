@@ -109,11 +109,11 @@ func Glossary(cfg *config.Config, language string) []narrate.Term {
 	if cfg == nil {
 		var err error
 		if cfg, err = config.Parse(config.Default()); err != nil {
-			return narrate.Glossary(language, nil, 0, 0)
+			return narrate.Glossary(language, nil, 0, 0, report.HumanBasis{})
 		}
 	}
 	eff := cfg.ForLanguage(language)
-	return narrate.Glossary(language, ceilings(&eff), cfg.Duplication.MinTokens, cfg.Churn.Commits)
+	return narrate.Glossary(language, ceilings(&eff), cfg.Duplication.MinTokens, cfg.Churn.Commits, report.NewHumanBasis(eff.Rebuild))
 }
 
 // composeInput returns the input of compose.Build for t's module, with
@@ -123,7 +123,7 @@ func (t *Target) composeInput(base string, n int) compose.Input {
 	return compose.Input{
 		ModulePath: t.Mod.ModulePath, RootName: filepath.Base(t.Mod.Root), Language: t.Ext.Language(),
 		Base: base, Limits: ceilings(&eff), ChurnWindow: t.Cfg.Churn.Commits,
-		MinTokens: t.Cfg.Duplication.MinTokens, Packages: make([]report.Report, 0, n),
+		MinTokens: t.Cfg.Duplication.MinTokens, Packages: make([]report.Report, 0, n), Basis: report.NewHumanBasis(eff.Rebuild),
 		AstimateVersion: t.Version, ConfigVersion: eff.Version,
 	}
 }

@@ -2,6 +2,7 @@ package report
 
 import (
 	"bufio"
+	"cmp"
 	"fmt"
 	"io"
 	"math"
@@ -32,9 +33,9 @@ func WriteTable(w io.Writer, r *Report) error {
 	} else {
 		_, _ = fmt.Fprintf(bw, "package: %s (%s)\n", r.PackagePath, r.ModulePath)
 	}
-	_, _ = fmt.Fprintf(bw, "rebuild: %s agent passes, %s human days (%s; human days by COCOMO's rule)\n",
+	_, _ = fmt.Fprintf(bw, "rebuild: %s agent passes, %s human days (%s; human days by %s)\n",
 		strconv.FormatFloat(r.Rebuild.AgentPasses, 'f', 1, 64),
-		strconv.FormatFloat(r.Rebuild.HumanDays, 'f', 1, 64), label)
+		strconv.FormatFloat(r.Rebuild.HumanDays, 'f', 1, 64), label, cmp.Or(r.Rebuild.HumanModel, "COCOMO"))
 	_, _ = fmt.Fprintf(bw, "tier: %s\n", r.Rebuild.Tier)
 
 	_, _ = bw.WriteString("\ndrivers:\n")

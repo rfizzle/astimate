@@ -453,6 +453,22 @@ history.
 
 ### Changed
 
+- The engineer time is now COCOMO II's post-architecture form under a
+  rebuild-from-tests profile instead of COCOMO 81 basic organic mode. A
+  rebuild has known behaviour, an exact target and fixed boundaries, which
+  COCOMO II rates (precedentedness very high, flexibility very low,
+  architecture extra high, documentation very low) and COCOMO 81 cannot.
+  The ratings sit by name under the new `rebuild.cocomo:` section, so a
+  reader can argue with one; complexity is rated per package from
+  `cognitive_p90`, and required reliability stays nominal, so adding tests
+  never raises the figure.
+  `rebuild.cocomo.model: basic-81` restores the old figure. The labels now
+  name the model and print the configured numbers: the `assess` line ends
+  "human days by COCOMO II, rebuild profile", the `rank` footer names it,
+  and the JSON report adds `human_basis_short` beside `human_basis`. Simple
+  packages come out lower and complex ones higher. The agent estimate,
+  the tiers and the gate are unchanged. The reasoning is in
+  `calibration/notes/cocomo-ii-rebuild-2026-10.md`.
 - The engineer time is now labelled as COCOMO's textbook rule, not a
   measurement, wherever it appears: the glossary's "Rebuild cost" entry, a
   new `human_basis` field beside `human_time` in the JSON report, a footnote

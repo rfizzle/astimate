@@ -244,7 +244,7 @@ func TestModuleSentences(t *testing.T) {
 			}
 		}
 	}
-	bare := narrate.Glossary("typescript", nil, 0, 0)
+	bare := narrate.Glossary("typescript", nil, 0, 0, report.HumanBasis{})
 	for _, g := range bare {
 		if g.Term == "Limits" || g.Term == "Copied" || g.Term == "Changes" {
 			t.Errorf("glossary without numbers has %s", g.Term)

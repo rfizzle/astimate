@@ -305,15 +305,33 @@ Note that `duplication_pct` also lowers `human_days` through 7.3; "halves the vo
 
 ### 7.3 Human estimate
 
-A rough figure using published COCOMO basic organic-mode coefficients, the same model `scc` uses, with unspecified behavior inflating the effective size:
+A rough figure from COCOMO II's post-architecture model (Boehm et al., *Software Cost Estimation with COCOMO II*, 2000, the COCOMO II.2000 calibration) under a profile rated for what a rebuild from existing tests is, with unspecified behavior inflating the effective size:
 
 ```
-kloc_eff   = (sloc * (1 - duplication_pct / 100) / 1000) * (1 + 0.5 * untested_ratio)
-person_months = 2.4 * kloc_eff ^ 1.05
-human_days = person_months * days_per_month   (default 19)
+kloc_eff      = (sloc * (1 - duplication_pct / 100) / 1000) * (1 + 0.5 * untested_ratio)
+E             = B + 0.01 * (PREC + FLEX + RESL + TEAM + PMAT)        (B = 0.91)
+person_months = A * kloc_eff ^ E * (product of the 17 effort multipliers)   (A = 2.94; RELY nominal)
+human_days    = person_months * days_per_month   (default 19)
 ```
 
-where `untested_ratio = untested_exports / max(exported_symbols, 1)`, clamped to [0, 1]. The coefficients are COCOMO 81's published organic-mode values and are not calibrated by section 11.2, which fits the agent estimate only; every surface that shows the figure says so (the glossary entry "Rebuild cost", the `human_basis` field, the footnotes in the text and Markdown reports, the `assess` and `rank` text). Labelled as an estimate in every output. For the worked example above: `untested_ratio` 0.5, `kloc_eff` = 0.96 × 1.25 = 1.2, `person_months` = 2.4 × 1.2^1.05 = 2.9064, `human_days` = 55.2211.
+where `untested_ratio = untested_exports / max(exported_symbols, 1)`, clamped to [0, 1]. `A`, `B` and the rating tables are COCOMO II.2000's published values, held in `internal/score`; the configuration names ratings, not numbers, under `rebuild.cocomo:` (`very_low`, `low`, `nominal`, `high`, `very_high`, `extra_high`), so a reader can argue with each. A key absent from the file takes the embedded default's rating, a languages override may rate any of them for its language, and a name that is not a rating, or a rating the driver's table lacks (such as `sced: extra_high`), is a configuration error. The shipped rebuild profile:
+
+| Driver | Rating | Value | Why |
+| --- | --- | --- | --- |
+| PREC, precedentedness | very_high | 1.24 | The behaviour is known: the tests say what passes |
+| FLEX, development flexibility | very_low | 5.07 | The result must match the tests exactly |
+| RESL, architecture and risk resolution | extra_high | 0.00 | The signatures and package boundaries are fixed |
+| TEAM, team cohesion | nominal | 3.29 | Not knowable from the code |
+| PMAT, process maturity | nominal | 4.68 | Not knowable from the code |
+| DOCU, documentation | very_low | 0.81 | Nothing to write beyond the code |
+| DATA, RUSE, TIME, STOR, PVOL, ACAP, PCAP, PCON, APEX, PLEX, LTEX, TOOL, SITE, SCED | nominal | 1.00 | The team, platform and schedule are not knowable from the code |
+
+So `E` = 0.91 + 0.01 × 14.28 = 1.0528 and the configured multipliers come to 0.81, `A'` = 2.94 × 0.81 = 2.3814 (all nominal gives `A` 2.94 and `E` 1.0997). Two multipliers are not configurable:
+
+- **CPLX**, product complexity, from `cognitive_p90`: up to 1 `very_low` (0.73), 2 to 4 `low` (0.87), 5 to 10 `nominal` (1.00), 11 to 20 `high` (1.17), 21 to 40 `very_high` (1.34), above 40 `extra_high` (1.74); `nominal` for a package without functions (`func_count` 0), where complexity is not measured. On the 2,158 packages of the 2026-09-28 corpus the bands hold 17%, 18%, 29%, 23%, 11% and 2.5%.
+- **RELY**, required reliability, is `nominal` (1.00) for every package. The tests are the specification a rebuild must pass, not a reliability requirement on top of it, and rating RELY from tests or coverage would let adding tests raise `human_days`, which 7.5 rules out.
+
+`rebuild.cocomo.model` chooses the model: `cocomo-ii`, the default, as above, or `basic-81`, COCOMO 81 basic organic mode, the model `scc` uses, `person_months = cocomo_a * kloc_eff ^ cocomo_b` with the published 2.4 and 1.05, on the same `kloc_eff`. `score.HumanDaysCOCOMOII` and `score.HumanDaysBasic81` compute each, and `human_days` is the configured one's. Neither model is calibrated by section 11.2, which fits the agent estimate only; every surface that shows the figure says so and names the configured model and its numbers (the glossary entry "Rebuild cost" and the `human_basis` field in full, the `human_basis_short` field and the footnotes in the text and Markdown reports and the HTML page's tooltip in one line, the `assess` line "human days by COCOMO II, rebuild profile" or "by COCOMO 81", and the `rank` footer). Labelled as an estimate in every output. For the worked example above, with no functions measured (CPLX `nominal`): `untested_ratio` 0.5, `kloc_eff` = 0.96 × 1.25 = 1.2, `person_months` = 2.3814 × 1.2^1.0528 = 2.8853, `human_days` = 54.8211; under `basic-81`, `person_months` = 2.4 × 1.2^1.05 = 2.9064, `human_days` = 55.2211. The ratings' table rows and reasons are in `calibration/notes/cocomo-ii-rebuild-2026-10.md`.
 
 ### 7.4 Tiers, drivers and suggestions
 

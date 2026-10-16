@@ -1,11 +1,15 @@
 package narrate
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/rfizzle/astimate/internal/report"
+)
 
 func TestLookup(t *testing.T) {
 	t.Parallel()
 
-	terms := Glossary("go", []Limit{{Metric: "sloc", Max: 1000}}, 60, 200)
+	terms := Glossary("go", []Limit{{Metric: "sloc", Max: 1000}}, 60, 200, report.HumanBasis{})
 	tests := []struct {
 		name, want string
 		found      bool

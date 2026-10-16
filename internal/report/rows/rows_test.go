@@ -138,7 +138,7 @@ func params() score.RebuildParams {
 	return score.RebuildParams{
 		ContextBudget: 25000, TokensPerExport: 40, TokensPerUntestedExport: 800, TokensPerHiddenState: 400,
 		SuperlinearExponent: 1.3, CocomoA: 2.4, CocomoB: 1.05, DaysPerMonth: 19,
-		Tiers: score.Tiers{OnePassMax: 1, FewPassesMax: 3},
+		Cocomo: score.Cocomo{Model: score.ModelBasic81}, Tiers: score.Tiers{OnePassMax: 1, FewPassesMax: 3},
 	}
 }
 

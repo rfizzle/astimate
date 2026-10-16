@@ -90,14 +90,55 @@ rebuild:
   tokens_per_hidden_state: 0
   # Exponent on the budget ratio once a rebuild no longer fits one pass.
   superlinear_exponent: 1
-  # COCOMO 81 basic organic-mode coefficient (published value, not fitted).
-  # It scales every human figure linearly.
+  # COCOMO 81 basic organic-mode coefficient (published value, not fitted),
+  # used when cocomo.model is basic-81. It scales every human figure linearly.
   cocomo_a: 2.4
-  # COCOMO 81 basic organic-mode exponent (published value, not fitted).
+  # COCOMO 81 basic organic-mode exponent (published value, not fitted),
+  # used when cocomo.model is basic-81.
   cocomo_b: 1.05
   # Working days per person-month when converting the human estimate
-  # (COCOMO 81's convention, not fitted).
+  # (COCOMO's convention, not fitted).
   days_per_month: 19
+  # The human estimate's model and rebuild profile (SPEC.md 7.3), rated by
+  # name with COCOMO II.2000's ratings: very_low, low, nominal, high,
+  # very_high, extra_high. calibration/notes/cocomo-ii-rebuild-2026-10.md
+  # gives each rating's table row and reason. RELY and CPLX are not keys:
+  # RELY is nominal, because the tests are the specification, not a
+  # reliability requirement, and each package's cognitive complexity rates
+  # CPLX.
+  cocomo:
+    # cocomo-ii (the post-architecture form under this profile) or
+    # basic-81 (cocomo_a and cocomo_b above).
+    model: cocomo-ii
+    # Scale factors; they set the exponent.
+    # Precedentedness: the behaviour is known, the tests say what passes.
+    prec: very_high
+    # Development flexibility: the result must match the tests exactly.
+    flex: very_low
+    # Architecture and risk resolution: signatures and package boundaries
+    # are fixed.
+    resl: extra_high
+    # Team cohesion and process maturity: not known, so nominal.
+    team: nominal
+    pmat: nominal
+    # Effort multipliers. Documentation: nothing to write.
+    docu: very_low
+    # The rest describe the team, platform and schedule, which the code
+    # cannot know, so nominal.
+    data: nominal
+    ruse: nominal
+    time: nominal
+    stor: nominal
+    pvol: nominal
+    acap: nominal
+    pcap: nominal
+    pcon: nominal
+    apex: nominal
+    plex: nominal
+    ltex: nominal
+    tool: nominal
+    site: nominal
+    sced: nominal
   # Upper bounds on agent_passes for each tier.
   tiers:
     # At or below this a package is ONE_PASS.

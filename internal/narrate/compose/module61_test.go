@@ -95,8 +95,10 @@ func TestSixtyone(t *testing.T) {
 	t.Parallel()
 
 	want, reports := moduleReports(t)
+	basis := report.HumanBasis{Model: "COCOMO II, rebuild profile", Coefficient: 2.3814, Exponent: 1.0528,
+		DaysPerMonth: 19, PerPackage: true}
 	m := Build(&Input{ModulePath: "example.com/sixtyone", Language: "go", Limits: defaultLimits(),
-		ChurnWindow: 200, Packages: reports})
+		ChurnWindow: 200, Packages: reports, Basis: basis})
 	byPath := make(map[string]*narrate.Package, len(m.Packages))
 	for i := range m.Packages {
 		byPath[m.Packages[i].Path] = &m.Packages[i]
@@ -141,7 +143,8 @@ func TestSixtyone(t *testing.T) {
 	}
 
 	if got, want := m.Counts, (narrate.Counts{Packages: 61, Split: 19, Watch: 11, Fine: 31, WithoutTests: m.Counts.WithoutTests,
-		HumanDays: m.Counts.HumanDays, HumanTime: m.Counts.HumanTime, HumanBasis: narrate.HumanBasis}); got != want {
+		HumanDays: m.Counts.HumanDays, HumanTime: m.Counts.HumanTime, HumanBasis: narrate.HumanBasis(basis),
+		HumanBasisShort: narrate.HumanBasisShort(basis)}); got != want {
 		t.Errorf("counts = %+v, want %+v", got, want)
 	}
 	if want := "Sixtyone has 19 packages that need a split. Start with m/p07."; m.Headline != want {

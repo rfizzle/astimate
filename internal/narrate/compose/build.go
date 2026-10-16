@@ -37,6 +37,9 @@ type Input struct {
 	ChurnWindow int
 	// MinTokens is the duplicate-block floor, for the glossary.
 	MinTokens int
+	// Basis is what the human estimate is computed with, for the labels
+	// that say where the engineer time comes from.
+	Basis report.HumanBasis
 	// Packages are every package's report, its details included.
 	Packages []report.Report
 	// Check is the check of the changed packages against Base; nil
@@ -59,7 +62,7 @@ func Build(in *Input) narrate.Module {
 		Packages:        make([]narrate.Package, 0, len(in.Packages)),
 		AstimateVersion: in.AstimateVersion,
 		ConfigVersion:   in.ConfigVersion,
-		Glossary:        narrate.Glossary(in.Language, in.Limits, in.MinTokens, in.ChurnWindow),
+		Glossary:        narrate.Glossary(in.Language, in.Limits, in.MinTokens, in.ChurnWindow, in.Basis),
 	}
 	if m.Limits == nil {
 		m.Limits = []narrate.Limit{}
@@ -85,7 +88,8 @@ func Build(in *Input) narrate.Module {
 	slices.SortFunc(m.Packages, func(a, b narrate.Package) int { return strings.Compare(a.Path, b.Path) })
 	m.Counts.HumanDays = math.Round(days)
 	m.Counts.HumanTime = human(m.Counts.HumanDays)
-	m.Counts.HumanBasis = narrate.HumanBasis
+	m.Counts.HumanBasis = narrate.HumanBasis(in.Basis)
+	m.Counts.HumanBasisShort = narrate.HumanBasisShort(in.Basis)
 	hot := hotOrder(m.Packages)
 	m.Hotspots = make([]string, 0, hotspotCount)
 	var first, hottest *narrate.Package

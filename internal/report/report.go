@@ -84,6 +84,9 @@ type Rebuild struct {
 	// rebuild experiments of SPEC.md 11.2. It says nothing about the gate
 	// thresholds, which are calibrated separately (SPEC.md 11.1).
 	Calibrated bool `json:"calibrated"`
+	// HumanModel names the model of HumanDays (score.Cocomo.Name) for the
+	// text report; it is not part of the JSON report.
+	HumanModel string `json:"-"`
 	// Drivers are the largest terms of rebuild_tokens; never null.
 	Drivers []Driver `json:"drivers"`
 }
@@ -223,6 +226,7 @@ func Build(in *Input) Report {
 			HumanDays:     round1(est.HumanDays),
 			Tier:          score.TierOf(est.AgentPasses, in.Params.Tiers),
 			Calibrated:    score.Calibrated(in.ConfigVersion),
+			HumanModel:    in.Params.Cocomo.Name(),
 			Drivers:       drivers,
 		},
 		Suggestions:     suggestions,

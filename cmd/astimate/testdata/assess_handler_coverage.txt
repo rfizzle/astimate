@@ -1,5 +1,5 @@
 package: api (example.com/handler)
-rebuild: 0.0 agent passes, 0.6 human days (estimate from calibrated parameters; human days by COCOMO's rule)
+rebuild: 0.0 agent passes, 0.5 human days (estimate from calibrated parameters; human days by COCOMO II, rebuild profile)
 tier: ONE_PASS
 
 drivers:

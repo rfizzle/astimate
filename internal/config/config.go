@@ -119,6 +119,8 @@ type fileRebuild struct {
 	CocomoB                 *float64   `yaml:"cocomo_b"`
 	DaysPerMonth            *float64   `yaml:"days_per_month"`
 	Tiers                   *fileTiers `yaml:"tiers"`
+	// Cocomo is the optional rebuild.cocomo section (applyCocomo).
+	Cocomo map[string]string `yaml:"cocomo"`
 }
 
 type fileTiers struct {
@@ -367,6 +369,9 @@ func (fc *fileConfig) build() (*Config, error) {
 		errs = append(errs, err)
 	}
 	if err := fc.buildChurn(cfg); err != nil {
+		errs = append(errs, err)
+	}
+	if err := fc.buildCocomo(cfg); err != nil {
 		errs = append(errs, err)
 	}
 	if fc.Rebuild == nil {

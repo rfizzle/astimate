@@ -77,6 +77,9 @@ type Counts struct {
 	HumanTime string `json:"human_time"`
 	// HumanBasis says where the engineer time comes from.
 	HumanBasis string `json:"human_basis"`
+	// HumanBasisShort is HumanBasis in one line, for footnotes and
+	// tooltips.
+	HumanBasisShort string `json:"human_basis_short"`
 }
 
 // Package is one package's view.

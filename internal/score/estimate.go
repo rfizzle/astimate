@@ -37,7 +37,8 @@ type Rebuild struct {
 	// AgentPasses is Ratio up to 1 and Ratio raised to the superlinear
 	// exponent beyond it.
 	AgentPasses float64
-	// HumanDays is the COCOMO basic organic-mode estimate in working days.
+	// HumanDays is the human estimate in working days under the configured
+	// COCOMO model (SPEC.md 7.3).
 	HumanDays float64
 	// Terms holds the five rebuild_tokens terms in the fixed order volume,
 	// spec, contract, unspecified, hidden.
@@ -52,8 +53,8 @@ func (r Rebuild) AgentPassesRounded() float64 {
 
 // Estimate computes the rebuild estimate for m under cfg, per SPEC.md 7.1 to
 // 7.3. It reads the v0 fields and one v1 field, coverage_pct, which scales
-// the unspecified term when non-null (unspecifiedTerm); no other v1 pointer
-// field changes the result. fan_in is recorded in the contract term's
+// the unspecified term when non-null (unspecifiedTerm) and rates RELY for
+// the human estimate; no other v1 pointer field changes the result. fan_in is recorded in the contract term's
 // Detail but does not enter the formula. cfg is assumed to have passed
 // Validate.
 func Estimate(m metrics.RawMetrics, cfg RebuildParams) Rebuild {
@@ -108,13 +109,11 @@ func unspecifiedTerm(m *metrics.RawMetrics, cfg RebuildParams) (tokens float64, 
 	return tokens * (1 - pct/100), detail + " coverage_pct=" + strconv.FormatFloat(pct, 'g', -1, 64)
 }
 
-// humanDays is SPEC.md 7.3: COCOMO basic organic mode on the non-duplicated
-// KLOC, inflated by up to half for untested exports. keep is the
-// non-duplicated share, 1 - duplication_pct/100.
+// humanDays is SPEC.md 7.3 under the configured model: COCOMO II with
+// the rebuild profile, or COCOMO 81 basic organic mode.
 func humanDays(m *metrics.RawMetrics, cfg RebuildParams, keep float64) float64 {
-	untestedRatio := float64(m.UntestedExports) / float64(max(m.ExportedSymbols, 1))
-	untestedRatio = min(max(untestedRatio, 0), 1)
-	klocEff := (float64(m.SLOC) * keep / 1000) * (1 + 0.5*untestedRatio)
-	personMonths := cfg.CocomoA * math.Pow(klocEff, cfg.CocomoB)
-	return personMonths * cfg.DaysPerMonth
+	if cfg.Cocomo.Model == ModelBasic81 {
+		return HumanDaysBasic81(m, cfg, keep)
+	}
+	return HumanDaysCOCOMOII(m, cfg, keep)
 }

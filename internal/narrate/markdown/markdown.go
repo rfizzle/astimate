@@ -129,7 +129,7 @@ func change(b *strings.Builder, c *narrate.Change, opts Options) {
 
 // repository lays out the repository report.
 func repository(b *strings.Builder, m *narrate.Module) {
-	b.WriteString("## " + m.Headline + "\n\n" + m.Lead + "\n\n_" + narrate.HumanBasisShort + "_\n")
+	b.WriteString("## " + m.Headline + "\n\n" + m.Lead + "\n\n_" + m.Counts.HumanBasisShort + "_\n")
 	var start []*narrate.Package
 	for _, path := range m.Hotspots[:min(3, len(m.Hotspots))] {
 		if i := slices.IndexFunc(m.Packages, func(p narrate.Package) bool { return p.Path == path }); i >= 0 {

@@ -13,7 +13,8 @@ import (
 	"github.com/rfizzle/astimate/internal/score"
 )
 
-// params are the SPEC.md 7.2 and 7.3 default rebuild parameters.
+// params are the placeholder rebuild parameters of SPEC.md 7.2 under
+// COCOMO 81, the model of the 7.3 worked example.
 func params() score.RebuildParams {
 	return score.RebuildParams{
 		ContextBudget:           25000,
@@ -24,6 +25,7 @@ func params() score.RebuildParams {
 		CocomoA:                 2.4,
 		CocomoB:                 1.05,
 		DaysPerMonth:            19,
+		Cocomo:                  score.Cocomo{Model: score.ModelBasic81},
 		Tiers:                   score.Tiers{OnePassMax: 1, FewPassesMax: 3},
 	}
 }
@@ -130,17 +132,24 @@ func TestWriteTableCalibratedLabel(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		version string
-		want    string
+		version, model string
+		want           string
 	}{
-		{version: "default-uncalibrated-1", want: "rebuild: 1.2 agent passes, 55.2 human days (estimate from uncalibrated parameters; human days by COCOMO's rule)\n"},
-		{version: "rebuild-2026-10", want: "rebuild: 1.2 agent passes, 55.2 human days (estimate from calibrated parameters; human days by COCOMO's rule)\n"},
+		{version: "default-uncalibrated-1", want: "rebuild: 1.2 agent passes, 55.2 human days (estimate from uncalibrated parameters; human days by COCOMO 81)\n"},
+		{version: "rebuild-2026-10", want: "rebuild: 1.2 agent passes, 55.2 human days (estimate from calibrated parameters; human days by COCOMO 81)\n"},
+		// Every rating nominal: 2.94 * 1.2^1.0997 * 19 = 68.3.
+		{version: "rebuild-2026-10", model: score.ModelCOCOMOII,
+			want: "rebuild: 1.2 agent passes, 68.3 human days (estimate from calibrated parameters; human days by COCOMO II, rebuild profile)\n"},
 	}
 	for _, tt := range tests {
-		t.Run(tt.version, func(t *testing.T) {
+		t.Run(tt.version+tt.model, func(t *testing.T) {
 			t.Parallel()
 
-			r := Build(&Input{Metrics: workedExample(), Params: params(), ConfigVersion: tt.version})
+			p := params()
+			if tt.model != "" {
+				p.Cocomo = score.Cocomo{Model: tt.model}
+			}
+			r := Build(&Input{Metrics: workedExample(), Params: p, ConfigVersion: tt.version})
 			var buf bytes.Buffer
 			if err := WriteTable(&buf, &r); err != nil {
 				t.Fatalf("WriteTable: %v", err)

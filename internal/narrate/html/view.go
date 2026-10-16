@@ -67,7 +67,7 @@ type row struct {
 
 // build computes the page for m.
 func build(m *narrate.Module, fonts template.CSS) *page {
-	p := &page{M: m, Fonts: fonts, Eyebrow: eyebrow(m), Window: m.ChurnWindow, Basis: narrate.HumanBasisShort}
+	p := &page{M: m, Fonts: fonts, Eyebrow: eyebrow(m), Window: m.ChurnWindow, Basis: m.Counts.HumanBasisShort}
 	c := m.Counts
 	p.Stickers = []sticker{
 		{narrate.BandSplit, strconv.Itoa(c.Split), "need a split"},

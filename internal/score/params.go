@@ -19,10 +19,12 @@ type RebuildParams struct {
 	TokensPerHiddenState float64
 	// SuperlinearExponent applies to the budget ratio once it exceeds 1.
 	SuperlinearExponent float64
-	// CocomoA is the COCOMO basic coefficient a.
+	// CocomoA is the COCOMO 81 basic coefficient a.
 	CocomoA float64
-	// CocomoB is the COCOMO basic exponent b.
+	// CocomoB is the COCOMO 81 basic exponent b.
 	CocomoB float64
+	// Cocomo is the human estimate's model and COCOMO II profile.
+	Cocomo Cocomo
 	// DaysPerMonth converts person-months into working days.
 	DaysPerMonth float64
 	// Tiers bounds the agent_passes tiers.
@@ -78,6 +80,9 @@ func (p RebuildParams) Validate() error {
 	if p.Tiers.FewPassesMax <= p.Tiers.OnePassMax {
 		errs = append(errs, fmt.Errorf("tiers.few_passes_max must be > tiers.one_pass_max (%v), got %v",
 			p.Tiers.OnePassMax, p.Tiers.FewPassesMax))
+	}
+	if err := p.Cocomo.validate(); err != nil {
+		errs = append(errs, err)
 	}
 	return errors.Join(errs...)
 }

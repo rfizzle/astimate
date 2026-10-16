@@ -315,7 +315,7 @@ func TestEstimateCoverageScalesUnspecified(t *testing.T) {
 				t.Errorf("Detail = %q, want %q", tm.Detail, tc.detail)
 			}
 			approx(t, "rebuild_tokens", r.RebuildTokens, 16400+tc.unspecified, 1e-9)
-			// human_days reads untested_exports, not coverage.
+			// Under COCOMO 81 human_days reads untested_exports, not coverage.
 			approx(t, "human_days", r.HumanDays, Estimate(base, cfg).HumanDays, 1e-9)
 		})
 	}

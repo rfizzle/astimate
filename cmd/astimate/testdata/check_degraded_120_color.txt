@@ -1,7 +1,7 @@
 [1;31mFAIL[0m  [1m1 package needs attention before this merges.[0m  [2magainst master[0m
       1 changed · 1 fail · 0 heads up · 0 pass clean · copies between packages 1 → 1
 
- [1;31m✗[0m [36mtested[0m  [2m4 findings · 3.9 days to rebuild · 1 change lately[0m
+ [1;31m✗[0m [36mtested[0m  [2m4 findings · 3.4 days to rebuild · 1 change lately[0m
    changed func cognitive max  51     max 50
    [2mA function this complex is the one a rebuild gets wrong. Changed function grade (grade.go:8) has cognitive complexity[0m
    [2m51.[0m
