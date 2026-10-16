@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"slices"
+	"strings"
 
 	"github.com/rfizzle/astimate/internal/metrics"
 )
@@ -91,6 +92,9 @@ type Cocomo struct {
 	Model string
 	// Ratings rates the drivers CocomoKeys names, in its order.
 	Ratings [configured]Rating
+	// UNFM is the reuse model's unfamiliarity with the code to be
+	// understood, one of UnfmKeys; empty is completely_unfamiliar.
+	UNFM string
 }
 
 // Set rates the driver key, one of CocomoKeys, r. It reports false, and
@@ -151,6 +155,9 @@ func (c Cocomo) validate() error {
 			errs = append(errs, fmt.Errorf("cocomo.%s: %s is not a rating of %s", keys[i], r, keys[i]))
 		}
 	}
+	if _, ok := unfm(c.UNFM); !ok {
+		errs = append(errs, fmt.Errorf("cocomo.unfm: unknown rating %q, want one of %s", c.UNFM, strings.Join(UnfmKeys(), ", ")))
+	}
 	return errors.Join(errs...)
 }
 
@@ -182,19 +189,20 @@ func (c Cocomo) Name() string {
 }
 
 // effectiveKLOC is SPEC.md 7.3's kloc_eff: the non-duplicated KLOC,
-// inflated by up to half for untested exports. keep is the non-duplicated
-// share, 1 - duplication_pct/100.
-func effectiveKLOC(m *metrics.RawMetrics, keep float64) float64 {
-	untestedRatio := float64(m.UntestedExports) / float64(max(m.ExportedSymbols, 1))
-	untestedRatio = min(max(untestedRatio, 0), 1)
-	return (float64(m.SLOC) * keep / 1000) * (1 + 0.5*untestedRatio)
+// inflated by COCOMO II's reuse-model understanding increment,
+// 1 + 0.02 × SU × UNFM, with SU rated from m (understanding) and UNFM the
+// profile's c.UNFM. Both models share it. keep is the non-duplicated share,
+// 1 - duplication_pct/100.
+func effectiveKLOC(m *metrics.RawMetrics, c *Cocomo, keep float64) float64 {
+	u, _ := unfm(c.UNFM)
+	return (float64(m.SLOC) * keep / 1000) * (1 + 0.02*understanding(m)*u)
 }
 
 // HumanDaysBasic81 is the human estimate under COCOMO 81 basic organic mode,
 // cocomo_a × kloc_eff^cocomo_b person-months. keep is the non-duplicated
 // share, 1 - duplication_pct/100.
 func HumanDaysBasic81(m *metrics.RawMetrics, cfg RebuildParams, keep float64) float64 {
-	return cfg.CocomoA * math.Pow(effectiveKLOC(m, keep), cfg.CocomoB) * cfg.DaysPerMonth
+	return cfg.CocomoA * math.Pow(effectiveKLOC(m, &cfg.Cocomo, keep), cfg.CocomoB) * cfg.DaysPerMonth
 }
 
 // HumanDaysCOCOMOII is the human estimate under COCOMO II's
@@ -203,7 +211,7 @@ func HumanDaysBasic81(m *metrics.RawMetrics, cfg RebuildParams, keep float64) fl
 // and RELY nominal. keep is as for HumanDaysBasic81.
 func HumanDaysCOCOMOII(m *metrics.RawMetrics, cfg RebuildParams, keep float64) float64 {
 	c := &cfg.Cocomo
-	pm := c.Coefficient() * math.Pow(effectiveKLOC(m, keep), c.Exponent()) * value(cplx, cplxRating(m))
+	pm := c.Coefficient() * math.Pow(effectiveKLOC(m, c, keep), c.Exponent()) * value(cplx, cplxRating(m))
 	return pm * cfg.DaysPerMonth
 }
 

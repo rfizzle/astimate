@@ -81,6 +81,11 @@ type RawMetrics struct {
 	// UntestedExports counts exported funcs and methods not referenced from
 	// any test file in the package; see SPEC.md 6.4.
 	UntestedExports int `json:"untested_exports"`
+	// DocumentedExports counts the exported symbols exported_symbols counts
+	// that carry a doc comment, the self-descriptiveness the human
+	// estimate's software understanding reads (SPEC.md 7.3). Nil when not
+	// measured, as for TypeScript (v1).
+	DocumentedExports *int `json:"documented_exports"`
 
 	// DupBlocksCrossPkg counts duplicate blocks shared with other packages in
 	// the module. Nil when not computed (v1).

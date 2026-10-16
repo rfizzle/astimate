@@ -60,6 +60,10 @@ func TestHumanDaysCOCOMOII(t *testing.T) {
 
 	allVeryLow := rated("", "prec", "very_low", "flex", "very_low", "resl", "very_low", "team", "very_low",
 		"pmat", "very_low")
+	allVeryLow.UNFM = "completely_familiar"
+	// familiar leaves kloc_eff the non-duplicated KLOC, UNFM 0, so the
+	// published values show through.
+	familiar := Cocomo{UNFM: "completely_familiar"}
 	tests := []struct {
 		name string
 		c    Cocomo
@@ -69,41 +73,48 @@ func TestHumanDaysCOCOMOII(t *testing.T) {
 		{
 			// 2.94 * 1^1.0997 * 1 = 2.94 PM; * 19 = 55.86.
 			name: "nominal, 1 KSLOC",
+			c:    familiar,
 			m:    metrics.RawMetrics{SLOC: 1000, HasTests: true},
 			want: 55.86,
 		},
 		{
 			// 2.94 * 10^1.0997 = 36.9868 PM; * 19 = 702.7501.
 			name: "nominal, 10 KSLOC, p90 8",
+			c:    familiar,
 			m:    metrics.RawMetrics{SLOC: 10000, HasTests: true, FuncCount: 40, CognitiveP90: 8},
 			want: 702.7501,
 		},
 		{
-			// SPEC.md 7.3's worked example: kloc_eff = 1.2; CPLX nominal
+			// SPEC.md 7.3's worked example: SU nominal (structure very
+			// high, clarity low at 15 of 30 untested, self-description
+			// nominal unmeasured; (4 + 1 + 2) / 3 rounds down to 2), 30;
+			// kloc_eff = 0.96 * (1 + 0.02 * 30 * 1) = 1.536; CPLX nominal
 			// (no functions measured).
-			// 2.3814 * 1.2^1.0528 = 2.8853 PM; * 19 = 54.8211.
+			// 2.3814 * 1.536^1.0528 = 3.7417 PM; * 19 = 71.0917.
 			name: "rebuild profile, SPEC.md worked example",
 			c:    rebuildProfile(),
 			m: metrics.RawMetrics{SLOC: 1200, DuplicationPct: 20, ExportedSymbols: 30, UntestedExports: 15,
 				HasTests: true},
-			want: 54.8211,
+			want: 71.0917,
 		},
 		{
-			// kloc_eff = 0.96 * 1.25 = 1.2; CPLX high (p90 12) 1.17.
-			// 2.3814 * 1.2^1.0528 * 1.17 = 3.3758 PM; * 19 = 64.1407.
+			// SU low ((2 + 1 + 2) / 3 = 1), 40: kloc_eff = 0.96 * 1.8 =
+			// 1.728; CPLX high (p90 12) 1.17.
+			// 2.3814 * 1.728^1.0528 * 1.17 = 4.9557 PM; * 19 = 94.1581.
 			name: "rebuild profile, complex",
 			c:    rebuildProfile(),
 			m: metrics.RawMetrics{SLOC: 1200, DuplicationPct: 20, ExportedSymbols: 30, UntestedExports: 15,
 				HasTests: true, FuncCount: 10, CognitiveP90: 12},
-			want: 64.1407,
+			want: 94.1581,
 		},
 		{
-			// kloc_eff = 2 * 1.5 = 3; CPLX extra high (p90 45) 1.74.
-			// 2.3814 * 3^1.0528 * 1.74 = 13.1733 PM; * 19 = 250.2929.
+			// SU very low ((0 + 0 + 2) / 3 = 0), 50: kloc_eff = 2 * 2 = 4;
+			// CPLX extra high (p90 45) 1.74.
+			// 2.3814 * 4^1.0528 * 1.74 = 17.8332 PM; * 19 = 338.8316.
 			name: "rebuild profile, untested and complex",
 			c:    rebuildProfile(),
 			m:    metrics.RawMetrics{SLOC: 2000, ExportedSymbols: 4, UntestedExports: 4, FuncCount: 5, CognitiveP90: 45},
-			want: 250.2929,
+			want: 338.8316,
 		},
 		{
 			// ΣSF = 6.20 + 5.07 + 7.07 + 5.48 + 7.80 = 31.62, E = 1.2262;
@@ -137,8 +148,8 @@ func TestHumanDaysModelSwitch(t *testing.T) {
 	p.Cocomo.Model = ""
 	approx(t, "empty model", Estimate(m, p).HumanDays, HumanDaysCOCOMOII(&m, p, keep), 1e-12)
 	p.Cocomo.Model = ModelBasic81
-	approx(t, "basic-81", Estimate(m, p).HumanDays, 55.2211, 1e-4)
-	approx(t, "basic-81 seam", HumanDaysBasic81(&m, p, keep), 55.2211, 1e-4)
+	approx(t, "basic-81", Estimate(m, p).HumanDays, 71.5609, 1e-4)
+	approx(t, "basic-81 seam", HumanDaysBasic81(&m, p, keep), 71.5609, 1e-4)
 }
 
 func TestHumanDaysFollowRatings(t *testing.T) {

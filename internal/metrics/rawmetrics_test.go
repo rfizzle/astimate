@@ -18,7 +18,7 @@ func v1Names() []string {
 	return []string{
 		"dup_blocks_code", "duplicated_lines", "dup_blocks_cross_pkg", "instability", "abstractness", "main_sequence_distance",
 		"uses_cgo", "uses_reflect", "generated_files", "tokens_est_generated", "coverage_pct", "untested_exports_covered",
-		"changed_func_cognitive_max", "churn_commits", "churn_authors",
+		"changed_func_cognitive_max", "churn_commits", "churn_authors", "documented_exports",
 	}
 }
 
@@ -50,6 +50,7 @@ func fullMetrics() RawMetrics {
 		TestFuncs:               21,
 		HasTests:                true,
 		UntestedExports:         22,
+		DocumentedExports:       ptr(9),
 		DupBlocksCrossPkg:       ptr(23),
 		DuplicatedLines:         ptr(27),
 		Instability:             ptr(0.25),
@@ -192,6 +193,7 @@ func TestRawMetricsValidate(t *testing.T) {
 		{name: "negative v1 count", mutate: func(m *RawMetrics) { m.GeneratedFiles = ptr(-1) }, wantErr: "generated_files is negative"},
 		{name: "negative generated tokens", mutate: func(m *RawMetrics) { m.TokensEstGenerated = ptr(-1) }, wantErr: "tokens_est_generated is negative"},
 		{name: "generated tokens without generated files", mutate: func(m *RawMetrics) { m.GeneratedFiles = ptr(0) }, wantErr: "tokens_est_generated 26 with generated_files 0"},
+		{name: "documented above exported", mutate: func(m *RawMetrics) { m.DocumentedExports = ptr(12) }, wantErr: "documented_exports 12 exceeds exported_symbols 11"},
 		{name: "no generated files and no generated tokens", mutate: func(m *RawMetrics) { m.GeneratedFiles, m.TokensEstGenerated = ptr(0), ptr(0) }},
 		{name: "generated tokens without a generated_files count", mutate: func(m *RawMetrics) { m.GeneratedFiles = nil }},
 		{name: "negative changed func max", mutate: func(m *RawMetrics) { m.ChangedFuncCognitiveMax = ptr(-3) }, wantErr: "changed_func_cognitive_max is negative"},

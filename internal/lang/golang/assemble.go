@@ -108,6 +108,7 @@ func assemble(ctx context.Context, l *loaded, p *packages.Package, opts assemble
 		TestFuncs:          r.tests.TestFuncs,
 		HasTests:           r.tests.HasTests || r.untested.TestedAnywhere(),
 		UntestedExports:    r.untested.Untested,
+		DocumentedExports:  &r.size.Exports.Documented,
 
 		Instability:          instability,
 		Abstractness:         abstractness,

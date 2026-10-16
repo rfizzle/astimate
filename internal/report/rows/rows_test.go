@@ -88,7 +88,7 @@ func TestNewRowWorkedExample(t *testing.T) {
 	m.FanIn = 7
 	got := NewRow("internal/billing", &m, params())
 	want := Row{
-		Path: "internal/billing", AgentPasses: 1.2, HumanDays: 55.2, Tier: score.TierFewPasses,
+		Path: "internal/billing", AgentPasses: 1.2, HumanDays: 71.6, Tier: score.TierFewPasses,
 		FanIn: 7, TokensEst: 10000, DuplicationPct: 20,
 	}
 	if got != want {

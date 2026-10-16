@@ -43,9 +43,9 @@ func TestBuildWorkedExample(t *testing.T) {
 
 	r := Build(&Input{Language: "go", Metrics: workedExample(), Params: params(), ConfigVersion: "default-uncalibrated-1"})
 	got := r.Rebuild
-	if got.AgentPasses != 1.2 || got.RebuildTokens != 28400 || got.HumanDays != 55.2 ||
+	if got.AgentPasses != 1.2 || got.RebuildTokens != 28400 || got.HumanDays != 71.6 ||
 		got.Tier != score.TierFewPasses || got.Calibrated {
-		t.Errorf("rebuild = %+v, want agent_passes 1.2, rebuild_tokens 28400, human_days 55.2, FEW_PASSES, uncalibrated", got)
+		t.Errorf("rebuild = %+v, want agent_passes 1.2, rebuild_tokens 28400, human_days 71.6, FEW_PASSES, uncalibrated", got)
 	}
 	if len(got.Drivers) != 2 || got.Drivers[0].Term != score.TermUnspecified || got.Drivers[0].Tokens != 12000 {
 		t.Errorf("drivers = %+v, want unspecified (12000) first of two", got.Drivers)
@@ -135,11 +135,12 @@ func TestWriteTableCalibratedLabel(t *testing.T) {
 		version, model string
 		want           string
 	}{
-		{version: "default-uncalibrated-1", want: "rebuild: 1.2 agent passes, 55.2 human days (estimate from uncalibrated parameters; human days by COCOMO 81)\n"},
-		{version: "rebuild-2026-10", want: "rebuild: 1.2 agent passes, 55.2 human days (estimate from calibrated parameters; human days by COCOMO 81)\n"},
-		// Every rating nominal: 2.94 * 1.2^1.0997 * 19 = 68.3.
+		{version: "default-uncalibrated-1", want: "rebuild: 1.2 agent passes, 71.6 human days (estimate from uncalibrated parameters; human days by COCOMO 81)\n"},
+		{version: "rebuild-2026-10", want: "rebuild: 1.2 agent passes, 71.6 human days (estimate from calibrated parameters; human days by COCOMO 81)\n"},
+		// Every rating nominal, UNFM completely unfamiliar and SU 30:
+		// 2.94 * 1.536^1.0997 * 19 = 89.6.
 		{version: "rebuild-2026-10", model: score.ModelCOCOMOII,
-			want: "rebuild: 1.2 agent passes, 68.3 human days (estimate from calibrated parameters; human days by COCOMO II, rebuild profile)\n"},
+			want: "rebuild: 1.2 agent passes, 89.6 human days (estimate from calibrated parameters; human days by COCOMO II, rebuild profile)\n"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.version+tt.model, func(t *testing.T) {

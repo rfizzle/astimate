@@ -127,34 +127,48 @@ func TestAssessTrivialTier(t *testing.T) {
 	}
 }
 
+// TestAssessTableGolden pins the assess table of a trivial package, of the
+// degraded fixture's tested package, whose untested export the suggestion
+// names, and of the packages at the floor and the ceiling of the human
+// estimate's software understanding (SPEC.md 7.3; see
+// testdata/go/understanding/README.md).
 func TestAssessTableGolden(t *testing.T) {
 	t.Parallel()
 
-	// The fixture lies in this repository, whose history grows with every
+	// The fixtures lie in this repository, whose history grows with every
 	// commit, so the golden turns churn off and shows it as n/a.
 	cfg := filepath.Join(t.TempDir(), "astimate.yaml")
 	noChurn := strings.Replace(string(config.Default()), "  commits: 200\n", "  commits: 0\n", 1)
 	if err := os.WriteFile(cfg, []byte(noChurn), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	var stdout, stderr bytes.Buffer
-	args := []string{"assess", filepath.Join(fixtureDir, "trivial"), "--config", cfg}
-	if got := run(args, &stdout, &stderr); got != exitOK {
-		t.Fatalf("run(%q) exit code = %d, want %d; stderr = %q", args, got, exitOK, stderr.String())
-	}
-
-	golden := filepath.Join("testdata", "assess_trivial.txt")
-	if os.Getenv("UPDATE_GOLDEN") != "" {
-		if err := os.WriteFile(golden, stdout.Bytes(), 0o644); err != nil {
-			t.Fatalf("updating golden file: %v", err)
-		}
-	}
-	want, err := os.ReadFile(golden)
-	if err != nil {
-		t.Fatalf("reading golden file (regenerate with UPDATE_GOLDEN=1): %v", err)
-	}
-	if got := stdout.String(); got != string(want) {
-		t.Errorf("table output differs from %s (regenerate with UPDATE_GOLDEN=1)\ngot:\n%s\nwant:\n%s", golden, got, want)
+	for _, tc := range []struct{ dir, golden string }{
+		{filepath.Join(fixtureDir, "trivial"), "assess_trivial.txt"},
+		{filepath.Join(degradedDir, "tested"), "assess_degraded_tested.txt"},
+		{filepath.Join(fixtureDir, "tested"), "assess_fixture_tested.txt"},
+		{"../../testdata/go/understanding/opaque", "assess_understanding_opaque.txt"},
+	} {
+		t.Run(tc.golden, func(t *testing.T) {
+			t.Parallel()
+			var stdout, stderr bytes.Buffer
+			args := []string{"assess", tc.dir, "--config", cfg}
+			if got := run(args, &stdout, &stderr); got != exitOK {
+				t.Fatalf("run(%q) exit code = %d, want %d; stderr = %q", args, got, exitOK, stderr.String())
+			}
+			golden := filepath.Join("testdata", tc.golden)
+			if os.Getenv("UPDATE_GOLDEN") != "" {
+				if err := os.WriteFile(golden, stdout.Bytes(), 0o644); err != nil {
+					t.Fatalf("updating golden file: %v", err)
+				}
+			}
+			want, err := os.ReadFile(golden)
+			if err != nil {
+				t.Fatalf("reading golden file (regenerate with UPDATE_GOLDEN=1): %v", err)
+			}
+			if got := stdout.String(); got != string(want) {
+				t.Errorf("table output differs from %s (regenerate with UPDATE_GOLDEN=1)\ngot:\n%s\nwant:\n%s", golden, got, want)
+			}
+		})
 	}
 }
 

@@ -6,7 +6,7 @@
     "rebuild": {
       "agent_passes": 0.4,
       "rebuild_tokens": 9625,
-      "human_days": 26.9,
+      "human_days": 38.3,
       "tier": "ONE_PASS",
       "calibrated": false,
       "drivers": [
@@ -49,6 +49,7 @@
       "has_tests": false,
       "untested_exports_covered": null,
       "untested_exports": 0,
+      "documented_exports": null,
       "dup_blocks_cross_pkg": null,
       "instability": null,
       "abstractness": null,
@@ -93,6 +94,7 @@
         "has_tests": false,
         "untested_exports_covered": null,
         "untested_exports": 0,
+        "documented_exports": null,
         "dup_blocks_cross_pkg": null,
         "instability": null,
         "abstractness": null,

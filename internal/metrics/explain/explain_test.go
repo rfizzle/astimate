@@ -138,6 +138,7 @@ func TestExplainGeneratedExcluded(t *testing.T) {
 		"sloc", "largest_file_sloc", "tokens_est", "tokens_est_with_tests", "exported_symbols",
 		"globals", "init_funcs", "max_nesting", "cognitive_total", "cognitive_p90", "cyclomatic_total", "cyclomatic_p90",
 		"func_count", "dup_blocks", "dup_blocks_code", "duplication_pct", "untested_exports", "duplicated_lines", "abstractness",
+		"documented_exports",
 	}
 	for _, name := range metrics.MetricNames() {
 		e, _ := Explain(name)

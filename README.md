@@ -87,7 +87,7 @@ The samples below are the real output for the fixture modules under `testdata/`,
 ```
 $ astimate assess testdata/go/fixture/dupes
 package: dupes (example.com/fixture)
-rebuild: 0.0 agent passes, 0.7 human days (estimate from calibrated parameters; human days by COCOMO II, rebuild profile)
+rebuild: 0.0 agent passes, 0.8 human days (estimate from calibrated parameters; human days by COCOMO II, rebuild profile)
 tier: ONE_PASS
 
 drivers:
@@ -98,23 +98,24 @@ suggestions:
   - 3 exported functions have no test (CountVisits, SumOrders, TallyScores); a rebuild would have to reverse-engineer their behavior.
 
 metrics:
-  files                  1      sloc                  67
-  largest_file_sloc      67     tokens_est            506
-  tokens_est_with_tests  561    internal_imports      0
-  external_imports       0      stdlib_imports        0
-  fan_in                 0      fan_in_tests          0
-  exported_symbols       4      globals               0
-  init_funcs             0      max_nesting           2
-  cognitive_total        19     cognitive_p90         6
-  cyclomatic_total       18     cyclomatic_p90        5
-  func_count             4      dup_blocks            1
-  dup_blocks_code        1      duplication_pct       80.6
-  duplicated_lines       54     test_files            1
-  test_funcs             1      has_tests             true
-  untested_exports       3      dup_blocks_cross_pkg  0
-  uses_cgo               false  uses_reflect          false
-  generated_files        0      tokens_est_generated  0
-  churn_commits          n/a    churn_authors         n/a
+  files                  1      sloc                67
+  largest_file_sloc      67     tokens_est          506
+  tokens_est_with_tests  561    internal_imports    0
+  external_imports       0      stdlib_imports      0
+  fan_in                 0      fan_in_tests        0
+  exported_symbols       4      globals             0
+  init_funcs             0      max_nesting         2
+  cognitive_total        19     cognitive_p90       6
+  cyclomatic_total       18     cyclomatic_p90      5
+  func_count             4      dup_blocks          1
+  dup_blocks_code        1      duplication_pct     80.6
+  duplicated_lines       54     test_files          1
+  test_funcs             1      has_tests           true
+  untested_exports       3      documented_exports  4
+  dup_blocks_cross_pkg   0      uses_cgo            false
+  uses_reflect           false  generated_files     0
+  tokens_est_generated   0      churn_commits       n/a
+  churn_authors          n/a
 ```
 <!-- /sample:assess -->
 
@@ -131,7 +132,7 @@ $ astimate assess testdata/go/fixture/dupes --json | head -25
   "rebuild": {
     "agent_passes": 0,
     "rebuild_tokens": 1053,
-    "human_days": 0.7,
+    "human_days": 0.8,
     "tier": "ONE_PASS",
     "calibrated": true,
     "drivers": [
@@ -160,17 +161,17 @@ $ astimate assess testdata/go/fixture/dupes --json | head -25
 ```
 $ astimate rank testdata/go/fixture
 PATH      PASSES  DAYS  TIER      FAN_IN  TOKENS  DUP%  CHURN  ROLE
-a            0.0   1.2  ONE_PASS       0     159   0.0      -  library
-b            0.0   1.2  ONE_PASS       0     179   0.0      -  library
-consumer     0.0   0.0  ONE_PASS       0      45   0.0      -  library
-dupes        0.0   0.7  ONE_PASS       0     506  80.6      -  library
+a            0.0   1.3  ONE_PASS       0     159   0.0      -  library
+b            0.0   1.3  ONE_PASS       0     179   0.0      -  library
+consumer     0.0   0.1  ONE_PASS       0      45   0.0      -  library
+dupes        0.0   0.8  ONE_PASS       0     506  80.6      -  library
 errs         0.0   0.2  ONE_PASS       0     178   0.0      -  library
-hidden       0.0   1.9  ONE_PASS       0     226   0.0      -  library
-hub          0.0   1.0  ONE_PASS       4     177   0.0      -  library
-immut        0.0   1.3  ONE_PASS       0     344   0.0      -  library
+hidden       0.0   2.0  ONE_PASS       0     226   0.0      -  library
+hub          0.0   1.1  ONE_PASS       4     177   0.0      -  library
+immut        0.0   1.4  ONE_PASS       0     344   0.0      -  library
 sibling      0.0   0.1  ONE_PASS       0      82   0.0      -  test-support
 support      0.0   0.2  ONE_PASS       0      85   0.0      -  test-support
-tested       0.0   0.9  ONE_PASS       0     237   0.0      -  library
+tested       0.0   1.1  ONE_PASS       0     237   0.0      -  library
 trivial      0.0   0.2  ONE_PASS       0      47   0.0      -  library
 DAYS: one engineer's working days by COCOMO II, rebuild profile, not measured (SPEC.md 7.3). PASSES: measured on agent rebuilds.
 ```
@@ -183,13 +184,13 @@ A TypeScript module ranks the same way; the language is detected from the module
 $ astimate rank testdata/ts/fixture
 PATH     PASSES  DAYS  TIER      FAN_IN  TOKENS  DUP%  CHURN  ROLE
 a           0.0   0.2  ONE_PASS       0      48   0.0      -  library
-b           0.0   0.7  ONE_PASS       0     344   0.0      -  library
+b           0.0   1.1  ONE_PASS       0     344   0.0      -  library
 covered     0.0   0.2  ONE_PASS       0      81   0.0      -  library
-dupes       0.0   0.5  ONE_PASS       0     527  81.8      -  library
-hidden      0.0   1.5  ONE_PASS       0     210   0.0      -  library
-hub         0.0   1.4  ONE_PASS       4     232   0.0      -  library
-tested      0.0   0.8  ONE_PASS       0     216   0.0      -  library
-trivial     0.0   0.7  ONE_PASS       1     214   0.0      -  library
+dupes       0.0   0.7  ONE_PASS       0     527  81.8      -  library
+hidden      0.0   1.9  ONE_PASS       0     210   0.0      -  library
+hub         0.0   1.7  ONE_PASS       4     232   0.0      -  library
+tested      0.0   1.1  ONE_PASS       0     216   0.0      -  library
+trivial     0.0   0.9  ONE_PASS       1     214   0.0      -  library
 DAYS: one engineer's working days by COCOMO II, rebuild profile, not measured (SPEC.md 7.3). PASSES: measured on agent rebuilds.
 ```
 <!-- /sample:rank-ts -->
@@ -223,7 +224,7 @@ $ astimate check testdata/go/fixture-degraded --baseline /tmp/fixture-baseline.j
 FAIL  1 package needs attention before this merges.  against fixture-baseline.json
       12 changed · 1 fail · 2 heads up · 11 pass clean · copies between packages 1 → 1
 
- ✗ tested  1 finding · 3.9 days to rebuild
+ ✗ tested  1 finding · 4.9 days to rebuild
    changed func cognitive max  51  max 50
    A function this complex is the one a rebuild gets wrong. Changed function grade (grade.go:8) has
    cognitive complexity 51.

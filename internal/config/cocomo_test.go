@@ -10,7 +10,7 @@ import (
 
 // shippedCocomo is the rebuild profile default.yaml ships.
 func shippedCocomo() score.Cocomo {
-	c := score.Cocomo{Model: score.ModelCOCOMOII}
+	c := score.Cocomo{Model: score.ModelCOCOMOII, UNFM: "completely_unfamiliar"}
 	for _, k := range score.CocomoKeys() {
 		c.Set(k, "nominal")
 	}
@@ -50,6 +50,7 @@ func TestParseCocomoErrors(t *testing.T) {
 		{"unknown rating name", "prec: very_high", "prec: hgh", `rebuild: cocomo.prec: unknown rating "hgh"`},
 		{"rating the driver lacks", "sced: nominal", "sced: extra_high", "cocomo.sced: extra_high is not a rating of sced"},
 		{"unknown model", "model: cocomo-ii", "model: cocomo-iii", "cocomo.model must be cocomo-ii or basic-81"},
+		{"unknown unfamiliarity", "unfm: completely_unfamiliar", "unfm: unfamiliar", `cocomo.unfm: unknown rating "unfamiliar"`},
 		{"per-package driver", "    docu: very_low\n", "    docu: very_low\n    rely: high\n", "rebuild.cocomo.rely: unknown key"},
 	}
 	for _, tt := range tests {
@@ -84,9 +85,13 @@ func TestCocomoRatingMovesEstimate(t *testing.T) {
 	if got := days("pmat: nominal", "pmat: extra_high"); got >= shipped {
 		t.Errorf("pmat extra_high gave %v, want below %v", got, shipped)
 	}
-	// 2.4 * 4^1.05 * 19 = 195.49.
-	if got := days("model: cocomo-ii", "model: basic-81"); got < 195.4 || got > 195.6 {
-		t.Errorf("basic-81 human_days = %v, want 195.49", got)
+	// SU high ((3 + 4 + 2) / 3 = 3), 20, under unfm completely_unfamiliar:
+	// kloc_eff = 4 * 1.4 = 5.6; 2.4 * 5.6^1.05 * 19 = 278.33.
+	if got := days("model: cocomo-ii", "model: basic-81"); got < 278.3 || got > 278.4 {
+		t.Errorf("basic-81 human_days = %v, want 278.33", got)
+	}
+	if got := days("unfm: completely_unfamiliar", "unfm: completely_familiar"); got >= shipped {
+		t.Errorf("unfm completely_familiar gave %v, want below %v", got, shipped)
 	}
 }
 

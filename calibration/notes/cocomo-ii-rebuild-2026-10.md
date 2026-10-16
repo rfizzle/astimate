@@ -138,3 +138,101 @@ thinks a rebuild deserves PREC extra high, or that their team is high
 ACAP, changes one named line under `rebuild.cocomo:` and the figure and
 its label follow. `rebuild.cocomo.model: basic-81` keeps COCOMO 81 for
 comparison.
+
+## Software understanding replaces the untested-export inflation
+
+Date: 2026-10-16. Code: the commit that replaced `kloc_eff`'s
+`1 + 0.5 × untested_ratio` with COCOMO II's reuse-model understanding
+increment (SPEC.md 7.3). The form above described `kloc_eff` before it;
+everything else in it stands.
+
+### The values
+
+COCOMO II.2000's reuse model charges for understanding code that is
+reused rather than written, `1 + 0.02 × SU × UNFM` on the size. A
+rebuild from tests is that: the tests and the signatures are the assets
+to understand, and the exports no test or comment describes are the blind
+spots. Both tables are the published ones; nothing is fitted.
+
+| SU rating | very low | low | nominal | high | very high |
+| --- | --- | --- | --- | --- | --- |
+| SU, percent | 50 | 40 | 30 | 20 | 10 |
+
+| UNFM rating | completely familiar | mostly familiar | somewhat familiar | considerably familiar | mostly unfamiliar | completely unfamiliar |
+| --- | --- | --- | --- | --- | --- | --- |
+| UNFM | 0.0 | 0.2 | 0.4 | 0.6 | 0.8 | 1.0 |
+
+`rebuild.cocomo.unfm` ships `completely_unfamiliar`: an agent rebuilding a
+stranger's package starts from nothing. With it the inflation runs from
+1.2 (SU 10) to 2.0 (SU 50), where `1 + 0.5 × untested_ratio` ran from 1.0
+to 1.5; `completely_familiar` removes it.
+
+### The mapping
+
+The manual rates SU on structure, application clarity and
+self-descriptiveness and takes one rating for all three. Here each is
+scored from the package's metrics, very low 0 to very high 4, and the
+mean of the three, rounded down toward the worse rating, picks SU.
+
+| Sub-score | Metric | very high | high | nominal | low | very low |
+| --- | --- | --- | --- | --- | --- | --- |
+| Structure, the worse of | `cognitive_p90` | up to 4 | 5 to 10 | 11 to 20 | 21 to 40 | above 40 |
+| | `dup_blocks` | 0 | 1 to 2 | 3 to 5 | 6 to 10 | above 10 |
+| Application clarity | `untested_exports / max(exported_symbols, 1)` | up to 0.05 | up to 0.15 | up to 0.35 | up to 0.6 | above 0.6 |
+| Self-descriptiveness | `1 - documented_exports / exported_symbols` | up to 0.05 | up to 0.15 | up to 0.35 | up to 0.6 | above 0.6 |
+
+The `cognitive_p90` cut points are CPLX's above with its two lowest bands
+merged, five ratings instead of six; on the 2026-09-28 corpus they hold
+35%, 29%, 23%, 11% and 2.5% of packages. A duplicate block is code the
+rebuilder reads twice and must decide is the same. Application clarity is
+the old inflation's own ratio; a share of exported symbols, not of
+functions, because `exported_symbols` is the denominator the estimate
+already uses. Self-descriptiveness reads the new `documented_exports`,
+the exported symbols with a doc comment (the declaration's, its group's,
+or a `var` or `const` line comment). TypeScript does not measure it yet,
+so there the sub-score is nominal. A package without exports scores very
+high on both.
+
+Testing an export can only lower `untested_exports`, so it can only raise
+application clarity and lower SU, and no other sub-score reads tests:
+SPEC.md 7.5's "adding tests never raises `human_days`" still holds, and
+`internal/invariants` `TestAddingTests` passes unchanged.
+
+### Floor and ceiling on fixture packages
+
+| Package | `cognitive_p90` | `dup_blocks` | exports | untested | documented | Sub-scores (S, C, D) | SU |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `testdata/go/fixture` `tested` | 4 | 0 | 3 | 0 | 3 | 4, 4, 4 | 10, the floor |
+| `testdata/go/understanding` `opaque` | 16 | 0 | 2 | 2 | 0 | 2, 0, 0 | 50, the ceiling |
+| `testdata/go/fixture-degraded` `tested` | 4 | 0 | 4 | 1 | 4 | 4, 2, 4 | 20 |
+| `testdata/go/fixture-degraded` `dupes` | 6 | 1 | 4 | 3 | 4 | 3, 0, 4 | 30 |
+
+`opaque` is a fixture added for this: no tests, no doc comment, two
+functions of cognitive complexity 12 and 16. The assess goldens
+`cmd/astimate/testdata/assess_fixture_tested.txt`,
+`assess_understanding_opaque.txt` and `assess_degraded_tested.txt` pin
+the metrics each row reads. Rounding down makes the ceiling need
+structure nominal or worse: a package with no export tested or
+documented but simple, uncopied code scores (4 + 0 + 0) / 3, low, SU 40.
+
+### The figure, before and after
+
+`go build`, then `astimate rank . --json` on this repository's tree at
+this commit, summing `human_days`, with the commit's binary and with its
+parent's, each under the embedded default and under
+`rebuild.cocomo.model: basic-81`.
+
+| Model | Before, `1 + 0.5 × untested_ratio` | After, `1 + 0.02 × SU × UNFM` | After / before |
+| --- | --- | --- | --- |
+| COCOMO II, rebuild profile | 1,703 days | 2,424 days | 1.42 |
+| COCOMO 81 basic | 1,549 days | 2,199 days | 1.42 |
+| Profile / basic-81 | 1.10 | 1.10 | |
+
+(The section above measured 1,698 and 1,544 days at its own commit; the
+tree has grown since.) Of the 77 packages, 6 rate SU 10, 69 SU 20 and 2
+SU 30. This repository tests and documents nearly every export, so the
+old inflation was close to 1.0 on it; the new one cannot go below 1.2
+under `completely_unfamiliar`, and structure, nominal for 42 packages
+here and high for 24 (5 low, 6 very high), holds the mean at high
+while clarity and self-descriptiveness rate very high. Both models rise by
+the same 42%, about 1.4^1.05, because they share `kloc_eff`.

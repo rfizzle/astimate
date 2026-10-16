@@ -122,6 +122,9 @@ type ExportCounts struct {
 	// InterfaceTypes counts the exported type specs whose type is an
 	// interface; see exportedInSpec.
 	InterfaceTypes int
+	// Documented is documented_exports: the Symbols that carry a doc
+	// comment; see exportedInSpec.
+	Documented int
 }
 
 // add accumulates o into c.
@@ -129,14 +132,15 @@ func (c *ExportCounts) add(o ExportCounts) {
 	c.Symbols += o.Symbols
 	c.Types += o.Types
 	c.InterfaceTypes += o.InterfaceTypes
+	c.Documented += o.Documented
 }
 
 // ExportedSymbols counts the exported top-level funcs, types, var and const
 // names, and exported methods on any receiver, exported or not, declared in
-// f, with the exported types among them and the interface types among those.
-// Struct fields and interface methods are not counted. scope is the package
-// scope interface types are resolved in, or nil to test syntactically; see
-// exportedInSpec.
+// f, with the exported types among them, the interface types among those and
+// the documented ones among all. Struct fields and interface methods are not
+// counted. scope is the package scope interface types are resolved in, or nil
+// to test syntactically; see exportedInSpec.
 func ExportedSymbols(f *ast.File, scope *types.Scope) ExportCounts {
 	var c ExportCounts
 	for _, d := range f.Decls {
@@ -144,10 +148,13 @@ func ExportedSymbols(f *ast.File, scope *types.Scope) ExportCounts {
 		case *ast.FuncDecl:
 			if d.Name.IsExported() {
 				c.Symbols++
+				if d.Doc != nil {
+					c.Documented++
+				}
 			}
 		case *ast.GenDecl:
 			for _, s := range d.Specs {
-				c.add(exportedInSpec(s, scope))
+				c.add(exportedInSpec(s, d.Doc != nil, scope))
 			}
 		}
 	}
@@ -155,7 +162,10 @@ func ExportedSymbols(f *ast.File, scope *types.Scope) ExportCounts {
 }
 
 // exportedInSpec counts the exported names a type, var or const spec
-// declares. Import specs declare none.
+// declares. Import specs declare none. A name is documented when its spec
+// has a doc comment, or a line comment for a var or const spec, as go doc
+// shows them, or when declDoc reports that its declaration, the spec's
+// group, has one.
 //
 // An exported type spec is an interface type when the type it declares has
 // an interface as its underlying type, generic and constraint interfaces
@@ -166,7 +176,7 @@ func ExportedSymbols(f *ast.File, scope *types.Scope) ExportCounts {
 // type-checked or a cgo package's reparsed source. With a nil scope, or a
 // name the scope lacks, the test falls back to syntax: the type expression
 // is an interface literal.
-func exportedInSpec(s ast.Spec, scope *types.Scope) ExportCounts {
+func exportedInSpec(s ast.Spec, declDoc bool, scope *types.Scope) ExportCounts {
 	var c ExportCounts
 	switch s := s.(type) {
 	case *ast.TypeSpec:
@@ -176,11 +186,18 @@ func exportedInSpec(s ast.Spec, scope *types.Scope) ExportCounts {
 			if isInterfaceSpec(s, scope) {
 				c.InterfaceTypes++
 			}
+			if declDoc || s.Doc != nil {
+				c.Documented++
+			}
 		}
 	case *ast.ValueSpec:
+		documented := declDoc || s.Doc != nil || s.Comment != nil
 		for _, name := range s.Names {
 			if name.IsExported() {
 				c.Symbols++
+				if documented {
+					c.Documented++
+				}
 			}
 		}
 	}

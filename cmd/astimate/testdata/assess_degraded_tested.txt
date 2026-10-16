@@ -1,0 +1,31 @@
+package: tested (example.com/fixture)
+rebuild: 0.0 agent passes, 4.9 human days (estimate from calibrated parameters; human days by COCOMO II, rebuild profile)
+tier: ONE_PASS
+
+drivers:
+  volume       921 tokens  tokens_est=921 duplication_pct=0
+  unspecified  300 tokens  untested_exports=1
+
+suggestions:
+  - The package is 921 tokens of non-test source; its volume is 921 tokens of the rebuild; split the package to shrink it.
+  - 1 exported function has no test (JoinAgain); a rebuild would have to reverse-engineer its behavior.
+
+metrics:
+  files                  4      sloc                  98
+  largest_file_sloc      57     tokens_est            921
+  tokens_est_with_tests  1141   internal_imports      1
+  external_imports       0      stdlib_imports        3
+  fan_in                 0      fan_in_tests          0
+  exported_symbols       4      globals               1
+  init_funcs             0      max_nesting           2
+  cognitive_total        62     cognitive_p90         4
+  cyclomatic_total       73     cyclomatic_p90        4
+  func_count             10     dup_blocks            0
+  dup_blocks_code        0      duplication_pct       0
+  duplicated_lines       0      test_files            3
+  test_funcs             4      has_tests             true
+  untested_exports       1      documented_exports    4
+  dup_blocks_cross_pkg   0      instability           1
+  uses_cgo               false  uses_reflect          false
+  generated_files        0      tokens_est_generated  0
+  churn_commits          n/a    churn_authors         n/a

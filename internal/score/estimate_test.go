@@ -216,11 +216,12 @@ func TestEstimateWorkedExample(t *testing.T) {
 		t.Errorf("AgentPassesRounded() = %v, want 1.2", got)
 	}
 
-	// untested_ratio = 15 / 30 = 0.5
-	// kloc_eff = (1200 * 0.8 / 1000) * (1 + 0.5 * 0.5) = 0.96 * 1.25 = 1.2
-	// person_months = 2.4 * 1.2 ^ 1.05 = 2.9064
-	// human_days = 2.9064 * 19 = 55.2211
-	approx(t, "human_days", r.HumanDays, 55.2211, 1e-4)
+	// SU = 30: structure very high, clarity low (15 / 30 untested),
+	// self-description nominal (not measured); (4 + 1 + 2) / 3 = 2.
+	// kloc_eff = (1200 * 0.8 / 1000) * (1 + 0.02 * 30 * 1) = 0.96 * 1.6 = 1.536
+	// person_months = 2.4 * 1.536 ^ 1.05 = 3.7664
+	// human_days = 3.7664 * 19 = 71.5609
+	approx(t, "human_days", r.HumanDays, 71.5609, 1e-4)
 }
 
 // TestEstimateCocomo checks the human estimate against COCOMO basic organic
@@ -230,6 +231,7 @@ func TestEstimateCocomo(t *testing.T) {
 	t.Parallel()
 
 	cfg := validParams()
+	cfg.Cocomo.UNFM = "completely_familiar"
 	tests := []struct {
 		sloc         int
 		personMonths float64
@@ -248,8 +250,9 @@ func TestEstimateUntestedRatio(t *testing.T) {
 
 	cfg := validParams()
 	full := Estimate(metrics.RawMetrics{SLOC: 1000, ExportedSymbols: 4, UntestedExports: 4}, cfg)
-	// untested_ratio 1 -> kloc_eff 1.5.
-	approx(t, "human_days", full.HumanDays, 2.4*math.Pow(1.5, 1.05)*19, 1e-9)
+	// Every export untested: clarity very low, structure very high,
+	// self-description nominal, SU 30 -> kloc_eff 1.6.
+	approx(t, "human_days", full.HumanDays, 2.4*math.Pow(1.6, 1.05)*19, 1e-9)
 	// No exported symbols: max(exported_symbols, 1) avoids a division by
 	// zero, and the ratio is clamped to 1.
 	clamped := Estimate(metrics.RawMetrics{SLOC: 1000, UntestedExports: 3}, cfg)

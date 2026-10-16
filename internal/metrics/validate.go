@@ -12,8 +12,9 @@ var ErrInvalidMetrics = errors.New("invalid metrics")
 
 // Validate reports every field that is out of range: negative counts,
 // percentages outside [0, 100], ratios outside [0, 1], largest_file_sloc
-// above sloc, tokens_est_with_tests below tokens_est, and a positive
-// tokens_est_generated with generated_files 0. The returned error
+// above sloc, tokens_est_with_tests below tokens_est, a positive
+// tokens_est_generated with generated_files 0, and documented_exports above
+// exported_symbols. The returned error
 // joins one error per problem, each wrapping ErrInvalidMetrics; it is nil when
 // the record is consistent. Nil v1 fields are not checked.
 func (m *RawMetrics) Validate() error {
@@ -41,6 +42,10 @@ func (m *RawMetrics) Validate() error {
 	if m.TokensEstGenerated != nil && *m.TokensEstGenerated > 0 && m.GeneratedFiles != nil && *m.GeneratedFiles == 0 {
 		errs = append(errs, fmt.Errorf("%w: tokens_est_generated %d with generated_files 0",
 			ErrInvalidMetrics, *m.TokensEstGenerated))
+	}
+	if m.DocumentedExports != nil && *m.DocumentedExports > m.ExportedSymbols {
+		errs = append(errs, fmt.Errorf("%w: documented_exports %d exceeds exported_symbols %d",
+			ErrInvalidMetrics, *m.DocumentedExports, m.ExportedSymbols))
 	}
 	return errors.Join(errs...)
 }

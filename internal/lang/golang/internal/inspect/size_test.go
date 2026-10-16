@@ -84,6 +84,9 @@ func TestExportedSymbols(t *testing.T) {
 		{"alias of error", "package p\ntype E = error\n", ExportCounts{Symbols: 1, Types: 1, InterfaceTypes: 1}, 1},
 		{"definition from named struct", "package p\nimport \"strings\"\ntype B strings.Builder\n", ExportCounts{Symbols: 1, Types: 1}, 0},
 		{"alias of struct literal", "package p\ntype S = struct{ X int }\n", ExportCounts{Symbols: 1, Types: 1}, 0},
+		{"documented func and method", "package p\n// F does.\nfunc F() {}\nfunc G() {}\ntype t struct{}\n// M does.\nfunc (t) M() {}\n", ExportCounts{Symbols: 3, Documented: 2}, 0},
+		{"documented type, own and grouped", "package p\n// T is.\ntype T int\ntype U int\n// Group doc.\ntype (\n\tV int\n\tW int\n)\ntype (\n\t// X is.\n\tX int\n\tY int\n)\n", ExportCounts{Symbols: 6, Types: 6, Documented: 4}, 0},
+		{"documented values, doc and line comments", "package p\nconst (\n\tA = iota // A is.\n\t// B is.\n\tB\n\tC\n)\n// D and e are.\nvar D, e = 1, 2\n", ExportCounts{Symbols: 4, Documented: 3}, 0},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

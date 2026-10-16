@@ -105,6 +105,15 @@ rebuild:
     # cocomo-ii (the post-architecture form under this profile) or
     # basic-81 (cocomo_a and cocomo_b above).
     model: cocomo-ii
+    # Unfamiliarity with the code to be understood (COCOMO II's reuse
+    # model): completely_familiar, mostly_familiar, somewhat_familiar,
+    # considerably_familiar, mostly_unfamiliar or completely_unfamiliar.
+    # An agent rebuilding a stranger's package starts completely
+    # unfamiliar; a maintainer rebuilding their own is less so. Each
+    # package's untested exports, structure and doc comments rate its
+    # software understanding SU, and kloc_eff is inflated by
+    # 1 + 0.02 x SU x UNFM.
+    unfm: completely_unfamiliar
     # Scale factors; they set the exponent.
     # Precedentedness: the behaviour is known, the tests say what passes.
     prec: very_high

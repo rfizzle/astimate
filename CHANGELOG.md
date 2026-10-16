@@ -453,6 +453,20 @@ history.
 
 ### Changed
 
+- Engineer time inflates the code to rebuild by COCOMO II's software
+  understanding, `1 + 0.02 × SU × UNFM`, in place of the guessed
+  `1 + 0.5 × untested_ratio`, under both `cocomo-ii` and `basic-81`. SU
+  (10 to 50) is rated per package from three sub-scores: structure from
+  `cognitive_p90` and `dup_blocks`, application clarity from the share of
+  untested exports, and self-descriptiveness from the new
+  `documented_exports` metric, the exports with a doc comment (null for
+  TypeScript, where the sub-score is nominal). UNFM is the new profile
+  rating `rebuild.cocomo.unfm`, shipped `completely_unfamiliar` (1.0), so
+  the inflation runs from 1.2 to 2.0 where it ran from 1.0 to 1.5; this
+  repository's total rises 42%, from 1,703 to 2,424 days.
+  `completely_familiar` removes it. SPEC.md 7.3 and
+  `calibration/notes/cocomo-ii-rebuild-2026-10.md` give the cut points.
+
 - The report leads with the measured agent estimate. The counts line reads
   "<n> packages, <k> need more than one sitting, <time> of one engineer's
   time", the HTML hero and the bubbles show the sittings with the engineer
