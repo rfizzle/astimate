@@ -7,6 +7,8 @@
       "agent_passes": 0,
       "rebuild_tokens": 0,
       "human_days": 0,
+      "human_days_low": 0,
+      "human_days_high": 0,
       "tier": "ONE_PASS",
       "calibrated": false,
       "drivers": []
@@ -130,6 +132,8 @@
       "agent_passes": 0,
       "rebuild_tokens": 0,
       "human_days": 0,
+      "human_days_low": 0,
+      "human_days_high": 0,
       "tier": "ONE_PASS",
       "calibrated": false,
       "drivers": []

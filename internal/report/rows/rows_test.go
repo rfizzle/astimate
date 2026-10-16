@@ -16,10 +16,10 @@ import (
 func rankRows() []Row {
 	churn := func(n int) *int { return &n }
 	return []Row{
-		{Path: "c", AgentPasses: 0.5, HumanDays: 2, FanIn: 1, TokensEst: 100, DuplicationPct: 0},
-		{Path: "a", AgentPasses: 0.5, HumanDays: 1, FanIn: 3, TokensEst: 300, DuplicationPct: 10, ChurnCommits: churn(5)},
-		{Path: "d", AgentPasses: 1.5, HumanDays: 1, FanIn: 1, TokensEst: 100, DuplicationPct: 10, ChurnCommits: churn(5)},
-		{Path: "b", AgentPasses: 0.1, HumanDays: 2, FanIn: 0, TokensEst: 200, DuplicationPct: 30, ChurnCommits: churn(0)},
+		{Path: "c", AgentPasses: 0.5, HumanDays: 2, HumanDaysLow: 2, FanIn: 1, TokensEst: 100, DuplicationPct: 0},
+		{Path: "a", AgentPasses: 0.5, HumanDays: 1, HumanDaysLow: 1, FanIn: 3, TokensEst: 300, DuplicationPct: 10, ChurnCommits: churn(5)},
+		{Path: "d", AgentPasses: 1.5, HumanDays: 1, HumanDaysLow: 1, FanIn: 1, TokensEst: 100, DuplicationPct: 10, ChurnCommits: churn(5)},
+		{Path: "b", AgentPasses: 0.1, HumanDays: 2, HumanDaysLow: 2, FanIn: 0, TokensEst: 200, DuplicationPct: 30, ChurnCommits: churn(0)},
 	}
 }
 
@@ -88,7 +88,7 @@ func TestNewRowWorkedExample(t *testing.T) {
 	m.FanIn = 7
 	got := NewRow("internal/billing", &m, params())
 	want := Row{
-		Path: "internal/billing", AgentPasses: 1.2, HumanDays: 71.6, Tier: score.TierFewPasses,
+		Path: "internal/billing", AgentPasses: 1.2, HumanDays: 71.6, HumanDaysLow: 71.6, HumanDaysHigh: 89.6, Tier: score.TierFewPasses,
 		FanIn: 7, TokensEst: 10000, DuplicationPct: 20,
 	}
 	if got != want {
@@ -113,21 +113,22 @@ func TestWriteRowsTable(t *testing.T) {
 
 	billingChurn := 42
 	rows := []Row{
-		{Path: "internal/billing", AgentPasses: 1.2, HumanDays: 55.2, Tier: score.TierFewPasses,
+		{Path: "internal/billing", AgentPasses: 1.2, HumanDays: 55.2, HumanDaysLow: 41.3, HumanDaysHigh: 55.2, Tier: score.TierFewPasses,
 			FanIn: 7, TokensEst: 10000, DuplicationPct: 20, ChurnCommits: &billingChurn, Role: "library"},
-		{Path: "cmd/app", AgentPasses: 0.1, HumanDays: 2.5, Tier: score.TierOnePass, TokensEst: 900, Role: "main"},
-		{Path: ".", AgentPasses: 0, HumanDays: 0.3, Tier: score.TierOnePass, TokensEst: 55},
+		{Path: "cmd/app", AgentPasses: 0.1, HumanDays: 2.5, HumanDaysLow: 2.46, HumanDaysHigh: 2.5, Tier: score.TierOnePass, TokensEst: 900, Role: "main"},
+		{Path: ".", AgentPasses: 0, HumanDays: 0.3, HumanDaysLow: 0.3, HumanDaysHigh: 0.3, Tier: score.TierOnePass, TokensEst: 55},
 	}
 	var buf bytes.Buffer
 	if err := WriteRowsTable(&buf, rows); err != nil {
 		t.Fatalf("WriteRowsTable error = %v", err)
 	}
-	// A row whose extractor records no role, or without churn, shows a dash.
+	// A row whose extractor records no role, or without churn, shows a
+	// dash; a range whose ends round the same shows once.
 	want := strings.Join([]string{
-		"PATH              PASSES  DAYS  TIER        FAN_IN  TOKENS  DUP%  CHURN  ROLE",
-		"internal/billing     1.2  55.2  FEW_PASSES       7   10000  20.0     42  library",
-		"cmd/app              0.1   2.5  ONE_PASS         0     900   0.0      -  main",
-		".                    0.0   0.3  ONE_PASS         0      55   0.0      -  -",
+		"PATH              PASSES       DAYS  TIER        FAN_IN  TOKENS  DUP%  CHURN  ROLE",
+		"internal/billing     1.2  41.3-55.2  FEW_PASSES       7   10000  20.0     42  library",
+		"cmd/app              0.1        2.5  ONE_PASS         0     900   0.0      -  main",
+		".                    0.0        0.3  ONE_PASS         0      55   0.0      -  -",
 		"",
 	}, "\n")
 	if got := buf.String(); got != want {
@@ -139,7 +140,7 @@ func params() score.RebuildParams {
 	return score.RebuildParams{
 		ContextBudget: 25000, TokensPerExport: 40, TokensPerUntestedExport: 800, TokensPerHiddenState: 400,
 		SuperlinearExponent: 1.3, CocomoA: 2.4, CocomoB: 1.05, DaysPerMonth: 19,
-		Cocomo: score.Cocomo{Model: score.ModelBasic81}, Tiers: score.Tiers{OnePassMax: 1, FewPassesMax: 3},
+		Cocomo: score.Cocomo{Model: score.ModelBasic81, UNFM: "completely_unfamiliar"}, Tiers: score.Tiers{OnePassMax: 1, FewPassesMax: 3},
 	}
 }
 
@@ -164,17 +165,17 @@ func TestHotspot(t *testing.T) {
 
 // TestSortHotspotDisagreesWithDays: by churn times human days "wide" would
 // lead, by churn times agent passes "deep" does; rows with no hotspot
-// follow by human days, then path.
+// follow by the low end of human days, then path.
 func TestSortHotspotDisagreesWithDays(t *testing.T) {
 	t.Parallel()
 
 	five, three := 5, 3
 	rows := []Row{
-		{Path: "idle-b", HumanDays: 2},
-		{Path: "wide", AgentPasses: 1, HumanDays: 10, ChurnCommits: &five},
-		{Path: "idle-a", HumanDays: 2},
-		{Path: "deep", AgentPasses: 4, HumanDays: 8, ChurnCommits: &three},
-		{Path: "idle-big", HumanDays: 9},
+		{Path: "idle-b", HumanDaysLow: 2},
+		{Path: "wide", AgentPasses: 1, HumanDaysLow: 10, ChurnCommits: &five},
+		{Path: "idle-a", HumanDaysLow: 2},
+		{Path: "deep", AgentPasses: 4, HumanDaysLow: 8, ChurnCommits: &three},
+		{Path: "idle-big", HumanDays: 1, HumanDaysLow: 9},
 	}
 	if err := SortRows(rows, SortHotspot); err != nil {
 		t.Fatal(err)

@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
 	"reflect"
 	"slices"
@@ -150,7 +149,7 @@ func TestRankTable(t *testing.T) {
 	}
 	lines := strings.Split(strings.TrimSuffix(stdout.String(), "\n"), "\n")
 	if len(lines) != 4 || strings.Join(strings.Fields(lines[0]), " ") != "PATH PASSES DAYS TIER FAN_IN TOKENS DUP% CHURN ROLE" ||
-		lines[3] != strings.TrimSuffix(fmt.Sprintf(rankFooter, "COCOMO II, rebuild profile"), "\n") {
+		lines[3] != strings.TrimSuffix(rankFooter, "\n") {
 		t.Errorf("table output = %q, want the header, two rows and the footer", stdout.String())
 	}
 }

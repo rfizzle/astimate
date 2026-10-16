@@ -43,9 +43,11 @@
     "without_tests": 7,
     "multi_sitting": 0,
     "human_days": 10,
+    "human_days_low": 10,
+    "human_days_high": 11,
     "human_time": "2 weeks",
-    "human_basis": "Engineer time is a textbook figure, not a measurement: COCOMO II, rebuild profile, 2.381 person-months per thousand lines to the power 1.053 before each package's complexity rating, 19 working days a month, inflated by up to half where exports have no tests, summed over the packages. The agent sittings were measured on 85 rebuilds. The ratings under rebuild.cocomo in the configuration set the engineer time.",
-    "human_basis_short": "Engineer time is COCOMO II, rebuild profile (2.381 person-months per 1,000 lines to the power 1.053), not a measurement; agent sittings are measured. rebuild.cocomo rates it."
+    "human_basis": "Engineer time is a range from two textbook models, not a measurement: for each package, the low end is the lower and the high end the higher of COCOMO 81 (2.4 person-months per thousand lines to the power 1.05) and COCOMO II, rebuild profile (2.381 person-months per thousand lines to the power 1.053, before the package's complexity rating), at 19 working days a month, on lines inflated by COCOMO II's software understanding, 20% to 100% under unfm completely_unfamiliar, from each package's tests, structure and doc comments, summed over the packages. The JSON field human_days is the configured model's, COCOMO II, rebuild profile. The agent sittings were measured on 85 rebuilds. The ratings under rebuild.cocomo in the configuration set the COCOMO II, rebuild profile figure, and rebuild.cocomo_a scales the COCOMO 81 one.",
+    "human_basis_short": "Engineer time runs, per package, from the lower to the higher of COCOMO 81 and COCOMO II, rebuild profile; not a measurement; agent sittings are measured. rebuild.cocomo and rebuild.cocomo_a set it."
   },
   "headline": "Fixture has no package that needs a split.",
   "lead": "12 packages; 0 need more than one agent sitting to rebuild from their tests. For one engineer the whole module is about 2 weeks of rebuild time. 11 are fine, 1 needs watching, and 0 need a split. There is no change history to read, so the packages to start with are ranked by rebuild time alone.",
@@ -110,6 +112,8 @@
       "rebuild": {
         "agent_passes": 0,
         "human_days": 1.3,
+        "human_days_low": 1.3,
+        "human_days_high": 1.4,
         "human_time": "1 day",
         "human_short": "1 d",
         "rebuild_tokens": 759,
@@ -182,7 +186,7 @@
       "facts": [
         {
           "label": "Rebuild",
-          "text": "0 agent passes · 1.3 human days"
+          "text": "0 agent passes · 1.3 to 1.4 human days"
         },
         {
           "label": "Copies",
@@ -259,6 +263,8 @@
       "rebuild": {
         "agent_passes": 0,
         "human_days": 1.3,
+        "human_days_low": 1.3,
+        "human_days_high": 1.4,
         "human_time": "1 day",
         "human_short": "1 d",
         "rebuild_tokens": 779,
@@ -331,7 +337,7 @@
       "facts": [
         {
           "label": "Rebuild",
-          "text": "0 agent passes · 1.3 human days"
+          "text": "0 agent passes · 1.3 to 1.4 human days"
         },
         {
           "label": "Copies",
@@ -408,6 +414,8 @@
       "rebuild": {
         "agent_passes": 0,
         "human_days": 0.1,
+        "human_days_low": 0.1,
+        "human_days_high": 0.1,
         "human_time": "1 day",
         "human_short": "1 d",
         "rebuild_tokens": 105,
@@ -550,6 +558,8 @@
       "rebuild": {
         "agent_passes": 0,
         "human_days": 0.8,
+        "human_days_low": 0.8,
+        "human_days_high": 0.8,
         "human_time": "1 day",
         "human_short": "1 d",
         "rebuild_tokens": 1053,
@@ -721,6 +731,8 @@
       "rebuild": {
         "agent_passes": 0,
         "human_days": 0.2,
+        "human_days_low": 0.2,
+        "human_days_high": 0.3,
         "human_time": "1 day",
         "human_short": "1 d",
         "rebuild_tokens": 478,
@@ -801,7 +813,7 @@
       "facts": [
         {
           "label": "Rebuild",
-          "text": "0 agent passes · 0.2 human days"
+          "text": "0 agent passes · 0.2 to 0.3 human days"
         },
         {
           "label": "Copies",
@@ -878,6 +890,8 @@
       "rebuild": {
         "agent_passes": 0,
         "human_days": 2,
+        "human_days_low": 2,
+        "human_days_high": 2,
         "human_time": "2 days",
         "human_short": "2 d",
         "rebuild_tokens": 526,
@@ -1035,6 +1049,8 @@
       "rebuild": {
         "agent_passes": 0,
         "human_days": 1.1,
+        "human_days_low": 1.1,
+        "human_days_high": 1.2,
         "human_time": "1 day",
         "human_short": "1 d",
         "rebuild_tokens": 1077,
@@ -1115,7 +1131,7 @@
       "facts": [
         {
           "label": "Rebuild",
-          "text": "0 agent passes · 1.1 human days"
+          "text": "0 agent passes · 1.1 to 1.2 human days"
         },
         {
           "label": "Copies",
@@ -1192,8 +1208,10 @@
       "rebuild": {
         "agent_passes": 0,
         "human_days": 1.4,
-        "human_time": "1 day",
-        "human_short": "1 d",
+        "human_days_low": 1.4,
+        "human_days_high": 1.7,
+        "human_time": "1 to 2 days",
+        "human_short": "1–2 d",
         "rebuild_tokens": 1244,
         "sittings": "one sitting",
         "sittings_text": "one sitting",
@@ -1210,7 +1228,7 @@
             "pct": 28
           }
         ],
-        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 1 day."
+        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 1 to 2 days."
       },
       "copies": {
         "pct": 0,
@@ -1272,7 +1290,7 @@
       "facts": [
         {
           "label": "Rebuild",
-          "text": "0 agent passes · 1.4 human days"
+          "text": "0 agent passes · 1.4 to 1.7 human days"
         },
         {
           "label": "Copies",
@@ -1349,6 +1367,8 @@
       "rebuild": {
         "agent_passes": 0,
         "human_days": 0.1,
+        "human_days_low": 0.1,
+        "human_days_high": 0.1,
         "human_time": "1 day",
         "human_short": "1 d",
         "rebuild_tokens": 382,
@@ -1498,6 +1518,8 @@
       "rebuild": {
         "agent_passes": 0,
         "human_days": 0.2,
+        "human_days_low": 0.2,
+        "human_days_high": 0.3,
         "human_time": "1 day",
         "human_short": "1 d",
         "rebuild_tokens": 85,
@@ -1557,7 +1579,7 @@
       "facts": [
         {
           "label": "Rebuild",
-          "text": "0 agent passes · 0.2 human days"
+          "text": "0 agent passes · 0.2 to 0.3 human days"
         },
         {
           "label": "Copies",
@@ -1634,6 +1656,8 @@
       "rebuild": {
         "agent_passes": 0,
         "human_days": 1.1,
+        "human_days_low": 1.1,
+        "human_days_high": 1.2,
         "human_time": "1 day",
         "human_short": "1 d",
         "rebuild_tokens": 457,
@@ -1715,7 +1739,7 @@
       "facts": [
         {
           "label": "Rebuild",
-          "text": "0 agent passes · 1.1 human days"
+          "text": "0 agent passes · 1.1 to 1.2 human days"
         },
         {
           "label": "Copies",
@@ -1792,6 +1816,8 @@
       "rebuild": {
         "agent_passes": 0,
         "human_days": 0.2,
+        "human_days_low": 0.2,
+        "human_days_high": 0.2,
         "human_time": "1 day",
         "human_short": "1 d",
         "rebuild_tokens": 347,
@@ -1880,7 +1906,7 @@
   "glossary": [
     {
       "term": "Rebuild cost",
-      "text": "How long it would take to rewrite the package from its tests. Shown as one engineer's working time, and as agent sittings: how many times an AI agent would have to start over with a fresh context window. One sitting means it fits in one go; over three means the package has to be split before anyone can rebuild it. The sittings are measured on agent rebuilds and lead; packages are ranked by how often they changed times their agent passes, then by engineer time. Engineer time is a textbook figure, not a measurement: COCOMO II, rebuild profile, 2.381 person-months per thousand lines to the power 1.053 before each package's complexity rating, 19 working days a month, inflated by up to half where exports have no tests, summed over the packages. The agent sittings were measured on 85 rebuilds. The ratings under rebuild.cocomo in the configuration set the engineer time."
+      "text": "How long it would take to rewrite the package from its tests. Shown as a range of one engineer's working time, and as agent sittings: how many times an AI agent would have to start over with a fresh context window. One sitting means it fits in one go; over three means the package has to be split before anyone can rebuild it. The sittings are measured on agent rebuilds and lead; packages are ranked by how often they changed times their agent passes, then by the low end of the engineer time. Engineer time is a range from two textbook models, not a measurement: for each package, the low end is the lower and the high end the higher of COCOMO 81 (2.4 person-months per thousand lines to the power 1.05) and COCOMO II, rebuild profile (2.381 person-months per thousand lines to the power 1.053, before the package's complexity rating), at 19 working days a month, on lines inflated by COCOMO II's software understanding, 20% to 100% under unfm completely_unfamiliar, from each package's tests, structure and doc comments, summed over the packages. The JSON field human_days is the configured model's, COCOMO II, rebuild profile. The agent sittings were measured on 85 rebuilds. The ratings under rebuild.cocomo in the configuration set the COCOMO II, rebuild profile figure, and rebuild.cocomo_a scales the COCOMO 81 one."
     },
     {
       "term": "Split",

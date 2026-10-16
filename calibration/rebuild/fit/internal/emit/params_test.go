@@ -12,7 +12,7 @@ import (
 func TestFromFit(t *testing.T) {
 	def := score.RebuildParams{ContextBudget: 25000, TokensPerExport: 40, TokensPerUntestedExport: 800,
 		TokensPerHiddenState: 400, SuperlinearExponent: 1.3, CocomoA: 2.4, CocomoB: 1.05, DaysPerMonth: 19,
-		Tiers: score.Tiers{OnePassMax: 1, FewPassesMax: 3}}
+		Tiers: score.Tiers{OnePassMax: 1, FewPassesMax: 3}, Cocomo: score.Cocomo{UNFM: "completely_unfamiliar"}}
 	fitted := func(mut func(*model.FormFit)) *model.FormFit {
 		ff := &model.FormFit{Params: model.Params{Overhead: 1, Scale: 2, Budget: 30000, PerExport: 61.4,
 			PerUntested: 523.7, PerHidden: 0.347, Exponent: 1.456}, Fixed: map[string]string{}}

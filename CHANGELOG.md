@@ -453,6 +453,28 @@ history.
 
 ### Changed
 
+- Engineer time is a range. Until human rebuild time is measured no
+  single figure is honest, so each package carries the lower and the
+  higher of COCOMO 81 and COCOMO II under the rebuild profile, on the same
+  size, as `human_days_low` and `human_days_high` beside `human_days`,
+  which stays the configured model's figure (the JSON change is additive;
+  `rank --json` and the MCP tools carry both). Over this repository the
+  profile comes to 1.10 times COCOMO 81, so neither model is always the
+  low end. The report prints the range in one unit, the high end's, once
+  when both ends round the same: the counts line reads "10 to 11
+  engineer-years for one engineer", and Start here, Every package, the
+  Markdown, the HTML stickers, bubbles, tooltips and details, the `assess`
+  line ("1.1 to 1.2 human days ... from COCOMO II, rebuild profile to
+  COCOMO 81") and the `rank` DAYS column ("1.1-1.2") change with it. The
+  scatter's days and the hotspot tie-break use the low end; `rank --sort
+  days` still orders by `human_days`. `check` output is unchanged. The labels saying where the engineer
+  time comes from name both models and their numbers, and the long one
+  now describes the software-understanding inflation under the configured
+  `rebuild.cocomo.unfm` in place of "inflated by up to half where exports
+  have no tests", which was no longer true. An empty
+  `rebuild.cocomo.unfm` is now a configuration error, like any unknown
+  rating, where it was read as `completely_unfamiliar`.
+
 - Engineer time inflates the code to rebuild by COCOMO II's software
   understanding, `1 + 0.02 × SU × UNFM`, in place of the guessed
   `1 + 0.5 × untested_ratio`, under both `cocomo-ii` and `basic-81`. SU

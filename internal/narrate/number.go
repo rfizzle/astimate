@@ -30,3 +30,13 @@ func Num(v float64) string {
 	}
 	return b.String()
 }
+
+// NumRange writes the range low to high as Num writes each end, "3.2 to
+// 4.1", and once when both ends write the same.
+func NumRange(low, high float64) string {
+	lo, hi := Num(low), Num(high)
+	if lo == hi {
+		return hi
+	}
+	return lo + " to " + hi
+}

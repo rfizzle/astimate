@@ -39,8 +39,13 @@ type Row struct {
 	Path string `json:"path"`
 	// AgentPasses is score.Rebuild.AgentPassesRounded.
 	AgentPasses float64 `json:"agent_passes"`
-	// HumanDays is the human estimate rounded to one decimal.
+	// HumanDays is the human estimate under the configured model, rounded
+	// to one decimal.
 	HumanDays float64 `json:"human_days"`
+	// HumanDaysLow and HumanDaysHigh are the lower and the higher of the
+	// two models' estimates, each rounded to one decimal.
+	HumanDaysLow  float64 `json:"human_days_low"`
+	HumanDaysHigh float64 `json:"human_days_high"`
 	// Tier is the tier of the unrounded agent_passes.
 	Tier score.Tier `json:"tier"`
 	// FanIn is the package's fan_in metric.
@@ -64,6 +69,8 @@ func NewRow(path string, m *metrics.RawMetrics, p score.RebuildParams) Row {
 		Path:           path,
 		AgentPasses:    est.AgentPassesRounded(),
 		HumanDays:      math.Round(est.HumanDays*10) / 10,
+		HumanDaysLow:   math.Round(est.HumanDaysLow*10) / 10,
+		HumanDaysHigh:  math.Round(est.HumanDaysHigh*10) / 10,
 		Tier:           score.TierOf(est.AgentPasses, p.Tiers),
 		FanIn:          m.FanIn,
 		TokensEst:      m.TokensEst,
@@ -81,7 +88,7 @@ func SortKeys() []string {
 // Hotspot returns churn_commits times agent_passes, to one decimal: how
 // much of the measured rebuild effort sits in code that keeps changing. It
 // is 0 when churn was not measured; the report's "Start here" order and
-// SortHotspot rank by it, then by human_days.
+// SortHotspot rank by it, then by human_days_low.
 func Hotspot(churn *int, passes float64) float64 {
 	if churn == nil {
 		return 0
@@ -124,8 +131,9 @@ func SortRows(rows []Row, key string) error {
 		}
 		if key == SortHotspot {
 			// A package without churn, or in no pass, has no hotspot
-			// score: the human time orders those, so the order is total.
-			if c := cmp.Compare(b.HumanDays, a.HumanDays); c != 0 {
+			// score: the human time's low end orders those, so the order
+			// is total.
+			if c := cmp.Compare(b.HumanDaysLow, a.HumanDaysLow); c != 0 {
 				return c
 			}
 		}
@@ -171,7 +179,7 @@ func WriteRowsTable(w io.Writer, rows []Row) error {
 		cells = append(cells, []string{
 			r.Path,
 			strconv.FormatFloat(r.AgentPasses, 'f', 1, 64),
-			strconv.FormatFloat(r.HumanDays, 'f', 1, 64),
+			daysText(r),
 			string(r.Tier),
 			strconv.Itoa(r.FanIn),
 			strconv.Itoa(r.TokensEst),
@@ -212,6 +220,13 @@ func WriteRowsTable(w io.Writer, rows []Row) error {
 		return fmt.Errorf("writing table ranking: %w", err)
 	}
 	return nil
+}
+
+// daysText is the DAYS cell, the human range to one decimal, "3.1-4.2",
+// once when both ends round the same.
+func daysText(r *Row) string {
+	ends := []string{strconv.FormatFloat(r.HumanDaysLow, 'f', 1, 64), strconv.FormatFloat(r.HumanDaysHigh, 'f', 1, 64)}
+	return strings.Join(slices.Compact(ends), "-")
 }
 
 // churnText is the CHURN cell, "-" when not measured.

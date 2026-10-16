@@ -19,13 +19,10 @@ func unfmTable() [6]float64 {
 	return [6]float64{0, 0.2, 0.4, 0.6, 0.8, 1}
 }
 
-// unfm returns the value of the unfamiliarity rating name, 1.0
-// (completely_unfamiliar) for the empty name, and false for a name UnfmKeys
-// lacks.
+// unfm returns the value of the unfamiliarity rating name, and false for a
+// name UnfmKeys lacks, the empty name among them: the configuration always
+// names one.
 func unfm(name string) (float64, bool) {
-	if name == "" {
-		return 1, true
-	}
 	i := slices.Index(UnfmKeys(), name)
 	if i < 0 {
 		return 0, false

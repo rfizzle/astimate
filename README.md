@@ -87,7 +87,7 @@ The samples below are the real output for the fixture modules under `testdata/`,
 ```
 $ astimate assess testdata/go/fixture/dupes
 package: dupes (example.com/fixture)
-rebuild: 0.0 agent passes, 0.8 human days (estimate from calibrated parameters; human days by COCOMO II, rebuild profile)
+rebuild: 0.0 agent passes, 0.8 human days (estimate from calibrated parameters; human days by COCOMO 81 and COCOMO II, rebuild profile alike)
 tier: ONE_PASS
 
 drivers:
@@ -133,6 +133,8 @@ $ astimate assess testdata/go/fixture/dupes --json | head -25
     "agent_passes": 0,
     "rebuild_tokens": 1053,
     "human_days": 0.8,
+    "human_days_low": 0.8,
+    "human_days_high": 0.8,
     "tier": "ONE_PASS",
     "calibrated": true,
     "drivers": [
@@ -147,33 +149,31 @@ $ astimate assess testdata/go/fixture/dupes --json | head -25
         "detail": "tokens_est=506 duplication_pct=80.6"
       }
     ]
-  },
-  "suggestions": [
 ...
 ```
 <!-- /sample:assess-json -->
 
 ### rank
 
-`astimate rank [<module-root>]` ranks every package of the module containing the directory (default the current one) by rebuild effort, largest first. `--sort passes|days|fan_in|tokens|duplication|churn|hotspot` changes the key (`hotspot` is churn times passes, the order the report starts with), `--top N` keeps the first N rows and `--json` prints an array. `CHURN` is the package's `churn_commits`, `-` outside a git repository: a package high on both `PASSES` and `CHURN` is the one to split first, since it is both hard to rebuild and where the next change most likely lands. Churn moves neither the estimate nor the tier. Each row names the package's role: `main` for a composition root (a Go `package main`, or a TypeScript package a `bin` entry names or that exports nothing), `test-support` for a package only tests use, `generated-only`, or `library`. `DAYS` is COCOMO II under the rebuild profile, not a measurement, and the ratings under `rebuild.cocomo` set it; `PASSES` is measured on agent rebuilds.
+`astimate rank [<module-root>]` ranks every package of the module containing the directory (default the current one) by rebuild effort, largest first. `--sort passes|days|fan_in|tokens|duplication|churn|hotspot` changes the key (`hotspot` is churn times passes, the order the report starts with), `--top N` keeps the first N rows and `--json` prints an array. `CHURN` is the package's `churn_commits`, `-` outside a git repository: a package high on both `PASSES` and `CHURN` is the one to split first, since it is both hard to rebuild and where the next change most likely lands. Churn moves neither the estimate nor the tier. Each row names the package's role: `main` for a composition root (a Go `package main`, or a TypeScript package a `bin` entry names or that exports nothing), `test-support` for a package only tests use, `generated-only`, or `library`. `DAYS` is a range, not a measurement: from the lower to the higher of COCOMO 81 and COCOMO II under the rebuild profile, one figure when both round the same (`--sort days` still orders by `human_days`, and `--json` gives `human_days_low` and `human_days_high` beside `human_days`, the configured model's); `PASSES` is measured on agent rebuilds.
 
 <!-- sample:rank -->
 ```
 $ astimate rank testdata/go/fixture
-PATH      PASSES  DAYS  TIER      FAN_IN  TOKENS  DUP%  CHURN  ROLE
-a            0.0   1.3  ONE_PASS       0     159   0.0      -  library
-b            0.0   1.3  ONE_PASS       0     179   0.0      -  library
-consumer     0.0   0.1  ONE_PASS       0      45   0.0      -  library
-dupes        0.0   0.8  ONE_PASS       0     506  80.6      -  library
-errs         0.0   0.2  ONE_PASS       0     178   0.0      -  library
-hidden       0.0   2.0  ONE_PASS       0     226   0.0      -  library
-hub          0.0   1.1  ONE_PASS       4     177   0.0      -  library
-immut        0.0   1.4  ONE_PASS       0     344   0.0      -  library
-sibling      0.0   0.1  ONE_PASS       0      82   0.0      -  test-support
-support      0.0   0.2  ONE_PASS       0      85   0.0      -  test-support
-tested       0.0   1.1  ONE_PASS       0     237   0.0      -  library
-trivial      0.0   0.2  ONE_PASS       0      47   0.0      -  library
-DAYS: one engineer's working days by COCOMO II, rebuild profile, not measured (SPEC.md 7.3). PASSES: measured on agent rebuilds.
+PATH      PASSES     DAYS  TIER      FAN_IN  TOKENS  DUP%  CHURN  ROLE
+a            0.0  1.3-1.4  ONE_PASS       0     159   0.0      -  library
+b            0.0  1.3-1.4  ONE_PASS       0     179   0.0      -  library
+consumer     0.0      0.1  ONE_PASS       0      45   0.0      -  library
+dupes        0.0      0.8  ONE_PASS       0     506  80.6      -  library
+errs         0.0  0.2-0.3  ONE_PASS       0     178   0.0      -  library
+hidden       0.0      2.0  ONE_PASS       0     226   0.0      -  library
+hub          0.0  1.1-1.2  ONE_PASS       4     177   0.0      -  library
+immut        0.0  1.4-1.7  ONE_PASS       0     344   0.0      -  library
+sibling      0.0      0.1  ONE_PASS       0      82   0.0      -  test-support
+support      0.0  0.2-0.3  ONE_PASS       0      85   0.0      -  test-support
+tested       0.0  1.1-1.2  ONE_PASS       0     237   0.0      -  library
+trivial      0.0      0.2  ONE_PASS       0      47   0.0      -  library
+DAYS: one engineer's working days, the lower to the higher of COCOMO 81 and COCOMO II, not measured (SPEC.md 7.3). PASSES: measured on agent rebuilds.
 ```
 <!-- /sample:rank -->
 
@@ -182,22 +182,22 @@ A TypeScript module ranks the same way; the language is detected from the module
 <!-- sample:rank-ts -->
 ```
 $ astimate rank testdata/ts/fixture
-PATH     PASSES  DAYS  TIER      FAN_IN  TOKENS  DUP%  CHURN  ROLE
-a           0.0   0.2  ONE_PASS       0      48   0.0      -  library
-b           0.0   1.1  ONE_PASS       0     344   0.0      -  library
-covered     0.0   0.2  ONE_PASS       0      81   0.0      -  library
-dupes       0.0   0.7  ONE_PASS       0     527  81.8      -  library
-hidden      0.0   1.9  ONE_PASS       0     210   0.0      -  library
-hub         0.0   1.7  ONE_PASS       4     232   0.0      -  library
-tested      0.0   1.1  ONE_PASS       0     216   0.0      -  library
-trivial     0.0   0.9  ONE_PASS       1     214   0.0      -  library
-DAYS: one engineer's working days by COCOMO II, rebuild profile, not measured (SPEC.md 7.3). PASSES: measured on agent rebuilds.
+PATH     PASSES     DAYS  TIER      FAN_IN  TOKENS  DUP%  CHURN  ROLE
+a           0.0      0.2  ONE_PASS       0      48   0.0      -  library
+b           0.0  1.1-1.5  ONE_PASS       0     344   0.0      -  library
+covered     0.0  0.2-0.3  ONE_PASS       0      81   0.0      -  library
+dupes       0.0      0.7  ONE_PASS       0     527  81.8      -  library
+hidden      0.0  1.6-1.9  ONE_PASS       0     210   0.0      -  library
+hub         0.0  1.7-1.9  ONE_PASS       4     232   0.0      -  library
+tested      0.0  1.1-1.3  ONE_PASS       0     216   0.0      -  library
+trivial     0.0  0.9-1.2  ONE_PASS       1     214   0.0      -  library
+DAYS: one engineer's working days, the lower to the higher of COCOMO 81 and COCOMO II, not measured (SPEC.md 7.3). PASSES: measured on agent rebuilds.
 ```
 <!-- /sample:rank-ts -->
 
 ### report
 
-`astimate report [<module-root>]` describes the module in plain words (`SPEC.md` section 10.3): a verdict sentence, the packages counted as Split (over two limits, or past what one agent pass can hold), Watch (over one limit, needing a few passes, or a quarter copied) and Fine, "Start here" with up to three split or watch packages that change most often times the agent passes they need to rebuild (then by engineer time, which alone orders them without change history), each with what is wrong and what to do, and "Every package", the first ten in that order (`--all` lists every one). The counts line leads with the sittings an AI agent needs, measured on rebuilds, and gives the engineer time after it. `--base <ref>` adds the change report `check` prints. `--format json` prints the data, `--format md` the Markdown and `--format html` writes the page; the text, the default, follows the terminal's width (100 columns in a pipe) and is coloured only on a terminal without `NO_COLOR` (`--color always|never` overrides). It reports and does not gate: it exits 0 whatever the change's verdict. The engineer time it shows is COCOMO II under the rebuild profile, not a measurement, and the ratings under `rebuild.cocomo` set it; the report says so under its headline.
+`astimate report [<module-root>]` describes the module in plain words (`SPEC.md` section 10.3): a verdict sentence, the packages counted as Split (over two limits, or past what one agent pass can hold), Watch (over one limit, needing a few passes, or a quarter copied) and Fine, "Start here" with up to three split or watch packages that change most often times the agent passes they need to rebuild (then by the low end of the engineer time, which alone orders them without change history), each with what is wrong and what to do, and "Every package", the first ten in that order (`--all` lists every one). The counts line leads with the sittings an AI agent needs, measured on rebuilds, and gives the engineer time after it. `--base <ref>` adds the change report `check` prints. `--format json` prints the data, `--format md` the Markdown and `--format html` writes the page; the text, the default, follows the terminal's width (100 columns in a pipe) and is coloured only on a terminal without `NO_COLOR` (`--color always|never` overrides). It reports and does not gate: it exits 0 whatever the change's verdict. The engineer time it shows is a range, "10 to 11 engineer-years", not a measurement: per package from the lower to the higher of COCOMO 81 and COCOMO II under the rebuild profile, in one unit and once when both ends round the same; the report says so under its headline.
 
 ### baseline write
 
@@ -259,7 +259,7 @@ Density rules measure how the code is written (duplicate blocks, untested export
 
 `astimate report [<module-root>] --format html` writes the module report as one page, `astimate-report.html` in the working directory or the file `--out` names, and prints the path it wrote; `--open` also opens it in the default browser (`xdg-open`, `open` or `rundll32`), never by default. With `--base <ref>` the page gains a "This change" tab.
 
-The Repository tab leads with the headline and a ring of the packages that are fine, to watch or in need of a split, then "Start here": up to three split or watch packages where a split pays back soonest, ranked by how often they change times the agent passes they need to rebuild, then by engineer time. A map draws every package as a bubble, bigger for more code and coloured by band, or, under "Hot vs costly", as a scatter of changes against rebuild days. Below it every package is in a table, in the Start here order, that sorts, filters by band and searches by path; a row, or a bubble, opens the package's story with its rebuild cost, copied code (with the longest repeats), the functions that are hard to follow, its five limit meters and its facts. A glossary ends the tab. The "This change" tab gives the verdict, each failing package with what moved against what one change may add, why the gate cares and where to open, then the heads-ups and the packages that passed.
+The Repository tab leads with the headline and a ring of the packages that are fine, to watch or in need of a split, then "Start here": up to three split or watch packages where a split pays back soonest, ranked by how often they change times the agent passes they need to rebuild, then by the low end of the engineer time. A map draws every package as a bubble, bigger for more code and coloured by band, or, under "Hot vs costly", as a scatter of changes against rebuild days (the low end). Below it every package is in a table, in the Start here order, that sorts, filters by band and searches by path; a row, or a bubble, opens the package's story with its rebuild cost, copied code (with the longest repeats), the functions that are hard to follow, its five limit meters and its facts. A glossary ends the tab. The "This change" tab gives the verdict, each failing package with what moved against what one change may add, why the gate cares and where to open, then the heads-ups and the packages that passed.
 
 The page loads nothing: the fonts (latin subsets of Bricolage Grotesque, DM Sans and JetBrains Mono, under the SIL Open Font License) are embedded, the charts are laid out in Go and written as SVG, and the little script only switches tabs, sorts, filters, opens rows and shows tooltips. It follows the system's light or dark setting and stays under 1 MB for a 60-package module. A screenshot is not checked in yet; the design it follows is in [`docs/design/report-design-2026-10-14.md`](docs/design/report-design-2026-10-14.md), and `astimate report testdata/go/fixture --format html` writes the page.
 
@@ -319,16 +319,19 @@ date: <date>
 
 ### Where the numbers come from
 
-The agent passes are fitted on 85 measured Claude Code rebuilds ([the report](calibration/reports/rebuild-2026-09-28-claude-code-opus.md)). The human days are not measured. They are COCOMO II's post-architecture form with its published constants, under a profile rated for a rebuild from existing tests, never calibrated:
+The agent passes are fitted on 85 measured Claude Code rebuilds ([the report](calibration/reports/rebuild-2026-09-28-claude-code-opus.md)). The human days are not measured, so no single figure is honest: every surface prints a range between two textbook models, never calibrated, on the same size. One is COCOMO II's post-architecture form with its published constants, under a profile rated for a rebuild from existing tests; the other is COCOMO 81 basic organic mode, the model `scc` uses:
 
 ```
-kloc_eff      = non-duplicated lines / 1000, up to 50% more for untested exports
+kloc_eff      = non-duplicated lines / 1000 × (1 + 0.02 × SU × UNFM), 1.2 to 2.0 as shipped
 E             = 0.91 + 0.01 × Σ scale factors        = 1.0528 for the profile
-person_months = 2.94 × Π multipliers × kloc_eff^E    = 2.3814 × CPLX × kloc_eff^1.0528
-human_days    = person_months × 19
+COCOMO II     = 2.94 × Π multipliers × kloc_eff^E    = 2.3814 × CPLX × kloc_eff^1.0528
+COCOMO 81     = 2.4 × kloc_eff^1.05
+human_days    = person_months × 19, from the lower model to the higher per package
 ```
 
-The profile rates the behaviour as known (precedentedness very high), the result as fixed by the tests (flexibility very low), the signatures and package boundaries as settled (architecture and risk resolution extra high) and documentation as nothing to write (very low); team, process and every other multiplier are nominal, because the code cannot know them. One multiplier comes from each package: complexity (`CPLX`) from `cognitive_p90`. Required reliability (`RELY`) stays nominal, because the tests are the specification of a rebuild, not a reliability requirement, so adding tests never raises the figure. A package of ordinary complexity comes to roughly 45 working days per thousand lines, summed over the packages. The ratings sit by name under `rebuild.cocomo:` in `astimate.yaml`, each with its reason in [the note](calibration/notes/cocomo-ii-rebuild-2026-10.md); `rebuild.cocomo.model: basic-81` switches back to COCOMO 81 basic organic mode (`2.4 × kloc_eff^1.05`, `cocomo_a` and `cocomo_b`), and `days_per_month` applies to both.
+`SU` is COCOMO II's software understanding, 10 to 50 from each package's tests, structure and doc comments, and `UNFM` the unfamiliarity under `rebuild.cocomo.unfm` (shipped `completely_unfamiliar`, 1.0). Which model is lower depends on the package: over this repository the profile comes to 1.10 times COCOMO 81. The JSON keeps `human_days`, the configured model's figure (`rebuild.cocomo.model`, COCOMO II by default), and adds `human_days_low` and `human_days_high`.
+
+The profile rates the behaviour as known (precedentedness very high), the result as fixed by the tests (flexibility very low), the signatures and package boundaries as settled (architecture and risk resolution extra high) and documentation as nothing to write (very low); team, process and every other multiplier are nominal, because the code cannot know them. One multiplier comes from each package: complexity (`CPLX`) from `cognitive_p90`. Required reliability (`RELY`) stays nominal, because the tests are the specification of a rebuild, not a reliability requirement, so adding tests never raises the figure. A package of ordinary complexity comes to roughly 45 working days per thousand lines, summed over the packages. The ratings sit by name under `rebuild.cocomo:` in `astimate.yaml`, each with its reason in [the note](calibration/notes/cocomo-ii-rebuild-2026-10.md); `rebuild.cocomo.model: basic-81` makes COCOMO 81 basic organic mode (`cocomo_a` and `cocomo_b`) the `human_days` figure instead, which leaves the range as it is, and `days_per_month` applies to both.
 
 ## Before you turn it on
 

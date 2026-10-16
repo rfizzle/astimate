@@ -76,17 +76,24 @@ type Rebuild struct {
 	AgentPasses float64 `json:"agent_passes"`
 	// RebuildTokens is rebuild_tokens rounded to an integer.
 	RebuildTokens int `json:"rebuild_tokens"`
-	// HumanDays is the human estimate rounded to one decimal.
+	// HumanDays is the human estimate under the configured model, rounded
+	// to one decimal.
 	HumanDays float64 `json:"human_days"`
+	// HumanDaysLow and HumanDaysHigh are the lower and the higher of the
+	// two models' estimates (score.Rebuild), each rounded to one decimal.
+	HumanDaysLow  float64 `json:"human_days_low"`
+	HumanDaysHigh float64 `json:"human_days_high"`
 	// Tier is the tier of the unrounded agent_passes.
 	Tier score.Tier `json:"tier"`
 	// Calibrated reports whether the rebuild parameters were measured by the
 	// rebuild experiments of SPEC.md 11.2. It says nothing about the gate
 	// thresholds, which are calibrated separately (SPEC.md 11.1).
 	Calibrated bool `json:"calibrated"`
-	// HumanModel names the model of HumanDays (score.Cocomo.Name) for the
-	// text report; it is not part of the JSON report.
-	HumanModel string `json:"-"`
+	// HumanLowModel and HumanHighModel name the models of HumanDaysLow
+	// and HumanDaysHigh (score.ModelName) for the text report; they are
+	// not part of the JSON report.
+	HumanLowModel  string `json:"-"`
+	HumanHighModel string `json:"-"`
 	// Drivers are the largest terms of rebuild_tokens; never null.
 	Drivers []Driver `json:"drivers"`
 }
@@ -221,13 +228,16 @@ func Build(in *Input) Report {
 		ModulePath:  in.ModulePath,
 		Role:        in.Metrics.Role,
 		Rebuild: Rebuild{
-			AgentPasses:   est.AgentPassesRounded(),
-			RebuildTokens: roundInt(est.RebuildTokens),
-			HumanDays:     round1(est.HumanDays),
-			Tier:          score.TierOf(est.AgentPasses, in.Params.Tiers),
-			Calibrated:    score.Calibrated(in.ConfigVersion),
-			HumanModel:    in.Params.Cocomo.Name(),
-			Drivers:       drivers,
+			AgentPasses:    est.AgentPassesRounded(),
+			RebuildTokens:  roundInt(est.RebuildTokens),
+			HumanDays:      round1(est.HumanDays),
+			HumanDaysLow:   round1(est.HumanDaysLow),
+			HumanDaysHigh:  round1(est.HumanDaysHigh),
+			Tier:           score.TierOf(est.AgentPasses, in.Params.Tiers),
+			Calibrated:     score.Calibrated(in.ConfigVersion),
+			HumanLowModel:  est.HumanLowModel,
+			HumanHighModel: est.HumanHighModel,
+			Drivers:        drivers,
 		},
 		Suggestions:     suggestions,
 		Metrics:         in.Metrics,

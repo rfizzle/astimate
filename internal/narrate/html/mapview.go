@@ -78,8 +78,8 @@ type point struct {
 	Tip     string
 }
 
-// newScatter places every row by churn on a linear x and rebuild days on
-// a square-root y, sized by the square root of its tokens, and labels the
+// newScatter places every row by churn on a linear x and rebuild days, the
+// low end of the range, on a square-root y, sized by the square root of its tokens, and labels the
 // hottest rows. window is the churn window for the x title.
 func newScatter(rows []row, hot []*row, window int) scatter {
 	maxChurn, maxDays, maxTokens := 0.0, 0.0, 0.0

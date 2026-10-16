@@ -18,7 +18,7 @@ func validParams() RebuildParams {
 		CocomoA:                 2.4,
 		CocomoB:                 1.05,
 		DaysPerMonth:            19,
-		Cocomo:                  Cocomo{Model: ModelBasic81},
+		Cocomo:                  Cocomo{Model: ModelBasic81, UNFM: "completely_unfamiliar"},
 	}
 	p.Tiers.OnePassMax = 1
 	p.Tiers.FewPassesMax = 3

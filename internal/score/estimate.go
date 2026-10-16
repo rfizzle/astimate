@@ -40,6 +40,14 @@ type Rebuild struct {
 	// HumanDays is the human estimate in working days under the configured
 	// COCOMO model (SPEC.md 7.3).
 	HumanDays float64
+	// HumanDaysLow and HumanDaysHigh are the lower and the higher of the
+	// two models' estimates, COCOMO 81 and COCOMO II under the rebuild
+	// profile, on the same kloc_eff: the range the reports print, since
+	// no single figure is measured.
+	HumanDaysLow, HumanDaysHigh float64
+	// HumanLowModel and HumanHighModel name the model of each end, as
+	// ModelName does.
+	HumanLowModel, HumanHighModel string
 	// Terms holds the five rebuild_tokens terms in the fixed order volume,
 	// spec, contract, unspecified, hidden.
 	Terms []Term
@@ -84,13 +92,9 @@ func Estimate(m metrics.RawMetrics, cfg RebuildParams) Rebuild {
 		passes = math.Pow(ratio, cfg.SuperlinearExponent)
 	}
 
-	return Rebuild{
-		RebuildTokens: total,
-		Ratio:         ratio,
-		AgentPasses:   passes,
-		HumanDays:     humanDays(&m, cfg, keep),
-		Terms:         terms,
-	}
+	r := Rebuild{RebuildTokens: total, Ratio: ratio, AgentPasses: passes, Terms: terms}
+	r.setHuman(&m, cfg, keep)
+	return r
 }
 
 // unspecifiedTerm returns the unspecified-behavior term of SPEC.md 7.2 and
@@ -109,11 +113,19 @@ func unspecifiedTerm(m *metrics.RawMetrics, cfg RebuildParams) (tokens float64, 
 	return tokens * (1 - pct/100), detail + " coverage_pct=" + strconv.FormatFloat(pct, 'g', -1, 64)
 }
 
-// humanDays is SPEC.md 7.3 under the configured model: COCOMO II with
-// the rebuild profile, or COCOMO 81 basic organic mode.
-func humanDays(m *metrics.RawMetrics, cfg RebuildParams, keep float64) float64 {
+// setHuman sets the human estimate of SPEC.md 7.3: HumanDays under the
+// configured model, COCOMO II with the rebuild profile or COCOMO 81 basic
+// organic mode, and the range from the lower of the two to the higher.
+func (r *Rebuild) setHuman(m *metrics.RawMetrics, cfg RebuildParams, keep float64) {
+	b81, ii := HumanDaysBasic81(m, cfg, keep), HumanDaysCOCOMOII(m, cfg, keep)
+	r.HumanDays = ii
 	if cfg.Cocomo.Model == ModelBasic81 {
-		return HumanDaysBasic81(m, cfg, keep)
+		r.HumanDays = b81
 	}
-	return HumanDaysCOCOMOII(m, cfg, keep)
+	r.HumanDaysLow, r.HumanLowModel = b81, ModelName(ModelBasic81)
+	r.HumanDaysHigh, r.HumanHighModel = ii, ModelName(ModelCOCOMOII)
+	if ii < b81 {
+		r.HumanDaysLow, r.HumanDaysHigh = r.HumanDaysHigh, r.HumanDaysLow
+		r.HumanLowModel, r.HumanHighModel = r.HumanHighModel, r.HumanLowModel
+	}
 }

@@ -142,14 +142,13 @@ func TestUnfm(t *testing.T) {
 			t.Errorf("unfm(%q) = %v, %v; want %v", k, got, ok, want[i])
 		}
 	}
-	if got, ok := unfm(""); !ok || got != 1 {
-		t.Errorf("unfm(\"\") = %v, %v; want 1, completely unfamiliar", got, ok)
-	}
-	if _, ok := unfm("unfamiliar"); ok {
-		t.Error("unfm accepted an unknown rating")
-	}
-	if err := (Cocomo{UNFM: "unfamiliar"}).validate(); err == nil {
-		t.Error("validate accepted an unknown unfm")
+	for _, name := range []string{"", "unfamiliar"} {
+		if _, ok := unfm(name); ok {
+			t.Errorf("unfm accepted the unknown rating %q", name)
+		}
+		if err := (Cocomo{UNFM: name}).validate(); err == nil {
+			t.Errorf("validate accepted the unknown unfm %q", name)
+		}
 	}
 }
 

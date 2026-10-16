@@ -33,9 +33,8 @@ func WriteTable(w io.Writer, r *Report) error {
 	} else {
 		_, _ = fmt.Fprintf(bw, "package: %s (%s)\n", r.PackagePath, r.ModulePath)
 	}
-	_, _ = fmt.Fprintf(bw, "rebuild: %s agent passes, %s human days (%s; human days by %s)\n",
-		strconv.FormatFloat(r.Rebuild.AgentPasses, 'f', 1, 64),
-		strconv.FormatFloat(r.Rebuild.HumanDays, 'f', 1, 64), label, cmp.Or(r.Rebuild.HumanModel, "COCOMO"))
+	_, _ = fmt.Fprintf(bw, "rebuild: %s agent passes, %s (%s; %s)\n",
+		strconv.FormatFloat(r.Rebuild.AgentPasses, 'f', 1, 64), humanDays(&r.Rebuild), label, humanModels(&r.Rebuild))
 	_, _ = fmt.Fprintf(bw, "tier: %s\n", r.Rebuild.Tier)
 
 	_, _ = bw.WriteString("\ndrivers:\n")
@@ -66,6 +65,29 @@ func WriteTable(w io.Writer, r *Report) error {
 		return fmt.Errorf("writing table report: %w", err)
 	}
 	return nil
+}
+
+// humanDays is r's human range in days to one decimal, "3.1 to 4.2 human
+// days", once when both ends round the same.
+func humanDays(r *Rebuild) string {
+	lo, hi := strconv.FormatFloat(r.HumanDaysLow, 'f', 1, 64), strconv.FormatFloat(r.HumanDaysHigh, 'f', 1, 64)
+	if lo == hi {
+		return hi + " human days"
+	}
+	return lo + " to " + hi + " human days"
+}
+
+// humanModels names the models of r's human range, low end first, or
+// both in name order when its ends agree.
+func humanModels(r *Rebuild) string {
+	lo, hi := cmp.Or(r.HumanLowModel, "COCOMO"), cmp.Or(r.HumanHighModel, "COCOMO")
+	if r.HumanDaysLow == r.HumanDaysHigh {
+		if lo > hi {
+			lo, hi = hi, lo
+		}
+		return "human days by " + lo + " and " + hi + " alike"
+	}
+	return "human days from " + lo + " to " + hi
 }
 
 // writeMetrics writes the computed metrics as aligned name/value pairs,

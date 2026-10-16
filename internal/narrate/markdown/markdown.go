@@ -139,7 +139,7 @@ func repository(b *strings.Builder, m *narrate.Module) {
 	if len(start) > 0 {
 		b.WriteString("\n### Start here\n")
 		for i, p := range start {
-			b.WriteString("\n" + strconv.Itoa(i+1) + ". " + code(p.Path) + " (" + p.Band + "): " + p.Rebuild.SittingsText + ", " + p.Rebuild.HumanShort + " of one engineer's time")
+			b.WriteString("\n" + strconv.Itoa(i+1) + ". " + code(p.Path) + " (" + p.Band + "): " + p.Rebuild.SittingsText + ", " + p.Rebuild.HumanShort + " for one engineer")
 			if p.Churn != nil {
 				b.WriteString(", " + count(p.Churn.Commits, "change", "changes"))
 			}

@@ -137,6 +137,7 @@ func TestChunks(t *testing.T) {
 func TestHuman(t *testing.T) {
 	t.Parallel()
 
+	// One figure, both ends equal, at each unit boundary.
 	tests := []struct {
 		days        float64
 		long, short string
@@ -153,12 +154,47 @@ func TestHuman(t *testing.T) {
 		{550, "3 engineer-years", "2.5 yr"},
 	}
 	for _, tt := range tests {
-		if got := human(tt.days); got != tt.long {
-			t.Errorf("human(%v) = %q, want %q", tt.days, got, tt.long)
+		if got := human(tt.days, tt.days); got != tt.long {
+			t.Errorf("human(%v, %v) = %q, want %q", tt.days, tt.days, got, tt.long)
 		}
-		if got := humanShort(tt.days); got != tt.short {
-			t.Errorf("humanShort(%v) = %q, want %q", tt.days, got, tt.short)
+		if got := humanShort(tt.days, tt.days); got != tt.short {
+			t.Errorf("humanShort(%v, %v) = %q, want %q", tt.days, tt.days, got, tt.short)
 		}
+	}
+}
+
+// TestHumanRange checks the range phrase: one unit, the high end's, with
+// the low end in it at least 1, and one figure when both ends round the
+// same.
+func TestHumanRange(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		low, high   float64
+		long, short string
+	}{
+		{"days", 3, 4.9, "3 to 5 days", "3–5 d"},
+		{"days collapse", 4.6, 4.9, "5 days", "5 d"},
+		{"low end under a day", 0.2, 2, "1 to 2 days", "1–2 d"},
+		{"weeks from days", 3, 5, "1 week", "1 wk"},
+		{"weeks", 6, 20.9, "1 to 4 weeks", "1–4 wk"},
+		{"months from weeks", 12, 21, "1 month", "1 mo"},
+		{"months", 30, 219, "1 to 10 months", "1–10 mo"},
+		{"years from months", 150, 220, "1 engineer-year", "0.7–1 yr"},
+		{"years", 1760, 2420, "8 to 11 engineer-years", "8–11 yr"},
+		{"years collapse", 2410, 2420, "11 engineer-years", "11 yr"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := human(tt.low, tt.high); got != tt.long {
+				t.Errorf("human(%v, %v) = %q, want %q", tt.low, tt.high, got, tt.long)
+			}
+			if got := humanShort(tt.low, tt.high); got != tt.short {
+				t.Errorf("humanShort(%v, %v) = %q, want %q", tt.low, tt.high, got, tt.short)
+			}
+		})
 	}
 }
 

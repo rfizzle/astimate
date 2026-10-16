@@ -12,3 +12,22 @@ func TestNum(t *testing.T) {
 		}
 	}
 }
+
+func TestNumRange(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		low, high float64
+		want      string
+	}{
+		{328.2, 450.5, "328.2 to 450.5"},
+		{1200, 1500, "1,200 to 1,500"},
+		{2.46, 2.5, "2.5"},
+		{0, 0, "0"},
+	}
+	for _, tt := range tests {
+		if got := NumRange(tt.low, tt.high); got != tt.want {
+			t.Errorf("NumRange(%v, %v) = %q, want %q", tt.low, tt.high, got, tt.want)
+		}
+	}
+}

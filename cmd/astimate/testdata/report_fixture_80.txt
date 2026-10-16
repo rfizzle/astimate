@@ -1,11 +1,11 @@
 Fixture  example.com/fixture · thresholds-2026-10-14b
 
 Fixture has no package that needs a split.
-12 packages · 0 need more than one sitting · 2 weeks of one engineer's time
-11 fine · 1 watch · 0 split · 7 without tests
-Engineer time is COCOMO II, rebuild profile (2.381 person-months per 1,000 lines
-to the power 1.053), not a measurement; agent sittings are measured.
-rebuild.cocomo rates it.
+12 packages · 0 need more than one sitting · 2 weeks for one engineer · 11 fine
+1 watch · 0 split · 7 without tests
+Engineer time runs, per package, from the lower to the higher of COCOMO 81 and
+COCOMO II, rebuild profile; not a measurement; agent sittings are measured.
+rebuild.cocomo and rebuild.cocomo_a set it.
 
 Start here  by days to rebuild
 
@@ -16,15 +16,15 @@ Start here  by days to rebuild
 
 Every package  most changed and costly first · * is over its size limit
 
- PACKAGE       BAND      SITTINGS  TIME  LINES   CHANGES
- hidden        FINE   one sitting   2 d     32         -
- immut         FINE   one sitting   1 d     31         -
- a             FINE   one sitting   1 d     22         -
- b             FINE   one sitting   1 d     22         -
- hub           FINE   one sitting   1 d     20         -
- tested        FINE   one sitting   1 d     27         -
- dupes         WATCH  one sitting   1 d     67         -
- errs          FINE   one sitting   1 d      6         -
- support       FINE   one sitting   1 d      8         -
- trivial       FINE   one sitting   1 d      4         -
+ PACKAGE       BAND      SITTINGS   TIME  LINES   CHANGES
+ hidden        FINE   one sitting    2 d     32         -
+ immut         FINE   one sitting  1–2 d     31         -
+ a             FINE   one sitting    1 d     22         -
+ b             FINE   one sitting    1 d     22         -
+ hub           FINE   one sitting    1 d     20         -
+ tested        FINE   one sitting    1 d     27         -
+ dupes         WATCH  one sitting    1 d     67         -
+ errs          FINE   one sitting    1 d      6         -
+ support       FINE   one sitting    1 d      8         -
+ trivial       FINE   one sitting    1 d      4         -
  … 2 more · --all for every row · --format json · --format md · --format html

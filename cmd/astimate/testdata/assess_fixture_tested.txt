@@ -1,5 +1,5 @@
 package: tested (example.com/fixture)
-rebuild: 0.0 agent passes, 1.1 human days (estimate from calibrated parameters; human days by COCOMO II, rebuild profile)
+rebuild: 0.0 agent passes, 1.1 to 1.2 human days (estimate from calibrated parameters; human days from COCOMO II, rebuild profile to COCOMO 81)
 tier: ONE_PASS
 
 drivers:

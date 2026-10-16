@@ -81,7 +81,12 @@ type Counts struct {
 	MultiSitting int `json:"multi_sitting"`
 	// HumanDays is the sum of every package's human_days, rounded.
 	HumanDays float64 `json:"human_days"`
-	// HumanTime is HumanDays as one engineer's working time.
+	// HumanDaysLow and HumanDaysHigh are the sums of every package's
+	// human_days_low and human_days_high, rounded.
+	HumanDaysLow  float64 `json:"human_days_low"`
+	HumanDaysHigh float64 `json:"human_days_high"`
+	// HumanTime is HumanDaysLow to HumanDaysHigh as one engineer's working
+	// time, in one unit.
 	HumanTime string `json:"human_time"`
 	// HumanBasis says where the engineer time comes from.
 	HumanBasis string `json:"human_basis"`
@@ -91,10 +96,10 @@ type Counts struct {
 }
 
 // Hotter orders packages for "Start here" and "Every package": the higher
-// Hotspot first, then the higher HumanDays (which alone orders packages
+// Hotspot first, then the higher HumanDaysLow (which alone orders packages
 // without churn or in no agent pass), then Path, so the order is total.
 func Hotter(a, b *Package) int {
-	return cmp.Or(cmp.Compare(b.Hotspot, a.Hotspot), cmp.Compare(b.Rebuild.HumanDays, a.Rebuild.HumanDays),
+	return cmp.Or(cmp.Compare(b.Hotspot, a.Hotspot), cmp.Compare(b.Rebuild.HumanDaysLow, a.Rebuild.HumanDaysLow),
 		strings.Compare(a.Path, b.Path))
 }
 
@@ -156,11 +161,16 @@ type Ceiling struct {
 
 // Rebuild is the rebuild view.
 type Rebuild struct {
-	// AgentPasses and HumanDays are the estimate's.
+	// AgentPasses and HumanDays are the estimate's, HumanDays the
+	// configured model's figure.
 	AgentPasses float64 `json:"agent_passes"`
 	HumanDays   float64 `json:"human_days"`
-	// HumanTime is HumanDays as one engineer's working time; HumanShort
-	// the same in a table cell's units.
+	// HumanDaysLow and HumanDaysHigh are the lower and the higher of the
+	// two models' figures.
+	HumanDaysLow  float64 `json:"human_days_low"`
+	HumanDaysHigh float64 `json:"human_days_high"`
+	// HumanTime is HumanDaysLow to HumanDaysHigh as one engineer's working
+	// time, in one unit; HumanShort the same in a table cell's units.
 	HumanTime  string `json:"human_time"`
 	HumanShort string `json:"human_short"`
 	// RebuildTokens is the estimate's rebuild_tokens.

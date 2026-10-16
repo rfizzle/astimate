@@ -57,8 +57,8 @@ func runRank(args []string, stdout, stderr io.Writer) int {
 	return rankTarget(context.Background(), t, opts, *asJSON, stdout, logger)
 }
 
-// rankFooter closes the text table: it says which column is measured, %s the model.
-const rankFooter = "DAYS: one engineer's working days by %s, not measured (SPEC.md 7.3). PASSES: measured on agent rebuilds.\n"
+// rankFooter closes the text table: it says what DAYS ranges over and which column is measured.
+const rankFooter = "DAYS: one engineer's working days, the lower to the higher of COCOMO 81 and COCOMO II, not measured (SPEC.md 7.3). PASSES: measured on agent rebuilds.\n"
 
 // rankTarget ranks t's module with engine.Rank and prints the rows to
 // stdout, as a JSON array when asJSON is set and a table otherwise. It
@@ -84,7 +84,7 @@ func rankTarget(ctx context.Context, t *engine.Target, opts engine.RankOptions, 
 		if err := rows.WriteRowsTable(w, ranked); err != nil {
 			return err
 		}
-		_, err := fmt.Fprintf(w, rankFooter, t.Cfg.ForLanguage(t.Ext.Language()).Rebuild.Cocomo.Name())
+		_, err := io.WriteString(w, rankFooter)
 		return err
 	})
 }

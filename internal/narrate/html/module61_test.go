@@ -150,7 +150,8 @@ func moduleReport(t *testing.T) (*sixtyone, *narrate.Module) {
 		p := &ow.Packages[i]
 		churn, authors, code := p.Churn, p.Authors, p.DupCode
 		r := report.Report{PackagePath: p.Path, Role: p.Role,
-			Rebuild: report.Rebuild{AgentPasses: p.Passes, HumanDays: p.Days, Tier: score.Tier(p.Tier), RebuildTokens: p.RebuildTokens},
+			Rebuild: report.Rebuild{AgentPasses: p.Passes, HumanDays: p.Days, HumanDaysLow: p.Days, HumanDaysHigh: p.Days,
+				Tier: score.Tier(p.Tier), RebuildTokens: p.RebuildTokens},
 			Metrics: metrics.RawMetrics{SLOC: p.SLOC, TokensEst: p.Tokens, LargestFileSLOC: p.LargestFile, ExportedSymbols: p.Exports,
 				InternalImports: p.Imports, DuplicationPct: p.DupPct, DupBlocks: p.DupBlocks, DupBlocksCode: &code,
 				UntestedExports: p.Untested, HasTests: p.HasTests, TestFuncs: p.TestFuncs, FuncCount: p.FuncCount,

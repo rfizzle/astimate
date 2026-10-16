@@ -75,8 +75,10 @@ func moduleReports(t *testing.T) ([]modulePackage, []report.Report) {
 	for i := range data.Packages {
 		p := &data.Packages[i]
 		churn := p.Churn
+		// The mockup has one figure, the low end; the high end is 30% above it.
 		r := report.Report{PackagePath: p.Path, Role: p.Role,
-			Rebuild: report.Rebuild{AgentPasses: p.Passes, HumanDays: p.Days, Tier: score.Tier(p.Tier), RebuildTokens: p.Rebuild},
+			Rebuild: report.Rebuild{AgentPasses: p.Passes, HumanDays: p.Days, HumanDaysLow: p.Days,
+				HumanDaysHigh: math.Round(p.Days*13) / 10, Tier: score.Tier(p.Tier), RebuildTokens: p.Rebuild},
 			Metrics: metrics.RawMetrics{SLOC: p.SLOC, TokensEst: p.Tokens, LargestFileSLOC: p.LargestFile,
 				ExportedSymbols: p.Exports, InternalImports: p.Imports, DuplicationPct: p.DupPct, DupBlocks: p.DupBlocks,
 				UntestedExports: p.Untested, HasTests: p.HasTests, FuncCount: p.FuncCount, ChurnCommits: &churn, Role: p.Role}}
@@ -97,8 +99,10 @@ func TestSixtyone(t *testing.T) {
 	t.Parallel()
 
 	want, reports := moduleReports(t)
-	basis := report.HumanBasis{Model: "COCOMO II, rebuild profile", Coefficient: 2.3814, Exponent: 1.0528,
-		DaysPerMonth: 19, PerPackage: true}
+	basis := report.HumanBasis{Model: "COCOMO II, rebuild profile",
+		Basic81:      report.ModelBasis{Name: "COCOMO 81", Coefficient: 2.4, Exponent: 1.05},
+		COCOMOII:     report.ModelBasis{Name: "COCOMO II, rebuild profile", Coefficient: 2.3814, Exponent: 1.0528},
+		DaysPerMonth: 19, UNFM: "completely_unfamiliar", Unfamiliarity: 1}
 	m := Build(&Input{ModulePath: "example.com/sixtyone", Language: "go", Limits: defaultLimits(),
 		ChurnWindow: 200, Packages: reports, Basis: basis})
 	byPath := make(map[string]*narrate.Package, len(m.Packages))
@@ -146,7 +150,8 @@ func TestSixtyone(t *testing.T) {
 	}
 
 	if got, want := m.Counts, (narrate.Counts{Packages: 61, Split: 19, Watch: 11, Fine: 31, MultiSitting: m.Counts.MultiSitting, WithoutTests: m.Counts.WithoutTests,
-		HumanDays: m.Counts.HumanDays, HumanTime: m.Counts.HumanTime, HumanBasis: narrate.HumanBasis(basis),
+		HumanDays: m.Counts.HumanDays, HumanDaysLow: m.Counts.HumanDays, HumanDaysHigh: m.Counts.HumanDaysHigh,
+		HumanTime: m.Counts.HumanTime, HumanBasis: narrate.HumanBasis(basis),
 		HumanBasisShort: narrate.HumanBasisShort(basis)}); got != want {
 		t.Errorf("counts = %+v, want %+v", got, want)
 	}
@@ -169,7 +174,7 @@ func TestSixtyone(t *testing.T) {
 		t.Errorf("todo = %q, want %q", c.Todo, want)
 	}
 	if want := "Too big to rebuild as it stands: an agent would need about 8 sittings, so the package has to be split " +
-		"first. For one engineer, about 1 engineer-year."; c.Rebuild.Say != want {
+		"first. For one engineer, about 1 to 2 engineer-years."; c.Rebuild.Say != want {
 		t.Errorf("rebuild say = %q, want %q", c.Rebuild.Say, want)
 	}
 	if want := []narrate.Share{{Term: "spec", Label: "the tests it must satisfy", Tokens: 198254, Pct: 68},

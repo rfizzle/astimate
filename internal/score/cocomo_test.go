@@ -10,7 +10,7 @@ import (
 // rated returns a Cocomo of model with the drivers of kv, key and rating
 // pairs, rated; the rest are nominal.
 func rated(model string, kv ...string) Cocomo {
-	c := Cocomo{Model: model}
+	c := Cocomo{Model: model, UNFM: "completely_unfamiliar"}
 	for i := 0; i+1 < len(kv); i += 2 {
 		if !c.Set(kv[i], Rating(kv[i+1])) {
 			panic("unknown driver " + kv[i])
@@ -150,6 +150,51 @@ func TestHumanDaysModelSwitch(t *testing.T) {
 	p.Cocomo.Model = ModelBasic81
 	approx(t, "basic-81", Estimate(m, p).HumanDays, 71.5609, 1e-4)
 	approx(t, "basic-81 seam", HumanDaysBasic81(&m, p, keep), 71.5609, 1e-4)
+}
+
+// TestHumanDaysRange checks that the range runs from the lower of the two
+// models to the higher, whichever is lower for the package, and that the
+// configured model moves human_days but not the range.
+func TestHumanDaysRange(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		m       metrics.RawMetrics
+		iiLower bool
+	}{
+		{"simple code, COCOMO II lower", metrics.RawMetrics{SLOC: 1200, FuncCount: 40, CognitiveP90: 1, ExportedSymbols: 10, HasTests: true}, true},
+		{"complex code, COCOMO II higher", metrics.RawMetrics{SLOC: 1200, FuncCount: 40, CognitiveP90: 60, ExportedSymbols: 10, HasTests: true}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			p := validParams()
+			p.Cocomo = rebuildProfile()
+			b81, ii := HumanDaysBasic81(&tt.m, p, 1), HumanDaysCOCOMOII(&tt.m, p, 1)
+			if (ii < b81) != tt.iiLower {
+				t.Fatalf("COCOMO II %v against COCOMO 81 %v: the case does not cover what its name says", ii, b81)
+			}
+			for _, model := range []string{ModelCOCOMOII, ModelBasic81} {
+				p.Cocomo.Model = model
+				r := Estimate(tt.m, p)
+				approx(t, model+" low", r.HumanDaysLow, min(b81, ii), 1e-12)
+				approx(t, model+" high", r.HumanDaysHigh, max(b81, ii), 1e-12)
+				want := ii
+				if model == ModelBasic81 {
+					want = b81
+				}
+				approx(t, model+" human_days", r.HumanDays, want, 1e-12)
+				lowModel := ModelName(ModelBasic81)
+				if tt.iiLower {
+					lowModel = ModelName(ModelCOCOMOII)
+				}
+				if r.HumanLowModel != lowModel || r.HumanHighModel == lowModel {
+					t.Errorf("%s: ends named %q to %q, want %q at the low end", model, r.HumanLowModel, r.HumanHighModel, lowModel)
+				}
+			}
+		})
+	}
 }
 
 func TestHumanDaysFollowRatings(t *testing.T) {

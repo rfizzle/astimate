@@ -35,7 +35,7 @@ func (p *printer) repo(m *narrate.Module) {
 	p.para(m.Headline, "", sgrBold)
 	c := &m.Counts
 	parts := []string{count(c.Packages, "package", "packages"), strconv.Itoa(c.MultiSitting) + " need more than one sitting",
-		c.HumanTime + " of one engineer's time",
+		c.HumanTime + " for one engineer",
 		strconv.Itoa(c.Fine) + " fine", strconv.Itoa(c.Watch) + " watch", strconv.Itoa(c.Split) + " split",
 		strconv.Itoa(c.WithoutTests) + " without tests"}
 	codes := []string{"", "", "", sgrGreen, sgrYellow, sgrRed, ""}

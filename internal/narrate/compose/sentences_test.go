@@ -27,6 +27,8 @@ type row struct {
 	functions                []details.Function
 	duplicates               []details.Span
 	specTokens, volumeTokens int
+	// high is the human range's high end; days, the low end, when less.
+	high float64
 }
 
 // report returns r as a package report.
@@ -42,7 +44,8 @@ func (r row) report() report.Report {
 		tier = "ONE_PASS"
 	}
 	rep := report.Report{PackagePath: r.path, Metrics: m,
-		Rebuild: report.Rebuild{AgentPasses: r.passes, HumanDays: r.days, Tier: score.Tier(tier),
+		Rebuild: report.Rebuild{AgentPasses: r.passes, HumanDays: r.days, HumanDaysLow: r.days, HumanDaysHigh: max(r.days, r.high),
+			Tier:          score.Tier(tier),
 			RebuildTokens: r.specTokens + r.volumeTokens,
 			Drivers:       []report.Driver{{Term: "spec", Tokens: r.specTokens}, {Term: "volume", Tokens: r.volumeTokens}}}}
 	if r.functions != nil || r.duplicates != nil {
@@ -77,8 +80,8 @@ func TestPackageSentences(t *testing.T) {
 			dupBlocks: 2, testFuncs: 1, hasTests: true, churn: intp(41), authors: 1, fanIn: 1, cogP90: 11, nest: 5,
 			functions:  []details.Function{{Name: "Hard", File: "h.go", Line: 3, Cognitive: 56, Cyclomatic: 47}, {Name: "Easy", Cognitive: 1}},
 			duplicates: []details.Span{{File: "a.go", StartLine: 1, EndLine: 81}, {File: "b.go", StartLine: 5, EndLine: 85}},
-			specTokens: 680, volumeTokens: 300},
-		row{path: "near", tier: tierFewPasses, passes: 2.4, days: 9.5, sloc: 1200, exports: 10, dup: 21, hasTests: true,
+			specTokens: 680, volumeTokens: 300, high: 450.5},
+		row{path: "near", tier: tierFewPasses, passes: 2.4, days: 9.5, high: 14, sloc: 1200, exports: 10, dup: 21, hasTests: true,
 			functions: []details.Function{{Name: "A", Cognitive: 12}, {Name: "B", Cognitive: 3}}},
 		row{path: "dupey", passes: 0.5, days: 1, sloc: 50, dup: 6, hasTests: true,
 			duplicates: []details.Span{{File: "x.go", StartLine: 2, EndLine: 9}}},
@@ -91,13 +94,13 @@ func TestPackageSentences(t *testing.T) {
 		{"big", "story", by["big"].Story, "It is over 2 of its five limits (size, exports), and 42.6% of its lines are copies of each other, and 16 of its 80 exports have no test."},
 		{"big", "todo", by["big"].Todo, "Extract the copied code first, then split the package along its responsibilities."},
 		{"big", "changes", by["big"].Changes, "It changed 41 times in the last 200 commits, so every one of those problems is in the way of day-to-day work."},
-		{"big", "rebuild", by["big"].Rebuild.Say, "Too big to rebuild as it stands: an agent would need about 8 sittings, so the package has to be split first. For one engineer, about 1 engineer-year."},
+		{"big", "rebuild", by["big"].Rebuild.Say, "Too big to rebuild as it stands: an agent would need about 8 sittings, so the package has to be split first. For one engineer, about 1 to 2 engineer-years."},
 		{"big", "copies", by["big"].Copies.Say, "Nearly half of this code exists at least twice. A bug fixed in one copy stays alive in the others, and every copy is more for a rebuild to read."},
 		{"big", "longest", by["big"].Copies.Longest, "Longest repeat: a.go:1-81 (81 lines), again at b.go:5-85."},
 		{"big", "complexity", by["big"].Complexity.Say, "1 function is hard to follow: it branches and nests enough that a rewrite would likely get it wrong. Start with the ones below. The hardest tenth of functions score 11 or more; code nests up to 5 levels deep."},
 		{"near", "story", by["near"].Story, "It is over its size limit, and 21% of its lines are copies of each other."},
 		{"near", "todo", by["near"].Todo, "Plan a split now, before it grows further past its limit."},
-		{"near", "rebuild", by["near"].Rebuild.Say, "An agent would need about 3 sittings, carrying notes between them. For one engineer, about 2 weeks."},
+		{"near", "rebuild", by["near"].Rebuild.Say, "An agent would need about 3 sittings, carrying notes between them. For one engineer, about 2 to 3 weeks."},
 		{"near", "copies", by["near"].Copies.Say, "A large share of this code exists at least twice. A bug fixed in one copy stays alive in the others."},
 		{"near", "complexity", by["near"].Complexity.Say, "Most functions are easy to follow; 1 needs some care. The hardest tenth of functions score 0 or more; code nests up to 0 levels deep."},
 		{"near", "changes", by["near"].Changes, ""},
@@ -156,7 +159,7 @@ func TestPackageSentences(t *testing.T) {
 	}
 
 	wantFacts := []narrate.Fact{
-		{Label: "Rebuild", Text: "7.8 agent passes · 328.2 human days"},
+		{Label: "Rebuild", Text: "7.8 agent passes · 328.2 to 450.5 human days"},
 		{Label: "Copies", Text: "2 duplicate blocks cover 42.6% of lines"},
 		{Label: "Complexity", Text: "cognitive p90 11 · cyclomatic p90 0 · nesting 5"},
 		{Label: "Tests", Text: "1 test function · 16 of 80 exports untested"},

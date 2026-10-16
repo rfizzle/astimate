@@ -1,11 +1,11 @@
 [1mFixture[0m  [2mexample.com/fixture · thresholds-2026-10-14b[0m
 
 [1mFixture has no package that needs a split.[0m
-12 packages · 0 need more than one sitting · 2 weeks of one engineer's time
-[32m11 fine[0m · [33m1 watch[0m · [31m0 split[0m · 7 without tests
-[2mEngineer time is COCOMO II, rebuild profile (2.381 person-months per 1,000 lines[0m
-[2mto the power 1.053), not a measurement; agent sittings are measured.[0m
-[2mrebuild.cocomo rates it.[0m
+12 packages · 0 need more than one sitting · 2 weeks for one engineer · [32m11 fine[0m
+[33m1 watch[0m · [31m0 split[0m · 7 without tests
+[2mEngineer time runs, per package, from the lower to the higher of COCOMO 81 and[0m
+[2mCOCOMO II, rebuild profile; not a measurement; agent sittings are measured.[0m
+[2mrebuild.cocomo and rebuild.cocomo_a set it.[0m
 [32m██████████████████░░[0m  [2mshare of packages that are fine[0m
 
 [1mStart here[0m  [2mby days to rebuild[0m
@@ -17,15 +17,15 @@
 
 [1mEvery package[0m  [2mmost changed and costly first · * is over its size limit[0m
 
-[2m PACKAGE       BAND      SITTINGS  TIME  LINES   CHANGES[0m
- [36mhidden      [0m  [32mFINE [0m  one sitting   2 d     32         -
- [36mimmut       [0m  [32mFINE [0m  one sitting   1 d     31         -
- [36ma           [0m  [32mFINE [0m  one sitting   1 d     22         -
- [36mb           [0m  [32mFINE [0m  one sitting   1 d     22         -
- [36mhub         [0m  [32mFINE [0m  one sitting   1 d     20         -
- [36mtested      [0m  [32mFINE [0m  one sitting   1 d     27         -
- [36mdupes       [0m  [33mWATCH[0m  one sitting   1 d     67         -
- [36merrs        [0m  [32mFINE [0m  one sitting   1 d      6         -
- [36msupport     [0m  [32mFINE [0m  one sitting   1 d      8         -
- [36mtrivial     [0m  [32mFINE [0m  one sitting   1 d      4         -
+[2m PACKAGE       BAND      SITTINGS   TIME  LINES   CHANGES[0m
+ [36mhidden      [0m  [32mFINE [0m  one sitting    2 d     32         -
+ [36mimmut       [0m  [32mFINE [0m  one sitting  1–2 d     31         -
+ [36ma           [0m  [32mFINE [0m  one sitting    1 d     22         -
+ [36mb           [0m  [32mFINE [0m  one sitting    1 d     22         -
+ [36mhub         [0m  [32mFINE [0m  one sitting    1 d     20         -
+ [36mtested      [0m  [32mFINE [0m  one sitting    1 d     27         -
+ [36mdupes       [0m  [33mWATCH[0m  one sitting    1 d     67         -
+ [36merrs        [0m  [32mFINE [0m  one sitting    1 d      6         -
+ [36msupport     [0m  [32mFINE [0m  one sitting    1 d      8         -
+ [36mtrivial     [0m  [32mFINE [0m  one sitting    1 d      4         -
  [2m… 2 more[0m · [2m--all for every row[0m · [2m--format json[0m · [2m--format md[0m · [2m--format html[0m

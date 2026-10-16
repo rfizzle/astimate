@@ -171,7 +171,8 @@ func changes(p *narrate.Package, window int) string {
 // facts returns the labelled facts of a package's detail.
 func facts(p *narrate.Package, window int) []narrate.Fact {
 	out := []narrate.Fact{
-		{Label: "Rebuild", Text: narrate.Num(p.Rebuild.AgentPasses) + " agent passes · " + narrate.Num(p.Rebuild.HumanDays) + " human days"},
+		{Label: "Rebuild", Text: narrate.Num(p.Rebuild.AgentPasses) + " agent passes · " +
+			narrate.NumRange(p.Rebuild.HumanDaysLow, p.Rebuild.HumanDaysHigh) + " human days"},
 		{Label: "Copies", Text: plural(p.Copies.Blocks, "duplicate block covers ", "duplicate blocks cover ") + narrate.Num(p.Copies.Pct) + "% of lines"},
 		{Label: "Complexity", Text: "cognitive p90 " + strconv.Itoa(p.Complexity.CognitiveP90) + " · cyclomatic p90 " +
 			strconv.Itoa(p.Complexity.CyclomaticP90) + " · nesting " + strconv.Itoa(p.Complexity.Nesting)},
@@ -381,31 +382,59 @@ func firstClause(s string) string {
 	return capitalize(s) + "."
 }
 
-// human is days as one engineer's working time: days under a week, weeks
-// under a month, months under a year, else engineer-years.
-func human(d float64) string {
-	switch {
-	case d >= daysPerYear:
-		return plural(int(math.Round(d/daysPerYear)), "engineer-year", "engineer-years")
-	case d >= daysPerMonth:
-		return plural(int(math.Round(d/daysPerMonth)), "month", "months")
-	case d >= daysPerWeek:
-		return plural(int(math.Round(d/daysPerWeek)), "week", "weeks")
-	}
-	return plural(max(1, int(math.Round(d))), "day", "days")
+// timeUnit is a unit of one engineer's working time: its length in
+// working days and its names, singular, plural and in a table cell.
+type timeUnit struct {
+	days             float64
+	one, many, short string
 }
 
-// humanShort is human in a table cell's units.
-func humanShort(d float64) string {
-	switch {
-	case d >= daysPerYear:
-		return narrate.Num(round1(d/daysPerYear)) + " yr"
-	case d >= daysPerMonth:
-		return strconv.Itoa(int(math.Round(d/daysPerMonth))) + " mo"
-	case d >= daysPerWeek:
-		return strconv.Itoa(int(math.Round(d/daysPerWeek))) + " wk"
+// unitOf is the unit days are written in: days under a week, weeks under
+// a month, months under a year, else engineer-years.
+func unitOf(days float64) timeUnit {
+	units := [...]timeUnit{
+		{daysPerYear, "engineer-year", "engineer-years", "yr"},
+		{daysPerMonth, "month", "months", "mo"},
+		{daysPerWeek, "week", "weeks", "wk"},
 	}
-	return strconv.Itoa(max(1, int(math.Round(d)))) + " d"
+	for _, u := range units {
+		if days >= u.days {
+			return u
+		}
+	}
+	return timeUnit{1, "day", "days", "d"}
+}
+
+// count is days in whole units, at least 1.
+func (u timeUnit) count(days float64) int {
+	return max(1, int(math.Round(days/u.days)))
+}
+
+// human is the range low to high days as one engineer's working time, in
+// the unit of the high end, each end a whole number of it and at least 1:
+// "3 to 5 weeks", or "4 weeks" when both ends round the same.
+func human(low, high float64) string {
+	u := unitOf(high)
+	lo, hi := u.count(low), u.count(high)
+	if lo == hi {
+		return plural(hi, u.one, u.many)
+	}
+	return strconv.Itoa(lo) + " to " + plural(hi, u.one, u.many)
+}
+
+// humanShort is human in a table cell's units, "3–5 wk", the years to one
+// decimal.
+func humanShort(low, high float64) string {
+	u := unitOf(high)
+	cell := func(d float64) string { return strconv.Itoa(u.count(d)) }
+	if u.days == daysPerYear {
+		cell = func(d float64) string { return narrate.Num(round1(d / daysPerYear)) }
+	}
+	lo, hi := cell(low), cell(high)
+	if lo == hi {
+		return hi + " " + u.short
+	}
+	return lo + "–" + hi + " " + u.short
 }
 
 // plural is n followed by one or many.

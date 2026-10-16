@@ -68,10 +68,10 @@ func Build(in *Input) narrate.Module {
 	if m.Limits == nil {
 		m.Limits = []narrate.Limit{}
 	}
-	days := 0.0
+	days, low, high := 0.0, 0.0, 0.0
 	for i := range in.Packages {
 		p := pkg(&in.Packages[i], in.Limits, in.ChurnWindow)
-		days += p.Rebuild.HumanDays
+		days, low, high = days+p.Rebuild.HumanDays, low+p.Rebuild.HumanDaysLow, high+p.Rebuild.HumanDaysHigh
 		m.Counts.Packages++
 		if sittings(in.Packages[i].Rebuild.AgentPasses) > 0 {
 			m.Counts.MultiSitting++
@@ -90,8 +90,8 @@ func Build(in *Input) narrate.Module {
 		m.Packages = append(m.Packages, p)
 	}
 	slices.SortFunc(m.Packages, func(a, b narrate.Package) int { return strings.Compare(a.Path, b.Path) })
-	m.Counts.HumanDays = math.Round(days)
-	m.Counts.HumanTime = human(m.Counts.HumanDays)
+	m.Counts.HumanDays, m.Counts.HumanDaysLow, m.Counts.HumanDaysHigh = math.Round(days), math.Round(low), math.Round(high)
+	m.Counts.HumanTime = human(m.Counts.HumanDaysLow, m.Counts.HumanDaysHigh)
 	m.Counts.HumanBasis = narrate.HumanBasis(in.Basis)
 	m.Counts.HumanBasisShort = narrate.HumanBasisShort(in.Basis)
 	hot := hotOrder(m.Packages)
@@ -183,8 +183,10 @@ func pkg(r *report.Report, limits []narrate.Limit, window int) narrate.Package {
 	p.Rebuild = narrate.Rebuild{
 		AgentPasses:   r.Rebuild.AgentPasses,
 		HumanDays:     r.Rebuild.HumanDays,
-		HumanTime:     human(r.Rebuild.HumanDays),
-		HumanShort:    humanShort(r.Rebuild.HumanDays),
+		HumanDaysLow:  r.Rebuild.HumanDaysLow,
+		HumanDaysHigh: r.Rebuild.HumanDaysHigh,
+		HumanTime:     human(r.Rebuild.HumanDaysLow, r.Rebuild.HumanDaysHigh),
+		HumanShort:    humanShort(r.Rebuild.HumanDaysLow, r.Rebuild.HumanDaysHigh),
 		RebuildTokens: r.Rebuild.RebuildTokens,
 		Sittings:      sittingsBand(sittings(r.Rebuild.AgentPasses)),
 		SittingsText:  sittingsText(r.Rebuild.AgentPasses),

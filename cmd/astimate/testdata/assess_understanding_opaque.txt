@@ -1,5 +1,5 @@
 package: opaque (example.com/understanding)
-rebuild: 0.0 agent passes, 3.7 human days (estimate from calibrated parameters; human days by COCOMO II, rebuild profile)
+rebuild: 0.0 agent passes, 3.2 to 3.7 human days (estimate from calibrated parameters; human days from COCOMO 81 to COCOMO II, rebuild profile)
 tier: ONE_PASS
 
 drivers:

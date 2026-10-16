@@ -53,8 +53,10 @@ type step struct {
 type row struct {
 	I int
 	P *narrate.Package
-	// Sloc and Days are the sort keys; Churn is -1 without churn.
+	// Sloc and Days are the sort keys, Days the human range's low end, and
+	// DaysText the range in days; Churn is -1 without churn.
 	Sloc, Days float64
+	DaysText   string
 	Churn      int
 	Tokens     float64
 	// Mini is the size bar's width; Over marks a package over its sloc
@@ -76,7 +78,7 @@ func build(m *narrate.Module, fonts template.CSS) *page {
 		{narrate.BandWatch, strconv.Itoa(c.Watch), "to watch"},
 		{narrate.BandFine, strconv.Itoa(c.Fine), "fine"},
 		{"ink", strconv.Itoa(c.MultiSitting), "need more than one sitting"},
-		{"ink", c.HumanTime, "of one engineer's time"},
+		{"ink", c.HumanTime, "for one engineer"},
 		{"ink", strconv.Itoa(c.WithoutTests), "without tests"},
 	}
 	// An empty module draws no arcs: an all-zero dash would draw each
@@ -92,7 +94,8 @@ func build(m *narrate.Module, fonts template.CSS) *page {
 	for i := range m.Packages {
 		pk := &m.Packages[i]
 		byPath[pk.Path] = i
-		r := row{I: i, P: pk, Days: pk.Rebuild.HumanDays, Churn: -1, Detail: newDetail(pk)}
+		r := row{I: i, P: pk, Days: pk.Rebuild.HumanDaysLow, DaysText: narrate.NumRange(pk.Rebuild.HumanDaysLow, pk.Rebuild.HumanDaysHigh),
+			Churn: -1, Detail: newDetail(pk)}
 		if pk.Churn != nil {
 			r.Churn = pk.Churn.Commits
 			p.Churned = true
@@ -185,7 +188,7 @@ func hotRows(m *narrate.Module, rows []row, n int) []*row {
 // tip is a package's tooltip: its path, its story and its numbers, one
 // per line.
 func tip(r *row) string {
-	s := r.P.Path + "\n" + r.P.Story + "\n" + fmtNum(r.Days) + " days to rebuild"
+	s := r.P.Path + "\n" + r.P.Story + "\n" + r.DaysText + " days to rebuild"
 	if r.Churn >= 0 {
 		s += " · " + fmtInt(r.Churn) + " changes"
 	}

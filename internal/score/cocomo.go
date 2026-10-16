@@ -93,7 +93,8 @@ type Cocomo struct {
 	// Ratings rates the drivers CocomoKeys names, in its order.
 	Ratings [configured]Rating
 	// UNFM is the reuse model's unfamiliarity with the code to be
-	// understood, one of UnfmKeys; empty is completely_unfamiliar.
+	// understood, one of UnfmKeys; Validate rejects any other name,
+	// empty included.
 	UNFM string
 }
 
@@ -180,9 +181,15 @@ func (c Cocomo) Coefficient() float64 {
 	return a
 }
 
-// Name is the model as the reports name it.
+// Name is the configured model as the reports name it.
 func (c Cocomo) Name() string {
-	if c.Model == ModelBasic81 {
+	return ModelName(c.Model)
+}
+
+// ModelName names model, ModelCOCOMOII or ModelBasic81, as the reports
+// do; any other value is ModelCOCOMOII, the default.
+func ModelName(model string) string {
+	if model == ModelBasic81 {
 		return "COCOMO 81"
 	}
 	return "COCOMO II, rebuild profile"
@@ -194,8 +201,14 @@ func (c Cocomo) Name() string {
 // profile's c.UNFM. Both models share it. keep is the non-duplicated share,
 // 1 - duplication_pct/100.
 func effectiveKLOC(m *metrics.RawMetrics, c *Cocomo, keep float64) float64 {
+	return (float64(m.SLOC) * keep / 1000) * (1 + 0.02*understanding(m)*c.Unfamiliarity())
+}
+
+// Unfamiliarity is the value of c.UNFM, 0 (completely_familiar) to 1
+// (completely_unfamiliar); 0 for a name Validate rejects.
+func (c Cocomo) Unfamiliarity() float64 {
 	u, _ := unfm(c.UNFM)
-	return (float64(m.SLOC) * keep / 1000) * (1 + 0.02*understanding(m)*u)
+	return u
 }
 
 // HumanDaysBasic81 is the human estimate under COCOMO 81 basic organic mode,

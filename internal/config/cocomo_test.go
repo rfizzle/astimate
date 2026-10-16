@@ -51,6 +51,7 @@ func TestParseCocomoErrors(t *testing.T) {
 		{"rating the driver lacks", "sced: nominal", "sced: extra_high", "cocomo.sced: extra_high is not a rating of sced"},
 		{"unknown model", "model: cocomo-ii", "model: cocomo-iii", "cocomo.model must be cocomo-ii or basic-81"},
 		{"unknown unfamiliarity", "unfm: completely_unfamiliar", "unfm: unfamiliar", `cocomo.unfm: unknown rating "unfamiliar"`},
+		{"empty unfamiliarity", "unfm: completely_unfamiliar", `unfm: ""`, `cocomo.unfm: unknown rating ""`},
 		{"per-package driver", "    docu: very_low\n", "    docu: very_low\n    rely: high\n", "rebuild.cocomo.rely: unknown key"},
 	}
 	for _, tt := range tests {

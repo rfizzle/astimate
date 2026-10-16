@@ -56,7 +56,7 @@ func TestAssessJSONSchema(t *testing.T) {
 	// every package, and a role for every package.
 	wantTop := sorted("language", "package_path", "module_path", "role", "rebuild", "suggestions",
 		"metrics", "details", "astimate_version", "config_version")
-	wantRebuild := sorted("agent_passes", "rebuild_tokens", "human_days", "tier", "calibrated", "drivers")
+	wantRebuild := sorted("agent_passes", "rebuild_tokens", "human_days", "human_days_low", "human_days_high", "tier", "calibrated", "drivers")
 	wantDriver := sorted("term", "tokens", "detail")
 	wantMetrics := sorted(metrics.MetricNames()...)
 

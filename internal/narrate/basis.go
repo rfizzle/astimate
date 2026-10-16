@@ -7,24 +7,23 @@ import (
 	"github.com/rfizzle/astimate/internal/report"
 )
 
-// HumanBasis says, in full, where the engineer time comes from under b, the
-// configured model and its numbers. The glossary's "Rebuild cost" entry and
-// the JSON report's human_basis field carry it.
+// HumanBasis says, in full, where the engineer time comes from under b: the
+// two models each package's range runs between with their numbers, the
+// software-understanding inflation under the configured unfamiliarity, and
+// which model human_days is. The glossary's "Rebuild cost" entry and the
+// JSON report's human_basis field carry it.
 func HumanBasis(b report.HumanBasis) string {
 	const measured = " The agent sittings were measured on 85 rebuilds."
 	if b.Model == "" {
 		return "Engineer time is a textbook figure, not a measurement." + measured
 	}
-	s := "Engineer time is a textbook figure, not a measurement: " + b.Model + ", " + basisRate(b, "thousand lines")
-	if b.PerPackage {
-		s += " before each package's complexity rating"
-	}
-	s += ", " + decimal(b.DaysPerMonth) + " working days a month, inflated by up to half where exports have no tests, " +
-		"summed over the packages." + measured
-	if b.PerPackage {
-		return s + " The ratings under rebuild.cocomo in the configuration set the engineer time."
-	}
-	return s + " rebuild.cocomo_a in the configuration scales the engineer time."
+	return "Engineer time is a range from two textbook models, not a measurement: for each package, the low end is " +
+		"the lower and the high end the higher of " + b.Basic81.Name + " (" + basisRate(b.Basic81, "thousand lines") +
+		") and " + b.COCOMOII.Name + " (" + basisRate(b.COCOMOII, "thousand lines") + ", before the package's " +
+		"complexity rating), at " + decimal(b.DaysPerMonth) + " working days a month, on lines " + inflation(b) +
+		", summed over the packages. The JSON field human_days is the configured model's, " + b.Model + "." + measured +
+		" The ratings under rebuild.cocomo in the configuration set the " + b.COCOMOII.Name + " figure, and " +
+		"rebuild.cocomo_a scales the " + b.Basic81.Name + " one."
 }
 
 // HumanBasisShort is HumanBasis in one line, for the footnotes of the text
@@ -34,17 +33,24 @@ func HumanBasisShort(b report.HumanBasis) string {
 	if b.Model == "" {
 		return "Engineer time is a textbook figure, " + measured
 	}
-	knob := " rebuild.cocomo_a scales it."
-	if b.PerPackage {
-		knob = " rebuild.cocomo rates it."
-	}
-	return "Engineer time is " + b.Model + " (" + basisRate(b, "1,000 lines") + "), " + measured + knob
+	return "Engineer time runs, per package, from the lower to the higher of " + b.Basic81.Name + " and " +
+		b.COCOMOII.Name + "; " + measured + " rebuild.cocomo and rebuild.cocomo_a set it."
 }
 
-// basisRate is b's coefficient per unit of lines, to the power of its
+// inflation says how COCOMO II's software understanding inflates the lines
+// under b's unfamiliarity: 0.02 × SU × UNFM, SU 10 to 50.
+func inflation(b report.HumanBasis) string {
+	if b.Unfamiliarity == 0 {
+		return "not inflated for understanding, unfm being " + b.UNFM
+	}
+	return "inflated by COCOMO II's software understanding, " + decimal(20*b.Unfamiliarity) + "% to " +
+		decimal(100*b.Unfamiliarity) + "% under unfm " + b.UNFM + ", from each package's tests, structure and doc comments"
+}
+
+// basisRate is m's coefficient per unit of lines, to the power of its
 // exponent.
-func basisRate(b report.HumanBasis, unit string) string {
-	return decimal(b.Coefficient) + " person-months per " + unit + " to the power " + decimal(b.Exponent)
+func basisRate(m report.ModelBasis, unit string) string {
+	return decimal(m.Coefficient) + " person-months per " + unit + " to the power " + decimal(m.Exponent)
 }
 
 // decimal writes v to at most three decimals.

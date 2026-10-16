@@ -25,7 +25,7 @@ func params() score.RebuildParams {
 		CocomoA:                 2.4,
 		CocomoB:                 1.05,
 		DaysPerMonth:            19,
-		Cocomo:                  score.Cocomo{Model: score.ModelBasic81},
+		Cocomo:                  score.Cocomo{Model: score.ModelBasic81, UNFM: "completely_unfamiliar"},
 		Tiers:                   score.Tiers{OnePassMax: 1, FewPassesMax: 3},
 	}
 }
@@ -128,19 +128,44 @@ func TestReportOptionalKeys(t *testing.T) {
 	}
 }
 
+// TestWriteTableHumanRangeCollapses checks that a range whose ends round
+// the same prints once, with both models named.
+func TestWriteTableHumanRangeCollapses(t *testing.T) {
+	t.Parallel()
+
+	r := Report{Rebuild: Rebuild{HumanDays: 2.5, HumanDaysLow: 2.5, HumanDaysHigh: 2.5,
+		HumanLowModel: "COCOMO 81", HumanHighModel: "COCOMO II, rebuild profile", Drivers: []Driver{}}}
+	var buf bytes.Buffer
+	if err := WriteTable(&buf, &r); err != nil {
+		t.Fatalf("WriteTable: %v", err)
+	}
+	want := "rebuild: 0.0 agent passes, 2.5 human days (estimate from uncalibrated parameters; " +
+		"human days by COCOMO 81 and COCOMO II, rebuild profile alike)\n"
+	if !strings.Contains(buf.String(), want) {
+		t.Errorf("table lacks %q:\n%s", want, buf.String())
+	}
+}
+
 func TestWriteTableCalibratedLabel(t *testing.T) {
 	t.Parallel()
 
+	// Every rating nominal, UNFM completely unfamiliar and SU 30: COCOMO
+	// 81 2.4 * 1.536^1.05 * 19 = 71.6 and COCOMO II 2.94 * 1.536^1.0997 *
+	// 19 = 89.6, whichever model is configured; human_days is the
+	// configured one's.
+	const days = "71.6 to 89.6 human days"
+	const models = "human days from COCOMO 81 to COCOMO II, rebuild profile"
 	tests := []struct {
 		version, model string
 		want           string
+		humanDays      float64
 	}{
-		{version: "default-uncalibrated-1", want: "rebuild: 1.2 agent passes, 71.6 human days (estimate from uncalibrated parameters; human days by COCOMO 81)\n"},
-		{version: "rebuild-2026-10", want: "rebuild: 1.2 agent passes, 71.6 human days (estimate from calibrated parameters; human days by COCOMO 81)\n"},
-		// Every rating nominal, UNFM completely unfamiliar and SU 30:
-		// 2.94 * 1.536^1.0997 * 19 = 89.6.
-		{version: "rebuild-2026-10", model: score.ModelCOCOMOII,
-			want: "rebuild: 1.2 agent passes, 89.6 human days (estimate from calibrated parameters; human days by COCOMO II, rebuild profile)\n"},
+		{version: "default-uncalibrated-1", humanDays: 71.6,
+			want: "rebuild: 1.2 agent passes, " + days + " (estimate from uncalibrated parameters; " + models + ")\n"},
+		{version: "rebuild-2026-10", humanDays: 71.6,
+			want: "rebuild: 1.2 agent passes, " + days + " (estimate from calibrated parameters; " + models + ")\n"},
+		{version: "rebuild-2026-10", model: score.ModelCOCOMOII, humanDays: 89.6,
+			want: "rebuild: 1.2 agent passes, " + days + " (estimate from calibrated parameters; " + models + ")\n"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.version+tt.model, func(t *testing.T) {
@@ -148,7 +173,7 @@ func TestWriteTableCalibratedLabel(t *testing.T) {
 
 			p := params()
 			if tt.model != "" {
-				p.Cocomo = score.Cocomo{Model: tt.model}
+				p.Cocomo = score.Cocomo{Model: tt.model, UNFM: "completely_unfamiliar"}
 			}
 			r := Build(&Input{Metrics: workedExample(), Params: p, ConfigVersion: tt.version})
 			var buf bytes.Buffer
@@ -157,6 +182,9 @@ func TestWriteTableCalibratedLabel(t *testing.T) {
 			}
 			if !strings.Contains(buf.String(), tt.want) {
 				t.Errorf("table lacks %q:\n%s", tt.want, buf.String())
+			}
+			if r.Rebuild.HumanDays != tt.humanDays {
+				t.Errorf("human_days = %v, want the configured model's %v", r.Rebuild.HumanDays, tt.humanDays)
 			}
 			if strings.Contains(buf.String(), "coverage_pct") {
 				t.Errorf("table shows uncomputed v1 field coverage_pct:\n%s", buf.String())

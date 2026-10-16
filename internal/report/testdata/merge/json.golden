@@ -7,6 +7,8 @@
       "agent_passes": 0.4,
       "rebuild_tokens": 9625,
       "human_days": 38.3,
+      "human_days_low": 38.3,
+      "human_days_high": 46.5,
       "tier": "ONE_PASS",
       "calibrated": false,
       "drivers": [
