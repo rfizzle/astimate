@@ -26,5 +26,7 @@
   "test_funcs": 4,
   "has_tests": true,
   "untested_exports": 0,
-  "instability": 1
+  "instability": 1,
+  "generated_files": 0,
+  "tokens_est_generated": 0
 }

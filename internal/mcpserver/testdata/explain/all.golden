@@ -537,12 +537,12 @@ Thresholds in the loaded config: none
 
 == generated_files ==
 generated_files (v1, not gated by default)
-Definition: Non-test files with a "// Code generated ... DO NOT EDIT." line before the package clause, Go's generated-file convention. They count in files and the import metrics and in no other size or structure metric; tokens_est_generated carries their volume.
+Definition: Non-test files marked as generated: in Go a "// Code generated ... DO NOT EDIT." line before the package clause; in TypeScript an "@generated" tag, or a "generated" and a "do not edit" or "do not modify" line, in the comments before the first line of code. They count in files and the import metrics and in no other size or structure metric; tokens_est_generated carries their volume.
 Evidence: Opacity: code the next agent cannot follow from Go source alone (C, reflection, unsafe memory, generator output). Informational: reported, not gated, and no default threshold.
 Thresholds in the loaded config: none
 -- structured --
 {
-  "definition": "Non-test files with a \"// Code generated ... DO NOT EDIT.\" line before the package clause, Go's generated-file convention. They count in files and the import metrics and in no other size or structure metric; tokens_est_generated carries their volume.",
+  "definition": "Non-test files marked as generated: in Go a \"// Code generated ... DO NOT EDIT.\" line before the package clause; in TypeScript an \"@generated\" tag, or a \"generated\" and a \"do not edit\" or \"do not modify\" line, in the comments before the first line of code. They count in files and the import metrics and in no other size or structure metric; tokens_est_generated carries their volume.",
   "evidence": "Opacity: code the next agent cannot follow from Go source alone (C, reflection, unsafe memory, generator output). Informational: reported, not gated, and no default threshold.",
   "gated": false,
   "name": "generated_files",
@@ -552,12 +552,12 @@ Thresholds in the loaded config: none
 
 == tokens_est_generated ==
 tokens_est_generated (v1, not gated by default)
-Definition: Estimated tokens of the generated non-test files that tokens_est leaves out, by the same method. Null for a language with no generated-file convention.
+Definition: Estimated tokens of the generated non-test files that tokens_est leaves out, by the same method. Null for a language with no generated-file convention; both Go and TypeScript have one.
 Evidence: Opacity: code the next agent cannot follow from Go source alone (C, reflection, unsafe memory, generator output). Informational: reported, not gated, and no default threshold. The rebuild estimate leaves this volume out, since a rebuild reruns the generator.
 Thresholds in the loaded config: none
 -- structured --
 {
-  "definition": "Estimated tokens of the generated non-test files that tokens_est leaves out, by the same method. Null for a language with no generated-file convention.",
+  "definition": "Estimated tokens of the generated non-test files that tokens_est leaves out, by the same method. Null for a language with no generated-file convention; both Go and TypeScript have one.",
   "evidence": "Opacity: code the next agent cannot follow from Go source alone (C, reflection, unsafe memory, generator output). Informational: reported, not gated, and no default threshold. The rebuild estimate leaves this volume out, since a rebuild reruns the generator.",
   "gated": false,
   "name": "tokens_est_generated",

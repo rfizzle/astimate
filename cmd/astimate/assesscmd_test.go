@@ -147,6 +147,7 @@ func TestAssessTableGolden(t *testing.T) {
 		{filepath.Join(degradedDir, "tested"), "assess_degraded_tested.txt"},
 		{filepath.Join(fixtureDir, "tested"), "assess_fixture_tested.txt"},
 		{"../../testdata/go/understanding/opaque", "assess_understanding_opaque.txt"},
+		{filepath.Join(tsFixtureDir, "a"), "assess_typescript_generated.txt"},
 	} {
 		t.Run(tc.golden, func(t *testing.T) {
 			t.Parallel()

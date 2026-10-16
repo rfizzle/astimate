@@ -1,0 +1,29 @@
+package: a
+rebuild: 0.0 agent passes, 0.2 human days (estimate from calibrated parameters; human days by COCOMO 81 and COCOMO II, rebuild profile alike)
+tier: ONE_PASS
+
+drivers:
+  unspecified  300 tokens  untested_exports=1
+  volume       48 tokens   tokens_est=48 duplication_pct=0
+
+suggestions:
+  - 1 exported function has no test (label); a rebuild would have to reverse-engineer its behavior.
+  - The package is 48 tokens of non-test source; its volume is 48 tokens of the rebuild; split the package to shrink it.
+
+metrics:
+  files                  2    sloc                  4
+  largest_file_sloc      4    tokens_est            48
+  tokens_est_with_tests  48   internal_imports      1
+  external_imports       1    stdlib_imports        0
+  fan_in                 0    fan_in_tests          0
+  exported_symbols       1    globals               0
+  init_funcs             0    max_nesting           0
+  cognitive_total        0    cognitive_p90         0
+  cyclomatic_total       1    cyclomatic_p90        1
+  func_count             1    dup_blocks            0
+  dup_blocks_code        0    duplication_pct       0
+  duplicated_lines       0    test_files            0
+  test_funcs             0    has_tests             false
+  untested_exports       1    instability           1
+  generated_files        1    tokens_est_generated  101
+  churn_commits          n/a  churn_authors         n/a

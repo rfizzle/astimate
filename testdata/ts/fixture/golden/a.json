@@ -1,11 +1,11 @@
 {
-  "files": 1,
+  "files": 2,
   "sloc": 4,
   "largest_file_sloc": 4,
   "tokens_est": 48,
   "tokens_est_with_tests": 48,
   "internal_imports": 1,
-  "external_imports": 0,
+  "external_imports": 1,
   "stdlib_imports": 0,
   "fan_in": 0,
   "fan_in_tests": 0,
@@ -26,5 +26,7 @@
   "test_funcs": 0,
   "has_tests": false,
   "untested_exports": 1,
-  "instability": 1
+  "instability": 1,
+  "generated_files": 1,
+  "tokens_est_generated": 101
 }

@@ -6,7 +6,6 @@ import (
 
 	"github.com/rfizzle/astimate/internal/churn"
 	"github.com/rfizzle/astimate/internal/engine/internal/judge"
-	"github.com/rfizzle/astimate/internal/lang/golang"
 	"github.com/rfizzle/astimate/internal/metrics"
 )
 
@@ -26,8 +25,8 @@ func MeasureChurn(ctx context.Context, t *Target) func(pkg string, m *metrics.Ra
 		return none
 	}
 	opts := churn.Options{Window: t.Cfg.Churn.Commits, Classifier: sc}
-	if t.Ext.Language() == languageGo {
-		opts.Generated = golang.IsGeneratedFile
+	if g, ok := t.Ext.(metrics.GeneratedClassifier); ok {
+		opts.Generated = g.IsGenerated
 	}
 	ix, err := churn.Measure(ctx, t.Mod.Root, opts)
 	switch {

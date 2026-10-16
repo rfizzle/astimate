@@ -1,9 +1,12 @@
 package typescript
 
 import (
+	"bytes"
 	"flag"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/lang/typescript/internal/resolve"
@@ -31,8 +34,55 @@ func TestConformance(t *testing.T) {
 		Root:      root,
 		Packages:  fixturePackages(),
 		GoldenDir: filepath.Join(root, "golden"),
+		Unmarked:  unmarkedCopy(t, root),
 		Update:    flag.Lookup(updateFlag).Value.String() == "true",
 	})
+}
+
+// generatedMarker and unmarked are the marker of the fixture's generated
+// file and the same number of bytes that no longer match any marker, so a
+// file keeps its length, and its token estimate, when unmarkedCopy defaces
+// it.
+const (
+	generatedMarker = "@generated"
+	unmarked        = "@generatex"
+)
+
+// unmarkedCopy copies the fixture module at root to a temporary directory,
+// turns every non-test file with a generated-file marker into a
+// hand-written one by defacing the marker in place, and returns the copied
+// root. It fails the test when no file was generated, since the check
+// would then prove nothing.
+func unmarkedCopy(t *testing.T, root string) string {
+	t.Helper()
+	dir := filepath.Join(t.TempDir(), filepath.Base(root))
+	if err := os.CopyFS(dir, os.DirFS(root)); err != nil {
+		t.Fatalf("copying %s: %v", root, err)
+	}
+	n := 0
+	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !resolve.IsSourceName(d.Name()) || strings.Contains(d.Name(), ".test.") {
+			return err
+		}
+		data, err := os.ReadFile(path)
+		if err != nil || !bytes.Contains(data, []byte(generatedMarker)) {
+			return err
+		}
+		// The copied files keep the fixture's permissions, which may be
+		// read-only in a read-only checkout.
+		if err := os.Chmod(path, 0o600); err != nil {
+			return err
+		}
+		n++
+		return os.WriteFile(path, bytes.Replace(data, []byte(generatedMarker), []byte(unmarked), 1), 0o600)
+	})
+	if err != nil {
+		t.Fatalf("unmarking generated files: %v", err)
+	}
+	if n == 0 {
+		t.Fatalf("no generated file under %s; the generated-file check needs one", root)
+	}
+	return dir
 }
 
 // fixturePackages lists the packages of testdata/ts/fixture, sorted.

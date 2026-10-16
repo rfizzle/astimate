@@ -12,6 +12,14 @@ history.
 
 ### Added
 
+- TypeScript files marked as generated are recognised. A non-test `.ts`,
+  `.tsx`, `.mts` or `.cts` file whose leading comment block holds
+  `@generated`, a `Code generated ... DO NOT EDIT` line, or a "generated"
+  line and a "do not edit" or "do not modify" line (any case) counts in
+  `files`, `generated_files` and `tokens_est_generated`, which is no longer
+  null for TypeScript, and is read for the import metrics and `fan_in` but
+  left out of size, complexity, exports, duplication and churn, as in Go. A
+  package of generated files only has the role `generated-only`.
 - The report names the packages it did not analyse, and why. A directory
   whose Go files build constraints all exclude (a `//go:build ignore`
   generator, a cgo package with cgo off) and a package that does not load

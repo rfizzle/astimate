@@ -25,5 +25,7 @@
   "test_files": 0,
   "test_funcs": 0,
   "has_tests": true,
-  "untested_exports": 1
+  "untested_exports": 1,
+  "generated_files": 0,
+  "tokens_est_generated": 0
 }

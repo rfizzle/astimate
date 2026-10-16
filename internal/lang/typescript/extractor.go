@@ -236,10 +236,15 @@ func (e *Extractor) Functions(ctx context.Context, mod *metrics.ModuleContext, p
 func functionsOf(p *pkg) []metrics.FunctionInfo {
 	n := 0
 	for _, f := range p.src {
-		n += len(f.Funcs)
+		if !f.Generated {
+			n += len(f.Funcs)
+		}
 	}
 	fns := make([]metrics.FunctionInfo, 0, n)
 	for _, f := range p.src {
+		if f.Generated {
+			continue
+		}
 		file := filepath.Base(f.Abs)
 		if rel, err := filepath.Rel(p.dir, f.Abs); err == nil {
 			file = rel

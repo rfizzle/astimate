@@ -16,6 +16,16 @@ type SourceClassifier interface {
 	IsModuleMarker(name string) bool
 }
 
+// GeneratedClassifier is implemented by an Extractor with a generated-file
+// convention (SPEC.md 6.5), so that churn can leave a generated file out
+// (SPEC.md 6.6). Callers type-assert an Extractor to it; without it every
+// file counts.
+type GeneratedClassifier interface {
+	// IsGenerated reports whether the file at the absolute path path is
+	// generated. A file that cannot be read reads as not generated.
+	IsGenerated(path string) bool
+}
+
 // SourceKind is what a change to a file can move.
 type SourceKind uint8
 

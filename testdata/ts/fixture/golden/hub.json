@@ -28,5 +28,7 @@
   "untested_exports": 4,
   "instability": 0,
   "abstractness": 0,
-  "main_sequence_distance": 1
+  "main_sequence_distance": 1,
+  "generated_files": 0,
+  "tokens_est_generated": 0
 }

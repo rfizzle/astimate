@@ -6,6 +6,9 @@ import (
 	"go/token"
 )
 
+// IsGenerated implements metrics.GeneratedClassifier with IsGeneratedFile.
+func (e *Extractor) IsGenerated(path string) bool { return IsGeneratedFile(path) }
+
 // IsGeneratedFile reports whether the Go file at path carries a
 // generated-code header before its package clause (ast.IsGenerated), the
 // rule generated_files counts by (SPEC.md 6.5). Only the file's head is

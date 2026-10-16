@@ -174,13 +174,25 @@ Two files: `trivial.ts` (109 bytes, 3 SLOC) and `wrappers.ts` (577 bytes,
 
 ## a
 
-One file, `a.ts`, 154 bytes. Imports `../hub`, which resolves to
-`hub/index.ts`.
+Two files: `a.ts`, 154 bytes, which imports `../hub` (`hub/index.ts`), and
+`schema.ts`, 324 bytes, which is generated.
 
 - `sloc=4`: import, function line, return, closing brace.
 - `tokens_est = 154 / 3.2 = 48.1 -> 48`.
 - `label` scores 0. `internal_imports=1`, `exported_symbols=1`,
   `untested_exports=1`, instability `1 / (0 + 1) = 1`.
+- `schema.ts` opens with `// @generated`, a marker in the comments before
+  the first token of code, so it is generated (SPEC.md 6.5). It counts in
+  `files=2`, `generated_files=1` and `tokens_est_generated = 324 / 3.2 =
+  101.25 -> 101`, and its import of `zod` counts in `external_imports=1`.
+  Its export `parseLabel` and `cache` (a `let`), its function and its
+  complexity count nowhere: `sloc`, `largest_file_sloc`, `tokens_est`,
+  `exported_symbols`, `globals`, `func_count`, `untested_exports` and the
+  rest are those of `a.ts` alone. The conformance test also extracts a copy
+  of the fixture with the tag defaced to `@generatex`, which must report no
+  generated file and agree with this package on the import metrics.
+- Every other package has no generated file: `generated_files=0` and
+  `tokens_est_generated=0`.
 
 ## b
 

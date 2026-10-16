@@ -20,6 +20,9 @@ type Facts struct {
 	// relative to the module root, which relative imports resolve against.
 	Abs, Dir string
 	Test     bool
+	// Generated reports a non-test file whose leading comment block marks
+	// it as generated code (IsGenerated).
+	Generated bool
 	// Size is the file's length in bytes; O200k its o200k_base token count
 	// when the scanner counts them.
 	Size, O200k int
@@ -132,7 +135,7 @@ func (s *Scanner) Scan(abs, rel string, test bool) (*Facts, error) {
 		s.opts.Logger.Info("syntax errors", "file", abs)
 	}
 
-	ff := &Facts{Abs: abs, Dir: path.Dir(rel), Test: test, Size: len(src)}
+	ff := &Facts{Abs: abs, Dir: path.Dir(rel), Test: test, Size: len(src), Generated: !test && IsGenerated(src)}
 	if s.opts.O200k {
 		if s.counter == nil {
 			if s.counter, err = newO200kCounter(); err != nil {

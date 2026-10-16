@@ -168,11 +168,7 @@ func (m *module) link(res *resolve.Resolver) {
 					p.stdlib[imp.Name] = true
 				}
 			}
-			for _, re := range f.Reexports {
-				if imp := res.Classify(f.Dir, re.Spec); imp.Kind != resolve.Internal || imp.Name != id {
-					p.reexports += re.Names
-				}
-			}
+			p.reexports += reexportedNames(res, id, f)
 		}
 		for _, f := range p.tests {
 			for _, spec := range f.Imports {
@@ -198,6 +194,19 @@ func (m *module) link(res *resolve.Resolver) {
 			}
 		}
 	}
+}
+
+// reexportedNames returns how many names f, a non-test file of package id,
+// re-exports from other packages or from outside the module. A generated
+// file adds none, as it adds no exported_symbols.
+func reexportedNames(res *resolve.Resolver, id string, f *inspect.Facts) int {
+	n := 0
+	for _, re := range f.Reexports {
+		if imp := res.Classify(f.Dir, re.Spec); !f.Generated && (imp.Kind != resolve.Internal || imp.Name != id) {
+			n += re.Names
+		}
+	}
+	return n
 }
 
 // setDetails records d as the most recent details of package id.

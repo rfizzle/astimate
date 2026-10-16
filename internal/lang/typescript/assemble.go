@@ -28,7 +28,7 @@ func assemble(m *module, p *pkg, opts assembleOptions) (metrics.RawMetrics, erro
 	var r metrics.RawMetrics
 	var scores, cyclomatic []int
 	var types, interfaces int
-	var srcBytes, srcTokens, allBytes, allTokens int
+	var srcBytes, srcTokens, allBytes, allTokens, genBytes, genTokens, generated int
 	var candidates []candidate
 	var globalPos []metrics.Position
 	var globalNames []string
@@ -39,6 +39,14 @@ func assemble(m *module, p *pkg, opts assembleOptions) (metrics.RawMetrics, erro
 		rel := relFile(p.dir, f.Abs)
 		files = append(files, rel)
 		r.Files++
+		if f.Generated {
+			// A generated file counts in files and the generated volume,
+			// and is read for the imports, and nothing else (SPEC.md 6.5).
+			generated++
+			genBytes += f.Size
+			genTokens += f.O200k
+			continue
+		}
 		r.SLOC += f.SLOC
 		if largest == "" || f.SLOC > r.LargestFileSLOC {
 			largest, r.LargestFileSLOC = rel, f.SLOC
@@ -113,6 +121,7 @@ func assemble(m *module, p *pkg, opts assembleOptions) (metrics.RawMetrics, erro
 
 	if opts.o200k {
 		r.TokensEst, r.TokensEstWithTests = srcTokens, allTokens
+		r.TokensEstGenerated = &genTokens
 	} else {
 		cpt := opts.charsPerToken
 		if !(cpt > 0) || math.IsInf(cpt, 1) {
@@ -120,8 +129,11 @@ func assemble(m *module, p *pkg, opts assembleOptions) (metrics.RawMetrics, erro
 		}
 		r.TokensEst = int(float64(srcBytes) / cpt)
 		r.TokensEstWithTests = int(float64(allBytes) / cpt)
+		gen := int(float64(genBytes) / cpt)
+		r.TokensEstGenerated = &gen
 	}
 
+	r.GeneratedFiles = &generated
 	r.InternalImports, r.ExternalImports, r.StdlibImports = len(p.internal), len(p.external), len(p.stdlib)
 	r.FanIn, r.FanInTests = len(p.fanIn), len(p.fanInTests)
 
@@ -144,11 +156,19 @@ func assemble(m *module, p *pkg, opts assembleOptions) (metrics.RawMetrics, erro
 	r.Instability = metrics.RoundRatio(instability)
 	r.Abstractness = metrics.RoundRatio(abstractness)
 
-	// A package a bin entry names, or one that exports nothing, is a
-	// composition root (SPEC.md 6.5); TypeScript has no test-support or
-	// generated-only rule.
+	// A package a bin entry names is a composition root (SPEC.md 6.5); a
+	// package whose files are all generated is generated-only, which it is
+	// checked for before the exports-nothing rule, since a generated file
+	// exports nothing as far as the count goes; a package that exports
+	// nothing is a composition root too. TypeScript has no test-support
+	// rule.
 	r.Role = role.Library
-	if m.bins[p.id] || r.ExportedSymbols == 0 {
+	switch {
+	case m.bins[p.id]:
+		r.Role = role.Main
+	case len(p.src) > 0 && generated == len(p.src):
+		r.Role = role.GeneratedOnly
+	case r.ExportedSymbols == 0:
 		r.Role = role.Main
 	}
 
@@ -179,11 +199,14 @@ type candidate struct {
 	file string
 }
 
-// duplication runs the duplicate finder over the non-test files of p, with
+// duplication runs the duplicate finder over the non-generated, non-test files of p, with
 // sloc the package's SLOC.
 func duplication(p *pkg, sloc int, opts duptok.Options) (duptok.Result, error) {
 	var s duptok.Stream
 	for _, f := range p.src {
+		if f.Generated {
+			continue
+		}
 		t := &f.Tokens
 		for i, c := range t.Codes {
 			if err := s.AddKeyed(c, t.Class[i], int(t.Line[i]), int(t.Last[i]), t.Keys[i]); err != nil {

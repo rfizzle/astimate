@@ -217,12 +217,12 @@ func texts() []entry {
 		},
 		{
 			"generated_files", "",
-			"Non-test files with a \"// Code generated ... DO NOT EDIT.\" line before the package clause, Go's generated-file convention. They count in files and the import metrics and in no other size or structure metric; tokens_est_generated carries their volume.",
+			"Non-test files marked as generated: in Go a \"// Code generated ... DO NOT EDIT.\" line before the package clause; in TypeScript an \"@generated\" tag, or a \"generated\" and a \"do not edit\" or \"do not modify\" line, in the comments before the first line of code. They count in files and the import metrics and in no other size or structure metric; tokens_est_generated carries their volume.",
 			"{opacity}",
 		},
 		{
 			"tokens_est_generated", "",
-			"Estimated tokens of the generated non-test files that tokens_est leaves out, by the same method. Null for a language with no generated-file convention.",
+			"Estimated tokens of the generated non-test files that tokens_est leaves out, by the same method. Null for a language with no generated-file convention; both Go and TypeScript have one.",
 			"{opacity} The rebuild estimate leaves this volume out, since a rebuild reruns the generator.",
 		},
 		{
