@@ -331,6 +331,24 @@ func passedSummary(c *narrate.Change) string {
 		strconv.Itoa(c.Unchanged) + " did not change"
 }
 
+// notAnalysed counts the packages not analysed and those of each reason
+// in one line, the reasons in groups' order; empty without any.
+func notAnalysed(groups []narrate.SkipGroup) string {
+	if len(groups) == 0 {
+		return ""
+	}
+	n := 0
+	for _, g := range groups {
+		n += len(g.Paths)
+	}
+	parts := make([]string, 0, len(groups)+1)
+	parts = append(parts, plural(n, "package", "packages")+" not analysed")
+	for _, g := range groups {
+		parts = append(parts, g.Reason+" ("+strconv.Itoa(len(g.Paths))+")")
+	}
+	return strings.Join(parts, " · ")
+}
+
 // failingSummary counts a failing package's findings with the sittings an
 // agent needs to rebuild it and its churn, each when known.
 func failingSummary(n int, p *narrate.Package) string {

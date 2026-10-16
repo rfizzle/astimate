@@ -15,10 +15,13 @@ const (
 	valueCap = 18
 )
 
-// change writes the change report: the verdict, the counts, each failing
-// package with its findings, the heads-ups, the exempted findings, the
-// deleted packages, the notices and the exit code.
-func (p *printer) change(c *narrate.Change) {
+// change writes m's change report: the verdict, the counts, each failing
+// package with its findings, the heads-ups, with WriteOptions.ChangeOnly
+// the packages not analysed (which the repository report lists
+// otherwise), the exempted findings, the deleted packages, the notices and
+// the exit code.
+func (p *printer) change(m *narrate.Module) {
+	c := m.Change
 	code := sgrGreen
 	if c.Verdict == "FAIL" {
 		code = sgrRed
@@ -58,6 +61,9 @@ func (p *printer) change(c *narrate.Change) {
 		}
 		parts = append(parts, "copies between packages "+v)
 	}
+	if c.NotAnalysed > 0 {
+		parts = append(parts, strconv.Itoa(c.NotAnalysed)+" not analysed")
+	}
 	p.fit(parts, lead, lead, func(i int) string { return parts[i] })
 	lw, vw := 0, 0
 	for i := range c.Failing {
@@ -71,6 +77,11 @@ func (p *printer) change(c *narrate.Change) {
 		p.failing(&c.Failing[i], lw, vw)
 	}
 	p.headsUp(c)
+	if p.opts.ChangeOnly && len(m.Skipped) > 0 {
+		p.line("")
+		p.para(m.NotAnalysed, " ")
+		p.notAnalysed(m.Skipped)
+	}
 	p.tail(c)
 }
 

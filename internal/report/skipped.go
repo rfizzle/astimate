@@ -6,8 +6,10 @@ import (
 )
 
 // Skipped is a package a check left out because it does not load, such as
-// a Go package importing a module that is not available (SPEC.md 6.5). It
-// is neither extracted nor gated; the packages around it are.
+// a Go package importing a module that is not available (SPEC.md 6.5), or
+// because none of its files is built, such as a Go directory whose files
+// build constraints exclude, which has no Error. It is neither extracted
+// nor gated; the packages around it are.
 type Skipped struct {
 	// Package is the package directory relative to the module root, in
 	// slash form, as package_path names a checked package.
@@ -15,8 +17,9 @@ type Skipped struct {
 	// Reason is the kind of failure, such as "missing module" or "type
 	// error in test files".
 	Reason string `json:"reason"`
-	// Error is the package's first load error.
-	Error string `json:"error"`
+	// Error is the package's first load error; empty, and omitted, for a
+	// package none of whose files is built.
+	Error string `json:"error,omitempty"`
 	// Selected reports that the check would have judged the package: it
 	// changed since the baseline. Its verdict is then
 	// incomplete, and check exits 2 unless a violation decides it.
@@ -44,11 +47,17 @@ func skippedText(s *Skipped) string {
 	return text
 }
 
-// writeSkippedLines writes one line per skipped package of c, each
-// skippedText behind lead.
+// failed reports whether s does not load, as opposed to having no file
+// that is built: only a package that does not load is a notice.
+func (s *Skipped) failed() bool { return s.Error != "" }
+
+// writeSkippedLines writes one line per skipped package of c that does not
+// load, each skippedText behind lead.
 func writeSkippedLines(w *bufio.Writer, c *Check, lead string) {
 	for i := range c.Skipped {
-		_, _ = w.WriteString(lead + skippedText(&c.Skipped[i]) + "\n")
+		if c.Skipped[i].failed() {
+			_, _ = w.WriteString(lead + skippedText(&c.Skipped[i]) + "\n")
+		}
 	}
 }
 
@@ -57,6 +66,7 @@ func writeSkippedLines(w *bufio.Writer, c *Check, lead string) {
 type jsonRow struct {
 	Report
 	// Skipped lists the packages the check left out because they do not
-	// load; omitted when there are none and on every package row.
+	// load or none of their files is built; omitted when there are none
+	// and on every package row.
 	Skipped []Skipped `json:"skipped,omitempty"`
 }

@@ -112,6 +112,10 @@
     "config_version": "thresholds-2026-09-28",
     "skipped": [
       {
+        "package": "gen",
+        "reason": "build constraints exclude all Go files"
+      },
+      {
         "package": "remote",
         "reason": "missing module",
         "error": "loading example.com/app/remote: remote.go:4:2: no required module provides package example.com/absent/client;\n\tto add it: go get example.com/absent/client",

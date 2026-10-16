@@ -7,10 +7,12 @@ import (
 	"io"
 	"log/slog"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/rfizzle/astimate/internal/cli"
 	"github.com/rfizzle/astimate/internal/engine"
+	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/report/rows"
 )
 
@@ -72,6 +74,10 @@ func rankTarget(ctx context.Context, t *engine.Target, opts engine.RankOptions, 
 		logger.Error("rank failed", "err", err)
 		return exitUsage
 	}
+	var skipped []metrics.SkippedPackage
+	if err == nil {
+		skipped, err = metrics.NotAnalysed(t.Ext, t.Mod.Root)
+	}
 	if err != nil {
 		logger.Error("rank failed", "root", t.Mod.Root, "err", err)
 		return exitAnalysis
@@ -84,9 +90,22 @@ func rankTarget(ctx context.Context, t *engine.Target, opts engine.RankOptions, 
 		if err := rows.WriteRowsTable(w, ranked); err != nil {
 			return err
 		}
-		_, err := io.WriteString(w, rankFooter)
+		_, err := io.WriteString(w, rankFooter+notAnalysedFooter(len(skipped)))
 		return err
 	})
+}
+
+// notAnalysedFooter is the table's line counting the n packages rank left
+// out because they do not load or none of their files is built, which
+// --debug logs one by one; empty when n is 0.
+func notAnalysedFooter(n int) string {
+	switch n {
+	case 0:
+		return ""
+	case 1:
+		return "1 package not analysed; --debug names it.\n"
+	}
+	return strconv.Itoa(n) + " packages not analysed; --debug names them.\n"
 }
 
 // emit writes what render renders to stdout (cli.WriteBuffered) and returns

@@ -175,6 +175,39 @@ func TestWritePass(t *testing.T) {
 	}
 }
 
+// TestWriteNotAnalysed checks the packages not analysed: the repository
+// report closes with them grouped by reason, the change report counts
+// them on its counts line and, alone, lists them after the heads-ups, and
+// a module with none prints neither the block nor the count.
+func TestWriteNotAnalysed(t *testing.T) {
+	t.Parallel()
+
+	m := sample()
+	m.Skipped = []narrate.Skipped{{Path: "tools/gen", Reason: "build constraints exclude all Go files"},
+		{Path: "cmd/gen", Reason: "build constraints exclude all Go files"}}
+	m.NotAnalysed = "2 packages not analysed · build constraints exclude all Go files (2)"
+	m.Change.NotAnalysed = 2
+	block := "\n build constraints exclude all Go files\n   cmd/gen\n   tools/gen\n"
+
+	out := write(t, m, narrate.WriteOptions{Width: 120})
+	repo, change, _ := strings.Cut(out, "\nFAIL ")
+	if !strings.Contains(repo, "\nNot analysed  "+m.NotAnalysed+"\n") || !strings.HasSuffix(repo, block) ||
+		strings.Contains(change, "cmd/gen") || !strings.Contains(change, " · 2 not analysed") {
+		t.Errorf("report with packages not analysed = \n%s", out)
+	}
+	out = write(t, m, narrate.WriteOptions{Width: 120, ChangeOnly: true})
+	heads := strings.Index(out, "! 2 heads up")
+	listed := strings.Index(out, "\n "+m.NotAnalysed+"\n"+block)
+	if heads < 0 || listed < heads || !strings.Contains(out, " · 2 not analysed") {
+		t.Errorf("change report with packages not analysed = \n%s", out)
+	}
+	for _, opts := range []narrate.WriteOptions{{Width: 120}, {Width: 120, ChangeOnly: true}} {
+		if out := write(t, sample(), opts); strings.Contains(out, "not analysed") || strings.Contains(out, "Not analysed") {
+			t.Errorf("ChangeOnly %v: output names packages not analysed without any:\n%s", opts.ChangeOnly, out)
+		}
+	}
+}
+
 func TestWrap(t *testing.T) {
 	t.Parallel()
 

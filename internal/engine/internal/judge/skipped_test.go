@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/report"
 )
 
 // skipper is an extractor whose Skipped returns list or err; its other
@@ -83,5 +84,51 @@ func TestSkipsWithoutSkipper(t *testing.T) {
 	failing := skipper{err: errors.New("load failed")}
 	if _, err := SkippedIn(failing, "/work/mod"); err == nil {
 		t.Error("SkippedIn hid the extractor's error")
+	}
+}
+
+// excluder is a skipper whose Excluded returns excluded.
+type excluder struct {
+	skipper
+	excluded []metrics.SkippedPackage
+}
+
+// Excluded returns e.excluded.
+func (e excluder) Excluded(string) ([]metrics.SkippedPackage, error) { return e.excluded, nil }
+
+// TestSkipsExcluded checks that a package none of whose files is built is
+// reported among the skipped ones, in identifier order, without an error
+// and never selected, while selection and failures ignore it.
+func TestSkipsExcluded(t *testing.T) {
+	t.Parallel()
+
+	const constraints = "build constraints exclude all Go files"
+	ext := excluder{
+		skipper: skipper{list: []metrics.SkippedPackage{{Package: "example.com/m/b", Reason: "missing module", Error: "no module"}}},
+		excluded: []metrics.SkippedPackage{{Package: "example.com/m/a", Reason: constraints},
+			{Package: "example.com/m/c", Reason: constraints}},
+	}
+	s, err := SkippedIn(ext, "/work/mod")
+	if err != nil {
+		t.Fatal(err)
+	}
+	head := []string{"example.com/m/d"}
+	if got, want := s.With(head), []string{"example.com/m/b", "example.com/m/d"}; !slices.Equal(got, want) {
+		t.Errorf("With = %v, want %v", got, want)
+	}
+	if err := s.Failure("example.com/m/a"); err != nil {
+		t.Errorf("Failure of an excluded package = %v, want nil", err)
+	}
+	got := s.Report("example.com/m", []string{"example.com/m/a", "example.com/m/b"})
+	want := []report.Skipped{{Package: "a", Reason: constraints}, {Package: "b", Reason: "missing module", Error: "no module", Selected: true},
+		{Package: "c", Reason: constraints}}
+	if !slices.Equal(got, want) {
+		t.Errorf("Report = %+v, want %+v", got, want)
+	}
+
+	only := excluder{excluded: ext.excluded}
+	if s, err := SkippedIn(only, "/work/mod"); err != nil || s.Any() || len(s.Report("example.com/m", nil)) != 2 {
+		t.Errorf("an extractor that only excludes: Any = %v, Report = %+v, err %v; want no skips and both reported",
+			s.Any(), s.Report("example.com/m", nil), err)
 	}
 }

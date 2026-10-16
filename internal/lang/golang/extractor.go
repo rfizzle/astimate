@@ -450,13 +450,37 @@ func (l *loaded) skipped(importPath string) (load.SkippedPackage, bool) {
 // of failure and its first error (metrics.Skipper). It shares Packages'
 // load.
 func (e *Extractor) Skipped(root string) ([]metrics.SkippedPackage, error) {
+	return e.leftOut(root, false)
+}
+
+// Excluded returns the directories of the module at root holding Go files
+// that the load returned no package for, because build constraints
+// exclude all their files (or, for a test-only package, all its non-test
+// files), sorted by import path, each with that reason (metrics.Excluder).
+// It shares Packages' load; logSkipped logs the same directories.
+func (e *Extractor) Excluded(root string) ([]metrics.SkippedPackage, error) {
+	return e.leftOut(root, true)
+}
+
+// leftOut returns the packages the load of the module at root left out,
+// sorted by import path: with excluded the directories none of whose
+// files is built (loaded.Skipped), else the packages that fail to load
+// (loaded.SkippedPackages), each with its first error.
+func (e *Extractor) leftOut(root string, excluded bool) ([]metrics.SkippedPackage, error) {
 	l, err := e.module(context.Background(), root)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]metrics.SkippedPackage, 0, len(l.SkippedPackages))
-	for _, s := range l.SkippedPackages {
-		out = append(out, metrics.SkippedPackage{Package: s.Package, Reason: s.Reason, Error: s.Err.Error()})
+	out := make([]metrics.SkippedPackage, 0, len(l.Skipped)+len(l.SkippedPackages))
+	if !excluded {
+		for _, s := range l.SkippedPackages {
+			out = append(out, metrics.SkippedPackage{Package: s.Package, Reason: s.Reason, Error: s.Err.Error()})
+		}
+		return out, nil
 	}
+	for _, s := range l.Skipped {
+		out = append(out, metrics.SkippedPackage{Package: s.ImportPath, Reason: s.Reason})
+	}
+	slices.SortFunc(out, func(a, b metrics.SkippedPackage) int { return strings.Compare(a.Package, b.Package) })
 	return out, nil
 }

@@ -12,6 +12,17 @@ history.
 
 ### Added
 
+- The report names the packages it did not analyse, and why. A directory
+  whose Go files build constraints all exclude (a `//go:build ignore`
+  generator, a cgo package with cgo off) and a package that does not load
+  used to be a log line only, so 77 analysed packages read the same as 80
+  with three left out. Text and Markdown now close with a "Not analysed"
+  block grouped by reason, the HTML page notes them under the package
+  table, and the JSON report and the MCP `report_module` carry a
+  `skipped` array. `check` adds `· N not analysed` to its counts line and
+  lists them after the heads-ups, and its JSON lists them in the module
+  row's `skipped`; they never fail the gate. `rank` ends its table with
+  the count, and `--debug` names each.
 - A Homebrew cask. `brew install --cask rfizzle/tap/astimate` installs the
   release archive's binary on macOS; goreleaser writes `Casks/astimate.rb`
   to `rfizzle/homebrew-tap` on every release. The darwin binaries are

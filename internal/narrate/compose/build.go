@@ -50,6 +50,9 @@ type Input struct {
 	// Check is the check of the changed packages against Base; nil
 	// without one.
 	Check *report.Check
+	// Skipped are the module's packages that were not analysed, as
+	// report.Check.Skipped lists them; when nil, Check's are used.
+	Skipped []report.Skipped
 	// AstimateVersion and ConfigVersion are recorded on the report.
 	AstimateVersion string
 	ConfigVersion   string
@@ -118,6 +121,7 @@ func Build(in *Input) narrate.Module {
 			hottest = p
 		}
 	}
+	m.Skipped, m.NotAnalysed = notAnalysedOf(in)
 	m.Headline = headline(&m, first)
 	m.Lead = lead(&m, hottest, churned)
 	if in.Check != nil {
@@ -234,6 +238,7 @@ func change(c *report.Check, base string, m *narrate.Module) *narrate.Change {
 		total = len(m.Packages)
 	}
 	ch.Unchanged = max(0, total-ch.Changed)
+	ch.NotAnalysed = len(m.Skipped)
 	rows := make([]*report.Report, 0, len(c.Packages)+1)
 	if c.Module != nil {
 		rows = append(rows, &c.Module.Report)
@@ -312,6 +317,24 @@ func change(c *report.Check, base string, m *narrate.Module) *narrate.Change {
 	ch.Lead = changeLead(ch, untested)
 	ch.PassedSummary = passedSummary(ch)
 	return ch
+}
+
+// notAnalysedOf returns in's packages that were not analysed, from
+// in.Skipped or else in.Check, by path, and the line counting them.
+func notAnalysedOf(in *Input) ([]narrate.Skipped, string) {
+	src := in.Skipped
+	if src == nil && in.Check != nil {
+		src = in.Check.Skipped
+	}
+	if len(src) == 0 {
+		return nil, ""
+	}
+	out := make([]narrate.Skipped, 0, len(src))
+	for i := range src {
+		out = append(out, narrate.Skipped{Path: src[i].Package, Reason: src[i].Reason, Error: src[i].Error})
+	}
+	slices.SortFunc(out, func(a, b narrate.Skipped) int { return strings.Compare(a.Path, b.Path) })
+	return out, notAnalysed(narrate.GroupSkipped(out))
 }
 
 // finding narrates one violation.

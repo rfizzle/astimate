@@ -24,18 +24,24 @@ type ReportOptions struct {
 
 // Report builds the module report of t's module (compose.Build): every
 // package extracted once (as Rank does), with its churn from one history
-// walk and its report and details (as Assess builds them), and, with
-// opts.Base, the check of the changed packages against it (Check). A
-// package that fails to extract or name its details is logged, left out
-// and returned as a *PackageError in failed, as are Check's failures.
+// walk and its report and details (as Assess builds them), the packages
+// left out (judge.SkippedIn) and, with opts.Base, the check of the changed
+// packages against it (Check). A package that fails to extract or name its
+// details is logged, left out and returned as a *PackageError in failed,
+// as are Check's failures.
 func Report(ctx context.Context, t *Target, opts ReportOptions) (m *narrate.Module, failed []error, err error) {
 	pkgs, err := t.Ext.Packages(t.Mod.Root)
+	if err != nil {
+		return nil, nil, err
+	}
+	skips, err := judge.SkippedIn(t.Ext, t.Mod.Root)
 	if err != nil {
 		return nil, nil, err
 	}
 	extracted, order, failed := t.extractAll(ctx, pkgs)
 	fillChurn(ctx, t, extracted)
 	in := t.composeInput(opts.Base, len(order))
+	in.Skipped = skips.Report(t.Mod.ModulePath, nil)
 	for _, pkg := range order {
 		dir := judge.Rel(t.Mod.ModulePath, pkg)
 		r, err := t.build(ctx, pkg, dir, extracted[pkg])
@@ -67,13 +73,11 @@ func Report(ctx context.Context, t *Target, opts ReportOptions) (m *narrate.Modu
 // the ref or file the check compared with (empty for the default ref).
 // It reads the check's rows only, so unlike Report with
 // ReportOptions.Check it extracts nothing again; a package whose estimate
-// is uncalibrated has no view, so its summary names no rebuild days.
+// is uncalibrated has no view (SPEC.md 8.5), so its summary counts
+// findings only.
 func CheckReport(t *Target, c *report.Check, base string) *narrate.Module {
 	in := t.composeInput(base, len(c.Packages))
 	for i := range c.Packages {
-		// Gate output leaves an uncalibrated estimate out (SPEC.md 8.5):
-		// without its view a failing package's summary counts findings
-		// only.
 		if c.Packages[i].Report.Rebuild.Calibrated {
 			in.Packages = append(in.Packages, c.Packages[i].Report)
 		}

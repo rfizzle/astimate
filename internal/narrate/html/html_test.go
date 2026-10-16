@@ -57,6 +57,36 @@ func TestFixtureGolden(t *testing.T) {
 	}
 }
 
+// TestNotAnalysedGolden checks the page for testdata/go/notanalysed, whose
+// one directory that is not analysed is noted under the package table,
+// against testdata/report_notanalysed.html (regenerate with
+// UPDATE_GOLDEN=1).
+func TestNotAnalysedGolden(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	if err := render(&buf, readModule(t, "../../../cmd/astimate/testdata/report_notanalysed.json"), "/* fonts */"); err != nil {
+		t.Fatal(err)
+	}
+	golden := filepath.Join("testdata", "report_notanalysed.html")
+	if os.Getenv("UPDATE_GOLDEN") != "" {
+		if err := os.WriteFile(golden, buf.Bytes(), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	want, err := os.ReadFile(golden)
+	if err != nil {
+		t.Fatalf("reading golden file (regenerate with UPDATE_GOLDEN=1): %v", err)
+	}
+	if !bytes.Equal(buf.Bytes(), want) {
+		t.Errorf("page differs from %s (regenerate with UPDATE_GOLDEN=1)", golden)
+	}
+	if note := `<p class="note" id="not-analysed">Not analysed: 1 package not analysed · build constraints exclude all Go files (1). ` +
+		`build constraints exclude all Go files: <code>gen</code>.</p>`; !strings.Contains(buf.String(), note) {
+		t.Errorf("page lacks the note %s", note)
+	}
+}
+
 // checkPage fails t when page loads anything, does not nest its tags
 // properly, or lacks one of the sections tabs.
 func checkPage(t *testing.T, page string, tabs []string) {

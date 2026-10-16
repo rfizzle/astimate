@@ -30,6 +30,9 @@ type page struct {
 	// says what it is ranked by.
 	Churned bool
 	Change  *changeView
+	// Skipped are the packages not analysed, grouped by reason
+	// (narrate.GroupSkipped); nil when every package was.
+	Skipped []narrate.SkipGroup
 }
 
 // sticker is one of the hero's tilted counts.
@@ -70,7 +73,8 @@ type row struct {
 
 // build computes the page for m.
 func build(m *narrate.Module, fonts template.CSS) *page {
-	p := &page{M: m, Fonts: fonts, Eyebrow: eyebrow(m), Window: m.ChurnWindow, Basis: m.Counts.HumanBasisShort}
+	p := &page{M: m, Fonts: fonts, Eyebrow: eyebrow(m), Window: m.ChurnWindow, Basis: m.Counts.HumanBasisShort,
+		Skipped: narrate.GroupSkipped(m.Skipped)}
 	c := m.Counts
 	p.Stickers = []sticker{
 		{narrate.BandSplit, strconv.Itoa(c.Split), "need a split"},

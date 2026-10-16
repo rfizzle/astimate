@@ -46,6 +46,13 @@ type Module struct {
 	Hotspots []string `json:"hotspots"`
 	// Packages are every package, by path.
 	Packages []Package `json:"packages"`
+	// Skipped are the packages not analysed, by path; omitted when every
+	// package was.
+	Skipped []Skipped `json:"skipped,omitempty"`
+	// NotAnalysed counts Skipped and each reason in one line, such as "3
+	// packages not analysed · build constraints exclude all Go files (3)";
+	// omitted with Skipped.
+	NotAnalysed string `json:"not_analysed,omitempty"`
 	// Change is the change against the base; nil without one.
 	Change *Change `json:"change,omitempty"`
 	// Glossary explains the words the report uses.
@@ -317,6 +324,9 @@ type Change struct {
 	Warnings   int `json:"warnings"`
 	Passed     int `json:"passed"`
 	Unchanged  int `json:"unchanged"`
+	// NotAnalysed counts the module's packages not analysed
+	// (Module.Skipped); omitted when there are none.
+	NotAnalysed int `json:"not_analysed,omitempty"`
 	// Cross is the module's cross-package copies at base and head; nil
 	// without a module row.
 	Cross *Cross `json:"cross"`

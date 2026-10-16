@@ -50,6 +50,23 @@ func (p *printer) repo(m *narrate.Module) {
 	}
 	p.hotspots(m, byPath)
 	p.table(m.Packages)
+	if len(m.Skipped) > 0 {
+		p.line("")
+		p.heading("Not analysed", m.NotAnalysed)
+		p.notAnalysed(m.Skipped)
+	}
+}
+
+// notAnalysed writes the packages not analysed grouped by reason
+// (narrate.GroupSkipped): each reason, then its paths one per line.
+func (p *printer) notAnalysed(list []narrate.Skipped) {
+	for _, g := range narrate.GroupSkipped(list) {
+		p.line("")
+		p.para(g.Reason, " ", sgrDim)
+		for _, path := range g.Paths {
+			p.line("   " + p.style(truncLeft(path, max(12, p.width-3)), sgrCyan))
+		}
+	}
 }
 
 // hotspots writes "Start here": the first hotspots, each with its band,

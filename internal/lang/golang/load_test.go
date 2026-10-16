@@ -6,11 +6,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/lang/golang/internal/inspect"
+	"github.com/rfizzle/astimate/internal/metrics"
 )
 
 // cgoRoot returns the absolute path of testdata/go/cgo, a module whose
@@ -81,6 +83,30 @@ func TestLogSkipped(t *testing.T) {
 		`uses cgo, which is disabled (CGO_ENABLED=0, the default when no C compiler is on PATH)"` + "\n"
 	if got := buf.String(); got != want {
 		t.Errorf("log =\n%s\nwant\n%s", got, want)
+	}
+}
+
+// TestExcluded checks that Excluded lists the directories build
+// constraints leave without a package, sorted by import path, with the
+// reasons the log gives, and Skipped none of them.
+func TestExcluded(t *testing.T) {
+	root := cgoAlongsidePure(t)
+	t.Setenv("CGO_ENABLED", "0")
+	e := New()
+	got, err := e.Excluded(root)
+	if err != nil {
+		t.Fatalf("Excluded: %v", err)
+	}
+	want := []metrics.SkippedPackage{
+		{Package: "example.com/mixed/ignored", Reason: "build constraints exclude all Go files"},
+		{Package: "example.com/mixed/native", Reason: "build constraints exclude all Go files; it " +
+			"uses cgo, which is disabled (CGO_ENABLED=0, the default when no C compiler is on PATH)"},
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("Excluded = %+v, want %+v", got, want)
+	}
+	if skipped, err := e.Skipped(root); err != nil || len(skipped) != 0 {
+		t.Errorf("Skipped = %+v, %v; want none", skipped, err)
 	}
 }
 

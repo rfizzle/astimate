@@ -1,0 +1,251 @@
+{
+  "module_path": "example.com/notanalysed",
+  "name": "Notanalysed",
+  "language": "go",
+  "limits": [
+    {
+      "metric": "sloc",
+      "max": 1000
+    },
+    {
+      "metric": "tokens_est",
+      "max": 16000
+    },
+    {
+      "metric": "largest_file_sloc",
+      "max": 600
+    },
+    {
+      "metric": "exported_symbols",
+      "max": 60,
+      "roles": [
+        "library",
+        "test-support",
+        "generated-only"
+      ]
+    },
+    {
+      "metric": "internal_imports",
+      "max": 10,
+      "roles": [
+        "library",
+        "test-support",
+        "generated-only"
+      ]
+    }
+  ],
+  "churn_window": 200,
+  "counts": {
+    "packages": 1,
+    "split": 0,
+    "watch": 0,
+    "fine": 1,
+    "without_tests": 1,
+    "multi_sitting": 0,
+    "human_days": 0,
+    "human_days_low": 0,
+    "human_days_high": 0,
+    "human_time": "1 day",
+    "human_basis": "Engineer time is a range from two textbook models, not a measurement: for each package, the low end is the lower and the high end the higher of COCOMO 81 (2.4 person-months per thousand lines to the power 1.05) and COCOMO II, rebuild profile (2.381 person-months per thousand lines to the power 1.053, before the package's complexity rating), at 19 working days a month, on lines inflated by COCOMO II's software understanding, 20% to 100% under unfm completely_unfamiliar, from each package's tests, structure and doc comments, summed over the packages. The JSON field human_days is the configured model's, COCOMO II, rebuild profile. The agent sittings were measured on 85 rebuilds. The ratings under rebuild.cocomo in the configuration set the COCOMO II, rebuild profile figure, and rebuild.cocomo_a scales the COCOMO 81 one.",
+    "human_basis_short": "Engineer time runs, per package, from the lower to the higher of COCOMO 81 and COCOMO II, rebuild profile; not a measurement; agent sittings are measured. rebuild.cocomo and rebuild.cocomo_a set it."
+  },
+  "headline": "Notanalysed has no package that needs a split.",
+  "lead": "1 package; 0 need more than one agent sitting to rebuild from their tests. In measured agent rebuilds, a package of one sitting was rebuilt in 97% of runs and one of a few sittings in 78%. 1 is fine, 0 need watching, and 0 need a split.",
+  "hotspots": [],
+  "packages": [
+    {
+      "path": "greet",
+      "role": "library",
+      "tier": "ONE_PASS",
+      "band": "fine",
+      "over": [],
+      "hotspot": 0,
+      "ceilings": [
+        {
+          "metric": "sloc",
+          "label": "size",
+          "value": 7,
+          "max": 1000,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "tokens_est",
+          "label": "tokens",
+          "value": 66,
+          "max": 16000,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "largest_file_sloc",
+          "label": "largest file",
+          "value": 7,
+          "max": 600,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "exported_symbols",
+          "label": "exports",
+          "value": 1,
+          "max": 60,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        },
+        {
+          "metric": "internal_imports",
+          "label": "imports",
+          "value": 0,
+          "max": 10,
+          "judged": true,
+          "over": false,
+          "level": "fine"
+        }
+      ],
+      "rebuild": {
+        "agent_passes": 0,
+        "human_days": 0.3,
+        "human_days_low": 0.3,
+        "human_days_high": 0.4,
+        "human_time": "1 day",
+        "human_short": "1 d",
+        "rebuild_tokens": 366,
+        "sittings": "one sitting",
+        "sittings_text": "one sitting",
+        "drivers": [
+          {
+            "term": "unspecified",
+            "tokens": 300,
+            "pct": 82
+          },
+          {
+            "term": "volume",
+            "label": "the amount of code",
+            "tokens": 66,
+            "pct": 18
+          }
+        ],
+        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting; a package of one sitting was rebuilt in 97% of measured runs."
+      },
+      "copies": {
+        "pct": 0,
+        "blocks": 0,
+        "code_blocks": 0,
+        "lines": 7,
+        "level": "fine",
+        "chunks": [],
+        "say": "Very little repetition. Nothing to do."
+      },
+      "complexity": {
+        "functions": 1,
+        "buckets": {
+          "easy": 1,
+          "care": 0,
+          "hard": 0
+        },
+        "cognitive_p90": 1,
+        "cyclomatic_p90": 2,
+        "nesting": 1,
+        "hardest": [
+          {
+            "name": "Hello",
+            "file": "greet.go",
+            "line": 5,
+            "cognitive": 1,
+            "cyclomatic": 2,
+            "level": "fine"
+          }
+        ],
+        "say": "Every function here is easy to follow. The hardest tenth of functions score 1 or more; code nests up to 1 levels deep."
+      },
+      "tests": {
+        "test_funcs": 0,
+        "has_tests": false,
+        "untested": 1,
+        "exports": 1
+      },
+      "churn": null,
+      "fan_in": 0,
+      "story": "It is inside every limit, and it has no tests at all.",
+      "todo": "Nothing. Leave it alone.",
+      "facts": [
+        {
+          "label": "Rebuild",
+          "text": "0 agent passes · 366 rebuild tokens"
+        },
+        {
+          "label": "Copies",
+          "text": "0 duplicate blocks cover 0% of lines"
+        },
+        {
+          "label": "Complexity",
+          "text": "cognitive p90 1 · cyclomatic p90 2 · nesting 1"
+        },
+        {
+          "label": "Tests",
+          "text": "0 test functions · 1 of 1 exports untested"
+        },
+        {
+          "label": "Used by",
+          "text": "0 internal packages"
+        },
+        {
+          "label": "Engineer time",
+          "text": "1 human day for one engineer, from two textbook models, not measured"
+        }
+      ]
+    }
+  ],
+  "skipped": [
+    {
+      "path": "gen",
+      "reason": "build constraints exclude all Go files"
+    }
+  ],
+  "not_analysed": "1 package not analysed · build constraints exclude all Go files (1)",
+  "glossary": [
+    {
+      "term": "Sittings",
+      "text": "How many times an AI agent would have to start over with a fresh context window to rewrite the package from its tests. A sitting is a unit of the estimate, not literally one context window: one estimate token is about 7.6 tokens of an agent session's footprint. The estimate is fitted on 85 measured agent rebuilds of 31 packages: a package of one sitting was rebuilt in 97% of measured runs (65 of 67), one of two or three sittings in 78% (14 of 18). No measured package needed more than three; over three means the package has to be split before anyone can rebuild it. Sittings lead the report: packages are ranked by how often they changed times their agent passes, then by the low end of the engineer time."
+    },
+    {
+      "term": "Engineer time",
+      "text": "How long one engineer would take to rewrite the package, as a range of working time: a secondary figure, shown once beside the module's total and in each package's detail. rebuild.cocomo.unfm, how unfamiliar the engineer is with the code, moves it most, inflating the lines by up to double. Engineer time is a range from two textbook models, not a measurement: for each package, the low end is the lower and the high end the higher of COCOMO 81 (2.4 person-months per thousand lines to the power 1.05) and COCOMO II, rebuild profile (2.381 person-months per thousand lines to the power 1.053, before the package's complexity rating), at 19 working days a month, on lines inflated by COCOMO II's software understanding, 20% to 100% under unfm completely_unfamiliar, from each package's tests, structure and doc comments, summed over the packages. The JSON field human_days is the configured model's, COCOMO II, rebuild profile. The agent sittings were measured on 85 rebuilds. The ratings under rebuild.cocomo in the configuration set the COCOMO II, rebuild profile figure, and rebuild.cocomo_a scales the COCOMO 81 one."
+    },
+    {
+      "term": "Split",
+      "text": "The package is past what one agent pass can hold, or over two of its limits. Carve it into smaller packages before adding to it."
+    },
+    {
+      "term": "Watch",
+      "text": "Over one limit, large enough to need a few passes, or a quarter or more of it copied. Plan a split or a clean-up before it grows."
+    },
+    {
+      "term": "Copied",
+      "text": "The share of lines inside duplicate blocks of 40 or more tokens. Every copy is a second place a fix has to land."
+    },
+    {
+      "term": "Untested",
+      "text": "Exported functions no test touches. A rebuild would have to guess their behaviour."
+    },
+    {
+      "term": "Changes",
+      "text": "Commits touching the package in the last 200. Hot code is where a split pays back soonest."
+    },
+    {
+      "term": "Limits",
+      "text": "Per package: 1,000 lines, 16,000 tokens, a 600-line largest file, 60 exports, 10 internal imports. Fitted from well-regarded Go modules."
+    },
+    {
+      "term": "Hard to follow",
+      "text": "Each function gets a cognitive complexity score: how much branching and nesting a reader has to hold in their head. Up to 10 is easy, 11 to 20 needs care, over 20 is hard and the usual linter limit. \"Paths\" is the cyclomatic count, the number of distinct routes through the function a test would have to cover."
+    }
+  ],
+  "astimate_version": "test",
+  "config_version": "thresholds-2026-10-14b"
+}

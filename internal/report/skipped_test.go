@@ -13,7 +13,8 @@ import (
 // skippedCheck returns a passing check of one package and the module row
 // in a module with two packages that do not load: remote, which the check
 // selected, its first error spread over two lines as the go command
-// writes some, and tools, which it did not.
+// writes some, and tools, which it did not; and with gen, none of whose
+// files is built, which only the JSON lists.
 func skippedCheck(t *testing.T) *Check {
 	t.Helper()
 	row := func(path string) CheckedPackage {
@@ -29,6 +30,7 @@ func skippedCheck(t *testing.T) *Check {
 		Module:   &module,
 		Packages: []CheckedPackage{row("app")},
 		Skipped: []Skipped{
+			{Package: "gen", Reason: "build constraints exclude all Go files"},
 			{Package: "remote", Reason: "missing module", Selected: true,
 				Error: "loading example.com/app/remote: remote.go:4:2: no required module provides package example.com/absent/client;\n\tto add it: go get example.com/absent/client"},
 			{Package: "tools", Reason: "type error in test files",

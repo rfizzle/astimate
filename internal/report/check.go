@@ -42,10 +42,12 @@ type Check struct {
 	// Tokenizer is the tokenizer the check counted tokens with, named in
 	// the line saying a baseline's token counts are not comparable.
 	Tokenizer string
-	// Skipped are the module's packages that do not load, sorted by
-	// package, each marked Selected when the check would have judged it.
-	// Every format lists them after the rows' findings; JSON carries them
-	// on the module row.
+	// Skipped are the module's packages that do not load and those none of
+	// whose files is built (no Error), sorted by package, each that does
+	// not load marked Selected when the check would have judged it. Every
+	// format lists the ones that do not load after the rows' findings; JSON
+	// carries them all on the module row, and the module report counts
+	// them all as not analysed.
 	Skipped []Skipped
 	// Listed is the number of packages the module has at head, from
 	// which the module report counts the packages the check left
@@ -55,7 +57,8 @@ type Check struct {
 
 // Notices returns the check's notices, one line each, as the text format
 // ends with them: a package whose baseline is unavailable
-// (unavailableText), then each skipped package (skippedText).
+// (unavailableText), then each skipped package that does not load
+// (skippedText).
 func (c *Check) Notices() []string {
 	var out []string
 	for i := range c.Packages {
@@ -64,7 +67,9 @@ func (c *Check) Notices() []string {
 		}
 	}
 	for i := range c.Skipped {
-		out = append(out, skippedText(&c.Skipped[i]))
+		if c.Skipped[i].failed() {
+			out = append(out, skippedText(&c.Skipped[i]))
+		}
 	}
 	return out
 }
@@ -637,6 +642,9 @@ func WriteGitHubRanked(w io.Writer, c *Check, rank []string) (Omitted, error) {
 	}
 	for i := range c.Skipped {
 		s := &c.Skipped[i]
+		if !s.failed() {
+			continue
+		}
 		_, _ = bw.WriteString("::warning file=" + escapeProperty(c.repoPath(s.Package)) + "::" + escapeData(skippedText(s)) + "\n")
 	}
 	if err := bw.Flush(); err != nil {

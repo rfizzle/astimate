@@ -27,7 +27,8 @@ const rows = 10
 
 // Write writes m as Markdown: the change block first when m has one, then
 // the repository report: the headline, the lead, the three packages to
-// start with and the ten largest packages.
+// start with, the ten largest packages and, when there are any, the
+// packages not analysed, one list item per reason.
 func Write(w io.Writer, m *narrate.Module, opts Options) error {
 	var b strings.Builder
 	if m.Change != nil {
@@ -175,6 +176,23 @@ func repository(b *strings.Builder, m *narrate.Module) {
 	}
 	if len(all) > rows {
 		b.WriteString("\n… " + strconv.Itoa(len(all)-rows) + " more packages; `astimate report --format json` has every row.\n")
+	}
+	notAnalysed(b, m)
+}
+
+// notAnalysed lays out the packages not analysed, when there are any: the
+// line counting them, then one list item per reason naming its paths.
+func notAnalysed(b *strings.Builder, m *narrate.Module) {
+	if len(m.Skipped) == 0 {
+		return
+	}
+	b.WriteString("\n### Not analysed\n\n" + m.NotAnalysed + "\n\n")
+	for _, g := range narrate.GroupSkipped(m.Skipped) {
+		paths := make([]string, len(g.Paths))
+		for i, p := range g.Paths {
+			paths[i] = code(p)
+		}
+		b.WriteString("- " + g.Reason + ": " + strings.Join(paths, ", ") + "\n")
 	}
 }
 

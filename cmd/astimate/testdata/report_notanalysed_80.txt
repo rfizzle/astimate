@@ -1,0 +1,20 @@
+Notanalysed  example.com/notanalysed · thresholds-2026-10-14b
+
+Notanalysed has no package that needs a split.
+1 package · 0 need more than one sitting · 1 day for one engineer · 1 fine
+0 watch · 0 split · 1 without tests
+Engineer time runs, per package, from the lower to the higher of COCOMO 81 and
+COCOMO II, rebuild profile; not a measurement; agent sittings are measured.
+rebuild.cocomo and rebuild.cocomo_a set it.
+
+Every package  most sittings first · * is over its size limit
+
+ PACKAGE       BAND     SITTINGS  LINES   CHANGES
+ greet         FINE  one sitting      7         -
+ --format json · --format md · --format html
+
+Not analysed
+1 package not analysed · build constraints exclude all Go files (1)
+
+ build constraints exclude all Go files
+   gen

@@ -1,0 +1,21 @@
+[1mNotanalysed[0m  [2mexample.com/notanalysed · thresholds-2026-10-14b[0m
+
+[1mNotanalysed has no package that needs a split.[0m
+1 package · 0 need more than one sitting · 1 day for one engineer · [32m1 fine[0m
+[33m0 watch[0m · [31m0 split[0m · 1 without tests
+[2mEngineer time runs, per package, from the lower to the higher of COCOMO 81 and[0m
+[2mCOCOMO II, rebuild profile; not a measurement; agent sittings are measured.[0m
+[2mrebuild.cocomo and rebuild.cocomo_a set it.[0m
+[32m████████████████████[0m  [2mshare of packages that are fine[0m
+
+[1mEvery package[0m  [2mmost sittings first · * is over its size limit[0m
+
+[2m PACKAGE       BAND     SITTINGS  LINES   CHANGES[0m
+ [36mgreet       [0m  [32mFINE[0m  one sitting      7         -
+ [2m--format json[0m · [2m--format md[0m · [2m--format html[0m
+
+[1mNot analysed[0m
+[2m1 package not analysed · build constraints exclude all Go files (1)[0m
+
+ [2mbuild constraints exclude all Go files[0m
+   [36mgen[0m

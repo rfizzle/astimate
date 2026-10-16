@@ -82,7 +82,8 @@
     <tr class="detail" hidden><td colspan="6">{{template "detail" .}}</td></tr>{{end}}
     <tr class="none" hidden><td colspan="6" class="muted">No package matches.</td></tr>
   </tbody></table></div>
-  <p class="note">Click a row for the full story of that package. The table starts in the Start here order. Rebuild is the sittings an AI agent needs to rewrite it from its tests; the engineer time is in each package's detail{{if .Window}}; Changes is commits touching the package in the last {{.Window}}{{end}}.</p>
+  <p class="note">Click a row for the full story of that package. The table starts in the Start here order. Rebuild is the sittings an AI agent needs to rewrite it from its tests; the engineer time is in each package's detail{{if .Window}}; Changes is commits touching the package in the last {{.Window}}{{end}}.</p>{{with .Skipped}}
+  <p class="note" id="not-analysed">Not analysed: {{$.M.NotAnalysed}}.{{range .}} {{.Reason}}:{{range $i, $p := .Paths}}{{if $i}},{{end}} <code>{{$p}}</code>{{end}}.{{end}}</p>{{end}}
 
   <h2>What the words mean</h2>
   <div class="glossary">{{range .M.Glossary}}

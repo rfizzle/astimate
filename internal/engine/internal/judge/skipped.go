@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/rfizzle/astimate/internal/baseline"
 	"github.com/rfizzle/astimate/internal/metrics"
@@ -24,22 +25,34 @@ type Skips struct {
 	list []metrics.SkippedPackage
 	// byPkg indexes list by identifier.
 	byPkg map[string]*metrics.SkippedPackage
+	// excluded holds the packages none of whose files is built
+	// (metrics.Excluder), sorted by identifier. They are reported, never
+	// selected or judged.
+	excluded []metrics.SkippedPackage
 }
 
 // SkippedIn returns the packages ext skipped in the module at root, none
-// when ext does not implement metrics.Skipper. Each error names files
+// when ext does not implement metrics.Skipper, and those it excluded,
+// none when it does not implement metrics.Excluder. Each error names files
 // relative to root (baseline.TreeRelative), so a staged copy's temporary
 // root never shows.
 func SkippedIn(ext metrics.Extractor, root string) (Skips, error) {
+	var s Skips
+	if ex, ok := ext.(metrics.Excluder); ok {
+		var err error
+		if s.excluded, err = ex.Excluded(root); err != nil {
+			return Skips{}, err
+		}
+	}
 	sk, ok := ext.(metrics.Skipper)
 	if !ok {
-		return Skips{}, nil
+		return s, nil
 	}
 	list, err := sk.Skipped(root)
 	if err != nil {
 		return Skips{}, err
 	}
-	s := Skips{list: list, byPkg: make(map[string]*metrics.SkippedPackage, len(list))}
+	s.list, s.byPkg = list, make(map[string]*metrics.SkippedPackage, len(list))
 	for i := range s.list {
 		p := &s.list[i]
 		p.Error = baseline.TreeRelative(errors.New(p.Error), root).Error()
@@ -73,21 +86,26 @@ func (s Skips) Failure(pkg string) error {
 	return fmt.Errorf("%w (%s): %s", ErrSkipped, p.Reason, p.Error)
 }
 
-// Report returns the skipped packages for report.Check.Skipped, named by
-// module-relative directory in module modPath, each marked Selected when
-// selected holds it.
+// Report returns the packages the tree leaves out for report.Check.Skipped,
+// the skipped and the excluded ones sorted together by identifier, each
+// named by module-relative directory in module modPath; a skipped package
+// is marked Selected when selected holds it, and an excluded one has no
+// Error and is never Selected.
 func (s Skips) Report(modPath string, selected []string) []report.Skipped {
-	if len(s.list) == 0 {
+	if len(s.list) == 0 && len(s.excluded) == 0 {
 		return nil
 	}
-	out := make([]report.Skipped, 0, len(s.list))
-	for i := range s.list {
-		p := &s.list[i]
+	all := slices.Concat(s.list, s.excluded)
+	slices.SortStableFunc(all, func(a, b metrics.SkippedPackage) int { return strings.Compare(a.Package, b.Package) })
+	out := make([]report.Skipped, 0, len(all))
+	for i := range all {
+		p := &all[i]
+		_, failed := s.byPkg[p.Package]
 		out = append(out, report.Skipped{
 			Package:  Rel(modPath, p.Package),
 			Reason:   p.Reason,
 			Error:    p.Error,
-			Selected: slices.Contains(selected, p.Package),
+			Selected: failed && slices.Contains(selected, p.Package),
 		})
 	}
 	return out

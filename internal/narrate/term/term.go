@@ -54,7 +54,7 @@ func Write(w io.Writer, m *narrate.Module, opts narrate.WriteOptions) error {
 		if !opts.ChangeOnly {
 			p.line("")
 		}
-		p.change(m.Change)
+		p.change(m)
 	}
 	if _, err := io.WriteString(w, p.b.String()); err != nil {
 		return fmt.Errorf("writing terminal report: %w", err)
