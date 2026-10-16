@@ -41,13 +41,14 @@
     "watch": 1,
     "fine": 11,
     "without_tests": 7,
+    "multi_sitting": 0,
     "human_days": 9,
     "human_time": "2 weeks",
     "human_basis": "Engineer time is a textbook figure, not a measurement: COCOMO II, rebuild profile, 2.381 person-months per thousand lines to the power 1.053 before each package's complexity rating, 19 working days a month, inflated by up to half where exports have no tests, summed over the packages. The agent sittings were measured on 85 rebuilds. The ratings under rebuild.cocomo in the configuration set the engineer time.",
     "human_basis_short": "Engineer time is COCOMO II, rebuild profile (2.381 person-months per 1,000 lines to the power 1.053), not a measurement; agent sittings are measured. rebuild.cocomo rates it."
   },
   "headline": "Fixture has no package that needs a split.",
-  "lead": "12 packages, about 2 weeks of one engineer's time to rebuild from their tests. 11 are fine, 1 needs watching, and 0 need a split. There is no change history to read, so the packages to start with are ranked by rebuild time alone.",
+  "lead": "12 packages; 0 need more than one agent sitting to rebuild from their tests. For one engineer the whole module is about 2 weeks of rebuild time. 11 are fine, 1 needs watching, and 0 need a split. There is no change history to read, so the packages to start with are ranked by rebuild time alone.",
   "hotspots": [
     "dupes"
   ],
@@ -1879,7 +1880,7 @@
   "glossary": [
     {
       "term": "Rebuild cost",
-      "text": "How long it would take to rewrite the package from its tests. Shown as one engineer's working time, and as agent sittings: how many times an AI agent would have to start over with a fresh context window. One sitting means it fits in one go; over three means the package has to be split before anyone can rebuild it. Engineer time is a textbook figure, not a measurement: COCOMO II, rebuild profile, 2.381 person-months per thousand lines to the power 1.053 before each package's complexity rating, 19 working days a month, inflated by up to half where exports have no tests, summed over the packages. The agent sittings were measured on 85 rebuilds. The ratings under rebuild.cocomo in the configuration set the engineer time."
+      "text": "How long it would take to rewrite the package from its tests. Shown as one engineer's working time, and as agent sittings: how many times an AI agent would have to start over with a fresh context window. One sitting means it fits in one go; over three means the package has to be split before anyone can rebuild it. The sittings are measured on agent rebuilds and lead; packages are ranked by how often they changed times their agent passes, then by engineer time. Engineer time is a textbook figure, not a measurement: COCOMO II, rebuild profile, 2.381 person-months per thousand lines to the power 1.053 before each package's complexity rating, 19 working days a month, inflated by up to half where exports have no tests, summed over the packages. The agent sittings were measured on 85 rebuilds. The ratings under rebuild.cocomo in the configuration set the engineer time."
     },
     {
       "term": "Split",

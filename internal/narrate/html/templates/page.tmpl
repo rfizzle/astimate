@@ -26,7 +26,7 @@
       <div class="eyebrow">{{.Eyebrow}}</div>
       <h1>{{.M.Headline}}</h1>
       <p class="lead">{{.M.Lead}}</p>
-      <div class="stickers">{{range .Stickers}}<span class="sticker {{.Class}}"{{if eq .Label "to rebuild"}} title="{{$.Basis}}"{{end}}><b class="num">{{.Value}}</b>{{.Label}}</span>{{end}}</div>
+      <div class="stickers">{{range .Stickers}}<span class="sticker {{.Class}}"{{if eq .Label "of one engineer's time"}} title="{{$.Basis}}"{{end}}><b class="num">{{.Value}}</b>{{.Label}}</span>{{end}}</div>
     </div>
     <div class="ring"><svg viewBox="0 0 100 100" aria-hidden="true">{{range .Ring}}<circle r="40" cx="50" cy="50" fill="none" stroke="var(--{{.Band}})" stroke-width="12" stroke-dasharray="{{.Dash}}" stroke-dashoffset="{{.Offset}}"/>{{end}}</svg><div class="c"><b>{{.M.Counts.Fine}}</b><span>of {{.M.Counts.Packages}} fine</span></div></div>
   </div>
@@ -72,17 +72,17 @@
     <input type="search" id="q" placeholder="Find a package…" aria-label="Find a package">
   </div>
   <div class="tablewrap"><table id="pkgs"><thead><tr>
-    <th data-k="path" aria-sort="none" tabindex="0">Package</th><th data-k="sloc" aria-sort="none" tabindex="0">Size vs limit</th><th data-k="days" aria-sort="descending" tabindex="0">Rebuild</th><th data-k="dup_pct" aria-sort="none" tabindex="0">Copied</th><th data-k="untested" aria-sort="none" tabindex="0">Untested</th><th data-k="churn" aria-sort="none" tabindex="0">Changes</th>
+    <th data-k="path" aria-sort="none" tabindex="0">Package</th><th data-k="sloc" aria-sort="none" tabindex="0">Size vs limit</th><th data-k="days" aria-sort="none" tabindex="0">Rebuild</th><th data-k="dup_pct" aria-sort="none" tabindex="0">Copied</th><th data-k="untested" aria-sort="none" tabindex="0">Untested</th><th data-k="churn" aria-sort="none" tabindex="0">Changes</th>
   </tr></thead><tbody>{{range .Rows}}
-    <tr class="row" tabindex="0" data-i="{{.I}}" data-band="{{.P.Band}}" data-path="{{.P.Path}}" data-sloc="{{.Sloc}}" data-days="{{.Days}}" data-dup_pct="{{.P.Copies.Pct}}" data-untested="{{.P.Tests.Untested}}" data-churn="{{.Churn}}">
+    <tr class="row" tabindex="0" data-i="{{.I}}" data-band="{{.P.Band}}" data-path="{{.P.Path}}" data-sloc="{{.Sloc}}" data-days="{{.Days}}" data-hot="{{.Hot}}" data-dup_pct="{{.P.Copies.Pct}}" data-untested="{{.P.Tests.Untested}}" data-churn="{{.Churn}}">
       <td class="path" title="{{.P.Path}}"><i class="dot b-{{.P.Band}}"></i>{{.P.Path}}</td>
       <td><span class="mini"><span{{if .Over}} class="over"{{end}} style="width:{{.Mini}}%"></span></span><span class="num{{if .Over}} over{{end}}">{{num .Sloc}}</span></td>
-      <td class="num" title="{{num .Days}} working days for one engineer">{{.P.Rebuild.HumanShort}}</td><td class="num{{if eq .P.Copies.Level "split"}} over{{end}}">{{num .P.Copies.Pct}}%</td><td class="num">{{.P.Tests.Untested}}</td><td class="num">{{if ge .Churn 0}}{{.Churn}}{{else}}n/a{{end}}</td>
+      <td class="num" title="{{num .Days}} working days for one engineer">{{.P.Rebuild.SittingsText}} · {{.P.Rebuild.HumanShort}}</td><td class="num{{if eq .P.Copies.Level "split"}} over{{end}}">{{num .P.Copies.Pct}}%</td><td class="num">{{.P.Tests.Untested}}</td><td class="num">{{if ge .Churn 0}}{{.Churn}}{{else}}n/a{{end}}</td>
     </tr>
     <tr class="detail" hidden><td colspan="6">{{template "detail" .}}</td></tr>{{end}}
     <tr class="none" hidden><td colspan="6" class="muted">No package matches.</td></tr>
   </tbody></table></div>
-  <p class="note">Click a row for the full story of that package. Rebuild is one engineer's working time to rewrite it from its tests{{if .Window}}; Changes is commits touching the package in the last {{.Window}}{{end}}.</p>
+  <p class="note">Click a row for the full story of that package. The table starts in the Start here order. Rebuild is the sittings an AI agent needs to rewrite it from its tests, then one engineer's working time{{if .Window}}; Changes is commits touching the package in the last {{.Window}}{{end}}.</p>
 
   <h2>What the words mean</h2>
   <div class="glossary">{{range .M.Glossary}}
@@ -97,7 +97,7 @@
       <div class="eyebrow">{{.Eyebrow}}</div>
       <h1 style="font-size:clamp(24px,3.6vw,36px)">{{.C.Headline}}</h1>
       <p class="lead">{{.C.Lead}}</p>
-      <div class="stickers">{{range .Stickers}}<span class="sticker {{.Class}}"{{if eq .Label "to rebuild"}} title="{{$.Basis}}"{{end}}><b class="num">{{.Value}}</b>{{.Label}}</span>{{end}}</div>
+      <div class="stickers">{{range .Stickers}}<span class="sticker {{.Class}}"{{if eq .Label "of one engineer's time"}} title="{{$.Basis}}"{{end}}><b class="num">{{.Value}}</b>{{.Label}}</span>{{end}}</div>
     </div>
   </div>
 {{if .Failing}}
@@ -126,7 +126,7 @@
 {{define "detail"}}<div class="detail"><p class="say"><b>{{.P.Story}}</b> {{.P.Todo}}</p>
 <div class="widgets">{{with .Detail.Rebuild}}
 <div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests; the engineer time is COCOMO's textbook rule, see the glossary</span></h4>
-<div class="big {{.Tier}}-t">{{$.P.Rebuild.HumanTime}}<small>for one engineer · {{.Passes}}</small></div>
+<div class="big {{.Tier}}-t">{{$.P.Rebuild.SittingsText}}<small>{{.Passes}} · {{$.P.Rebuild.HumanTime}} of one engineer's time</small></div>
 <div class="track"><i class="fine{{if eq .Tier "fine"}} on{{end}}"></i><i class="watch{{if eq .Tier "watch"}} on{{end}}"></i><i class="split{{if eq .Tier "split"}} on{{end}}"></i><span class="mk" style="left:{{.Pos}}%"></span></div>
 <div class="tracklbl"><span>one sitting</span><span>a few sittings</span><span>split it first</span></div>
 <p>{{$.P.Rebuild.Say}}</p>

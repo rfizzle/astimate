@@ -6,6 +6,7 @@ import (
 
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/narrate"
+	"github.com/rfizzle/astimate/internal/report"
 	"github.com/rfizzle/astimate/internal/report/details"
 )
 
@@ -59,15 +60,32 @@ func TestCeilings(t *testing.T) {
 	}
 }
 
-func TestHotspot(t *testing.T) {
+func TestHotOrder(t *testing.T) {
 	t.Parallel()
 
-	churn := 41
-	if got := hotspot(&churn, 328.2); got != 13456.2 {
-		t.Errorf("hotspot = %v, want 13456.2", got)
+	// By churn times human days, "wide" (5 x 10.0) would outrank "deep"
+	// (3 x 8.0); by churn times agent passes, "deep" (3 x 4.0) outranks
+	// "wide" (5 x 1.0). Without churn, human days alone order the rest.
+	mk := func(path string, churn *int, passes, days float64) narrate.Package {
+		r := &report.Report{PackagePath: path, Rebuild: report.Rebuild{AgentPasses: passes, HumanDays: days}}
+		r.Metrics.ChurnCommits = churn
+		return pkg(r, nil, 0)
 	}
-	if got := hotspot(nil, 328.2); got != 0 {
-		t.Errorf("hotspot without churn = %v, want 0", got)
+	five, three := 5, 3
+	ps := []narrate.Package{
+		mk("wide", &five, 1, 10), mk("deep", &three, 4, 8),
+		mk("idle-big", nil, 0, 12), mk("idle-small", nil, 0, 2), mk("idle-small-a", nil, 0, 2),
+	}
+	var got []string
+	for _, p := range hotOrder(ps) {
+		got = append(got, p.Path)
+	}
+	want := []string{"deep", "wide", "idle-big", "idle-small", "idle-small-a"}
+	if !slices.Equal(got, want) {
+		t.Errorf("hot order = %q, want %q", got, want)
+	}
+	if ps[0].Hotspot != 5 || ps[1].Hotspot != 12 {
+		t.Errorf("hotspots = %v and %v, want 5 and 12 (churn times agent passes)", ps[0].Hotspot, ps[1].Hotspot)
 	}
 }
 

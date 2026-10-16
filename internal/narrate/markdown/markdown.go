@@ -139,7 +139,7 @@ func repository(b *strings.Builder, m *narrate.Module) {
 	if len(start) > 0 {
 		b.WriteString("\n### Start here\n")
 		for i, p := range start {
-			b.WriteString("\n" + strconv.Itoa(i+1) + ". " + code(p.Path) + " (" + p.Band + "): " + p.Rebuild.HumanShort + " to rebuild")
+			b.WriteString("\n" + strconv.Itoa(i+1) + ". " + code(p.Path) + " (" + p.Band + "): " + p.Rebuild.SittingsText + ", " + p.Rebuild.HumanShort + " of one engineer's time")
 			if p.Churn != nil {
 				b.WriteString(", " + count(p.Churn.Commits, "change", "changes"))
 			}
@@ -147,17 +147,9 @@ func repository(b *strings.Builder, m *narrate.Module) {
 		}
 	}
 	all := slices.Clone(m.Packages)
-	slices.SortStableFunc(all, func(a, c narrate.Package) int {
-		switch {
-		case a.Rebuild.HumanDays > c.Rebuild.HumanDays:
-			return -1
-		case a.Rebuild.HumanDays < c.Rebuild.HumanDays:
-			return 1
-		}
-		return 0
-	})
-	b.WriteString("\n### Every package\n\nBy rebuild days; * marks a package over its size limit.\n\n")
-	b.WriteString("| Package | Band | Time | Lines | Copied | Untested | Changes |\n|---|---|---|---|---|---|---|\n")
+	slices.SortStableFunc(all, func(a, c narrate.Package) int { return narrate.Hotter(&a, &c) })
+	b.WriteString("\n### Every package\n\nMost changed and costly first; * marks a package over its size limit.\n\n")
+	b.WriteString("| Package | Band | Sittings | Time | Lines | Copied | Untested | Changes |\n|---|---|---|---|---|---|---|---|\n")
 	for i := range all[:min(rows, len(all))] {
 		p := &all[i]
 		star := ""
@@ -168,7 +160,7 @@ func repository(b *strings.Builder, m *narrate.Module) {
 		if p.Churn != nil {
 			changes = strconv.Itoa(p.Churn.Commits)
 		}
-		b.WriteString("| " + code(p.Path) + " | " + p.Band + " | " + p.Rebuild.HumanShort + " | " +
+		b.WriteString("| " + code(p.Path) + " | " + p.Band + " | " + p.Rebuild.SittingsText + " | " + p.Rebuild.HumanShort + " | " +
 			number(ptr(float64(p.Copies.Lines)), "") + star + " | " + number(ptr(p.Copies.Pct), "") + "% | " +
 			strconv.Itoa(p.Tests.Untested) + " | " + changes + " |\n")
 	}

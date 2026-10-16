@@ -31,7 +31,7 @@
   const tbody = $('#pkgs tbody'), none = $('tr.none', tbody), q = $('#q');
   const rows = $$('tr.row', tbody).sort((a, b) => a.dataset.i - b.dataset.i);
   const details = new Map(rows.map(tr => [tr, tr.nextElementSibling]));
-  let sortK = 'days', sortDir = -1, band = 'all', query = '';
+  let sortK = 'hot', sortDir = -1, band = 'all', query = '';
   const key = tr => sortK === 'path' ? tr.dataset.path : parseFloat(tr.dataset[sortK]);
   function render() {
     let shown = 0;

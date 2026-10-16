@@ -111,15 +111,6 @@ func band(tier string, over int, dup float64) string {
 	return narrate.BandFine
 }
 
-// hotspot returns churn_commits times human_days, to one decimal; 0
-// without churn.
-func hotspot(churn *int, days float64) float64 {
-	if churn == nil {
-		return 0
-	}
-	return round1(float64(*churn) * days)
-}
-
 // level returns the band a function of cognitive complexity cog is
 // coloured with.
 func level(cog int) string {

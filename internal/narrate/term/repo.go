@@ -1,7 +1,6 @@
 package term
 
 import (
-	"cmp"
 	"slices"
 	"strconv"
 	"strings"
@@ -35,10 +34,11 @@ func (p *printer) repo(m *narrate.Module) {
 	p.line("")
 	p.para(m.Headline, "", sgrBold)
 	c := &m.Counts
-	parts := []string{count(c.Packages, "package", "packages"), c.HumanTime + " to rebuild",
+	parts := []string{count(c.Packages, "package", "packages"), strconv.Itoa(c.MultiSitting) + " need more than one sitting",
+		c.HumanTime + " of one engineer's time",
 		strconv.Itoa(c.Fine) + " fine", strconv.Itoa(c.Watch) + " watch", strconv.Itoa(c.Split) + " split",
 		strconv.Itoa(c.WithoutTests) + " without tests"}
-	codes := []string{"", "", sgrGreen, sgrYellow, sgrRed, ""}
+	codes := []string{"", "", "", sgrGreen, sgrYellow, sgrRed, ""}
 	p.fit(parts, "", "", func(i int) string { return p.style(parts[i], codes[i]) })
 	p.para(c.HumanBasisShort, "", sgrDim)
 	if bar := p.bar(float64(c.Fine), float64(c.Packages), 20); bar != "" {
@@ -67,7 +67,7 @@ func (p *printer) hotspots(m *narrate.Module, byPath map[string]*narrate.Package
 	}
 	sub := "by days to rebuild"
 	if maxHot > 0 {
-		sub = "changes in the last " + strconv.Itoa(m.ChurnWindow) + " commits × days to rebuild"
+		sub = "changes in the last " + strconv.Itoa(m.ChurnWindow) + " commits × agent passes"
 	}
 	p.line("")
 	p.heading("Start here", sub)
@@ -76,7 +76,7 @@ func (p *printer) hotspots(m *narrate.Module, byPath map[string]*narrate.Package
 		if pk == nil {
 			continue
 		}
-		cells := []string{pk.Rebuild.HumanTime}
+		cells := []string{pk.Rebuild.SittingsText, pk.Rebuild.HumanTime}
 		if pk.Churn != nil {
 			cells = append(cells, count(pk.Churn.Commits, "change", "changes"))
 		}
@@ -108,6 +108,7 @@ type column struct {
 func (p *printer) columns() []column {
 	cols := []column{
 		{"BAND", false, func(pk *narrate.Package) string { return bandWord(pk.Band) }},
+		{"SITTINGS", true, func(pk *narrate.Package) string { return pk.Rebuild.SittingsText }},
 		{"TIME", true, func(pk *narrate.Package) string { return pk.Rebuild.HumanShort }},
 		{"LINES ", true, func(pk *narrate.Package) string {
 			if slices.Contains(pk.Over, "sloc") {
@@ -125,12 +126,12 @@ func (p *printer) columns() []column {
 		}},
 	}
 	if p.width < wideWidth {
-		cols = slices.Delete(cols, 3, 5)
+		cols = slices.Delete(cols, 4, 6)
 	}
 	return cols
 }
 
-// table writes "Every package": the costliest packages by rebuild days,
+// table writes "Every package": the first packages in hotspot order,
 // every one with WriteOptions.All, and the trailer naming --all and the
 // other formats (WriteOptions.Formats).
 func (p *printer) table(ps []narrate.Package) {
@@ -141,9 +142,7 @@ func (p *printer) table(ps []narrate.Package) {
 	for i := range ps {
 		rows[i] = &ps[i]
 	}
-	slices.SortStableFunc(rows, func(a, b *narrate.Package) int {
-		return cmp.Or(cmp.Compare(b.Rebuild.HumanDays, a.Rebuild.HumanDays), strings.Compare(a.Path, b.Path))
-	})
+	slices.SortStableFunc(rows, narrate.Hotter)
 	hidden := 0
 	if !p.opts.All && len(rows) > tableRows {
 		rows, hidden = rows[:tableRows], len(rows)-tableRows
@@ -166,7 +165,7 @@ func (p *printer) table(ps []narrate.Package) {
 	}
 	pathW = max(12, min(pathW, p.width-rest))
 	p.line("")
-	p.heading("Every package", "by days to rebuild · * is over its size limit")
+	p.heading("Every package", "most changed and costly first · * is over its size limit")
 	p.line("")
 	head := " " + pad("PACKAGE", pathW, false)
 	for j, col := range cols {

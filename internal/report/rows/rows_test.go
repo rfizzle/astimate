@@ -44,6 +44,7 @@ func TestSortRowsStableOrdering(t *testing.T) {
 		{SortTokens, []string{"a", "b", "c", "d"}},
 		{SortDuplication, []string{"b", "a", "d", "c"}},
 		{SortChurn, []string{"a", "d", "b", "c"}},
+		{SortHotspot, []string{"d", "a", "b", "c"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.key, func(t *testing.T) {
@@ -146,5 +147,40 @@ func workedExample() metrics.RawMetrics {
 	return metrics.RawMetrics{
 		SLOC: 1200, TokensEst: 10000, TokensEstWithTests: 16000, DuplicationPct: 20,
 		ExportedSymbols: 30, UntestedExports: 15, Globals: 2, InitFuncs: 1,
+	}
+}
+
+func TestHotspot(t *testing.T) {
+	t.Parallel()
+
+	churn := 41
+	if got := Hotspot(&churn, 8.04); got != 329.6 {
+		t.Errorf("Hotspot = %v, want 329.6", got)
+	}
+	if got := Hotspot(nil, 8.04); got != 0 {
+		t.Errorf("Hotspot without churn = %v, want 0", got)
+	}
+}
+
+// TestSortHotspotDisagreesWithDays: by churn times human days "wide" would
+// lead, by churn times agent passes "deep" does; rows with no hotspot
+// follow by human days, then path.
+func TestSortHotspotDisagreesWithDays(t *testing.T) {
+	t.Parallel()
+
+	five, three := 5, 3
+	rows := []Row{
+		{Path: "idle-b", HumanDays: 2},
+		{Path: "wide", AgentPasses: 1, HumanDays: 10, ChurnCommits: &five},
+		{Path: "idle-a", HumanDays: 2},
+		{Path: "deep", AgentPasses: 4, HumanDays: 8, ChurnCommits: &three},
+		{Path: "idle-big", HumanDays: 9},
+	}
+	if err := SortRows(rows, SortHotspot); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"deep", "wide", "idle-big", "idle-a", "idle-b"}
+	if got := paths(rows); !slices.Equal(got, want) {
+		t.Errorf("order = %q, want %q", got, want)
 	}
 }

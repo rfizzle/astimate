@@ -80,6 +80,7 @@ func TestWriteRepository(t *testing.T) {
 		pkg := narrate.Package{Path: p, Band: narrate.BandFine, Story: "story " + p, Todo: "todo " + p}
 		pkg.Rebuild.HumanDays = float64(len(p))
 		pkg.Rebuild.HumanShort = "1 d"
+		pkg.Rebuild.SittingsText = "one sitting"
 		m.Packages = append(m.Packages, pkg)
 	}
 	m.Packages[3].Churn = &narrate.Churn{Commits: 7}
@@ -94,9 +95,9 @@ func TestWriteRepository(t *testing.T) {
 	got := b.String()
 	for _, want := range []string{
 		"## astimate: PASS — no package changed\n\n## Two packages need a split.\n\nIt has 12 packages.\n",
-		"1. `p3` (fine): 1 d to rebuild, 7 changes\n   story p3\n   Do this: todo p3\n",
-		"2. `p1` (fine): 1 d to rebuild\n",
-		"| `p3` | fine | 1 d | 1,500* | 0% | 0 | 7 |\n",
+		"1. `p3` (fine): one sitting, 1 d of one engineer's time, 7 changes\n   story p3\n   Do this: todo p3\n",
+		"2. `p1` (fine): one sitting, 1 d of one engineer's time\n",
+		"| `p3` | fine | one sitting | 1 d | 1,500* | 0% | 0 | 7 |\n",
 		"… 2 more packages;",
 	} {
 		if !strings.Contains(got, want) {

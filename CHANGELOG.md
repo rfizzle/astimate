@@ -453,6 +453,18 @@ history.
 
 ### Changed
 
+- The report leads with the measured agent estimate. The counts line reads
+  "<n> packages, <k> need more than one sitting, <time> of one engineer's
+  time", the HTML hero and the bubbles show the sittings with the engineer
+  time beside them, and the lead says how many packages an agent needs more
+  than one sitting for. "Start here", "Every package" (text, Markdown and
+  the page's table), the MCP `report_module` `start_here` and the new
+  `rank --sort hotspot` now order by `churn_commits` times `agent_passes`,
+  then by `human_days`, instead of churn times `human_days`, so a package
+  ranks by the figure fitted on 85 measured rebuilds, not by a textbook
+  rule. The module JSON gains `counts.multi_sitting`, and a package's
+  `hotspot` is now churn times agent passes.
+
 - The engineer time is now COCOMO II's post-architecture form under a
   rebuild-from-tests profile instead of COCOMO 81 basic organic mode. A
   rebuild has known behaviour, an exact target and fixed boundaries, which

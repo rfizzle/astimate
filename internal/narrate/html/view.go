@@ -1,7 +1,6 @@
 package html
 
 import (
-	"cmp"
 	"html/template"
 	"slices"
 	"strconv"
@@ -17,7 +16,7 @@ type page struct {
 	Fonts    template.CSS
 	Eyebrow  string
 	Stickers []sticker
-	// Basis is the tooltip of the "to rebuild" sticker: where the
+	// Basis is the tooltip of the engineer-time sticker: where the
 	// engineer time comes from.
 	Basis   string
 	Ring    []ringArc
@@ -60,8 +59,11 @@ type row struct {
 	Tokens     float64
 	// Mini is the size bar's width; Over marks a package over its sloc
 	// limit.
-	Mini   string
-	Over   bool
+	Mini string
+	Over bool
+	// Hot is the row's place in narrate.Hotter order, counted down from
+	// the number of rows, so a higher value is hotter and none ties.
+	Hot    int
 	Detail detail
 }
 
@@ -73,7 +75,8 @@ func build(m *narrate.Module, fonts template.CSS) *page {
 		{narrate.BandSplit, strconv.Itoa(c.Split), "need a split"},
 		{narrate.BandWatch, strconv.Itoa(c.Watch), "to watch"},
 		{narrate.BandFine, strconv.Itoa(c.Fine), "fine"},
-		{"ink", c.HumanTime, "to rebuild"},
+		{"ink", strconv.Itoa(c.MultiSitting), "need more than one sitting"},
+		{"ink", c.HumanTime, "of one engineer's time"},
 		{"ink", strconv.Itoa(c.WithoutTests), "without tests"},
 	}
 	// An empty module draws no arcs: an all-zero dash would draw each
@@ -107,7 +110,10 @@ func build(m *narrate.Module, fonts template.CSS) *page {
 	p.Steps = steps(m, byPath)
 	p.Bubbles = bubbles(p.Rows)
 	p.Scatter = newScatter(p.Rows, hotRows(m, p.Rows, 4), m.ChurnWindow)
-	slices.SortStableFunc(p.Rows, func(a, b row) int { return cmp.Compare(b.Days, a.Days) })
+	slices.SortStableFunc(p.Rows, func(a, b row) int { return narrate.Hotter(a.P, b.P) })
+	for i := range p.Rows {
+		p.Rows[i].Hot = len(p.Rows) - i
+	}
 	if m.Change != nil {
 		p.Change = newChange(m)
 	}

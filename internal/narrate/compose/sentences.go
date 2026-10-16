@@ -283,8 +283,9 @@ func headline(m *narrate.Module, first *narrate.Package) string {
 // reports whether churn was measured for any package.
 func lead(m *narrate.Module, hottest *narrate.Package, churned bool) string {
 	c := m.Counts
-	s := plural(c.Packages, "package", "packages") + ", about " + c.HumanTime +
-		" of one engineer's time to rebuild from their tests. " + strconv.Itoa(c.Fine) + pick(c.Fine, " is", " are") + " fine, " +
+	s := plural(c.Packages, "package", "packages") + "; " + strconv.Itoa(c.MultiSitting) + pick(c.MultiSitting, " needs", " need") +
+		" more than one agent sitting to rebuild from their tests. For one engineer the whole module is about " + c.HumanTime +
+		" of rebuild time. " + strconv.Itoa(c.Fine) + pick(c.Fine, " is", " are") + " fine, " +
 		strconv.Itoa(c.Watch) + pick(c.Watch, " needs", " need") + " watching, and " + strconv.Itoa(c.Split) +
 		pick(c.Split, " needs", " need") + " a split."
 	if hottest != nil && hottest.Churn != nil && m.ChurnWindow > 0 {

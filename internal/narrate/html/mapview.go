@@ -44,7 +44,7 @@ func bubbles(rows []row) []bubble {
 			b.Font = coord(math.Min(16, c.R/3.2))
 		}
 		if c.R > 40 {
-			b.Sub = fmtNum(r.Days) + " days"
+			b.Sub = r.P.Rebuild.SittingsText + " · " + r.P.Rebuild.HumanShort
 		}
 		out[i] = b
 	}

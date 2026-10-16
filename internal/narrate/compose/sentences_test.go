@@ -175,14 +175,14 @@ func TestModuleSentences(t *testing.T) {
 	t.Parallel()
 
 	m, _ := narrated(
-		row{path: "hot", tier: tierPartition, days: 30, dup: 12.5, hasTests: true, churn: intp(9)},
-		row{path: "cold", tier: tierPartition, days: 300, hasTests: true, churn: intp(0)},
+		row{path: "hot", tier: tierPartition, passes: 4, days: 30, dup: 12.5, hasTests: true, churn: intp(9)},
+		row{path: "cold", tier: tierPartition, passes: 9, days: 300, hasTests: true, churn: intp(0)},
 		row{path: "fine", days: 2, hasTests: true, churn: intp(1)},
 	)
 	if want := "Shop has 2 packages that need a split. Start with hot."; m.Headline != want {
 		t.Errorf("headline = %q, want %q", m.Headline, want)
 	}
-	if want := "3 packages, about 2 engineer-years of one engineer's time to rebuild from their tests. 1 is fine, 0 need watching, and 2 need a split. The hottest of those changed 9 times in the last 200 commits and 12.5% of it is copied code."; m.Lead != want {
+	if want := "3 packages; 2 need more than one agent sitting to rebuild from their tests. For one engineer the whole module is about 2 engineer-years of rebuild time. 1 is fine, 0 need watching, and 2 need a split. The hottest of those changed 9 times in the last 200 commits and 12.5% of it is copied code."; m.Lead != want {
 		t.Errorf("lead = %q, want %q", m.Lead, want)
 	}
 	// A fine package is never a hotspot: "Start here" with "Nothing.
@@ -191,8 +191,8 @@ func TestModuleSentences(t *testing.T) {
 		t.Errorf("hotspots = %q, want %q", m.Hotspots, want)
 	}
 	// A split package only names the first hotspot when that is one.
-	watchFirst, _ := narrated(row{path: "busy", tier: tierFewPasses, days: 30, hasTests: true, churn: intp(30)},
-		row{path: "big", tier: tierPartition, days: 100, hasTests: true, churn: intp(1)})
+	watchFirst, _ := narrated(row{path: "busy", tier: tierFewPasses, passes: 2, days: 30, hasTests: true, churn: intp(30)},
+		row{path: "big", tier: tierPartition, passes: 8, days: 100, hasTests: true, churn: intp(1)})
 	if want := "Shop has 1 package that needs a split."; watchFirst.Headline != want {
 		t.Errorf("headline with a watched package first = %q, want %q", watchFirst.Headline, want)
 	}
@@ -204,7 +204,7 @@ func TestModuleSentences(t *testing.T) {
 	if want := "Shop has no package that needs a split."; quiet.Headline != want {
 		t.Errorf("headline = %q, want %q", quiet.Headline, want)
 	}
-	if want := "1 package, about 1 day of one engineer's time to rebuild from their tests. 1 is fine, 0 need watching, and 0 need a split."; quiet.Lead != want {
+	if want := "1 package; 0 need more than one agent sitting to rebuild from their tests. For one engineer the whole module is about 1 day of rebuild time. 1 is fine, 0 need watching, and 0 need a split."; quiet.Lead != want {
 		t.Errorf("lead without a split = %q, want %q", quiet.Lead, want)
 	}
 	// Without churn the packages to start with are ranked by rebuild days,

@@ -1,6 +1,11 @@
 package narrate
 
-import "github.com/rfizzle/astimate/internal/report"
+import (
+	"cmp"
+	"strings"
+
+	"github.com/rfizzle/astimate/internal/report"
+)
 
 // Band names, the three verdicts a package gets (SPEC.md 10.3).
 const (
@@ -35,8 +40,8 @@ type Module struct {
 	// Lead is the paragraph under Headline.
 	Lead string `json:"lead"`
 	// Hotspots are the paths of the five split or watch packages with the
-	// highest hotspot score, highest first (by rebuild days without
-	// churn); "Start here" is the first three. A fine package is never
+	// highest hotspot score, highest first (then by human days, which
+	// alone orders packages without churn); "Start here" is the first three. A fine package is never
 	// one: there is nothing to do about it.
 	Hotspots []string `json:"hotspots"`
 	// Packages are every package, by path.
@@ -71,6 +76,9 @@ type Counts struct {
 	Fine  int `json:"fine"`
 	// WithoutTests counts the packages with no tests.
 	WithoutTests int `json:"without_tests"`
+	// MultiSitting counts the packages an agent would need more than one
+	// sitting to rebuild.
+	MultiSitting int `json:"multi_sitting"`
 	// HumanDays is the sum of every package's human_days, rounded.
 	HumanDays float64 `json:"human_days"`
 	// HumanTime is HumanDays as one engineer's working time.
@@ -80,6 +88,14 @@ type Counts struct {
 	// HumanBasisShort is HumanBasis in one line, for footnotes and
 	// tooltips.
 	HumanBasisShort string `json:"human_basis_short"`
+}
+
+// Hotter orders packages for "Start here" and "Every package": the higher
+// Hotspot first, then the higher HumanDays (which alone orders packages
+// without churn or in no agent pass), then Path, so the order is total.
+func Hotter(a, b *Package) int {
+	return cmp.Or(cmp.Compare(b.Hotspot, a.Hotspot), cmp.Compare(b.Rebuild.HumanDays, a.Rebuild.HumanDays),
+		strings.Compare(a.Path, b.Path))
 }
 
 // Package is one package's view.
@@ -94,7 +110,7 @@ type Package struct {
 	Band string `json:"band"`
 	// Over are the metrics of the ceilings the package is over.
 	Over []string `json:"over"`
-	// Hotspot is churn_commits times human_days; 0 without churn.
+	// Hotspot is churn_commits times agent_passes; 0 without churn.
 	Hotspot float64 `json:"hotspot"`
 	// Ceilings are the package's values against each limit.
 	Ceilings []Ceiling `json:"ceilings"`

@@ -15,14 +15,14 @@ import (
 )
 
 // runRank ranks every package of a module: `rank [<module-root>] [--json]
-// [--top N] [--sort passes|days|fan_in|tokens|duplication|churn] [--config path]
+// [--top N] [--sort passes|days|fan_in|tokens|duplication|churn|hotspot] [--config path]
 // [--tokenizer est|o200k] [--coverage] [--coverage-timeout d]`. The root
 // defaults to the current directory. A
 // package that fails to extract is logged to stderr and left out; the other
 // rows are still printed and the command exits 2.
 func runRank(args []string, stdout, stderr io.Writer) int {
 	fs := cli.NewFlagSet("rank", "usage: astimate rank [<module-root>] [--json] [--top N] "+
-		"[--sort passes|days|fan_in|tokens|duplication|churn] [--config path] [--tokenizer est|o200k] "+
+		"[--sort passes|days|fan_in|tokens|duplication|churn|hotspot] [--config path] [--tokenizer est|o200k] "+
 		"[--coverage] [--coverage-timeout 2m]", stderr)
 	asJSON := fs.Bool("json", false, "print a JSON array instead of the table")
 	top := fs.Int("top", 0, "print only the first N rows (0 prints all)")

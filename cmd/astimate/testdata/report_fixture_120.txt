@@ -1,27 +1,28 @@
 Fixture  example.com/fixture · thresholds-2026-10-14b
 
 Fixture has no package that needs a split.
-12 packages · 2 weeks to rebuild · 11 fine · 1 watch · 0 split · 7 without tests
+12 packages · 0 need more than one sitting · 2 weeks of one engineer's time · 11 fine · 1 watch · 0 split
+7 without tests
 Engineer time is COCOMO II, rebuild profile (2.381 person-months per 1,000 lines to the power 1.053), not a measurement;
 agent sittings are measured. rebuild.cocomo rates it.
 
 Start here  by days to rebuild
 
- 1  dupes  WATCH  1 day
+ 1  dupes  WATCH  one sitting  1 day
     It is inside every limit, and 80.6% of its lines are copies of each other.
     Do this → Extract the copied code next time you work here; nothing needs a split yet.
 
-Every package  by days to rebuild · * is over its size limit
+Every package  most changed and costly first · * is over its size limit
 
- PACKAGE       BAND   TIME  LINES   COPIED  UNTESTED  CHANGES
- hidden        FINE    2 d     32       0%         1        -
- immut         FINE    1 d     31       0%         3        -
- a             FINE    1 d     22       0%         2        -
- b             FINE    1 d     22       0%         2        -
- hub           FINE    1 d     20       0%         3        -
- tested        FINE    1 d     27       0%         0        -
- dupes         WATCH   1 d     67    80.6%         3        -
- errs          FINE    1 d      6       0%         1        -
- support       FINE    1 d      8       0%         0        -
- trivial       FINE    1 d      4       0%         1        -
+ PACKAGE       BAND      SITTINGS  TIME  LINES   COPIED  UNTESTED  CHANGES
+ hidden        FINE   one sitting   2 d     32       0%         1        -
+ immut         FINE   one sitting   1 d     31       0%         3        -
+ a             FINE   one sitting   1 d     22       0%         2        -
+ b             FINE   one sitting   1 d     22       0%         2        -
+ hub           FINE   one sitting   1 d     20       0%         3        -
+ tested        FINE   one sitting   1 d     27       0%         0        -
+ dupes         WATCH  one sitting   1 d     67    80.6%         3        -
+ errs          FINE   one sitting   1 d      6       0%         1        -
+ support       FINE   one sitting   1 d      8       0%         0        -
+ trivial       FINE   one sitting   1 d      4       0%         1        -
  … 2 more · --all for every row · --format json · --format md · --format html

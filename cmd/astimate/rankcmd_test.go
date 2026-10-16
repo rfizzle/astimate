@@ -64,6 +64,8 @@ func sortValue(r *rows.Row, key string) float64 {
 			return -1
 		}
 		return float64(*r.ChurnCommits)
+	case rows.SortHotspot:
+		return rows.Hotspot(r.ChurnCommits, r.AgentPasses)
 	default:
 		return r.AgentPasses
 	}
@@ -83,6 +85,11 @@ func TestRankSortKeys(t *testing.T) {
 			ordered := slices.IsSortedFunc(ranked, func(a, b rows.Row) int {
 				if c := cmp.Compare(sortValue(&b, key), sortValue(&a, key)); c != 0 {
 					return c
+				}
+				if key == rows.SortHotspot {
+					if c := cmp.Compare(b.HumanDays, a.HumanDays); c != 0 {
+						return c
+					}
 				}
 				return strings.Compare(a.Path, b.Path)
 			})

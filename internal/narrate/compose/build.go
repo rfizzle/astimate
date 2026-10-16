@@ -11,6 +11,7 @@ import (
 
 	"github.com/rfizzle/astimate/internal/narrate"
 	"github.com/rfizzle/astimate/internal/report"
+	"github.com/rfizzle/astimate/internal/report/rows"
 )
 
 // moduleRow is the package_path of a check's module row.
@@ -72,6 +73,9 @@ func Build(in *Input) narrate.Module {
 		p := pkg(&in.Packages[i], in.Limits, in.ChurnWindow)
 		days += p.Rebuild.HumanDays
 		m.Counts.Packages++
+		if sittings(in.Packages[i].Rebuild.AgentPasses) > 0 {
+			m.Counts.MultiSitting++
+		}
 		switch p.Band {
 		case narrate.BandSplit:
 			m.Counts.Split++
@@ -146,17 +150,13 @@ func isMajor(s string) bool {
 	return ok && rest != "" && strings.Trim(rest, "0123456789") == ""
 }
 
-// hotOrder returns pointers to ps ordered by hotspot score, then human
-// days, highest first, then by path.
+// hotOrder returns pointers to ps in narrate.Hotter order.
 func hotOrder(ps []narrate.Package) []*narrate.Package {
 	out := make([]*narrate.Package, len(ps))
 	for i := range ps {
 		out[i] = &ps[i]
 	}
-	slices.SortStableFunc(out, func(a, b *narrate.Package) int {
-		return cmp.Or(cmp.Compare(b.Hotspot, a.Hotspot), cmp.Compare(b.Rebuild.HumanDays, a.Rebuild.HumanDays),
-			strings.Compare(a.Path, b.Path))
-	})
+	slices.SortStableFunc(out, narrate.Hotter)
 	return out
 }
 
@@ -173,7 +173,7 @@ func pkg(r *report.Report, limits []narrate.Limit, window int) narrate.Package {
 	}
 	p.Ceilings, p.Over = ceilings(met, r.Role, limits)
 	p.Band = band(p.Tier, len(p.Over), met.DuplicationPct)
-	p.Hotspot = hotspot(met.ChurnCommits, r.Rebuild.HumanDays)
+	p.Hotspot = rows.Hotspot(met.ChurnCommits, r.Rebuild.AgentPasses)
 	if met.ChurnCommits != nil {
 		p.Churn = &narrate.Churn{Commits: *met.ChurnCommits}
 		if met.ChurnAuthors != nil {

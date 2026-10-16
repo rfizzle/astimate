@@ -25,6 +25,7 @@ const (
 	SortTokens      = "tokens"
 	SortDuplication = "duplication"
 	SortChurn       = "churn"
+	SortHotspot     = "hotspot"
 )
 
 // ErrUnknownSortKey is returned by SortRows for a key not in SortKeys.
@@ -74,7 +75,18 @@ func NewRow(path string, m *metrics.RawMetrics, p score.RebuildParams) Row {
 
 // SortKeys returns the keys SortRows accepts; SortPasses is the default.
 func SortKeys() []string {
-	return []string{SortPasses, SortDays, SortFanIn, SortTokens, SortDuplication, SortChurn}
+	return []string{SortPasses, SortDays, SortFanIn, SortTokens, SortDuplication, SortChurn, SortHotspot}
+}
+
+// Hotspot returns churn_commits times agent_passes, to one decimal: how
+// much of the measured rebuild effort sits in code that keeps changing. It
+// is 0 when churn was not measured; the report's "Start here" order and
+// SortHotspot rank by it, then by human_days.
+func Hotspot(churn *int, passes float64) float64 {
+	if churn == nil {
+		return 0
+	}
+	return math.Round(float64(*churn)*passes*10) / 10
 }
 
 // SortRows sorts rows in place by key, descending, with Path ascending as the
@@ -101,12 +113,21 @@ func SortRows(rows []Row, key string) error {
 			}
 			return float64(*r.ChurnCommits)
 		}
+	case SortHotspot:
+		value = func(r *Row) float64 { return Hotspot(r.ChurnCommits, r.AgentPasses) }
 	default:
 		return fmt.Errorf("%w %q: want one of %s", ErrUnknownSortKey, key, strings.Join(SortKeys(), ", "))
 	}
 	slices.SortFunc(rows, func(a, b Row) int {
 		if c := cmp.Compare(value(&b), value(&a)); c != 0 {
 			return c
+		}
+		if key == SortHotspot {
+			// A package without churn, or in no pass, has no hotspot
+			// score: the human time orders those, so the order is total.
+			if c := cmp.Compare(b.HumanDays, a.HumanDays); c != 0 {
+				return c
+			}
 		}
 		return strings.Compare(a.Path, b.Path)
 	})
