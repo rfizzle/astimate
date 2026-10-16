@@ -153,7 +153,7 @@ func repository(b *strings.Builder, m *narrate.Module) {
 	}
 	all := slices.Clone(m.Packages)
 	slices.SortStableFunc(all, func(a, c narrate.Package) int { return narrate.Hotter(&a, &c) })
-	order := "Costliest to rebuild first"
+	order := "Most sittings first"
 	if slices.ContainsFunc(m.Packages, func(p narrate.Package) bool { return p.Hotspot > 0 }) {
 		order = "By changes × sittings"
 	}

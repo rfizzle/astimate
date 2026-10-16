@@ -194,8 +194,8 @@ func sittingsBand(tier int) string {
 }
 
 // sittingsText is passes as the sittings an agent needs.
-func sittingsText(passes float64) string {
-	if passes <= oneSitting {
+func sittingsText(passes, one float64) string {
+	if passes <= one {
 		return "one sitting"
 	}
 	return strconv.Itoa(int(math.Ceil(passes))) + " sittings"
@@ -204,11 +204,11 @@ func sittingsText(passes float64) string {
 // rebuildSay is the rebuild view's sentence, with the measured evidence
 // for its sittings band.
 func rebuildSay(r *narrate.Rebuild) string {
-	switch sittings(r.AgentPasses) {
-	case 0:
+	switch r.Sittings {
+	case sittingsBand(0):
 		return "Small enough that an AI agent could rewrite it from its tests in one sitting; a package of one sitting was rebuilt in " +
 			strconv.Itoa(narrate.OneSittingRebuilt) + "% of measured runs."
-	case 1:
+	case sittingsBand(1):
 		return "An agent would need about " + r.SittingsText + ", carrying notes between them; a package of a few sittings was rebuilt in " +
 			strconv.Itoa(narrate.FewSittingsRebuilt) + "% of measured runs."
 	}
@@ -299,7 +299,7 @@ func lead(m *narrate.Module, hottest *narrate.Package, churned bool) string {
 			strconv.Itoa(m.ChurnWindow) + " commits and " + narrate.Num(hottest.Copies.Pct) + "% of it is copied code."
 	}
 	if !churned && len(m.Hotspots) > 0 {
-		s += " There is no change history to read, so the packages to start with are ranked by rebuild time alone."
+		s += " There is no change history to read, so the packages to start with are ranked by sittings alone."
 	}
 	return s
 }
@@ -338,7 +338,14 @@ func failingSummary(n int, p *narrate.Package) string {
 	if p == nil {
 		return s
 	}
-	s += " · " + [...]string{"rebuilds in one sitting", p.Rebuild.SittingsText + " to rebuild", "split before a rebuild"}[sittings(p.Rebuild.AgentPasses)]
+	switch p.Rebuild.Sittings {
+	case sittingsBand(0):
+		s += " · rebuilds in one sitting"
+	case sittingsBand(2):
+		s += " · split before a rebuild"
+	default:
+		s += " · " + p.Rebuild.SittingsText + " to rebuild"
+	}
 	if p.Churn != nil {
 		s += " · " + plural(p.Churn.Commits, "change lately", "changes lately")
 	}

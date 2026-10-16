@@ -124,6 +124,7 @@ func (t *Target) composeInput(base string, n int) compose.Input {
 		ModulePath: t.Mod.ModulePath, RootName: filepath.Base(t.Mod.Root), Language: t.Ext.Language(),
 		Base: base, Limits: ceilings(&eff), ChurnWindow: t.Cfg.Churn.Commits,
 		MinTokens: t.Cfg.Duplication.MinTokens, Packages: make([]report.Report, 0, n), Basis: report.NewHumanBasis(eff.Rebuild),
+		OnePassMax: eff.Rebuild.Tiers.OnePassMax, FewPassesMax: eff.Rebuild.Tiers.FewPassesMax,
 		AstimateVersion: t.Version, ConfigVersion: eff.Version,
 	}
 }

@@ -69,7 +69,7 @@ func TestHotOrder(t *testing.T) {
 	mk := func(path string, churn *int, passes, days float64) narrate.Package {
 		r := &report.Report{PackagePath: path, Rebuild: report.Rebuild{AgentPasses: passes, HumanDays: days}}
 		r.Metrics.ChurnCommits = churn
-		return pkg(r, nil, 0)
+		return pkg(r, nil, 0, tiersOf(&Input{}))
 	}
 	five, three := 5, 3
 	ps := []narrate.Package{
@@ -212,12 +212,35 @@ func TestSittings(t *testing.T) {
 		{3.1, "split it first", "4 sittings"},
 	}
 	for _, tt := range tests {
-		if got := sittingsBand(sittings(tt.passes)); got != tt.band {
+		if got := sittingsBand(sittings(tt.passes, tiersOf(&Input{}))); got != tt.band {
 			t.Errorf("sittings band of %v = %q, want %q", tt.passes, got, tt.band)
 		}
-		if got := sittingsText(tt.passes); got != tt.text {
+		if got := sittingsText(tt.passes, 1); got != tt.text {
 			t.Errorf("sittingsText(%v) = %q, want %q", tt.passes, got, tt.text)
 		}
+	}
+}
+
+// TestSittingsFollowTiers checks that the sittings words follow configured
+// tier bounds other than 1 and 3.
+func TestSittingsFollowTiers(t *testing.T) {
+	t.Parallel()
+
+	tr := tiersOf(&Input{OnePassMax: 2, FewPassesMax: 5})
+	for passes, want := range map[float64]string{1.5: "one sitting", 2: "one sitting", 2.1: "a few sittings", 5: "a few sittings", 5.1: "split it first"} {
+		if got := sittingsBand(sittings(passes, tr)); got != want {
+			t.Errorf("band at %v passes with bounds 2 and 5 = %q, want %q", passes, got, want)
+		}
+	}
+	if got := sittingsText(2, tr.one); got != "one sitting" {
+		t.Errorf("sittingsText(2) with one-pass bound 2 = %q", got)
+	}
+	r := report.Report{Rebuild: report.Rebuild{AgentPasses: 4}}
+	if got := pkg(&r, nil, 0, tr).Rebuild.Sittings; got != "a few sittings" {
+		t.Errorf("a 4-pass package under bounds 2 and 5 is %q", got)
+	}
+	if got := pkg(&r, nil, 0, tiersOf(&Input{})).Rebuild.Sittings; got != "split it first" {
+		t.Errorf("a 4-pass package under the defaults is %q", got)
 	}
 }
 

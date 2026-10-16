@@ -30,9 +30,10 @@ const (
 	daysPerWeek  = 5
 	daysPerMonth = 21
 	daysPerYear  = 220
-	// oneSitting and fewSittings bound the sittings bands, in passes.
-	oneSitting  = 1
-	fewSittings = 3
+	// defaultOnePass and defaultFewPasses are the SPEC.md 7.4 tier bounds,
+	// used when the input carries none.
+	defaultOnePass   = 1
+	defaultFewPasses = 3
 	// meterWatch is the share of a ceiling at which its meter is watched.
 	meterWatch = 0.8
 	// hotspotCount is how many hotspots the module lists; chunkCount and
@@ -179,13 +180,25 @@ func copiesLevel(pct float64) string {
 	return narrate.BandFine
 }
 
-// sittings returns the sittings band of passes: 0 one sitting, 1 a few
-// sittings, 2 split it first.
-func sittings(passes float64) int {
+// tiers are the inclusive upper bounds, in agent passes, of one sitting and
+// of a few sittings: the bounds the rebuild tier uses.
+type tiers struct{ one, few float64 }
+
+// tiersOf returns the bounds of in, the SPEC.md 7.4 defaults when unset.
+func tiersOf(in *Input) tiers {
+	if in.OnePassMax <= 0 || in.FewPassesMax <= in.OnePassMax {
+		return tiers{defaultOnePass, defaultFewPasses}
+	}
+	return tiers{in.OnePassMax, in.FewPassesMax}
+}
+
+// sittings returns the sittings band of passes under t: 0 one sitting, 1 a
+// few sittings, 2 split it first.
+func sittings(passes float64, t tiers) int {
 	switch {
-	case passes <= oneSitting:
+	case passes <= t.one:
 		return 0
-	case passes <= fewSittings:
+	case passes <= t.few:
 		return 1
 	}
 	return 2

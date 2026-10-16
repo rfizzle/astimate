@@ -41,6 +41,10 @@ type Input struct {
 	// Basis is what the human estimate is computed with, for the labels
 	// that say where the engineer time comes from.
 	Basis report.HumanBasis
+	// OnePassMax and FewPassesMax are the configured tier bounds, in agent
+	// passes, that the sittings words follow; unset, the SPEC.md 7.4
+	// defaults.
+	OnePassMax, FewPassesMax float64
 	// Packages are every package's report, its details included.
 	Packages []report.Report
 	// Check is the check of the changed packages against Base; nil
@@ -68,12 +72,13 @@ func Build(in *Input) narrate.Module {
 	if m.Limits == nil {
 		m.Limits = []narrate.Limit{}
 	}
+	bounds := tiersOf(in)
 	days, low, high := 0.0, 0.0, 0.0
 	for i := range in.Packages {
-		p := pkg(&in.Packages[i], in.Limits, in.ChurnWindow)
+		p := pkg(&in.Packages[i], in.Limits, in.ChurnWindow, bounds)
 		days, low, high = days+p.Rebuild.HumanDays, low+p.Rebuild.HumanDaysLow, high+p.Rebuild.HumanDaysHigh
 		m.Counts.Packages++
-		if sittings(in.Packages[i].Rebuild.AgentPasses) > 0 {
+		if sittings(in.Packages[i].Rebuild.AgentPasses, bounds) > 0 {
 			m.Counts.MultiSitting++
 		}
 		switch p.Band {
@@ -161,7 +166,7 @@ func hotOrder(ps []narrate.Package) []*narrate.Package {
 }
 
 // pkg narrates one package's report.
-func pkg(r *report.Report, limits []narrate.Limit, window int) narrate.Package {
+func pkg(r *report.Report, limits []narrate.Limit, window int, t tiers) narrate.Package {
 	met := &r.Metrics
 	p := narrate.Package{
 		Path:  r.PackagePath,
@@ -188,8 +193,8 @@ func pkg(r *report.Report, limits []narrate.Limit, window int) narrate.Package {
 		HumanTime:     human(r.Rebuild.HumanDaysLow, r.Rebuild.HumanDaysHigh),
 		HumanShort:    humanShort(r.Rebuild.HumanDaysLow, r.Rebuild.HumanDaysHigh),
 		RebuildTokens: r.Rebuild.RebuildTokens,
-		Sittings:      sittingsBand(sittings(r.Rebuild.AgentPasses)),
-		SittingsText:  sittingsText(r.Rebuild.AgentPasses),
+		Sittings:      sittingsBand(sittings(r.Rebuild.AgentPasses, t)),
+		SittingsText:  sittingsText(r.Rebuild.AgentPasses, t.one),
 		Drivers:       shares(&r.Rebuild),
 	}
 	p.Rebuild.Say = rebuildSay(&p.Rebuild)

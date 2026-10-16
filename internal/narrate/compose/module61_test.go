@@ -128,10 +128,10 @@ func TestSixtyone(t *testing.T) {
 		t.Errorf("matched %d of %d packages, want 61", matched, len(want))
 	}
 
-	// The order is the hotspot, then the human days, then the path.
+	// The order is the hotspot, then the passes, then the human days, then the path.
 	hot := slices.Clone(want)
 	slices.SortStableFunc(hot, func(a, b modulePackage) int {
-		return cmp.Or(cmp.Compare(hotOf(&b), hotOf(&a)), cmp.Compare(b.Days, a.Days), strings.Compare(a.Path, b.Path))
+		return cmp.Or(cmp.Compare(hotOf(&b), hotOf(&a)), cmp.Compare(b.Passes, a.Passes), cmp.Compare(b.Days, a.Days), strings.Compare(a.Path, b.Path))
 	})
 	// Start here lists the first split or watch packages of that order.
 	wantHot := make([]string, 0, 5)

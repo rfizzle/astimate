@@ -7,14 +7,14 @@ Engineer time runs, per package, from the lower to the higher of COCOMO 81 and
 COCOMO II, rebuild profile; not a measurement; agent sittings are measured.
 rebuild.cocomo and rebuild.cocomo_a set it.
 
-Start here  no change history: costliest to rebuild first
+Start here  no change history: most sittings first
 
  1  dupes  WATCH  one sitting
     It is inside every limit, and 80.6% of its lines are copies of each other.
     Do this → Extract the copied code next time you work here; nothing needs a
     split yet.
 
-Every package  costliest to rebuild first · * is over its size limit
+Every package  most sittings first · * is over its size limit
 
  PACKAGE       BAND      SITTINGS  LINES   CHANGES
  hidden        FINE   one sitting     32         -

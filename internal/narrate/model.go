@@ -96,11 +96,12 @@ type Counts struct {
 }
 
 // Hotter orders packages for "Start here" and "Every package": the higher
-// Hotspot first, then the higher HumanDaysLow (which alone orders packages
-// without churn or in no agent pass), then Path, so the order is total.
+// Hotspot first, then the higher AgentPasses (which alone orders packages
+// without churn), then the higher HumanDaysLow, then Path, so the order is
+// total.
 func Hotter(a, b *Package) int {
-	return cmp.Or(cmp.Compare(b.Hotspot, a.Hotspot), cmp.Compare(b.Rebuild.HumanDaysLow, a.Rebuild.HumanDaysLow),
-		strings.Compare(a.Path, b.Path))
+	return cmp.Or(cmp.Compare(b.Hotspot, a.Hotspot), cmp.Compare(b.Rebuild.AgentPasses, a.Rebuild.AgentPasses),
+		cmp.Compare(b.Rebuild.HumanDaysLow, a.Rebuild.HumanDaysLow), strings.Compare(a.Path, b.Path))
 }
 
 // Package is one package's view.

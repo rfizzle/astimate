@@ -146,7 +146,7 @@ func TestPackageSentences(t *testing.T) {
 	}
 	all := report.Report{PackagePath: "all", Metrics: metrics.RawMetrics{SLOC: 2000, TokensEst: 20000, LargestFileSLOC: 700,
 		ExportedSymbols: 70, InternalImports: 11, HasTests: true}}
-	if got, want := pkg(&all, defaultLimits(), 200).Story, "It is over all five of its limits (size, tokens, largest file, exports, imports)."; got != want {
+	if got, want := pkg(&all, defaultLimits(), 200, tiersOf(&Input{})).Story, "It is over all five of its limits (size, tokens, largest file, exports, imports)."; got != want {
 		t.Errorf("story over every limit = %q, want %q", got, want)
 	}
 	many, _ := narrated(row{path: "m", hasTests: true, functions: []details.Function{{Cognitive: 21}, {Cognitive: 30}, {Cognitive: 11}, {Cognitive: 12}}})
@@ -218,7 +218,7 @@ func TestModuleSentences(t *testing.T) {
 	if strings.Contains(unmeasured.Lead, "hottest") {
 		t.Errorf("lead without churn = %q, want no hottest sentence", unmeasured.Lead)
 	}
-	if want := " There is no change history to read, so the packages to start with are ranked by rebuild time alone."; !strings.HasSuffix(unmeasured.Lead, want) {
+	if want := " There is no change history to read, so the packages to start with are ranked by sittings alone."; !strings.HasSuffix(unmeasured.Lead, want) {
 		t.Errorf("lead without churn = %q, want it to end %q", unmeasured.Lead, want)
 	}
 	if want := []string{"w", "s"}; !slices.Equal(unmeasured.Hotspots, want) {
@@ -397,7 +397,7 @@ func TestWords(t *testing.T) {
 	// sittings rounded up past one pass, a split past three.
 	for passes, want := range map[float64]string{1: "2 findings · rebuilds in one sitting", 1.2: "2 findings · 2 sittings to rebuild",
 		3: "2 findings · 3 sittings to rebuild", 3.1: "2 findings · split before a rebuild"} {
-		p := &narrate.Package{Rebuild: narrate.Rebuild{AgentPasses: passes, HumanDays: 40, SittingsText: sittingsText(passes)}}
+		p := &narrate.Package{Rebuild: narrate.Rebuild{AgentPasses: passes, HumanDays: 40, Sittings: sittingsBand(sittings(passes, tiersOf(&Input{}))), SittingsText: sittingsText(passes, 1)}}
 		if got := failingSummary(2, p); got != want {
 			t.Errorf("failingSummary at %v passes = %q, want %q", passes, got, want)
 		}

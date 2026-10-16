@@ -768,6 +768,13 @@ history.
 
 ### Fixed
 
+- `astimate report` finishes the move to sittings where there is no change
+  history. "Start here" and "Every package" order by agent passes, then
+  engineer time, then path, and say "most sittings first" (the lead says
+  "ranked by sittings alone"). The words "rebuilds in one sitting", "N
+  sittings to rebuild" and "split before a rebuild" follow the configured
+  `rebuild.tiers` bounds instead of a fixed 1 and 3, so a changed config
+  cannot put them out of step with the tier.
 - `astimate report` words its orders truthfully. Without change history the
   "Start here" subtitle says "no change history: costliest to rebuild
   first" and the "Every package" heading says "costliest to rebuild first";

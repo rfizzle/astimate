@@ -65,7 +65,7 @@ func (p *printer) hotspots(m *narrate.Module, byPath map[string]*narrate.Package
 			maxHot = max(maxHot, pk.Hotspot)
 		}
 	}
-	sub := "no change history: costliest to rebuild first"
+	sub := "no change history: most sittings first"
 	if maxHot > 0 {
 		sub = "changes in the last " + strconv.Itoa(m.ChurnWindow) + " commits × agent passes"
 	}
@@ -164,7 +164,7 @@ func (p *printer) table(ps []narrate.Package) {
 	}
 	pathW = max(12, min(pathW, p.width-rest))
 	p.line("")
-	order := "costliest to rebuild first"
+	order := "most sittings first"
 	if slices.ContainsFunc(ps, func(pk narrate.Package) bool { return pk.Hotspot > 0 }) {
 		order = "by changes × sittings"
 	}
