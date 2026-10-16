@@ -5,13 +5,13 @@ Fixture has no package that needs a split.
 Engineer time runs, per package, from the lower to the higher of COCOMO 81 and COCOMO II, rebuild profile; not a
 measurement; agent sittings are measured. rebuild.cocomo and rebuild.cocomo_a set it.
 
-Start here  by days to rebuild
+Start here  no change history: costliest to rebuild first
 
  1  dupes  WATCH  one sitting  1 day
     It is inside every limit, and 80.6% of its lines are copies of each other.
     Do this → Extract the copied code next time you work here; nothing needs a split yet.
 
-Every package  most changed and costly first · * is over its size limit
+Every package  costliest to rebuild first · * is over its size limit
 
  PACKAGE       BAND      SITTINGS   TIME  LINES   COPIED  UNTESTED  CHANGES
  hidden        FINE   one sitting    2 d     32       0%         1        -

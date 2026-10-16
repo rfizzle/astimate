@@ -481,7 +481,7 @@
       "facts": [
         {
           "label": "Rebuild",
-          "text": "0 agent passes · 0.1 human days"
+          "text": "0 agent passes · 1 human day"
         },
         {
           "label": "Copies",
@@ -654,7 +654,7 @@
       "facts": [
         {
           "label": "Rebuild",
-          "text": "0 agent passes · 0.8 human days"
+          "text": "0 agent passes · 1 human day"
         },
         {
           "label": "Copies",
@@ -813,7 +813,7 @@
       "facts": [
         {
           "label": "Rebuild",
-          "text": "0 agent passes · 0.2 to 0.3 human days"
+          "text": "0 agent passes · 1 human day"
         },
         {
           "label": "Copies",
@@ -1441,7 +1441,7 @@
       "facts": [
         {
           "label": "Rebuild",
-          "text": "0 agent passes · 0.1 human days"
+          "text": "0 agent passes · 1 human day"
         },
         {
           "label": "Copies",
@@ -1579,7 +1579,7 @@
       "facts": [
         {
           "label": "Rebuild",
-          "text": "0 agent passes · 0.2 to 0.3 human days"
+          "text": "0 agent passes · 1 human day"
         },
         {
           "label": "Copies",
@@ -1882,7 +1882,7 @@
       "facts": [
         {
           "label": "Rebuild",
-          "text": "0 agent passes · 0.2 human days"
+          "text": "0 agent passes · 1 human day"
         },
         {
           "label": "Copies",

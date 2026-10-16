@@ -148,7 +148,11 @@ func repository(b *strings.Builder, m *narrate.Module) {
 	}
 	all := slices.Clone(m.Packages)
 	slices.SortStableFunc(all, func(a, c narrate.Package) int { return narrate.Hotter(&a, &c) })
-	b.WriteString("\n### Every package\n\nMost changed and costly first; * marks a package over its size limit.\n\n")
+	order := "Costliest to rebuild first"
+	if slices.ContainsFunc(m.Packages, func(p narrate.Package) bool { return p.Hotspot > 0 }) {
+		order = "By changes × sittings"
+	}
+	b.WriteString("\n### Every package\n\n" + order + "; * marks a package over its size limit.\n\n")
 	b.WriteString("| Package | Band | Sittings | Time | Lines | Copied | Untested | Changes |\n|---|---|---|---|---|---|---|---|\n")
 	for i := range all[:min(rows, len(all))] {
 		p := &all[i]

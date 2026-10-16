@@ -8,14 +8,14 @@
 [2mrebuild.cocomo and rebuild.cocomo_a set it.[0m
 [32m██████████████████░░[0m  [2mshare of packages that are fine[0m
 
-[1mStart here[0m  [2mby days to rebuild[0m
+[1mStart here[0m  [2mno change history: costliest to rebuild first[0m
 
 [1m 1  [0m[36mdupes[0m  [1;33mWATCH[0m  one sitting  1 day
     It is inside every limit, and 80.6% of its lines are copies of each other.
     [2mDo this → Extract the copied code next time you work here; nothing needs a[0m
     [2msplit yet.[0m
 
-[1mEvery package[0m  [2mmost changed and costly first · * is over its size limit[0m
+[1mEvery package[0m  [2mcostliest to rebuild first · * is over its size limit[0m
 
 [2m PACKAGE       BAND      SITTINGS   TIME  LINES   CHANGES[0m
  [36mhidden      [0m  [32mFINE [0m  one sitting    2 d     32         -

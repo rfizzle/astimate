@@ -746,6 +746,12 @@ history.
 
 ### Fixed
 
+- `astimate report` words its orders truthfully. Without change history the
+  "Start here" subtitle says "no change history: costliest to rebuild
+  first" and the "Every package" heading says "costliest to rebuild first";
+  with history that heading says "by changes × sittings". A package's
+  Rebuild fact reads "1 human day", never "1 human days" or a figure under
+  one day.
 - Sentences of `astimate report` read against eleven repositories. "Start
   here" lists only split and watch packages (a fine package said "Nothing.
   Leave it alone." there), by rebuild time with a sentence saying so when

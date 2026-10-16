@@ -396,3 +396,20 @@ func TestWords(t *testing.T) {
 		t.Errorf("countWord(7) = %q", got)
 	}
 }
+
+func TestHumanDays(t *testing.T) {
+	for _, c := range []struct {
+		low, high float64
+		want      string
+	}{
+		{0.4, 0.4, "1 human day"},
+		{1.0, 1.0, "1 human day"},
+		{1.6, 1.6, "1.6 human days"},
+		{0, 1, "1 human day"},
+		{0.4, 1.6, "1 to 1.6 human days"},
+	} {
+		if got := humanDays(c.low, c.high); got != c.want {
+			t.Errorf("humanDays(%v, %v) = %q, want %q", c.low, c.high, got, c.want)
+		}
+	}
+}

@@ -172,7 +172,7 @@ func changes(p *narrate.Package, window int) string {
 func facts(p *narrate.Package, window int) []narrate.Fact {
 	out := []narrate.Fact{
 		{Label: "Rebuild", Text: narrate.Num(p.Rebuild.AgentPasses) + " agent passes · " +
-			narrate.NumRange(p.Rebuild.HumanDaysLow, p.Rebuild.HumanDaysHigh) + " human days"},
+			humanDays(p.Rebuild.HumanDaysLow, p.Rebuild.HumanDaysHigh)},
 		{Label: "Copies", Text: plural(p.Copies.Blocks, "duplicate block covers ", "duplicate blocks cover ") + narrate.Num(p.Copies.Pct) + "% of lines"},
 		{Label: "Complexity", Text: "cognitive p90 " + strconv.Itoa(p.Complexity.CognitiveP90) + " · cyclomatic p90 " +
 			strconv.Itoa(p.Complexity.CyclomaticP90) + " · nesting " + strconv.Itoa(p.Complexity.Nesting)},
@@ -440,6 +440,16 @@ func humanShort(low, high float64) string {
 // plural is n followed by one or many.
 func plural(n int, one, many string) string {
 	return strconv.Itoa(n) + " " + pick(n, one, many)
+}
+
+// humanDays writes the range of human days, never below 1 as human does,
+// and "day" when it writes a single 1.
+func humanDays(low, high float64) string {
+	r := narrate.NumRange(max(low, 1), max(high, 1))
+	if r == "1" {
+		return r + " human day"
+	}
+	return r + " human days"
 }
 
 // pick returns one when n is 1, else many.

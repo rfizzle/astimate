@@ -12,7 +12,7 @@ _Engineer time runs, per package, from the lower to the higher of COCOMO 81 and 
 
 ### Every package
 
-Most changed and costly first; * marks a package over its size limit.
+Costliest to rebuild first; * marks a package over its size limit.
 
 | Package | Band | Sittings | Time | Lines | Copied | Untested | Changes |
 |---|---|---|---|---|---|---|---|
