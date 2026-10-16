@@ -225,6 +225,10 @@ func randomMetrics(rng *rand.Rand) metrics.RawMetrics {
 		UntestedExports:    rng.IntN(exported + 1),
 	}
 	if rng.IntN(2) == 0 {
+		documented := rng.IntN(exported + 1)
+		m.DocumentedExports = &documented
+	}
+	if rng.IntN(2) == 0 {
 		cross := rng.IntN(5)
 		cgo, reflect := rng.IntN(2) == 0, rng.IntN(2) == 0
 		gen := rng.IntN(3)
@@ -397,6 +401,38 @@ func TestAddingTests(t *testing.T) {
 			t.Fatalf("iteration %d: adding tests raised human_days from %v to %v (%+v -> %+v)",
 				i, before.HumanDays, covered.HumanDays, m, next)
 		}
+	}
+}
+
+// TestDocumentingExports asserts that documenting more exported symbols never
+// raises human_days: it only lowers the self-descriptiveness sub-score's SU.
+func TestDocumentingExports(t *testing.T) {
+	cfg := loadConfig(t)
+	rng := rand.New(rand.NewPCG(seed, seed))
+	t.Logf("seed %d, %d iterations", seed, monotoneIterations)
+	drawn := 0
+	for i := range monotoneIterations {
+		m := randomMetrics(rng)
+		if m.DocumentedExports == nil {
+			continue
+		}
+		drawn++
+		if err := m.Validate(); err != nil {
+			t.Fatalf("iteration %d: randomMetrics is invalid: %v", i, err)
+		}
+		before := score.Estimate(m, cfg.Rebuild)
+
+		next := m
+		more := *m.DocumentedExports + rng.IntN(m.ExportedSymbols-*m.DocumentedExports+1)
+		next.DocumentedExports = &more
+		after := score.Estimate(next, cfg.Rebuild)
+		if after.HumanDays > before.HumanDays*(1+relTol) {
+			t.Fatalf("iteration %d: documenting %d to %d of %d exports raised human_days from %v to %v",
+				i, *m.DocumentedExports, more, m.ExportedSymbols, before.HumanDays, after.HumanDays)
+		}
+	}
+	if drawn == 0 {
+		t.Fatal("no draw set DocumentedExports")
 	}
 }
 

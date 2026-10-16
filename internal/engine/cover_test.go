@@ -69,14 +69,14 @@ func TestRankCoverage(t *testing.T) {
 	}{
 		{
 			name:     "flag absent measures nothing",
-			wantGood: 0.2, // (1000 + 4*40 + 4*800) / 25000 = 0.168
+			wantGood: 0.1, // (1000 + 4*300) / 37500 = 0.059
 			noLogs:   []string{"coverage"},
 		},
 		{
 			name:      "measures packages with test files or untested exports in one call",
 			opts:      CoverageOptions{Enabled: true},
 			wantCalls: [][]string{{"example.com/m/broken", "example.com/m/good", "example.com/m/none"}},
-			wantGood:  0.1, // (1000 + 160 + 3200*0.5) / 25000 = 0.104
+			wantGood:  0, // (1000 + 1200*0.5) / 37500 = 0.043
 			wantLogs:  []string{"coverage not measured", "path=broken", "undefined: y"},
 			noLogs:    []string{"path=none", "path=good"},
 		},
@@ -85,7 +85,7 @@ func TestRankCoverage(t *testing.T) {
 			opts:      CoverageOptions{Enabled: true},
 			err:       errors.New("go: not found"),
 			wantCalls: [][]string{{"example.com/m/broken", "example.com/m/good", "example.com/m/none"}},
-			wantGood:  0.2,
+			wantGood:  0.1,
 			wantLogs:  []string{"path=good", "path=broken", "go: not found"},
 		},
 	}

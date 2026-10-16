@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"reflect"
 	"slices"
@@ -286,17 +287,14 @@ func TestRankModuleListFailure(t *testing.T) {
 	}
 }
 
-// rankParams are the SPEC.md 7.2 and 7.3 default rebuild parameters.
+// rankParams are the embedded default rebuild parameters, parsed from the
+// shipped configuration so the fixtures cannot drift from it. A default that
+// fails to parse is a build defect, so the helper panics rather than skewing
+// every test that uses it.
 func rankParams() score.RebuildParams {
-	return score.RebuildParams{
-		ContextBudget:           25000,
-		TokensPerExport:         40,
-		TokensPerUntestedExport: 800,
-		TokensPerHiddenState:    400,
-		SuperlinearExponent:     1.3,
-		CocomoA:                 2.4,
-		CocomoB:                 1.05,
-		DaysPerMonth:            19,
-		Tiers:                   score.Tiers{OnePassMax: 1, FewPassesMax: 3},
+	cfg, err := config.Parse(config.Default())
+	if err != nil {
+		panic(fmt.Sprintf("parsing the embedded default config: %v", err))
 	}
+	return cfg.Rebuild
 }
