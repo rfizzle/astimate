@@ -28,13 +28,15 @@ type SkippedPackage struct {
 // Excluder is an optional interface an Extractor implements when Packages
 // can leave out a directory of source files without any load error: a Go
 // directory whose files build constraints exclude entirely, which go list
-// drops from "./..." without a word. Callers type-assert an Extractor to
-// it, as they do to Skipper; the two lists never share a package.
+// drops from "./..." without a word, or a package all of whose non-test
+// source files the configuration's exclude list matches (package
+// exclude). Callers type-assert an Extractor to it, as they do to
+// Skipper; the two lists never share a package.
 type Excluder interface {
 	// Excluded returns the packages under root that Packages leaves out
-	// because none of their files is built, sorted by identifier, each with
-	// its Reason and no Error, from the same load Packages reads. It fails
-	// when Packages would.
+	// because none of their files is built or every non-test one is
+	// excluded, sorted by identifier, each with its Reason and no Error,
+	// from the same load Packages reads. It fails when Packages would.
 	Excluded(root string) ([]SkippedPackage, error)
 }
 

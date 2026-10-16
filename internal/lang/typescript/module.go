@@ -7,6 +7,7 @@ import (
 	"slices"
 	"sync"
 
+	"github.com/rfizzle/astimate/internal/exclude"
 	"github.com/rfizzle/astimate/internal/lang/duptok"
 	"github.com/rfizzle/astimate/internal/lang/typescript/internal/inspect"
 	"github.com/rfizzle/astimate/internal/lang/typescript/internal/resolve"
@@ -32,6 +33,9 @@ type module struct {
 	// names (resolve.BinDirs); a package of that identifier is a
 	// composition root.
 	bins map[string]bool
+	// excluded holds the packages the exclude list left out, sorted by
+	// identifier (Extractor.Excluded).
+	excluded []metrics.SkippedPackage
 
 	detailsMu sync.Mutex
 	details   map[string]details
@@ -75,13 +79,15 @@ type details struct {
 
 // loadModule finds and parses every TypeScript file of the module at the
 // absolute path root, then groups the files into packages and resolves the
-// import graph. ctx is checked before each file.
-func loadModule(ctx context.Context, root string, opts inspect.Options) (*module, error) {
+// import graph. A file list matches is dropped before any is read
+// (excludeFiles). ctx is checked before each file.
+func loadModule(ctx context.Context, root string, opts inspect.Options, list *exclude.List) (*module, error) {
 	files, err := resolve.FindFiles(root)
 	if err != nil {
 		return nil, fmt.Errorf("listing TypeScript files of %s: %w", root, err)
 	}
 	m := &module{root: root, pkgs: make(map[string]*pkg), testRefs: make(map[string]bool), bins: resolve.BinDirs(root)}
+	files, m.excluded = excludeFiles(files, list, opts.Logger)
 	for _, f := range files {
 		if f.Test {
 			continue

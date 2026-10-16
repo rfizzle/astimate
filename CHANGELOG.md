@@ -12,6 +12,17 @@ history.
 
 ### Added
 
+- An `exclude:` list in the configuration keeps files out of the analysis,
+  for generated code no header marks and vendored or experimental trees.
+  Patterns match a file's path relative to the module root (`*`, `?` and
+  `[...]` within a segment, `**` for any number of segments, a directory
+  for everything under it). An excluded file is never read and counts in
+  no metric, its imports and churn included; a package with every source
+  file excluded is listed under "Not analysed" as
+  `excluded by config (<pattern>)`. Both extractors apply it, `check` uses
+  it on both sides so a new pattern does not read as a deleted package,
+  `--debug` logs each excluded file, a malformed pattern is a config error
+  naming it, and `config init` writes the key commented out.
 - TypeScript files marked as generated are recognised. A non-test `.ts`,
   `.tsx`, `.mts` or `.cts` file whose leading comment block holds
   `@generated`, a `Code generated ... DO NOT EDIT` line, or a "generated"

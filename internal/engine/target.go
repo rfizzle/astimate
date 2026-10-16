@@ -214,6 +214,7 @@ func newRegistry(cfg *config.Config, tokenizer string, logger *slog.Logger) (*me
 			golang.WithDupSplitLiteralRuns(cfg.Duplication.SplitLiteralRuns),
 			golang.WithTokenizer(tokenizer),
 			golang.WithLogger(logger),
+			golang.WithExclude(cfg.Exclude),
 		),
 		typescript.New(
 			typescript.WithCharsPerToken(cfg.CharsPerToken),
@@ -222,6 +223,7 @@ func newRegistry(cfg *config.Config, tokenizer string, logger *slog.Logger) (*me
 			typescript.WithDupSplitLiteralRuns(cfg.Duplication.SplitLiteralRuns),
 			typescript.WithTokenizer(tokenizer),
 			typescript.WithLogger(logger),
+			typescript.WithExclude(cfg.Exclude),
 		),
 	)
 	if err != nil {

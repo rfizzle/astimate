@@ -17,9 +17,9 @@ import (
 // its package whatever files it holds, so an importer's internal_imports
 // moves only with the importer's own import declarations, whose change
 // selects it (SPEC.md 8.4). A file whose name ends in "_test.go" is
-// marked Test.
+// marked Test. An excluded file moves nothing.
 func (e *Extractor) ClassifyFile(rel string) metrics.SourceFile {
-	if !strings.HasSuffix(rel, ".go") {
+	if !strings.HasSuffix(rel, ".go") || e.exclude.Matches(rel) {
 		return metrics.SourceFile{}
 	}
 	dir := path.Dir(path.Clean(rel))

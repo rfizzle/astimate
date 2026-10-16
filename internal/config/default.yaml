@@ -73,6 +73,15 @@ churn:
   # 0 turns churn off, and the two metrics are null.
   commits: 200
 
+# Exclude: source files no extractor reads, for generated code no header
+# marks and vendored or experimental trees. Each pattern is matched against
+# a file's slash path relative to the module root: * ? and [...] within one
+# segment, ** for any number of whole segments, and a directory excludes
+# everything under it. An excluded file counts in no metric; a package all
+# of whose source files are excluded is listed as not analysed.
+# exclude:
+#   - "internal/gen/**"
+
 # Rebuild estimate parameters (SPEC.md sections 7.2 to 7.4).
 rebuild:
   # Tokens one agent can hold in context for a rebuild; past it work is split.

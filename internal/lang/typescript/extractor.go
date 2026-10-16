@@ -10,6 +10,7 @@ import (
 	"slices"
 	"sync"
 
+	"github.com/rfizzle/astimate/internal/exclude"
 	"github.com/rfizzle/astimate/internal/lang/duptok"
 	"github.com/rfizzle/astimate/internal/lang/typescript/internal/inspect"
 	"github.com/rfizzle/astimate/internal/lang/typescript/internal/resolve"
@@ -35,6 +36,9 @@ type Extractor struct {
 	tokenizer     string
 	dup           duptok.Options
 	logger        *slog.Logger
+	// exclude lists the files the walk drops (WithExclude); nil excludes
+	// nothing.
+	exclude *exclude.List
 
 	mu      sync.Mutex
 	modules map[string]*moduleLoad
@@ -323,7 +327,7 @@ func (e *Extractor) module(ctx context.Context, root string) (*module, error) {
 		e.mu.Unlock()
 
 		if !joined {
-			l.m, l.err = loadModule(ctx, abs, inspect.Options{O200k: e.tokenizer == methodO200k, Logger: e.logger})
+			l.m, l.err = loadModule(ctx, abs, inspect.Options{O200k: e.tokenizer == methodO200k, Logger: e.logger}, e.exclude)
 			if l.err != nil {
 				e.mu.Lock()
 				delete(e.modules, abs)

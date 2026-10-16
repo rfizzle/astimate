@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/rfizzle/astimate/internal/exclude"
 	"github.com/rfizzle/astimate/internal/lang/golang/internal/dup"
 	"github.com/rfizzle/astimate/internal/lang/golang/internal/inspect"
 	"github.com/rfizzle/astimate/internal/lang/golang/internal/load"
@@ -33,7 +34,8 @@ type Extractor struct {
 	dup dup.Options
 	// logger receives an info record per module directory a load skipped;
 	// nil discards them.
-	logger *slog.Logger
+	logger  *slog.Logger
+	exclude *exclude.List
 
 	// o200kOnce guards the one-time build of o200k, because
 	// tiktoken.SetBpeLoader writes an unguarded library global.
@@ -115,6 +117,11 @@ func WithDupSplitLiteralRuns(on bool) Option {
 // is logged once per module load. Nil, the default, discards them.
 func WithLogger(logger *slog.Logger) Option {
 	return func(e *Extractor) { e.logger = logger }
+}
+
+// WithExclude sets the exclude list (SPEC.md 6.5).
+func WithExclude(list *exclude.List) Option {
+	return func(e *Extractor) { e.exclude = list }
 }
 
 // New returns a Go extractor configured by opts.
@@ -403,6 +410,7 @@ func (e *Extractor) module(ctx context.Context, root string) (*loaded, error) {
 				delete(e.modules, abs)
 				e.mu.Unlock()
 			} else {
+				m.l.Exclude(abs, e.exclude, e.logger)
 				e.logSkipped(m.l)
 			}
 			close(m.done)
@@ -456,7 +464,8 @@ func (e *Extractor) Skipped(root string) ([]metrics.SkippedPackage, error) {
 // Excluded returns the directories of the module at root holding Go files
 // that the load returned no package for, because build constraints
 // exclude all their files (or, for a test-only package, all its non-test
-// files), sorted by import path, each with that reason (metrics.Excluder).
+// files) or the exclude list, sorted by import path, each with that
+// reason (metrics.Excluder).
 // It shares Packages' load; logSkipped logs the same directories.
 func (e *Extractor) Excluded(root string) ([]metrics.SkippedPackage, error) {
 	return e.leftOut(root, true)

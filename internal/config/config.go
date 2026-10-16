@@ -15,6 +15,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/rfizzle/astimate/internal/exclude"
 	"github.com/rfizzle/astimate/internal/gate"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/score"
@@ -57,6 +58,9 @@ type Config struct {
 	// Exemptions holds the exemptions in file order (SPEC.md 8.6). They
 	// apply to every language: a languages override carries none.
 	Exemptions []gate.Exemption
+	// Exclude holds the exclude patterns (SPEC.md section 9): the source
+	// files every extractor leaves unread. Nil when the file sets none.
+	Exclude *exclude.List
 	// Warnings are non-fatal findings from parsing, such as deprecated keys.
 	// Callers log each one once.
 	Warnings []string
@@ -99,6 +103,7 @@ type fileConfig struct {
 	Rebuild       *fileRebuild     `yaml:"rebuild"`
 	Thresholds    []fileThreshold  `yaml:"thresholds"`
 	Exemptions    []fileExemption  `yaml:"exemptions"`
+	Exclude       []string         `yaml:"exclude"`
 	// Languages holds the optional per-language overrides by language id.
 	Languages map[string]*fileLanguage `yaml:"languages"`
 
@@ -412,6 +417,10 @@ func (fc *fileConfig) build() (*Config, error) {
 		}
 	}
 	if err := fc.buildLanguages(cfg); err != nil {
+		errs = append(errs, err)
+	}
+	var err error
+	if cfg.Exclude, err = exclude.New(fc.Exclude); err != nil {
 		errs = append(errs, err)
 	}
 	if err := errors.Join(errs...); err != nil {

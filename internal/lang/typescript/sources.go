@@ -19,7 +19,8 @@ import (
 // marked Contract and the package's importers are selected too. The root
 // package.json and any tsconfig*.json, which the root tsconfig.json may
 // extend, can change the resolution of every package's imports. Files under node_modules, dist,
-// build or a dot-prefixed directory, and everything else, move nothing.
+// build or a dot-prefixed directory, a source or test file the exclude
+// list matches (WithExclude), and everything else, move nothing.
 func (e *Extractor) ClassifyFile(rel string) metrics.SourceFile {
 	rel = path.Clean(rel)
 	dir, name := path.Split(rel)
@@ -30,6 +31,9 @@ func (e *Extractor) ClassifyFile(rel string) metrics.SourceFile {
 				return metrics.SourceFile{}
 			}
 		}
+	}
+	if resolve.IsSourceName(name) && e.exclude.Matches(rel) {
+		return metrics.SourceFile{}
 	}
 	switch {
 	case name == resolve.ManifestName && dir == ".",
