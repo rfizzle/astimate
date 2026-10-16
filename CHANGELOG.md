@@ -453,6 +453,28 @@ history.
 
 ### Changed
 
+- Agent sittings are the primary measure and the engineer time is
+  demoted. The agent estimate is fitted on 85 measured rebuilds and its
+  tiers carry measured success rates (one sitting rebuilt in 97% of runs,
+  a few sittings in 78%); the engineer time is two uncalibrated textbook
+  models whose agreement reads as precision it lacks. So every surface
+  names the sittings first, with their evidence where a sentence has room
+  (the lead, each package's rebuild sentence, the glossary), and shows the
+  engineer time once: the counts line in text, a line under the lead in
+  Markdown, the hero's sticker on the HTML page, and each package's
+  detail, as an "Engineer time" fact. The Start here cards, the Every
+  package tables (the TIME column is gone), the bubbles, the table cells
+  and the tooltips carry sittings only. The HTML scatter's y axis is
+  `agent_passes`, titled "agent sittings". `check`'s failing summary reads
+  "rebuilds in one sitting", "2 sittings to rebuild" or "split before a
+  rebuild" instead of days; its verdicts, findings and JSON are
+  unchanged. `rank`'s DAYS column moves after TIER, and its default sort
+  stays passes. The glossary's "Rebuild cost" splits into "Sittings" and
+  "Engineer time"; `explain_metric` answers `sittings` and
+  `engineer_time`, and still `rebuild_cost`, as Sittings. The MCP tool
+  descriptions say which figure is measured. The JSON keeps every
+  `human_*` field.
+
 - Engineer time is a range. Until human rebuild time is measured no
   single figure is honest, so each package carries the lower and the
   higher of COCOMO 81 and COCOMO II under the rebuild profile, on the same

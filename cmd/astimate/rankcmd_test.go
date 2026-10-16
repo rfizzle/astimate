@@ -149,7 +149,7 @@ func TestRankTable(t *testing.T) {
 		t.Fatalf("run(%q) exit code = %d, want %d; stderr = %q", args, got, exitOK, stderr.String())
 	}
 	lines := strings.Split(strings.TrimSuffix(stdout.String(), "\n"), "\n")
-	if len(lines) != 4 || strings.Join(strings.Fields(lines[0]), " ") != "PATH PASSES DAYS TIER FAN_IN TOKENS DUP% CHURN ROLE" ||
+	if len(lines) != 4 || strings.Join(strings.Fields(lines[0]), " ") != "PATH PASSES TIER DAYS FAN_IN TOKENS DUP% CHURN ROLE" ||
 		lines[3] != strings.TrimSuffix(rankFooter, "\n") {
 		t.Errorf("table output = %q, want the header, two rows and the footer", stdout.String())
 	}

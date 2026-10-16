@@ -14,8 +14,11 @@ func TestLookup(t *testing.T) {
 		name, want string
 		found      bool
 	}{
-		{"rebuild_cost", "Rebuild cost", true},
-		{"Rebuild cost", "Rebuild cost", true},
+		{"sittings", "Sittings", true},
+		{"Engineer time", "Engineer time", true},
+		{"engineer-time", "Engineer time", true},
+		{"rebuild_cost", "Sittings", true},
+		{"Rebuild cost", "Sittings", true},
 		{"hard-to-follow", "Hard to follow", true},
 		{"PATHS", "Hard to follow", true},
 		{"limits", "Limits", true},

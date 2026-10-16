@@ -1,6 +1,6 @@
 == text ==
 Fixture has no package that needs a split.
-12 packages; 0 need more than one agent sitting to rebuild from their tests. For one engineer the whole module is about 2 weeks of rebuild time. 11 are fine, 1 needs watching, and 0 need a split. There is no change history to read, so the packages to start with are ranked by rebuild time alone.
+12 packages; 0 need more than one agent sitting to rebuild from their tests. In measured agent rebuilds, a package of one sitting was rebuilt in 97% of runs and one of a few sittings in 78%. 11 are fine, 1 needs watching, and 0 need a split. There is no change history to read, so the packages to start with are ranked by rebuild time alone.
 
 Start here:
 1. dupes (watch)
@@ -9,7 +9,7 @@ Start here:
 -- structured --
 {
   "headline": "Fixture has no package that needs a split.",
-  "lead": "12 packages; 0 need more than one agent sitting to rebuild from their tests. For one engineer the whole module is about 2 weeks of rebuild time. 11 are fine, 1 needs watching, and 0 need a split. There is no change history to read, so the packages to start with are ranked by rebuild time alone.",
+  "lead": "12 packages; 0 need more than one agent sitting to rebuild from their tests. In measured agent rebuilds, a package of one sitting was rebuilt in 97% of runs and one of a few sittings in 78%. 11 are fine, 1 needs watching, and 0 need a split. There is no change history to read, so the packages to start with are ranked by rebuild time alone.",
   "start_here": [
     {
       "path": "dupes",

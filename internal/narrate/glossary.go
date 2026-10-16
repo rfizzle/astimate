@@ -7,6 +7,16 @@ import (
 	"github.com/rfizzle/astimate/internal/report"
 )
 
+// The measured evidence for the agent estimate (SPEC.md 7.4): the
+// percentage of measured rebuilds that succeeded, for a package of one
+// sitting and for one of a few.
+const (
+	// OneSittingRebuilt is the ONE_PASS tier's measured success rate.
+	OneSittingRebuilt = 97
+	// FewSittingsRebuilt is the FEW_PASSES tier's measured success rate.
+	FewSittingsRebuilt = 78
+)
+
 // Glossary explains the report's words, with the numbers of limits, the
 // duplicate-block floor minTokens, the churn window and the human
 // estimate's basis. It is the one
@@ -15,7 +25,15 @@ import (
 // the page and the tool say the same thing.
 func Glossary(language string, limits []Limit, minTokens, window int, basis report.HumanBasis) []Term {
 	out := []Term{
-		{Term: "Rebuild cost", Text: "How long it would take to rewrite the package from its tests. Shown as a range of one engineer's working time, and as agent sittings: how many times an AI agent would have to start over with a fresh context window. One sitting means it fits in one go; over three means the package has to be split before anyone can rebuild it. The sittings are measured on agent rebuilds and lead; packages are ranked by how often they changed times their agent passes, then by the low end of the engineer time. " + HumanBasis(basis)},
+		{Term: "Sittings", Text: "How many times an AI agent would have to start over with a fresh context window to rewrite the package from its tests. " +
+			"A sitting is a unit of the estimate, not literally one context window: one estimate token is about 7.6 tokens of an agent session's footprint. " +
+			"The estimate is fitted on 85 measured agent rebuilds of 31 packages: a package of one sitting was rebuilt in " +
+			strconv.Itoa(OneSittingRebuilt) + "% of measured runs (65 of 67), one of two or three sittings in " + strconv.Itoa(FewSittingsRebuilt) +
+			"% (14 of 18). No measured package needed more than three; over three means the package has to be split before anyone can rebuild it. " +
+			"Sittings lead the report: packages are ranked by how often they changed times their agent passes, then by the low end of the engineer time."},
+		{Term: "Engineer time", Text: "How long one engineer would take to rewrite the package, as a range of working time: a secondary figure, " +
+			"shown once beside the module's total and in each package's detail. rebuild.cocomo.unfm, how unfamiliar the engineer is with the code, " +
+			"moves it most, inflating the lines by up to double. " + HumanBasis(basis)},
 		{Term: "Split", Text: "The package is past what one agent pass can hold, or over two of its limits. Carve it into smaller packages before adding to it."},
 		{Term: "Watch", Text: "Over one limit, large enough to need a few passes, or a quarter or more of it copied. Plan a split or a clean-up before it grows."},
 	}
@@ -40,12 +58,17 @@ func Glossary(language string, limits []Limit, minTokens, window int, basis repo
 
 // Lookup finds the glossary term named name among terms. name is a term as
 // the page prints it or as a tool argument: case, spaces, hyphens and
-// underscores do not matter ("rebuild_cost", "Rebuild cost"). "Paths" is
-// answered by the "Hard to follow" entry, which explains it.
+// underscores do not matter ("engineer_time", "Engineer time"). "Paths" is
+// answered by the "Hard to follow" entry, which explains it, and
+// "rebuild_cost", the entry the two rebuild terms were split from, by
+// "Sittings".
 func Lookup(terms []Term, name string) (Term, bool) {
 	key := termKey(name)
-	if key == "paths" {
+	switch key {
+	case "paths":
 		key = "hard_to_follow"
+	case "rebuild_cost":
+		key = "sittings"
 	}
 	for _, t := range terms {
 		if termKey(t.Term) == key {

@@ -44,14 +44,14 @@ func bubbles(rows []row) []bubble {
 			b.Font = coord(math.Min(16, c.R/3.2))
 		}
 		if c.R > 40 {
-			b.Sub = r.P.Rebuild.SittingsText + " · " + r.P.Rebuild.HumanShort
+			b.Sub = r.P.Rebuild.SittingsText
 		}
 		out[i] = b
 	}
 	return out
 }
 
-// scatter is the "hot vs costly" chart: churn across, rebuild days up.
+// scatter is the "hot vs costly" chart: churn across, agent passes up.
 type scatter struct {
 	XTicks, YTicks []tick
 	Points         []point
@@ -78,18 +78,18 @@ type point struct {
 	Tip     string
 }
 
-// newScatter places every row by churn on a linear x and rebuild days, the
-// low end of the range, on a square-root y, sized by the square root of its tokens, and labels the
+// newScatter places every row by churn on a linear x and agent passes on a
+// square-root y, sized by the square root of its tokens, and labels the
 // hottest rows. window is the churn window for the x title.
 func newScatter(rows []row, hot []*row, window int) scatter {
-	maxChurn, maxDays, maxTokens := 0.0, 0.0, 0.0
+	maxChurn, maxPasses, maxTokens := 0.0, 0.0, 0.0
 	for i := range rows {
 		maxChurn = math.Max(maxChurn, float64(max(0, rows[i].Churn)))
-		maxDays = math.Max(maxDays, rows[i].Days)
+		maxPasses = math.Max(maxPasses, rows[i].Passes)
 		maxTokens = math.Max(maxTokens, rows[i].Tokens)
 	}
 	x := layout.Linear(maxChurn*1.05, marginL, mapW-marginR)
-	y := layout.Sqrt(maxDays*1.05, mapH-marginB, marginT)
+	y := layout.Sqrt(maxPasses*1.05, mapH-marginB, marginT)
 	r := layout.Sqrt(maxTokens, 4, 34)
 	s := scatter{MidX: coord((marginL + mapW - marginR) / 2), MidY: coord((marginT + mapH - marginB) / 2),
 		Left: coord(marginL), Right: coord(mapW - marginR), Top: coord(marginT), Bottom: coord(mapH - marginB),
@@ -100,11 +100,11 @@ func newScatter(rows []row, hot []*row, window int) scatter {
 	for _, v := range layout.Ticks(0, maxChurn*1.05, 6) {
 		s.XTicks = append(s.XTicks, tick{At: coord(x.At(v)), Label: fmtNum(v)})
 	}
-	for _, v := range dayTicks(maxDays * 1.05) {
+	for _, v := range passTicks(maxPasses * 1.05) {
 		s.YTicks = append(s.YTicks, tick{At: coord(y.At(v)), Label: fmtNum(v)})
 	}
 	place := func(rw *row) (px, py, pr float64) {
-		return x.At(float64(max(0, rw.Churn))), y.At(rw.Days), r.At(rw.Tokens)
+		return x.At(float64(max(0, rw.Churn))), y.At(rw.Passes), r.At(rw.Tokens)
 	}
 	order := make([]*row, len(rows))
 	for i := range rows {
@@ -122,16 +122,17 @@ func newScatter(rows []row, hot []*row, window int) scatter {
 	return s
 }
 
-// dayTicks returns the y gridlines up to top: the mockup's fixed
-// rebuild-day values, or d3's ticks when fewer than four of those fit.
-func dayTicks(top float64) []float64 {
+// passTicks returns the y gridlines up to top: whole passes with the
+// sittings bands' bounds, 1 and 3, among them, or d3's ticks when fewer
+// than three of those fit.
+func passTicks(top float64) []float64 {
 	var out []float64
-	for _, v := range [...]float64{0, 10, 50, 100, 200, 300} {
+	for _, v := range [...]float64{0, 1, 2, 3, 5, 10, 20} {
 		if v <= top {
 			out = append(out, v)
 		}
 	}
-	if len(out) >= 4 {
+	if len(out) >= 3 {
 		return out
 	}
 	return layout.Ticks(0, top, 5)

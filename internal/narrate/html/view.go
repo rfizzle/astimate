@@ -53,12 +53,11 @@ type step struct {
 type row struct {
 	I int
 	P *narrate.Package
-	// Sloc and Days are the sort keys, Days the human range's low end, and
-	// DaysText the range in days; Churn is -1 without churn.
-	Sloc, Days float64
-	DaysText   string
-	Churn      int
-	Tokens     float64
+	// Sloc and Passes are the sort keys, Passes the agent passes, which
+	// the scatter's y axis also reads; Churn is -1 without churn.
+	Sloc, Passes float64
+	Churn        int
+	Tokens       float64
 	// Mini is the size bar's width; Over marks a package over its sloc
 	// limit.
 	Mini string
@@ -94,8 +93,7 @@ func build(m *narrate.Module, fonts template.CSS) *page {
 	for i := range m.Packages {
 		pk := &m.Packages[i]
 		byPath[pk.Path] = i
-		r := row{I: i, P: pk, Days: pk.Rebuild.HumanDaysLow, DaysText: narrate.NumRange(pk.Rebuild.HumanDaysLow, pk.Rebuild.HumanDaysHigh),
-			Churn: -1, Detail: newDetail(pk)}
+		r := row{I: i, P: pk, Passes: pk.Rebuild.AgentPasses, Churn: -1, Detail: newDetail(pk)}
 		if pk.Churn != nil {
 			r.Churn = pk.Churn.Commits
 			p.Churned = true
@@ -186,9 +184,9 @@ func hotRows(m *narrate.Module, rows []row, n int) []*row {
 }
 
 // tip is a package's tooltip: its path, its story and its numbers, one
-// per line.
+// per line, the sittings first.
 func tip(r *row) string {
-	s := r.P.Path + "\n" + r.P.Story + "\n" + r.DaysText + " days to rebuild"
+	s := r.P.Path + "\n" + r.P.Story + "\n" + r.P.Rebuild.SittingsText + " to rebuild · " + fmtNum(r.Passes) + " agent passes"
 	if r.Churn >= 0 {
 		s += " · " + fmtInt(r.Churn) + " changes"
 	}

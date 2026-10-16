@@ -57,8 +57,8 @@ func runRank(args []string, stdout, stderr io.Writer) int {
 	return rankTarget(context.Background(), t, opts, *asJSON, stdout, logger)
 }
 
-// rankFooter closes the text table: it says what DAYS ranges over and which column is measured.
-const rankFooter = "DAYS: one engineer's working days, the lower to the higher of COCOMO 81 and COCOMO II, not measured (SPEC.md 7.3). PASSES: measured on agent rebuilds.\n"
+// rankFooter closes the text table: it says which column is measured and what DAYS ranges over.
+const rankFooter = "PASSES and TIER: fitted on 85 measured agent rebuilds (SPEC.md 7.4). DAYS: one engineer's working days, the lower to the higher of COCOMO 81 and COCOMO II, not measured (SPEC.md 7.3).\n"
 
 // rankTarget ranks t's module with engine.Rank and prints the rows to
 // stdout, as a JSON array when asJSON is set and a table otherwise. It

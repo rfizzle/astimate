@@ -199,7 +199,7 @@ func circleAt(t *testing.T, page, pattern string) []float64 {
 
 // TestSixtyone renders the mockup's module and checks the page shows the
 // mockup's numbers: the bands, the three hotspots, the bubbles where d3
-// packs them, the scatter where the mockup's scales put it, the longest
+// packs them, the scatter by churn and agent passes on the mockup's scales, the longest
 // repeats and hardest functions, and the change; and that it stays under
 // 1 MB with the fonts embedded. With HTML_REPORT_OUT set it also writes
 // the page there.
@@ -260,7 +260,7 @@ func TestSixtyone(t *testing.T) {
 		}
 	}
 
-	// Bubbles where d3.pack puts them; the scatter on the mockup's scales.
+	// Bubbles where d3.pack puts them; the scatter by churn and agent passes.
 	raw, err := os.ReadFile("internal/layout/testdata/d3-pack-61.json")
 	if err != nil {
 		t.Fatal(err)
@@ -269,9 +269,9 @@ func TestSixtyone(t *testing.T) {
 	if err := json.Unmarshal(raw, &d3); err != nil {
 		t.Fatal(err)
 	}
-	maxChurn, maxDays, maxTokens := 0.0, 0.0, 0.0
+	maxChurn, maxPasses, maxTokens := 0.0, 0.0, 0.0
 	for _, p := range ow.Packages {
-		maxChurn, maxDays, maxTokens = math.Max(maxChurn, float64(p.Churn)), math.Max(maxDays, p.Days), math.Max(maxTokens, float64(p.Tokens))
+		maxChurn, maxPasses, maxTokens = math.Max(maxChurn, float64(p.Churn)), math.Max(maxPasses, p.Passes), math.Max(maxTokens, float64(p.Tokens))
 	}
 	for i, p := range ow.Packages {
 		g := circleAt(t, bub, fmt.Sprintf(`translate\(([\d.]+),([\d.]+)\)" data-i="%d"><title>[^<]*</title><circle r="([\d.]+)"`, i))
@@ -283,7 +283,7 @@ func TestSixtyone(t *testing.T) {
 		}
 		sc := circleAt(t, page, fmt.Sprintf(`cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)" data-i="%d"`, i))
 		x := 70 + float64(p.Churn)/(maxChurn*1.05)*900
-		y := 500 - math.Sqrt(p.Days)/math.Sqrt(maxDays*1.05)*470
+		y := 500 - math.Sqrt(p.Passes)/math.Sqrt(maxPasses*1.05)*470
 		r := 4 + math.Sqrt(float64(p.Tokens))/math.Sqrt(maxTokens)*30
 		if math.Abs(sc[0]-x) > 0.006 || math.Abs(sc[1]-y) > 0.006 || math.Abs(sc[2]-r) > 0.006 {
 			t.Errorf("%s scatter %v, want %v %v %v", p.Path, sc, x, y, r)

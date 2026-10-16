@@ -158,12 +158,17 @@ func TestSixtyone(t *testing.T) {
 	if want := "Sixtyone has 19 packages that need a split. Start with m/p07."; m.Headline != want {
 		t.Errorf("headline = %q, want %q", m.Headline, want)
 	}
+	// The lead names the sittings with their measured evidence; the
+	// engineer time is the counts' alone, which the renderers show once.
 	if want := "61 packages; " + strconv.Itoa(m.Counts.MultiSitting) +
-		" need more than one agent sitting to rebuild from their tests. For one engineer the whole module is about " +
-		m.Counts.HumanTime + " of rebuild time. " +
+		" need more than one agent sitting to rebuild from their tests. In measured agent rebuilds, a package of one " +
+		"sitting was rebuilt in 97% of runs and one of a few sittings in 78%. " +
 		"31 are fine, 11 need watching, and 19 need a split. The hottest of those changed 41 times in the last " +
 		"200 commits and 42.6% of it is copied code."; m.Lead != want {
 		t.Errorf("lead = %q, want %q", m.Lead, want)
+	}
+	if want := "13 to 17 engineer-years"; m.Counts.HumanTime != want {
+		t.Errorf("human time = %q, want %q", m.Counts.HumanTime, want)
 	}
 	c := byPath["m/p07"]
 	if want := "It is over all five of its limits (size, tokens, largest file, exports, imports), and 42.6% of its " +
@@ -174,7 +179,7 @@ func TestSixtyone(t *testing.T) {
 		t.Errorf("todo = %q, want %q", c.Todo, want)
 	}
 	if want := "Too big to rebuild as it stands: an agent would need about 8 sittings, so the package has to be split " +
-		"first. For one engineer, about 1 to 2 engineer-years."; c.Rebuild.Say != want {
+		"first. No measured package needed more than three sittings."; c.Rebuild.Say != want {
 		t.Errorf("rebuild say = %q, want %q", c.Rebuild.Say, want)
 	}
 	if want := []narrate.Share{{Term: "spec", Label: "the tests it must satisfy", Tokens: 198254, Pct: 68},

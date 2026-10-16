@@ -157,15 +157,16 @@ func WriteRowsJSON(w io.Writer, rows []Row) error {
 	return nil
 }
 
-// rowColumns are the ranking table's column headers.
+// rowColumns are the ranking table's column headers: the measured agent
+// estimate and its tier before the textbook DAYS.
 func rowColumns() []string {
-	return []string{"PATH", "PASSES", "DAYS", "TIER", "FAN_IN", "TOKENS", "DUP%", "CHURN", "ROLE"}
+	return []string{"PATH", "PASSES", "TIER", "DAYS", "FAN_IN", "TOKENS", "DUP%", "CHURN", "ROLE"}
 }
 
 // numericColumn reports whether column i of the ranking table holds numbers,
 // which are right-aligned; PATH, TIER and ROLE are text.
 func numericColumn(i int) bool {
-	return i != 0 && i != 3 && i != 8
+	return i != 0 && i != 2 && i != 8
 }
 
 // WriteRowsTable writes rows for a human reader: one header line, then one
@@ -179,8 +180,8 @@ func WriteRowsTable(w io.Writer, rows []Row) error {
 		cells = append(cells, []string{
 			r.Path,
 			strconv.FormatFloat(r.AgentPasses, 'f', 1, 64),
-			daysText(r),
 			string(r.Tier),
+			daysText(r),
 			strconv.Itoa(r.FanIn),
 			strconv.Itoa(r.TokensEst),
 			strconv.FormatFloat(r.DuplicationPct, 'f', 1, 64),

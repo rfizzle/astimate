@@ -397,8 +397,8 @@ func uncalibratedConfig(t *testing.T) string {
 // TestCheckCalibratedText runs check on the degraded fixture under the
 // pinned default, whose rebuild estimate is calibrated, and under a config
 // whose version marks it uncalibrated. Only the calibrated run's text names
-// a failing package's days to rebuild, and neither names agent passes or
-// tier; the hook reason carries neither in both, and the JSON reports
+// the sittings a failing package needs, and neither names days, agent
+// passes or tier; the hook reason carries neither in both, and the JSON reports
 // differ only in config_version and rebuild.calibrated.
 func TestCheckCalibratedText(t *testing.T) {
 	if testing.Short() {
@@ -426,8 +426,8 @@ func TestCheckCalibratedText(t *testing.T) {
 	t.Run("text", func(t *testing.T) {
 		t.Parallel()
 
-		// The change report names no passes or tier either way; only the
-		// calibrated run's failing package names its days to rebuild.
+		// The change report names no passes, tier or days either way;
+		// only the calibrated run's failing package names its sittings.
 		uncal := check(t, formatText, uncalCfg)
 		assertNoEstimate(t, uncal)
 		if !strings.Contains(uncal, " ✗ tested  4 findings\n") {
@@ -435,8 +435,8 @@ func TestCheckCalibratedText(t *testing.T) {
 		}
 		cal := check(t, formatText, calCfg)
 		assertNoEstimate(t, cal)
-		if !strings.Contains(cal, " ✗ tested  4 findings · ") || !strings.Contains(cal, " days to rebuild") {
-			t.Errorf("calibrated text does not give tested's days to rebuild:\n%s", cal)
+		if !strings.Contains(cal, " ✗ tested  4 findings · rebuilds in one sitting") || strings.Contains(cal, " days") {
+			t.Errorf("calibrated text does not give tested's sittings, or gives days:\n%s", cal)
 		}
 	})
 	t.Run("hook", func(t *testing.T) {

@@ -94,19 +94,19 @@ func TestPackageSentences(t *testing.T) {
 		{"big", "story", by["big"].Story, "It is over 2 of its five limits (size, exports), and 42.6% of its lines are copies of each other, and 16 of its 80 exports have no test."},
 		{"big", "todo", by["big"].Todo, "Extract the copied code first, then split the package along its responsibilities."},
 		{"big", "changes", by["big"].Changes, "It changed 41 times in the last 200 commits, so every one of those problems is in the way of day-to-day work."},
-		{"big", "rebuild", by["big"].Rebuild.Say, "Too big to rebuild as it stands: an agent would need about 8 sittings, so the package has to be split first. For one engineer, about 1 to 2 engineer-years."},
+		{"big", "rebuild", by["big"].Rebuild.Say, "Too big to rebuild as it stands: an agent would need about 8 sittings, so the package has to be split first. No measured package needed more than three sittings."},
 		{"big", "copies", by["big"].Copies.Say, "Nearly half of this code exists at least twice. A bug fixed in one copy stays alive in the others, and every copy is more for a rebuild to read."},
 		{"big", "longest", by["big"].Copies.Longest, "Longest repeat: a.go:1-81 (81 lines), again at b.go:5-85."},
 		{"big", "complexity", by["big"].Complexity.Say, "1 function is hard to follow: it branches and nests enough that a rewrite would likely get it wrong. Start with the ones below. The hardest tenth of functions score 11 or more; code nests up to 5 levels deep."},
 		{"near", "story", by["near"].Story, "It is over its size limit, and 21% of its lines are copies of each other."},
 		{"near", "todo", by["near"].Todo, "Plan a split now, before it grows further past its limit."},
-		{"near", "rebuild", by["near"].Rebuild.Say, "An agent would need about 3 sittings, carrying notes between them. For one engineer, about 2 to 3 weeks."},
+		{"near", "rebuild", by["near"].Rebuild.Say, "An agent would need about 3 sittings, carrying notes between them; a package of a few sittings was rebuilt in 78% of measured runs."},
 		{"near", "copies", by["near"].Copies.Say, "A large share of this code exists at least twice. A bug fixed in one copy stays alive in the others."},
 		{"near", "complexity", by["near"].Complexity.Say, "Most functions are easy to follow; 1 needs some care. The hardest tenth of functions score 0 or more; code nests up to 0 levels deep."},
 		{"near", "changes", by["near"].Changes, ""},
 		{"dupey", "story", by["dupey"].Story, "It is inside every limit."},
 		{"dupey", "todo", by["dupey"].Todo, "Nothing. Leave it alone."},
-		{"dupey", "rebuild", by["dupey"].Rebuild.Say, "Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 1 day."},
+		{"dupey", "rebuild", by["dupey"].Rebuild.Say, "Small enough that an AI agent could rewrite it from its tests in one sitting; a package of one sitting was rebuilt in 97% of measured runs."},
 		{"dupey", "copies", by["dupey"].Copies.Say, "Some of this code is repeated. Worth extracting when you are next in here, not urgent."},
 		{"dupey", "longest", by["dupey"].Copies.Longest, "Longest repeat: x.go:2-9 (8 lines)."},
 		{"dupey", "complexity", by["dupey"].Complexity.Say, ""},
@@ -159,17 +159,18 @@ func TestPackageSentences(t *testing.T) {
 	}
 
 	wantFacts := []narrate.Fact{
-		{Label: "Rebuild", Text: "7.8 agent passes · 328.2 to 450.5 human days"},
+		{Label: "Rebuild", Text: "7.8 agent passes · 980 rebuild tokens"},
 		{Label: "Copies", Text: "2 duplicate blocks cover 42.6% of lines"},
 		{Label: "Complexity", Text: "cognitive p90 11 · cyclomatic p90 0 · nesting 5"},
 		{Label: "Tests", Text: "1 test function · 16 of 80 exports untested"},
 		{Label: "Changes", Text: "41 commits by 1 author in the last 200"},
 		{Label: "Used by", Text: "1 internal package"},
+		{Label: "Engineer time", Text: "328.2 to 450.5 human days for one engineer, from two textbook models, not measured"},
 	}
 	if got := by["big"].Facts; !slices.Equal(got, wantFacts) {
 		t.Errorf("facts = %q, want %q", got, wantFacts)
 	}
-	if got := by["near"].Facts; len(got) != 5 || got[4] != (narrate.Fact{Label: "Used by", Text: "0 internal packages"}) {
+	if got := by["near"].Facts; len(got) != 6 || got[4] != (narrate.Fact{Label: "Used by", Text: "0 internal packages"}) {
 		t.Errorf("facts without churn = %q, want no Changes line", got)
 	}
 }
@@ -185,7 +186,7 @@ func TestModuleSentences(t *testing.T) {
 	if want := "Shop has 2 packages that need a split. Start with hot."; m.Headline != want {
 		t.Errorf("headline = %q, want %q", m.Headline, want)
 	}
-	if want := "3 packages; 2 need more than one agent sitting to rebuild from their tests. For one engineer the whole module is about 2 engineer-years of rebuild time. 1 is fine, 0 need watching, and 2 need a split. The hottest of those changed 9 times in the last 200 commits and 12.5% of it is copied code."; m.Lead != want {
+	if want := "3 packages; 2 need more than one agent sitting to rebuild from their tests. In measured agent rebuilds, a package of one sitting was rebuilt in 97% of runs and one of a few sittings in 78%. 1 is fine, 0 need watching, and 2 need a split. The hottest of those changed 9 times in the last 200 commits and 12.5% of it is copied code."; m.Lead != want {
 		t.Errorf("lead = %q, want %q", m.Lead, want)
 	}
 	// A fine package is never a hotspot: "Start here" with "Nothing.
@@ -207,7 +208,7 @@ func TestModuleSentences(t *testing.T) {
 	if want := "Shop has no package that needs a split."; quiet.Headline != want {
 		t.Errorf("headline = %q, want %q", quiet.Headline, want)
 	}
-	if want := "1 package; 0 need more than one agent sitting to rebuild from their tests. For one engineer the whole module is about 1 day of rebuild time. 1 is fine, 0 need watching, and 0 need a split."; quiet.Lead != want {
+	if want := "1 package; 0 need more than one agent sitting to rebuild from their tests. In measured agent rebuilds, a package of one sitting was rebuilt in 97% of runs and one of a few sittings in 78%. 1 is fine, 0 need watching, and 0 need a split."; quiet.Lead != want {
 		t.Errorf("lead without a split = %q, want %q", quiet.Lead, want)
 	}
 	// Without churn the packages to start with are ranked by rebuild days,
@@ -228,7 +229,7 @@ func TestModuleSentences(t *testing.T) {
 	for _, g := range m.Glossary {
 		terms = append(terms, g.Term)
 	}
-	if want := []string{"Rebuild cost", "Split", "Watch", "Copied", "Untested", "Changes", "Limits", "Hard to follow"}; !slices.Equal(terms, want) {
+	if want := []string{"Sittings", "Engineer time", "Split", "Watch", "Copied", "Untested", "Changes", "Limits", "Hard to follow"}; !slices.Equal(terms, want) {
 		t.Errorf("glossary terms = %q, want %q", terms, want)
 	}
 	for _, g := range m.Glossary {
@@ -302,7 +303,7 @@ func TestChangeSentences(t *testing.T) {
 	if got := []string{ch.Failing[0].Path, ch.Failing[1].Path}; !slices.Equal(got, []string{"app", "lib"}) {
 		t.Errorf("failing = %q, want app first, with more findings", got)
 	}
-	if want := "3 findings · 12 days to rebuild · 7 changes lately"; ch.Failing[0].Summary != want {
+	if want := "3 findings · rebuilds in one sitting · 7 changes lately"; ch.Failing[0].Summary != want {
 		t.Errorf("summary = %q, want %q", ch.Failing[0].Summary, want)
 	}
 	dup, sloc, globals := ch.Failing[0].Findings[0], ch.Failing[0].Findings[1], ch.Failing[0].Findings[2]
@@ -391,6 +392,15 @@ func TestWords(t *testing.T) {
 	}
 	if got := failingSummary(1, nil); got != "1 finding" {
 		t.Errorf("failingSummary of the module row = %q", got)
+	}
+	// The summary names the sittings, never days: one sitting, the
+	// sittings rounded up past one pass, a split past three.
+	for passes, want := range map[float64]string{1: "2 findings · rebuilds in one sitting", 1.2: "2 findings · 2 sittings to rebuild",
+		3: "2 findings · 3 sittings to rebuild", 3.1: "2 findings · split before a rebuild"} {
+		p := &narrate.Package{Rebuild: narrate.Rebuild{AgentPasses: passes, HumanDays: 40, SittingsText: sittingsText(passes)}}
+		if got := failingSummary(2, p); got != want {
+			t.Errorf("failingSummary at %v passes = %q, want %q", passes, got, want)
+		}
 	}
 	if got := countWord(7); got != "7" {
 		t.Errorf("countWord(7) = %q", got)

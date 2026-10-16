@@ -123,12 +123,13 @@ func TestWriteRowsTable(t *testing.T) {
 		t.Fatalf("WriteRowsTable error = %v", err)
 	}
 	// A row whose extractor records no role, or without churn, shows a
-	// dash; a range whose ends round the same shows once.
+	// dash; a range whose ends round the same shows once; DAYS follows
+	// the passes and the tier.
 	want := strings.Join([]string{
-		"PATH              PASSES       DAYS  TIER        FAN_IN  TOKENS  DUP%  CHURN  ROLE",
-		"internal/billing     1.2  41.3-55.2  FEW_PASSES       7   10000  20.0     42  library",
-		"cmd/app              0.1        2.5  ONE_PASS         0     900   0.0      -  main",
-		".                    0.0        0.3  ONE_PASS         0      55   0.0      -  -",
+		"PATH              PASSES  TIER             DAYS  FAN_IN  TOKENS  DUP%  CHURN  ROLE",
+		"internal/billing     1.2  FEW_PASSES  41.3-55.2       7   10000  20.0     42  library",
+		"cmd/app              0.1  ONE_PASS          2.5       0     900   0.0      -  main",
+		".                    0.0  ONE_PASS          0.3       0      55   0.0      -  -",
 		"",
 	}, "\n")
 	if got := buf.String(); got != want {

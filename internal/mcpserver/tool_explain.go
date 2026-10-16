@@ -24,7 +24,8 @@ const explainToolDescription = "Explain one metric: what it counts, the evidence
 	"the release it ships in, and the threshold rules the server's loaded configuration applies to it. " +
 	"Call it when a check_package violation or warning names a metric you do not understand, before " +
 	"deciding how to fix it. It also explains the words of the module report in the same text its page " +
-	"prints: rebuild_cost, split, watch, copied, untested, changes, limits, hard_to_follow and paths."
+	"prints: sittings (the measured agent estimate), engineer_time (the textbook, unmeasured figure), split, watch, " +
+	"copied, untested, changes, limits, hard_to_follow and paths."
 
 // glossaryLanguage is the language whose limits the report words are
 // explained with: explain_metric names no package, and the shipped
@@ -34,7 +35,7 @@ const glossaryLanguage = "go"
 // glossaryNames are the report words explain_metric answers besides the
 // metrics, as the glossary of the module report prints them.
 func glossaryNames() []string {
-	return []string{"rebuild_cost", "split", "watch", "copied", "untested", "changes", "limits", "hard_to_follow", "paths"}
+	return []string{"sittings", "engineer_time", "split", "watch", "copied", "untested", "changes", "limits", "hard_to_follow", "paths"}
 }
 
 // ExplainInput is the input of the explain_metric tool.

@@ -127,9 +127,14 @@ func change(b *strings.Builder, c *narrate.Change, opts Options) {
 	}
 }
 
-// repository lays out the repository report.
+// repository lays out the repository report: the module's engineer time
+// shows once, on the line under the lead, and the packages carry
+// sittings only.
 func repository(b *strings.Builder, m *narrate.Module) {
-	b.WriteString("## " + m.Headline + "\n\n" + m.Lead + "\n\n_" + m.Counts.HumanBasisShort + "_\n")
+	b.WriteString("## " + m.Headline + "\n\n" + m.Lead + "\n")
+	if c := &m.Counts; c.HumanTime != "" {
+		b.WriteString("\n**" + c.HumanTime + "** for one engineer · _" + c.HumanBasisShort + "_\n")
+	}
 	var start []*narrate.Package
 	for _, path := range m.Hotspots[:min(3, len(m.Hotspots))] {
 		if i := slices.IndexFunc(m.Packages, func(p narrate.Package) bool { return p.Path == path }); i >= 0 {
@@ -139,7 +144,7 @@ func repository(b *strings.Builder, m *narrate.Module) {
 	if len(start) > 0 {
 		b.WriteString("\n### Start here\n")
 		for i, p := range start {
-			b.WriteString("\n" + strconv.Itoa(i+1) + ". " + code(p.Path) + " (" + p.Band + "): " + p.Rebuild.SittingsText + ", " + p.Rebuild.HumanShort + " for one engineer")
+			b.WriteString("\n" + strconv.Itoa(i+1) + ". " + code(p.Path) + " (" + p.Band + "): " + p.Rebuild.SittingsText)
 			if p.Churn != nil {
 				b.WriteString(", " + count(p.Churn.Commits, "change", "changes"))
 			}
@@ -153,7 +158,7 @@ func repository(b *strings.Builder, m *narrate.Module) {
 		order = "By changes × sittings"
 	}
 	b.WriteString("\n### Every package\n\n" + order + "; * marks a package over its size limit.\n\n")
-	b.WriteString("| Package | Band | Sittings | Time | Lines | Copied | Untested | Changes |\n|---|---|---|---|---|---|---|---|\n")
+	b.WriteString("| Package | Band | Sittings | Lines | Copied | Untested | Changes |\n|---|---|---|---|---|---|---|\n")
 	for i := range all[:min(rows, len(all))] {
 		p := &all[i]
 		star := ""
@@ -164,7 +169,7 @@ func repository(b *strings.Builder, m *narrate.Module) {
 		if p.Churn != nil {
 			changes = strconv.Itoa(p.Churn.Commits)
 		}
-		b.WriteString("| " + code(p.Path) + " | " + p.Band + " | " + p.Rebuild.SittingsText + " | " + p.Rebuild.HumanShort + " | " +
+		b.WriteString("| " + code(p.Path) + " | " + p.Band + " | " + p.Rebuild.SittingsText + " | " +
 			number(ptr(float64(p.Copies.Lines)), "") + star + " | " + number(ptr(p.Copies.Pct), "") + "% | " +
 			strconv.Itoa(p.Tests.Untested) + " | " + changes + " |\n")
 	}

@@ -172,7 +172,7 @@ func changes(p *narrate.Package, window int) string {
 func facts(p *narrate.Package, window int) []narrate.Fact {
 	out := []narrate.Fact{
 		{Label: "Rebuild", Text: narrate.Num(p.Rebuild.AgentPasses) + " agent passes · " +
-			humanDays(p.Rebuild.HumanDaysLow, p.Rebuild.HumanDaysHigh)},
+			narrate.Num(float64(p.Rebuild.RebuildTokens)) + " rebuild tokens"},
 		{Label: "Copies", Text: plural(p.Copies.Blocks, "duplicate block covers ", "duplicate blocks cover ") + narrate.Num(p.Copies.Pct) + "% of lines"},
 		{Label: "Complexity", Text: "cognitive p90 " + strconv.Itoa(p.Complexity.CognitiveP90) + " · cyclomatic p90 " +
 			strconv.Itoa(p.Complexity.CyclomaticP90) + " · nesting " + strconv.Itoa(p.Complexity.Nesting)},
@@ -183,7 +183,9 @@ func facts(p *narrate.Package, window int) []narrate.Fact {
 		out = append(out, narrate.Fact{Label: "Changes", Text: strconv.Itoa(p.Churn.Commits) + " commits by " +
 			plural(p.Churn.Authors, "author", "authors") + " in the last " + strconv.Itoa(window)})
 	}
-	return append(out, narrate.Fact{Label: "Used by", Text: plural(p.FanIn, "internal package", "internal packages")})
+	return append(out, narrate.Fact{Label: "Used by", Text: plural(p.FanIn, "internal package", "internal packages")},
+		narrate.Fact{Label: "Engineer time", Text: humanDays(p.Rebuild.HumanDaysLow, p.Rebuild.HumanDaysHigh) +
+			" for one engineer, from two textbook models, not measured"})
 }
 
 // sittingsBands are the labels of the sittings bands, by sittings.
@@ -199,17 +201,19 @@ func sittingsText(passes float64) string {
 	return strconv.Itoa(int(math.Ceil(passes))) + " sittings"
 }
 
-// rebuildSay is the rebuild view's sentence.
+// rebuildSay is the rebuild view's sentence, with the measured evidence
+// for its sittings band.
 func rebuildSay(r *narrate.Rebuild) string {
-	h := r.HumanTime
 	switch sittings(r.AgentPasses) {
 	case 0:
-		return "Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about " + h + "."
+		return "Small enough that an AI agent could rewrite it from its tests in one sitting; a package of one sitting was rebuilt in " +
+			strconv.Itoa(narrate.OneSittingRebuilt) + "% of measured runs."
 	case 1:
-		return "An agent would need about " + r.SittingsText + ", carrying notes between them. For one engineer, about " + h + "."
+		return "An agent would need about " + r.SittingsText + ", carrying notes between them; a package of a few sittings was rebuilt in " +
+			strconv.Itoa(narrate.FewSittingsRebuilt) + "% of measured runs."
 	}
 	return "Too big to rebuild as it stands: an agent would need about " + r.SittingsText +
-		", so the package has to be split first. For one engineer, about " + h + "."
+		", so the package has to be split first. No measured package needed more than three sittings."
 }
 
 // copiesSay is the copies view's sentence.
@@ -285,8 +289,9 @@ func headline(m *narrate.Module, first *narrate.Package) string {
 func lead(m *narrate.Module, hottest *narrate.Package, churned bool) string {
 	c := m.Counts
 	s := plural(c.Packages, "package", "packages") + "; " + strconv.Itoa(c.MultiSitting) + pick(c.MultiSitting, " needs", " need") +
-		" more than one agent sitting to rebuild from their tests. For one engineer the whole module is about " + c.HumanTime +
-		" of rebuild time. " + strconv.Itoa(c.Fine) + pick(c.Fine, " is", " are") + " fine, " +
+		" more than one agent sitting to rebuild from their tests. In measured agent rebuilds, a package of one sitting was rebuilt in " +
+		strconv.Itoa(narrate.OneSittingRebuilt) + "% of runs and one of a few sittings in " + strconv.Itoa(narrate.FewSittingsRebuilt) + "%. " +
+		strconv.Itoa(c.Fine) + pick(c.Fine, " is", " are") + " fine, " +
 		strconv.Itoa(c.Watch) + pick(c.Watch, " needs", " need") + " watching, and " + strconv.Itoa(c.Split) +
 		pick(c.Split, " needs", " need") + " a split."
 	if hottest != nil && hottest.Churn != nil && m.ChurnWindow > 0 {
@@ -326,14 +331,14 @@ func passedSummary(c *narrate.Change) string {
 		strconv.Itoa(c.Unchanged) + " did not change"
 }
 
-// failingSummary counts a failing package's findings with its rebuild
-// days and churn, each when known.
+// failingSummary counts a failing package's findings with the sittings an
+// agent needs to rebuild it and its churn, each when known.
 func failingSummary(n int, p *narrate.Package) string {
 	s := plural(n, "finding", "findings")
 	if p == nil {
 		return s
 	}
-	s += " · " + narrate.Num(p.Rebuild.HumanDays) + " days to rebuild"
+	s += " · " + [...]string{"rebuilds in one sitting", p.Rebuild.SittingsText + " to rebuild", "split before a rebuild"}[sittings(p.Rebuild.AgentPasses)]
 	if p.Churn != nil {
 		s += " · " + plural(p.Churn.Commits, "change lately", "changes lately")
 	}

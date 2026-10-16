@@ -32,13 +32,13 @@
   </div>
 {{if .Steps}}
   <h2>Start here</h2>
-  <p class="note">{{if .Churned}}The packages to split or watch, in the order a split pays back soonest. The ranking is how often a package changes, times what it would cost to rebuild from its tests.{{else}}The packages to split or watch, the costliest to rebuild first.{{end}}</p>
+  <p class="note">{{if .Churned}}The packages to split or watch, in the order a split pays back soonest. The ranking is how often a package changes, times the agent passes it would take to rebuild from its tests.{{else}}The packages to split or watch, the costliest to rebuild first.{{end}}</p>
   <div class="steps">{{range .Steps}}
     <div class="step {{.P.Band}}">
       <div class="n">{{.N}}</div>
       <div class="name">{{.P.Path}}</div>
       <div class="say"><b>{{.P.Story}}</b>{{with .P.Changes}} {{.}}{{end}}</div>
-      <div class="facts"><span class="fact"><b class="num">{{.P.Rebuild.HumanTime}}</b> to rebuild</span><span class="fact"><b class="num">{{int .P.Copies.Lines}}</b> lines</span><span class="fact"><b class="num">{{num .P.Copies.Pct}}%</b> copied</span><span class="fact"><b class="num">{{.P.Tests.Untested}}</b> untested</span></div>
+      <div class="facts"><span class="fact"><b class="num">{{.P.Rebuild.SittingsText}}</b> to rebuild</span><span class="fact"><b class="num">{{int .P.Copies.Lines}}</b> lines</span><span class="fact"><b class="num">{{num .P.Copies.Pct}}%</b> copied</span><span class="fact"><b class="num">{{.P.Tests.Untested}}</b> untested</span></div>
       <div class="meter {{.P.Band}}" title="hotspot score {{num .P.Hotspot}}"><span style="width:{{.Meter}}%"></span></div>
       <div class="do">{{.P.Todo}}</div>
     </div>{{end}}
@@ -54,11 +54,11 @@
     <svg class="bub" id="bubbles" viewBox="0 0 1000 560" width="100%" aria-label="Packages as bubbles sized by code">{{range .Bubbles}}
       <g transform="translate({{.X}},{{.Y}})" data-i="{{.I}}"><title>{{.Tip}}</title><circle r="{{.R}}" class="{{.Band}}"/>{{if .Label}}<text y="4" style="font-size:{{.Font}}px">{{.Label}}</text>{{end}}{{if .Sub}}<text class="sub" y="18">{{.Sub}}</text>{{end}}</g>{{end}}
     </svg>
-    {{with .Scatter}}<svg class="sc" id="scatter" viewBox="0 0 1000 560" width="100%" aria-label="Churn against rebuild cost" hidden>
+    {{with .Scatter}}<svg class="sc" id="scatter" viewBox="0 0 1000 560" width="100%" aria-label="Churn against agent sittings" hidden>
       <g>{{range .XTicks}}<line class="axis" stroke-dasharray="2 5" x1="{{.At}}" x2="{{.At}}" y1="{{$.Scatter.Bottom}}" y2="{{$.Scatter.Top}}"/><text class="tick" x="{{.At}}" y="{{$.Scatter.Below}}" dy=".71em" text-anchor="middle">{{.Label}}</text>{{end}}</g>
       <g>{{range .YTicks}}<line class="axis" stroke-dasharray="2 5" x1="{{$.Scatter.Left}}" x2="{{$.Scatter.Right}}" y1="{{.At}}" y2="{{.At}}"/><text class="tick" x="{{$.Scatter.Beside}}" y="{{.At}}" dy=".32em" text-anchor="end">{{.Label}}</text>{{end}}</g>
       <text class="tick" x="{{.MidX}}" y="542" text-anchor="middle">{{.XTitle}}  →</text>
-      <text class="tick" transform="translate(22 {{.MidY}}) rotate(-90)" text-anchor="middle">days to rebuild  →</text>
+      <text class="tick" transform="translate(22 {{.MidY}}) rotate(-90)" text-anchor="middle">agent sittings  →</text>
       <text class="zone" x="960" y="48" text-anchor="end">hot and costly: fix first</text>
       <text class="zone" x="80" y="490">quiet and cheap: leave alone</text>{{range .Points}}
       <circle class="{{.Band}}" cx="{{.X}}" cy="{{.Y}}" r="{{.R}}" data-i="{{.I}}"><title>{{.Tip}}</title></circle>{{end}}{{range .Labels}}
@@ -72,17 +72,17 @@
     <input type="search" id="q" placeholder="Find a package…" aria-label="Find a package">
   </div>
   <div class="tablewrap"><table id="pkgs"><thead><tr>
-    <th data-k="path" aria-sort="none" tabindex="0">Package</th><th data-k="sloc" aria-sort="none" tabindex="0">Size vs limit</th><th data-k="days" aria-sort="none" tabindex="0">Rebuild</th><th data-k="dup_pct" aria-sort="none" tabindex="0">Copied</th><th data-k="untested" aria-sort="none" tabindex="0">Untested</th><th data-k="churn" aria-sort="none" tabindex="0">Changes</th>
+    <th data-k="path" aria-sort="none" tabindex="0">Package</th><th data-k="sloc" aria-sort="none" tabindex="0">Size vs limit</th><th data-k="passes" aria-sort="none" tabindex="0">Rebuild</th><th data-k="dup_pct" aria-sort="none" tabindex="0">Copied</th><th data-k="untested" aria-sort="none" tabindex="0">Untested</th><th data-k="churn" aria-sort="none" tabindex="0">Changes</th>
   </tr></thead><tbody>{{range .Rows}}
-    <tr class="row" tabindex="0" data-i="{{.I}}" data-band="{{.P.Band}}" data-path="{{.P.Path}}" data-sloc="{{.Sloc}}" data-days="{{.Days}}" data-hot="{{.Hot}}" data-dup_pct="{{.P.Copies.Pct}}" data-untested="{{.P.Tests.Untested}}" data-churn="{{.Churn}}">
+    <tr class="row" tabindex="0" data-i="{{.I}}" data-band="{{.P.Band}}" data-path="{{.P.Path}}" data-sloc="{{.Sloc}}" data-passes="{{.Passes}}" data-hot="{{.Hot}}" data-dup_pct="{{.P.Copies.Pct}}" data-untested="{{.P.Tests.Untested}}" data-churn="{{.Churn}}">
       <td class="path" title="{{.P.Path}}"><i class="dot b-{{.P.Band}}"></i>{{.P.Path}}</td>
       <td><span class="mini"><span{{if .Over}} class="over"{{end}} style="width:{{.Mini}}%"></span></span><span class="num{{if .Over}} over{{end}}">{{num .Sloc}}</span></td>
-      <td class="num" title="{{.DaysText}} working days for one engineer">{{.P.Rebuild.SittingsText}} · {{.P.Rebuild.HumanShort}}</td><td class="num{{if eq .P.Copies.Level "split"}} over{{end}}">{{num .P.Copies.Pct}}%</td><td class="num">{{.P.Tests.Untested}}</td><td class="num">{{if ge .Churn 0}}{{.Churn}}{{else}}n/a{{end}}</td>
+      <td class="num" title="{{num .Passes}} agent passes">{{.P.Rebuild.SittingsText}}</td><td class="num{{if eq .P.Copies.Level "split"}} over{{end}}">{{num .P.Copies.Pct}}%</td><td class="num">{{.P.Tests.Untested}}</td><td class="num">{{if ge .Churn 0}}{{.Churn}}{{else}}n/a{{end}}</td>
     </tr>
     <tr class="detail" hidden><td colspan="6">{{template "detail" .}}</td></tr>{{end}}
     <tr class="none" hidden><td colspan="6" class="muted">No package matches.</td></tr>
   </tbody></table></div>
-  <p class="note">Click a row for the full story of that package. The table starts in the Start here order. Rebuild is the sittings an AI agent needs to rewrite it from its tests, then one engineer's working time{{if .Window}}; Changes is commits touching the package in the last {{.Window}}{{end}}.</p>
+  <p class="note">Click a row for the full story of that package. The table starts in the Start here order. Rebuild is the sittings an AI agent needs to rewrite it from its tests; the engineer time is in each package's detail{{if .Window}}; Changes is commits touching the package in the last {{.Window}}{{end}}.</p>
 
   <h2>What the words mean</h2>
   <div class="glossary">{{range .M.Glossary}}
@@ -125,8 +125,8 @@
 </html>
 {{define "detail"}}<div class="detail"><p class="say"><b>{{.P.Story}}</b> {{.P.Todo}}</p>
 <div class="widgets">{{with .Detail.Rebuild}}
-<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests; the engineer time is COCOMO's textbook rule, see the glossary</span></h4>
-<div class="big {{.Tier}}-t">{{$.P.Rebuild.SittingsText}}<small>{{.Passes}} · {{$.P.Rebuild.HumanTime}} for one engineer</small></div>
+<div class="w"><h4>Agent sittings <span>how many fresh starts an AI agent needs to rewrite this from its tests, fitted on 85 measured rebuilds; the engineer time is in the facts below</span></h4>
+<div class="big {{.Tier}}-t">{{$.P.Rebuild.SittingsText}}<small>{{.Passes}}</small></div>
 <div class="track"><i class="fine{{if eq .Tier "fine"}} on{{end}}"></i><i class="watch{{if eq .Tier "watch"}} on{{end}}"></i><i class="split{{if eq .Tier "split"}} on{{end}}"></i><span class="mk" style="left:{{.Pos}}%"></span></div>
 <div class="tracklbl"><span>one sitting</span><span>a few sittings</span><span>split it first</span></div>
 <p>{{$.P.Rebuild.Say}}</p>

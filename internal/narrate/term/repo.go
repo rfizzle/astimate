@@ -53,7 +53,7 @@ func (p *printer) repo(m *narrate.Module) {
 }
 
 // hotspots writes "Start here": the first hotspots, each with its band,
-// time, changes and bar, its story and what to do.
+// sittings, changes and bar, its story and what to do.
 func (p *printer) hotspots(m *narrate.Module, byPath map[string]*narrate.Package) {
 	n := min(startHere, len(m.Hotspots))
 	if n == 0 {
@@ -76,7 +76,7 @@ func (p *printer) hotspots(m *narrate.Module, byPath map[string]*narrate.Package
 		if pk == nil {
 			continue
 		}
-		cells := []string{pk.Rebuild.SittingsText, pk.Rebuild.HumanTime}
+		cells := []string{pk.Rebuild.SittingsText}
 		if pk.Churn != nil {
 			cells = append(cells, count(pk.Churn.Commits, "change", "changes"))
 		}
@@ -109,7 +109,6 @@ func (p *printer) columns() []column {
 	cols := []column{
 		{"BAND", false, func(pk *narrate.Package) string { return bandWord(pk.Band) }},
 		{"SITTINGS", true, func(pk *narrate.Package) string { return pk.Rebuild.SittingsText }},
-		{"TIME", true, func(pk *narrate.Package) string { return pk.Rebuild.HumanShort }},
 		{"LINES ", true, func(pk *narrate.Package) string {
 			if slices.Contains(pk.Over, "sloc") {
 				return narrate.Num(float64(pk.Copies.Lines)) + "*"
@@ -126,7 +125,7 @@ func (p *printer) columns() []column {
 		}},
 	}
 	if p.width < wideWidth {
-		cols = slices.Delete(cols, 4, 6)
+		cols = slices.Delete(cols, 3, 5)
 	}
 	return cols
 }

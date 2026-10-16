@@ -71,7 +71,8 @@ func TestWriteChangeNone(t *testing.T) {
 }
 
 // TestWriteRepository lists the three packages to start with and ten rows,
-// and puts the change block first when there is one.
+// and puts the change block first when there is one; the engineer time
+// shows once, under the lead, and never in a card or a row.
 func TestWriteRepository(t *testing.T) {
 	t.Parallel()
 
@@ -87,6 +88,7 @@ func TestWriteRepository(t *testing.T) {
 	m.Packages[3].Over = []string{"sloc"}
 	m.Packages[3].Copies.Lines = 1500
 	m.Change = &narrate.Change{Verdict: "PASS"}
+	m.Counts.HumanTime, m.Counts.HumanBasisShort = "2 weeks", "Engineer time is a textbook figure."
 
 	var b strings.Builder
 	if err := Write(&b, m, Options{}); err != nil {
@@ -95,14 +97,19 @@ func TestWriteRepository(t *testing.T) {
 	got := b.String()
 	for _, want := range []string{
 		"## astimate: PASS — no package changed\n\n## Two packages need a split.\n\nIt has 12 packages.\n",
-		"1. `p3` (fine): one sitting, 1 d for one engineer, 7 changes\n   story p3\n   Do this: todo p3\n",
-		"2. `p1` (fine): one sitting, 1 d for one engineer\n",
-		"| `p3` | fine | one sitting | 1 d | 1,500* | 0% | 0 | 7 |\n",
+		"\n**2 weeks** for one engineer · _Engineer time is a textbook figure._\n",
+		"1. `p3` (fine): one sitting, 7 changes\n   story p3\n   Do this: todo p3\n",
+		"2. `p1` (fine): one sitting\n",
+		"| Package | Band | Sittings | Lines | Copied | Untested | Changes |\n",
+		"| `p3` | fine | one sitting | 1,500* | 0% | 0 | 7 |\n",
 		"… 2 more packages;",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("markdown lacks %q:\n%s", want, got)
 		}
+	}
+	if strings.Contains(got, "1 d") || strings.Count(got, "for one engineer") != 1 {
+		t.Errorf("markdown shows the engineer time other than once:\n%s", got)
 	}
 	if strings.Contains(got, "gone") || strings.Count(got, "\n| `") != 10 {
 		t.Errorf("markdown lists an unknown hotspot or not ten rows:\n%s", got)

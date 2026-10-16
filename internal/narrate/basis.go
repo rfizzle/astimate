@@ -10,7 +10,7 @@ import (
 // HumanBasis says, in full, where the engineer time comes from under b: the
 // two models each package's range runs between with their numbers, the
 // software-understanding inflation under the configured unfamiliarity, and
-// which model human_days is. The glossary's "Rebuild cost" entry and the
+// which model human_days is. The glossary's "Engineer time" entry and the
 // JSON report's human_basis field carry it.
 func HumanBasis(b report.HumanBasis) string {
 	const measured = " The agent sittings were measured on 85 rebuilds."

@@ -50,7 +50,7 @@
     "human_basis_short": "Engineer time runs, per package, from the lower to the higher of COCOMO 81 and COCOMO II, rebuild profile; not a measurement; agent sittings are measured. rebuild.cocomo and rebuild.cocomo_a set it."
   },
   "headline": "Fixture has no package that needs a split.",
-  "lead": "12 packages; 0 need more than one agent sitting to rebuild from their tests. For one engineer the whole module is about 2 weeks of rebuild time. 11 are fine, 1 needs watching, and 0 need a split. There is no change history to read, so the packages to start with are ranked by rebuild time alone.",
+  "lead": "12 packages; 0 need more than one agent sitting to rebuild from their tests. In measured agent rebuilds, a package of one sitting was rebuilt in 97% of runs and one of a few sittings in 78%. 11 are fine, 1 needs watching, and 0 need a split. There is no change history to read, so the packages to start with are ranked by rebuild time alone.",
   "hotspots": [
     "dupes"
   ],
@@ -132,7 +132,7 @@
             "pct": 21
           }
         ],
-        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 1 day."
+        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting; a package of one sitting was rebuilt in 97% of measured runs."
       },
       "copies": {
         "pct": 0,
@@ -186,7 +186,7 @@
       "facts": [
         {
           "label": "Rebuild",
-          "text": "0 agent passes · 1.3 to 1.4 human days"
+          "text": "0 agent passes · 759 rebuild tokens"
         },
         {
           "label": "Copies",
@@ -203,6 +203,10 @@
         {
           "label": "Used by",
           "text": "0 internal packages"
+        },
+        {
+          "label": "Engineer time",
+          "text": "1.3 to 1.4 human days for one engineer, from two textbook models, not measured"
         }
       ]
     },
@@ -283,7 +287,7 @@
             "pct": 23
           }
         ],
-        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 1 day."
+        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting; a package of one sitting was rebuilt in 97% of measured runs."
       },
       "copies": {
         "pct": 0,
@@ -337,7 +341,7 @@
       "facts": [
         {
           "label": "Rebuild",
-          "text": "0 agent passes · 1.3 to 1.4 human days"
+          "text": "0 agent passes · 779 rebuild tokens"
         },
         {
           "label": "Copies",
@@ -354,6 +358,10 @@
         {
           "label": "Used by",
           "text": "0 internal packages"
+        },
+        {
+          "label": "Engineer time",
+          "text": "1.3 to 1.4 human days for one engineer, from two textbook models, not measured"
         }
       ]
     },
@@ -435,7 +443,7 @@
             "pct": 43
           }
         ],
-        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 1 day."
+        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting; a package of one sitting was rebuilt in 97% of measured runs."
       },
       "copies": {
         "pct": 0,
@@ -481,7 +489,7 @@
       "facts": [
         {
           "label": "Rebuild",
-          "text": "0 agent passes · 1 human day"
+          "text": "0 agent passes · 105 rebuild tokens"
         },
         {
           "label": "Copies",
@@ -498,6 +506,10 @@
         {
           "label": "Used by",
           "text": "0 internal packages"
+        },
+        {
+          "label": "Engineer time",
+          "text": "1 human day for one engineer, from two textbook models, not measured"
         }
       ]
     },
@@ -578,7 +590,7 @@
             "pct": 9
           }
         ],
-        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 1 day."
+        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting; a package of one sitting was rebuilt in 97% of measured runs."
       },
       "copies": {
         "pct": 80.6,
@@ -654,7 +666,7 @@
       "facts": [
         {
           "label": "Rebuild",
-          "text": "0 agent passes · 1 human day"
+          "text": "0 agent passes · 1,053 rebuild tokens"
         },
         {
           "label": "Copies",
@@ -671,6 +683,10 @@
         {
           "label": "Used by",
           "text": "0 internal packages"
+        },
+        {
+          "label": "Engineer time",
+          "text": "1 human day for one engineer, from two textbook models, not measured"
         }
       ]
     },
@@ -751,7 +767,7 @@
             "pct": 37
           }
         ],
-        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 1 day."
+        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting; a package of one sitting was rebuilt in 97% of measured runs."
       },
       "copies": {
         "pct": 0,
@@ -813,7 +829,7 @@
       "facts": [
         {
           "label": "Rebuild",
-          "text": "0 agent passes · 1 human day"
+          "text": "0 agent passes · 478 rebuild tokens"
         },
         {
           "label": "Copies",
@@ -830,6 +846,10 @@
         {
           "label": "Used by",
           "text": "0 internal packages"
+        },
+        {
+          "label": "Engineer time",
+          "text": "1 human day for one engineer, from two textbook models, not measured"
         }
       ]
     },
@@ -910,7 +930,7 @@
             "pct": 43
           }
         ],
-        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 2 days."
+        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting; a package of one sitting was rebuilt in 97% of measured runs."
       },
       "copies": {
         "pct": 0,
@@ -972,7 +992,7 @@
       "facts": [
         {
           "label": "Rebuild",
-          "text": "0 agent passes · 2 human days"
+          "text": "0 agent passes · 526 rebuild tokens"
         },
         {
           "label": "Copies",
@@ -989,6 +1009,10 @@
         {
           "label": "Used by",
           "text": "0 internal packages"
+        },
+        {
+          "label": "Engineer time",
+          "text": "2 human days for one engineer, from two textbook models, not measured"
         }
       ]
     },
@@ -1069,7 +1093,7 @@
             "pct": 16
           }
         ],
-        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 1 day."
+        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting; a package of one sitting was rebuilt in 97% of measured runs."
       },
       "copies": {
         "pct": 0,
@@ -1131,7 +1155,7 @@
       "facts": [
         {
           "label": "Rebuild",
-          "text": "0 agent passes · 1.1 to 1.2 human days"
+          "text": "0 agent passes · 1,077 rebuild tokens"
         },
         {
           "label": "Copies",
@@ -1148,6 +1172,10 @@
         {
           "label": "Used by",
           "text": "4 internal packages"
+        },
+        {
+          "label": "Engineer time",
+          "text": "1.1 to 1.2 human days for one engineer, from two textbook models, not measured"
         }
       ]
     },
@@ -1228,7 +1256,7 @@
             "pct": 28
           }
         ],
-        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 1 to 2 days."
+        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting; a package of one sitting was rebuilt in 97% of measured runs."
       },
       "copies": {
         "pct": 0,
@@ -1290,7 +1318,7 @@
       "facts": [
         {
           "label": "Rebuild",
-          "text": "0 agent passes · 1.4 to 1.7 human days"
+          "text": "0 agent passes · 1,244 rebuild tokens"
         },
         {
           "label": "Copies",
@@ -1307,6 +1335,10 @@
         {
           "label": "Used by",
           "text": "0 internal packages"
+        },
+        {
+          "label": "Engineer time",
+          "text": "1.4 to 1.7 human days for one engineer, from two textbook models, not measured"
         }
       ]
     },
@@ -1387,7 +1419,7 @@
             "pct": 21
           }
         ],
-        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 1 day."
+        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting; a package of one sitting was rebuilt in 97% of measured runs."
       },
       "copies": {
         "pct": 0,
@@ -1441,7 +1473,7 @@
       "facts": [
         {
           "label": "Rebuild",
-          "text": "0 agent passes · 1 human day"
+          "text": "0 agent passes · 382 rebuild tokens"
         },
         {
           "label": "Copies",
@@ -1458,6 +1490,10 @@
         {
           "label": "Used by",
           "text": "0 internal packages"
+        },
+        {
+          "label": "Engineer time",
+          "text": "1 human day for one engineer, from two textbook models, not measured"
         }
       ]
     },
@@ -1533,7 +1569,7 @@
             "pct": 100
           }
         ],
-        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 1 day."
+        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting; a package of one sitting was rebuilt in 97% of measured runs."
       },
       "copies": {
         "pct": 0,
@@ -1579,7 +1615,7 @@
       "facts": [
         {
           "label": "Rebuild",
-          "text": "0 agent passes · 1 human day"
+          "text": "0 agent passes · 85 rebuild tokens"
         },
         {
           "label": "Copies",
@@ -1596,6 +1632,10 @@
         {
           "label": "Used by",
           "text": "0 internal packages"
+        },
+        {
+          "label": "Engineer time",
+          "text": "1 human day for one engineer, from two textbook models, not measured"
         }
       ]
     },
@@ -1677,7 +1717,7 @@
             "pct": 48
           }
         ],
-        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 1 day."
+        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting; a package of one sitting was rebuilt in 97% of measured runs."
       },
       "copies": {
         "pct": 0,
@@ -1739,7 +1779,7 @@
       "facts": [
         {
           "label": "Rebuild",
-          "text": "0 agent passes · 1.1 to 1.2 human days"
+          "text": "0 agent passes · 457 rebuild tokens"
         },
         {
           "label": "Copies",
@@ -1756,6 +1796,10 @@
         {
           "label": "Used by",
           "text": "0 internal packages"
+        },
+        {
+          "label": "Engineer time",
+          "text": "1.1 to 1.2 human days for one engineer, from two textbook models, not measured"
         }
       ]
     },
@@ -1836,7 +1880,7 @@
             "pct": 14
           }
         ],
-        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 1 day."
+        "say": "Small enough that an AI agent could rewrite it from its tests in one sitting; a package of one sitting was rebuilt in 97% of measured runs."
       },
       "copies": {
         "pct": 0,
@@ -1882,7 +1926,7 @@
       "facts": [
         {
           "label": "Rebuild",
-          "text": "0 agent passes · 1 human day"
+          "text": "0 agent passes · 347 rebuild tokens"
         },
         {
           "label": "Copies",
@@ -1899,14 +1943,22 @@
         {
           "label": "Used by",
           "text": "0 internal packages"
+        },
+        {
+          "label": "Engineer time",
+          "text": "1 human day for one engineer, from two textbook models, not measured"
         }
       ]
     }
   ],
   "glossary": [
     {
-      "term": "Rebuild cost",
-      "text": "How long it would take to rewrite the package from its tests. Shown as a range of one engineer's working time, and as agent sittings: how many times an AI agent would have to start over with a fresh context window. One sitting means it fits in one go; over three means the package has to be split before anyone can rebuild it. The sittings are measured on agent rebuilds and lead; packages are ranked by how often they changed times their agent passes, then by the low end of the engineer time. Engineer time is a range from two textbook models, not a measurement: for each package, the low end is the lower and the high end the higher of COCOMO 81 (2.4 person-months per thousand lines to the power 1.05) and COCOMO II, rebuild profile (2.381 person-months per thousand lines to the power 1.053, before the package's complexity rating), at 19 working days a month, on lines inflated by COCOMO II's software understanding, 20% to 100% under unfm completely_unfamiliar, from each package's tests, structure and doc comments, summed over the packages. The JSON field human_days is the configured model's, COCOMO II, rebuild profile. The agent sittings were measured on 85 rebuilds. The ratings under rebuild.cocomo in the configuration set the COCOMO II, rebuild profile figure, and rebuild.cocomo_a scales the COCOMO 81 one."
+      "term": "Sittings",
+      "text": "How many times an AI agent would have to start over with a fresh context window to rewrite the package from its tests. A sitting is a unit of the estimate, not literally one context window: one estimate token is about 7.6 tokens of an agent session's footprint. The estimate is fitted on 85 measured agent rebuilds of 31 packages: a package of one sitting was rebuilt in 97% of measured runs (65 of 67), one of two or three sittings in 78% (14 of 18). No measured package needed more than three; over three means the package has to be split before anyone can rebuild it. Sittings lead the report: packages are ranked by how often they changed times their agent passes, then by the low end of the engineer time."
+    },
+    {
+      "term": "Engineer time",
+      "text": "How long one engineer would take to rewrite the package, as a range of working time: a secondary figure, shown once beside the module's total and in each package's detail. rebuild.cocomo.unfm, how unfamiliar the engineer is with the code, moves it most, inflating the lines by up to double. Engineer time is a range from two textbook models, not a measurement: for each package, the low end is the lower and the high end the higher of COCOMO 81 (2.4 person-months per thousand lines to the power 1.05) and COCOMO II, rebuild profile (2.381 person-months per thousand lines to the power 1.053, before the package's complexity rating), at 19 working days a month, on lines inflated by COCOMO II's software understanding, 20% to 100% under unfm completely_unfamiliar, from each package's tests, structure and doc comments, summed over the packages. The JSON field human_days is the configured model's, COCOMO II, rebuild profile. The agent sittings were measured on 85 rebuilds. The ratings under rebuild.cocomo in the configuration set the COCOMO II, rebuild profile figure, and rebuild.cocomo_a scales the COCOMO 81 one."
     },
     {
       "term": "Split",

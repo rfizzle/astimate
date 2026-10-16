@@ -21,8 +21,9 @@ const rankToolName = "rank_packages"
 // rankToolDescription tells the agent what rank_packages is for.
 const rankToolDescription = "Rank every package of a Go module by estimated rebuild effort, so you can " +
 	"see where technical debt is concentrated before choosing what to touch. Each row gives the " +
-	"package path, agent_passes, human_days (the configured model's) with human_days_low and human_days_high " +
-	"(the range between the two models), tier, fan_in, tokens_est, duplication_pct, churn_commits and role " +
+	"package path, agent_passes and tier (fitted on 85 measured agent rebuilds, the default sort), human_days " +
+	"(the configured model's) with human_days_low and human_days_high (the range between two textbook models, " +
+	"not measured), fan_in, tokens_est, duplication_pct, churn_commits and role " +
 	"(main for a composition root, library, test-support or generated-only), sorted " +
 	"descending by the sort key. Packages that fail to analyze are listed as skipped; the rest are " +
 	"still ranked."

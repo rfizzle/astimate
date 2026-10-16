@@ -168,7 +168,7 @@ tr[hidden], .tip[hidden] { display: none }
     <div>
       <div class="eyebrow">example.com/fixture</div>
       <h1>Fixture has no package that needs a split.</h1>
-      <p class="lead">12 packages; 0 need more than one agent sitting to rebuild from their tests. For one engineer the whole module is about 2 weeks of rebuild time. 11 are fine, 1 needs watching, and 0 need a split. There is no change history to read, so the packages to start with are ranked by rebuild time alone.</p>
+      <p class="lead">12 packages; 0 need more than one agent sitting to rebuild from their tests. In measured agent rebuilds, a package of one sitting was rebuilt in 97% of runs and one of a few sittings in 78%. 11 are fine, 1 needs watching, and 0 need a split. There is no change history to read, so the packages to start with are ranked by rebuild time alone.</p>
       <div class="stickers"><span class="sticker split"><b class="num">0</b>need a split</span><span class="sticker watch"><b class="num">1</b>to watch</span><span class="sticker fine"><b class="num">11</b>fine</span><span class="sticker ink"><b class="num">0</b>need more than one sitting</span><span class="sticker ink" title="Engineer time runs, per package, from the lower to the higher of COCOMO 81 and COCOMO II, rebuild profile; not a measurement; agent sittings are measured. rebuild.cocomo and rebuild.cocomo_a set it."><b class="num">2 weeks</b>for one engineer</span><span class="sticker ink"><b class="num">7</b>without tests</span></div>
     </div>
     <div class="ring"><svg viewBox="0 0 100 100" aria-hidden="true"><circle r="40" cx="50" cy="50" fill="none" stroke="var(--fine)" stroke-width="12" stroke-dasharray="228.38 22.94" stroke-dashoffset="0"/><circle r="40" cx="50" cy="50" fill="none" stroke="var(--watch)" stroke-width="12" stroke-dasharray="18.94 232.38" stroke-dashoffset="-230.38"/><circle r="40" cx="50" cy="50" fill="none" stroke="var(--split)" stroke-width="12" stroke-dasharray="0 253.33" stroke-dashoffset="-251.33"/></svg><div class="c"><b>11</b><span>of 12 fine</span></div></div>
@@ -181,7 +181,7 @@ tr[hidden], .tip[hidden] { display: none }
       <div class="n">1</div>
       <div class="name">dupes</div>
       <div class="say"><b>It is inside every limit, and 80.6% of its lines are copies of each other.</b></div>
-      <div class="facts"><span class="fact"><b class="num">1 day</b> to rebuild</span><span class="fact"><b class="num">67</b> lines</span><span class="fact"><b class="num">80.6%</b> copied</span><span class="fact"><b class="num">3</b> untested</span></div>
+      <div class="facts"><span class="fact"><b class="num">one sitting</b> to rebuild</span><span class="fact"><b class="num">67</b> lines</span><span class="fact"><b class="num">80.6%</b> copied</span><span class="fact"><b class="num">3</b> untested</span></div>
       <div class="meter watch" title="hotspot score 0"><span style="width:0%"></span></div>
       <div class="do">Extract the copied code next time you work here; nothing needs a split yet.</div>
     </div>
@@ -197,85 +197,85 @@ tr[hidden], .tip[hidden] { display: none }
     <svg class="bub" id="bubbles" viewBox="0 0 1000 560" width="100%" aria-label="Packages as bubbles sized by code">
       <g transform="translate(432.92,247.19)" data-i="0"><title>a
 It is inside every limit, and it has no tests at all.
-1.3 to 1.4 days to rebuild · 159 tokens</title><circle r="64.69" class="fine"/><text y="4" style="font-size:16px">a</text><text class="sub" y="18">one sitting · 1 d</text></g>
+one sitting to rebuild · 0 agent passes · 159 tokens</title><circle r="64.69" class="fine"/><text y="4" style="font-size:16px">a</text><text class="sub" y="18">one sitting</text></g>
       <g transform="translate(567.08,247.19)" data-i="1"><title>b
 It is inside every limit, and it has no tests at all.
-1.3 to 1.4 days to rebuild · 179 tokens</title><circle r="64.69" class="fine"/><text y="4" style="font-size:16px">b</text><text class="sub" y="18">one sitting · 1 d</text></g>
+one sitting to rebuild · 0 agent passes · 179 tokens</title><circle r="64.69" class="fine"/><text y="4" style="font-size:16px">b</text><text class="sub" y="18">one sitting</text></g>
       <g transform="translate(500,363.37)" data-i="2"><title>consumer
 It is inside every limit.
-0.1 days to rebuild · 45 tokens</title><circle r="64.69" class="fine"/><text y="4" style="font-size:16px">consumer</text><text class="sub" y="18">one sitting · 1 d</text></g>
+one sitting to rebuild · 0 agent passes · 45 tokens</title><circle r="64.69" class="fine"/><text y="4" style="font-size:16px">consumer</text><text class="sub" y="18">one sitting</text></g>
       <g transform="translate(500,121.78)" data-i="3"><title>dupes
 It is inside every limit, and 80.6% of its lines are copies of each other.
-0.8 days to rebuild · 506 tokens</title><circle r="72.75" class="watch"/><text y="4" style="font-size:16px">dupes</text><text class="sub" y="18">one sitting · 1 d</text></g>
+one sitting to rebuild · 0 agent passes · 506 tokens</title><circle r="72.75" class="watch"/><text y="4" style="font-size:16px">dupes</text><text class="sub" y="18">one sitting</text></g>
       <g transform="translate(634.16,363.37)" data-i="4"><title>errs
 It is inside every limit, and it has no tests at all.
-0.2 to 0.3 days to rebuild · 178 tokens</title><circle r="64.69" class="fine"/><text y="4" style="font-size:16px">errs</text><text class="sub" y="18">one sitting · 1 d</text></g>
+one sitting to rebuild · 0 agent passes · 178 tokens</title><circle r="64.69" class="fine"/><text y="4" style="font-size:16px">errs</text><text class="sub" y="18">one sitting</text></g>
       <g transform="translate(365.84,363.37)" data-i="5"><title>hidden
 It is inside every limit, and it has no tests at all.
-2 days to rebuild · 226 tokens</title><circle r="64.69" class="fine"/><text y="4" style="font-size:16px">hidden</text><text class="sub" y="18">one sitting · 2 d</text></g>
+one sitting to rebuild · 0 agent passes · 226 tokens</title><circle r="64.69" class="fine"/><text y="4" style="font-size:16px">hidden</text><text class="sub" y="18">one sitting</text></g>
       <g transform="translate(358.45,135.6)" data-i="6"><title>hub
 It is inside every limit, and it has no tests at all.
-1.1 to 1.2 days to rebuild · 177 tokens</title><circle r="64.69" class="fine"/><text y="4" style="font-size:16px">hub</text><text class="sub" y="18">one sitting · 1 d</text></g>
+one sitting to rebuild · 0 agent passes · 177 tokens</title><circle r="64.69" class="fine"/><text y="4" style="font-size:16px">hub</text><text class="sub" y="18">one sitting</text></g>
       <g transform="translate(641.55,135.6)" data-i="7"><title>immut
 It is inside every limit, and it has no tests at all.
-1.4 to 1.7 days to rebuild · 344 tokens</title><circle r="64.69" class="fine"/><text y="4" style="font-size:16px">immut</text><text class="sub" y="18">one sitting · 1–2 d</text></g>
+one sitting to rebuild · 0 agent passes · 344 tokens</title><circle r="64.69" class="fine"/><text y="4" style="font-size:16px">immut</text><text class="sub" y="18">one sitting</text></g>
       <g transform="translate(708.63,251.79)" data-i="8"><title>sibling
 It is inside every limit.
-0.1 days to rebuild · 82 tokens</title><circle r="64.69" class="fine"/><text y="4" style="font-size:16px">sibling</text><text class="sub" y="18">one sitting · 1 d</text></g>
+one sitting to rebuild · 0 agent passes · 82 tokens</title><circle r="64.69" class="fine"/><text y="4" style="font-size:16px">sibling</text><text class="sub" y="18">one sitting</text></g>
       <g transform="translate(291.37,251.79)" data-i="9"><title>support
 It is inside every limit.
-0.2 to 0.3 days to rebuild · 85 tokens</title><circle r="64.69" class="fine"/><text y="4" style="font-size:16px">support</text><text class="sub" y="18">one sitting · 1 d</text></g>
+one sitting to rebuild · 0 agent passes · 85 tokens</title><circle r="64.69" class="fine"/><text y="4" style="font-size:16px">support</text><text class="sub" y="18">one sitting</text></g>
       <g transform="translate(567.08,479.56)" data-i="10"><title>tested
 It is inside every limit.
-1.1 to 1.2 days to rebuild · 237 tokens</title><circle r="64.69" class="fine"/><text y="4" style="font-size:16px">tested</text><text class="sub" y="18">one sitting · 1 d</text></g>
+one sitting to rebuild · 0 agent passes · 237 tokens</title><circle r="64.69" class="fine"/><text y="4" style="font-size:16px">tested</text><text class="sub" y="18">one sitting</text></g>
       <g transform="translate(432.92,479.56)" data-i="11"><title>trivial
 It is inside every limit, and it has no tests at all.
-0.2 days to rebuild · 47 tokens</title><circle r="64.69" class="fine"/><text y="4" style="font-size:16px">trivial</text><text class="sub" y="18">one sitting · 1 d</text></g>
+one sitting to rebuild · 0 agent passes · 47 tokens</title><circle r="64.69" class="fine"/><text y="4" style="font-size:16px">trivial</text><text class="sub" y="18">one sitting</text></g>
     </svg>
-    <svg class="sc" id="scatter" viewBox="0 0 1000 560" width="100%" aria-label="Churn against rebuild cost" hidden>
+    <svg class="sc" id="scatter" viewBox="0 0 1000 560" width="100%" aria-label="Churn against agent sittings" hidden>
       <g><line class="axis" stroke-dasharray="2 5" x1="520" x2="520" y1="500" y2="30"/><text class="tick" x="520" y="503" dy=".71em" text-anchor="middle">0</text></g>
-      <g><line class="axis" stroke-dasharray="2 5" x1="70" x2="970" y1="500" y2="500"/><text class="tick" x="67" y="500" dy=".32em" text-anchor="end">0</text><line class="axis" stroke-dasharray="2 5" x1="70" x2="970" y1="270.66" y2="270.66"/><text class="tick" x="67" y="270.66" dy=".32em" text-anchor="end">0.5</text><line class="axis" stroke-dasharray="2 5" x1="70" x2="970" y1="175.67" y2="175.67"/><text class="tick" x="67" y="175.67" dy=".32em" text-anchor="end">1</text><line class="axis" stroke-dasharray="2 5" x1="70" x2="970" y1="102.78" y2="102.78"/><text class="tick" x="67" y="102.78" dy=".32em" text-anchor="end">1.5</text><line class="axis" stroke-dasharray="2 5" x1="70" x2="970" y1="41.33" y2="41.33"/><text class="tick" x="67" y="41.33" dy=".32em" text-anchor="end">2</text></g>
+      <g><line class="axis" stroke-dasharray="2 5" x1="70" x2="970" y1="265" y2="265"/><text class="tick" x="67" y="265" dy=".32em" text-anchor="end">0</text></g>
       <text class="tick" x="520" y="542" text-anchor="middle">commits touching the package in the last 200  →</text>
-      <text class="tick" transform="translate(22 265) rotate(-90)" text-anchor="middle">days to rebuild  →</text>
+      <text class="tick" transform="translate(22 265) rotate(-90)" text-anchor="middle">agent sittings  →</text>
       <text class="zone" x="960" y="48" text-anchor="end">hot and costly: fix first</text>
       <text class="zone" x="80" y="490">quiet and cheap: leave alone</text>
-      <circle class="watch" cx="520" cy="209.91" r="34" data-i="3"><title>dupes
+      <circle class="watch" cx="520" cy="265" r="34" data-i="3"><title>dupes
 It is inside every limit, and 80.6% of its lines are copies of each other.
-0.8 days to rebuild · 506 tokens</title></circle>
-      <circle class="fine" cx="520" cy="116.25" r="28.74" data-i="7"><title>immut
+one sitting to rebuild · 0 agent passes · 506 tokens</title></circle>
+      <circle class="fine" cx="520" cy="265" r="28.74" data-i="7"><title>immut
 It is inside every limit, and it has no tests at all.
-1.4 to 1.7 days to rebuild · 344 tokens</title></circle>
-      <circle class="fine" cx="520" cy="159.84" r="24.53" data-i="10"><title>tested
+one sitting to rebuild · 0 agent passes · 344 tokens</title></circle>
+      <circle class="fine" cx="520" cy="265" r="24.53" data-i="10"><title>tested
 It is inside every limit.
-1.1 to 1.2 days to rebuild · 237 tokens</title></circle>
-      <circle class="fine" cx="520" cy="41.33" r="24.05" data-i="5"><title>hidden
+one sitting to rebuild · 0 agent passes · 237 tokens</title></circle>
+      <circle class="fine" cx="520" cy="265" r="24.05" data-i="5"><title>hidden
 It is inside every limit, and it has no tests at all.
-2 days to rebuild · 226 tokens</title></circle>
-      <circle class="fine" cx="520" cy="130.21" r="21.84" data-i="1"><title>b
+one sitting to rebuild · 0 agent passes · 226 tokens</title></circle>
+      <circle class="fine" cx="520" cy="265" r="21.84" data-i="1"><title>b
 It is inside every limit, and it has no tests at all.
-1.3 to 1.4 days to rebuild · 179 tokens</title></circle>
-      <circle class="fine" cx="520" cy="354.95" r="21.79" data-i="4"><title>errs
+one sitting to rebuild · 0 agent passes · 179 tokens</title></circle>
+      <circle class="fine" cx="520" cy="265" r="21.79" data-i="4"><title>errs
 It is inside every limit, and it has no tests at all.
-0.2 to 0.3 days to rebuild · 178 tokens</title></circle>
-      <circle class="fine" cx="520" cy="159.84" r="21.74" data-i="6"><title>hub
+one sitting to rebuild · 0 agent passes · 178 tokens</title></circle>
+      <circle class="fine" cx="520" cy="265" r="21.74" data-i="6"><title>hub
 It is inside every limit, and it has no tests at all.
-1.1 to 1.2 days to rebuild · 177 tokens</title></circle>
-      <circle class="fine" cx="520" cy="130.21" r="20.82" data-i="0"><title>a
+one sitting to rebuild · 0 agent passes · 177 tokens</title></circle>
+      <circle class="fine" cx="520" cy="265" r="20.82" data-i="0"><title>a
 It is inside every limit, and it has no tests at all.
-1.3 to 1.4 days to rebuild · 159 tokens</title></circle>
-      <circle class="fine" cx="520" cy="354.95" r="16.3" data-i="9"><title>support
+one sitting to rebuild · 0 agent passes · 159 tokens</title></circle>
+      <circle class="fine" cx="520" cy="265" r="16.3" data-i="9"><title>support
 It is inside every limit.
-0.2 to 0.3 days to rebuild · 85 tokens</title></circle>
-      <circle class="fine" cx="520" cy="397.44" r="16.08" data-i="8"><title>sibling
+one sitting to rebuild · 0 agent passes · 85 tokens</title></circle>
+      <circle class="fine" cx="520" cy="265" r="16.08" data-i="8"><title>sibling
 It is inside every limit.
-0.1 days to rebuild · 82 tokens</title></circle>
-      <circle class="fine" cx="520" cy="354.95" r="13.14" data-i="11"><title>trivial
+one sitting to rebuild · 0 agent passes · 82 tokens</title></circle>
+      <circle class="fine" cx="520" cy="265" r="13.14" data-i="11"><title>trivial
 It is inside every limit, and it has no tests at all.
-0.2 days to rebuild · 47 tokens</title></circle>
-      <circle class="fine" cx="520" cy="397.44" r="12.95" data-i="2"><title>consumer
+one sitting to rebuild · 0 agent passes · 47 tokens</title></circle>
+      <circle class="fine" cx="520" cy="265" r="12.95" data-i="2"><title>consumer
 It is inside every limit.
-0.1 days to rebuild · 45 tokens</title></circle>
-      <text class="lbl" x="480" y="213.91" text-anchor="end">dupes</text>
+one sitting to rebuild · 0 agent passes · 45 tokens</title></circle>
+      <text class="lbl" x="480" y="269" text-anchor="end">dupes</text>
     </svg>
   </div>
 
@@ -285,20 +285,20 @@ It is inside every limit.
     <input type="search" id="q" placeholder="Find a package…" aria-label="Find a package">
   </div>
   <div class="tablewrap"><table id="pkgs"><thead><tr>
-    <th data-k="path" aria-sort="none" tabindex="0">Package</th><th data-k="sloc" aria-sort="none" tabindex="0">Size vs limit</th><th data-k="days" aria-sort="none" tabindex="0">Rebuild</th><th data-k="dup_pct" aria-sort="none" tabindex="0">Copied</th><th data-k="untested" aria-sort="none" tabindex="0">Untested</th><th data-k="churn" aria-sort="none" tabindex="0">Changes</th>
+    <th data-k="path" aria-sort="none" tabindex="0">Package</th><th data-k="sloc" aria-sort="none" tabindex="0">Size vs limit</th><th data-k="passes" aria-sort="none" tabindex="0">Rebuild</th><th data-k="dup_pct" aria-sort="none" tabindex="0">Copied</th><th data-k="untested" aria-sort="none" tabindex="0">Untested</th><th data-k="churn" aria-sort="none" tabindex="0">Changes</th>
   </tr></thead><tbody>
-    <tr class="row" tabindex="0" data-i="5" data-band="fine" data-path="hidden" data-sloc="32" data-days="2" data-hot="12" data-dup_pct="0" data-untested="1" data-churn="-1">
+    <tr class="row" tabindex="0" data-i="5" data-band="fine" data-path="hidden" data-sloc="32" data-passes="0" data-hot="12" data-dup_pct="0" data-untested="1" data-churn="-1">
       <td class="path" title="hidden"><i class="dot b-fine"></i>hidden</td>
       <td><span class="mini"><span style="width:3.2%"></span></span><span class="num">32</span></td>
-      <td class="num" title="2 working days for one engineer">one sitting · 2 d</td><td class="num">0%</td><td class="num">1</td><td class="num">n/a</td>
+      <td class="num" title="0 agent passes">one sitting</td><td class="num">0%</td><td class="num">1</td><td class="num">n/a</td>
     </tr>
     <tr class="detail" hidden><td colspan="6"><div class="detail"><p class="say"><b>It is inside every limit, and it has no tests at all.</b> Nothing. Leave it alone.</p>
 <div class="widgets">
-<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests; the engineer time is COCOMO's textbook rule, see the glossary</span></h4>
-<div class="big fine-t">one sitting<small>0 agent passes · 2 days for one engineer</small></div>
+<div class="w"><h4>Agent sittings <span>how many fresh starts an AI agent needs to rewrite this from its tests, fitted on 85 measured rebuilds; the engineer time is in the facts below</span></h4>
+<div class="big fine-t">one sitting<small>0 agent passes</small></div>
 <div class="track"><i class="fine on"></i><i class="watch"></i><i class="split"></i><span class="mk" style="left:0%"></span></div>
 <div class="tracklbl"><span>one sitting</span><span>a few sittings</span><span>split it first</span></div>
-<p>Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 2 days.</p>
+<p>Small enough that an AI agent could rewrite it from its tests in one sitting; a package of one sitting was rebuilt in 97% of measured runs.</p>
 <div class="share"><i class="vol" style="width:42.97%"></i><i class="rest" style="width:57.03%"></i></div>
 <div class="sharelbl"><span><i class="vol"></i>43% the amount of code</span></div></div>
 <div class="w"><h4>Copied code <span>lines that appear more than once</span></h4>
@@ -315,19 +315,19 @@ It is inside every limit.
 <div class="fnlist"><div class="f"><span>Drain</span><span class="sc fine-t">10</span><span class="where">hidden.go:20</span><span class="where">6 paths</span><span class="m"><i class="b-fine" style="width:100%"></i></span></div><div class="f"><span>init</span><span class="sc fine-t">0</span><span class="where">hidden.go:15</span><span class="where">1 paths</span><span class="m"><i class="b-fine" style="width:0%"></i></span></div><div class="f"><span>init</span><span class="sc fine-t">0</span><span class="where">setup.go:5</span><span class="where">1 paths</span><span class="m"><i class="b-fine" style="width:0%"></i></span></div></div></div>
 </div>
 <div class="grid"><div class="row2"><div class="l"><span>Lines</span><span><b class="num">32</b> of 1,000</span></div><div class="meter fine"><span style="width:3.2%"></span></div></div><div class="row2"><div class="l"><span>Tokens</span><span><b class="num">226</b> of 16,000</span></div><div class="meter fine"><span style="width:1.41%"></span></div></div><div class="row2"><div class="l"><span>Largest file</span><span><b class="num">27</b> of 600</span></div><div class="meter fine"><span style="width:4.5%"></span></div></div><div class="row2"><div class="l"><span>Exports</span><span><b class="num">1</b> of 60</span></div><div class="meter fine"><span style="width:1.67%"></span></div></div><div class="row2"><div class="l"><span>Internal imports</span><span><b class="num">1</b> of 10</span></div><div class="meter fine"><span style="width:10%"></span></div></div></div>
-<div class="grid"><div class="kv"><span>Rebuild</span>0 agent passes · 2 human days</div><div class="kv"><span>Copies</span>0 duplicate blocks cover 0% of lines</div><div class="kv"><span>Complexity</span>cognitive p90 10 · cyclomatic p90 6 · nesting 4</div><div class="kv"><span>Tests</span>0 test functions · 1 of 1 exports untested</div><div class="kv"><span>Used by</span>0 internal packages</div></div></div></td></tr>
-    <tr class="row" tabindex="0" data-i="7" data-band="fine" data-path="immut" data-sloc="31" data-days="1.4" data-hot="11" data-dup_pct="0" data-untested="3" data-churn="-1">
+<div class="grid"><div class="kv"><span>Rebuild</span>0 agent passes · 526 rebuild tokens</div><div class="kv"><span>Copies</span>0 duplicate blocks cover 0% of lines</div><div class="kv"><span>Complexity</span>cognitive p90 10 · cyclomatic p90 6 · nesting 4</div><div class="kv"><span>Tests</span>0 test functions · 1 of 1 exports untested</div><div class="kv"><span>Used by</span>0 internal packages</div><div class="kv"><span>Engineer time</span>2 human days for one engineer, from two textbook models, not measured</div></div></div></td></tr>
+    <tr class="row" tabindex="0" data-i="7" data-band="fine" data-path="immut" data-sloc="31" data-passes="0" data-hot="11" data-dup_pct="0" data-untested="3" data-churn="-1">
       <td class="path" title="immut"><i class="dot b-fine"></i>immut</td>
       <td><span class="mini"><span style="width:3.1%"></span></span><span class="num">31</span></td>
-      <td class="num" title="1.4 to 1.7 working days for one engineer">one sitting · 1–2 d</td><td class="num">0%</td><td class="num">3</td><td class="num">n/a</td>
+      <td class="num" title="0 agent passes">one sitting</td><td class="num">0%</td><td class="num">3</td><td class="num">n/a</td>
     </tr>
     <tr class="detail" hidden><td colspan="6"><div class="detail"><p class="say"><b>It is inside every limit, and it has no tests at all.</b> Nothing. Leave it alone.</p>
 <div class="widgets">
-<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests; the engineer time is COCOMO's textbook rule, see the glossary</span></h4>
-<div class="big fine-t">one sitting<small>0 agent passes · 1 to 2 days for one engineer</small></div>
+<div class="w"><h4>Agent sittings <span>how many fresh starts an AI agent needs to rewrite this from its tests, fitted on 85 measured rebuilds; the engineer time is in the facts below</span></h4>
+<div class="big fine-t">one sitting<small>0 agent passes</small></div>
 <div class="track"><i class="fine on"></i><i class="watch"></i><i class="split"></i><span class="mk" style="left:0%"></span></div>
 <div class="tracklbl"><span>one sitting</span><span>a few sittings</span><span>split it first</span></div>
-<p>Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 1 to 2 days.</p>
+<p>Small enough that an AI agent could rewrite it from its tests in one sitting; a package of one sitting was rebuilt in 97% of measured runs.</p>
 <div class="share"><i class="vol" style="width:27.65%"></i><i class="rest" style="width:72.35%"></i></div>
 <div class="sharelbl"><span><i class="vol"></i>28% the amount of code</span></div></div>
 <div class="w"><h4>Copied code <span>lines that appear more than once</span></h4>
@@ -344,19 +344,19 @@ It is inside every limit.
 <div class="fnlist"><div class="f"><span>Lookup</span><span class="sc fine-t">2</span><span class="where">immut.go:33</span><span class="where">3 paths</span><span class="m"><i class="b-fine" style="width:100%"></i></span></div><div class="f"><span>Describe</span><span class="sc fine-t">0</span><span class="where">immut.go:45</span><span class="where">1 paths</span><span class="m"><i class="b-fine" style="width:0%"></i></span></div><div class="f"><span>SetMode</span><span class="sc fine-t">0</span><span class="where">immut.go:51</span><span class="where">1 paths</span><span class="m"><i class="b-fine" style="width:0%"></i></span></div></div></div>
 </div>
 <div class="grid"><div class="row2"><div class="l"><span>Lines</span><span><b class="num">31</b> of 1,000</span></div><div class="meter fine"><span style="width:3.1%"></span></div></div><div class="row2"><div class="l"><span>Tokens</span><span><b class="num">344</b> of 16,000</span></div><div class="meter fine"><span style="width:2.15%"></span></div></div><div class="row2"><div class="l"><span>Largest file</span><span><b class="num">31</b> of 600</span></div><div class="meter fine"><span style="width:5.17%"></span></div></div><div class="row2"><div class="l"><span>Exports</span><span><b class="num">6</b> of 60</span></div><div class="meter fine"><span style="width:10%"></span></div></div><div class="row2"><div class="l"><span>Internal imports</span><span><b class="num">0</b> of 10</span></div><div class="meter fine"><span style="width:0%"></span></div></div></div>
-<div class="grid"><div class="kv"><span>Rebuild</span>0 agent passes · 1.4 to 1.7 human days</div><div class="kv"><span>Copies</span>0 duplicate blocks cover 0% of lines</div><div class="kv"><span>Complexity</span>cognitive p90 2 · cyclomatic p90 3 · nesting 1</div><div class="kv"><span>Tests</span>0 test functions · 3 of 6 exports untested</div><div class="kv"><span>Used by</span>0 internal packages</div></div></div></td></tr>
-    <tr class="row" tabindex="0" data-i="0" data-band="fine" data-path="a" data-sloc="22" data-days="1.3" data-hot="10" data-dup_pct="0" data-untested="2" data-churn="-1">
+<div class="grid"><div class="kv"><span>Rebuild</span>0 agent passes · 1,244 rebuild tokens</div><div class="kv"><span>Copies</span>0 duplicate blocks cover 0% of lines</div><div class="kv"><span>Complexity</span>cognitive p90 2 · cyclomatic p90 3 · nesting 1</div><div class="kv"><span>Tests</span>0 test functions · 3 of 6 exports untested</div><div class="kv"><span>Used by</span>0 internal packages</div><div class="kv"><span>Engineer time</span>1.4 to 1.7 human days for one engineer, from two textbook models, not measured</div></div></div></td></tr>
+    <tr class="row" tabindex="0" data-i="0" data-band="fine" data-path="a" data-sloc="22" data-passes="0" data-hot="10" data-dup_pct="0" data-untested="2" data-churn="-1">
       <td class="path" title="a"><i class="dot b-fine"></i>a</td>
       <td><span class="mini"><span style="width:2.2%"></span></span><span class="num">22</span></td>
-      <td class="num" title="1.3 to 1.4 working days for one engineer">one sitting · 1 d</td><td class="num">0%</td><td class="num">2</td><td class="num">n/a</td>
+      <td class="num" title="0 agent passes">one sitting</td><td class="num">0%</td><td class="num">2</td><td class="num">n/a</td>
     </tr>
     <tr class="detail" hidden><td colspan="6"><div class="detail"><p class="say"><b>It is inside every limit, and it has no tests at all.</b> Nothing. Leave it alone.</p>
 <div class="widgets">
-<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests; the engineer time is COCOMO's textbook rule, see the glossary</span></h4>
-<div class="big fine-t">one sitting<small>0 agent passes · 1 day for one engineer</small></div>
+<div class="w"><h4>Agent sittings <span>how many fresh starts an AI agent needs to rewrite this from its tests, fitted on 85 measured rebuilds; the engineer time is in the facts below</span></h4>
+<div class="big fine-t">one sitting<small>0 agent passes</small></div>
 <div class="track"><i class="fine on"></i><i class="watch"></i><i class="split"></i><span class="mk" style="left:0%"></span></div>
 <div class="tracklbl"><span>one sitting</span><span>a few sittings</span><span>split it first</span></div>
-<p>Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 1 day.</p>
+<p>Small enough that an AI agent could rewrite it from its tests in one sitting; a package of one sitting was rebuilt in 97% of measured runs.</p>
 <div class="share"><i class="vol" style="width:20.95%"></i><i class="rest" style="width:79.05%"></i></div>
 <div class="sharelbl"><span><i class="vol"></i>21% the amount of code</span></div></div>
 <div class="w"><h4>Copied code <span>lines that appear more than once</span></h4>
@@ -373,19 +373,19 @@ It is inside every limit.
 <div class="fnlist"><div class="f"><span>Checksum</span><span class="sc fine-t">5</span><span class="where">a.go:7</span><span class="where">5 paths</span><span class="m"><i class="b-fine" style="width:100%"></i></span></div><div class="f"><span>Label</span><span class="sc fine-t">0</span><span class="where">a.go:26</span><span class="where">1 paths</span><span class="m"><i class="b-fine" style="width:0%"></i></span></div></div></div>
 </div>
 <div class="grid"><div class="row2"><div class="l"><span>Lines</span><span><b class="num">22</b> of 1,000</span></div><div class="meter fine"><span style="width:2.2%"></span></div></div><div class="row2"><div class="l"><span>Tokens</span><span><b class="num">159</b> of 16,000</span></div><div class="meter fine"><span style="width:0.99%"></span></div></div><div class="row2"><div class="l"><span>Largest file</span><span><b class="num">22</b> of 600</span></div><div class="meter fine"><span style="width:3.67%"></span></div></div><div class="row2"><div class="l"><span>Exports</span><span><b class="num">2</b> of 60</span></div><div class="meter fine"><span style="width:3.33%"></span></div></div><div class="row2"><div class="l"><span>Internal imports</span><span><b class="num">1</b> of 10</span></div><div class="meter fine"><span style="width:10%"></span></div></div></div>
-<div class="grid"><div class="kv"><span>Rebuild</span>0 agent passes · 1.3 to 1.4 human days</div><div class="kv"><span>Copies</span>0 duplicate blocks cover 0% of lines</div><div class="kv"><span>Complexity</span>cognitive p90 5 · cyclomatic p90 5 · nesting 2</div><div class="kv"><span>Tests</span>0 test functions · 2 of 2 exports untested</div><div class="kv"><span>Used by</span>0 internal packages</div></div></div></td></tr>
-    <tr class="row" tabindex="0" data-i="1" data-band="fine" data-path="b" data-sloc="22" data-days="1.3" data-hot="9" data-dup_pct="0" data-untested="2" data-churn="-1">
+<div class="grid"><div class="kv"><span>Rebuild</span>0 agent passes · 759 rebuild tokens</div><div class="kv"><span>Copies</span>0 duplicate blocks cover 0% of lines</div><div class="kv"><span>Complexity</span>cognitive p90 5 · cyclomatic p90 5 · nesting 2</div><div class="kv"><span>Tests</span>0 test functions · 2 of 2 exports untested</div><div class="kv"><span>Used by</span>0 internal packages</div><div class="kv"><span>Engineer time</span>1.3 to 1.4 human days for one engineer, from two textbook models, not measured</div></div></div></td></tr>
+    <tr class="row" tabindex="0" data-i="1" data-band="fine" data-path="b" data-sloc="22" data-passes="0" data-hot="9" data-dup_pct="0" data-untested="2" data-churn="-1">
       <td class="path" title="b"><i class="dot b-fine"></i>b</td>
       <td><span class="mini"><span style="width:2.2%"></span></span><span class="num">22</span></td>
-      <td class="num" title="1.3 to 1.4 working days for one engineer">one sitting · 1 d</td><td class="num">0%</td><td class="num">2</td><td class="num">n/a</td>
+      <td class="num" title="0 agent passes">one sitting</td><td class="num">0%</td><td class="num">2</td><td class="num">n/a</td>
     </tr>
     <tr class="detail" hidden><td colspan="6"><div class="detail"><p class="say"><b>It is inside every limit, and it has no tests at all.</b> Nothing. Leave it alone.</p>
 <div class="widgets">
-<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests; the engineer time is COCOMO's textbook rule, see the glossary</span></h4>
-<div class="big fine-t">one sitting<small>0 agent passes · 1 day for one engineer</small></div>
+<div class="w"><h4>Agent sittings <span>how many fresh starts an AI agent needs to rewrite this from its tests, fitted on 85 measured rebuilds; the engineer time is in the facts below</span></h4>
+<div class="big fine-t">one sitting<small>0 agent passes</small></div>
 <div class="track"><i class="fine on"></i><i class="watch"></i><i class="split"></i><span class="mk" style="left:0%"></span></div>
 <div class="tracklbl"><span>one sitting</span><span>a few sittings</span><span>split it first</span></div>
-<p>Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 1 day.</p>
+<p>Small enough that an AI agent could rewrite it from its tests in one sitting; a package of one sitting was rebuilt in 97% of measured runs.</p>
 <div class="share"><i class="vol" style="width:22.98%"></i><i class="rest" style="width:77.02%"></i></div>
 <div class="sharelbl"><span><i class="vol"></i>23% the amount of code</span></div></div>
 <div class="w"><h4>Copied code <span>lines that appear more than once</span></h4>
@@ -402,19 +402,19 @@ It is inside every limit.
 <div class="fnlist"><div class="f"><span>Digest</span><span class="sc fine-t">5</span><span class="where">b.go:13</span><span class="where">5 paths</span><span class="m"><i class="b-fine" style="width:100%"></i></span></div><div class="f"><span>Limit</span><span class="sc fine-t">0</span><span class="where">b.go:7</span><span class="where">1 paths</span><span class="m"><i class="b-fine" style="width:0%"></i></span></div></div></div>
 </div>
 <div class="grid"><div class="row2"><div class="l"><span>Lines</span><span><b class="num">22</b> of 1,000</span></div><div class="meter fine"><span style="width:2.2%"></span></div></div><div class="row2"><div class="l"><span>Tokens</span><span><b class="num">179</b> of 16,000</span></div><div class="meter fine"><span style="width:1.12%"></span></div></div><div class="row2"><div class="l"><span>Largest file</span><span><b class="num">22</b> of 600</span></div><div class="meter fine"><span style="width:3.67%"></span></div></div><div class="row2"><div class="l"><span>Exports</span><span><b class="num">2</b> of 60</span></div><div class="meter fine"><span style="width:3.33%"></span></div></div><div class="row2"><div class="l"><span>Internal imports</span><span><b class="num">1</b> of 10</span></div><div class="meter fine"><span style="width:10%"></span></div></div></div>
-<div class="grid"><div class="kv"><span>Rebuild</span>0 agent passes · 1.3 to 1.4 human days</div><div class="kv"><span>Copies</span>0 duplicate blocks cover 0% of lines</div><div class="kv"><span>Complexity</span>cognitive p90 5 · cyclomatic p90 5 · nesting 2</div><div class="kv"><span>Tests</span>0 test functions · 2 of 2 exports untested</div><div class="kv"><span>Used by</span>0 internal packages</div></div></div></td></tr>
-    <tr class="row" tabindex="0" data-i="6" data-band="fine" data-path="hub" data-sloc="20" data-days="1.1" data-hot="8" data-dup_pct="0" data-untested="3" data-churn="-1">
+<div class="grid"><div class="kv"><span>Rebuild</span>0 agent passes · 779 rebuild tokens</div><div class="kv"><span>Copies</span>0 duplicate blocks cover 0% of lines</div><div class="kv"><span>Complexity</span>cognitive p90 5 · cyclomatic p90 5 · nesting 2</div><div class="kv"><span>Tests</span>0 test functions · 2 of 2 exports untested</div><div class="kv"><span>Used by</span>0 internal packages</div><div class="kv"><span>Engineer time</span>1.3 to 1.4 human days for one engineer, from two textbook models, not measured</div></div></div></td></tr>
+    <tr class="row" tabindex="0" data-i="6" data-band="fine" data-path="hub" data-sloc="20" data-passes="0" data-hot="8" data-dup_pct="0" data-untested="3" data-churn="-1">
       <td class="path" title="hub"><i class="dot b-fine"></i>hub</td>
       <td><span class="mini"><span style="width:2%"></span></span><span class="num">20</span></td>
-      <td class="num" title="1.1 to 1.2 working days for one engineer">one sitting · 1 d</td><td class="num">0%</td><td class="num">3</td><td class="num">n/a</td>
+      <td class="num" title="0 agent passes">one sitting</td><td class="num">0%</td><td class="num">3</td><td class="num">n/a</td>
     </tr>
     <tr class="detail" hidden><td colspan="6"><div class="detail"><p class="say"><b>It is inside every limit, and it has no tests at all.</b> Nothing. Leave it alone.</p>
 <div class="widgets">
-<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests; the engineer time is COCOMO's textbook rule, see the glossary</span></h4>
-<div class="big fine-t">one sitting<small>0 agent passes · 1 day for one engineer</small></div>
+<div class="w"><h4>Agent sittings <span>how many fresh starts an AI agent needs to rewrite this from its tests, fitted on 85 measured rebuilds; the engineer time is in the facts below</span></h4>
+<div class="big fine-t">one sitting<small>0 agent passes</small></div>
 <div class="track"><i class="fine on"></i><i class="watch"></i><i class="split"></i><span class="mk" style="left:0%"></span></div>
 <div class="tracklbl"><span>one sitting</span><span>a few sittings</span><span>split it first</span></div>
-<p>Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 1 day.</p>
+<p>Small enough that an AI agent could rewrite it from its tests in one sitting; a package of one sitting was rebuilt in 97% of measured runs.</p>
 <div class="share"><i class="vol" style="width:16.43%"></i><i class="rest" style="width:83.57%"></i></div>
 <div class="sharelbl"><span><i class="vol"></i>16% the amount of code</span></div></div>
 <div class="w"><h4>Copied code <span>lines that appear more than once</span></h4>
@@ -431,19 +431,19 @@ It is inside every limit.
 <div class="fnlist"><div class="f"><span>Clamp</span><span class="sc fine-t">2</span><span class="where">hub.go:17</span><span class="where">3 paths</span><span class="m"><i class="b-fine" style="width:100%"></i></span></div><div class="f"><span>Normalize</span><span class="sc fine-t">0</span><span class="where">hub.go:12</span><span class="where">1 paths</span><span class="m"><i class="b-fine" style="width:0%"></i></span></div><div class="f"><span>Twice</span><span class="sc fine-t">0</span><span class="where">hub.go:28</span><span class="where">1 paths</span><span class="m"><i class="b-fine" style="width:0%"></i></span></div></div></div>
 </div>
 <div class="grid"><div class="row2"><div class="l"><span>Lines</span><span><b class="num">20</b> of 1,000</span></div><div class="meter fine"><span style="width:2%"></span></div></div><div class="row2"><div class="l"><span>Tokens</span><span><b class="num">177</b> of 16,000</span></div><div class="meter fine"><span style="width:1.11%"></span></div></div><div class="row2"><div class="l"><span>Largest file</span><span><b class="num">20</b> of 600</span></div><div class="meter fine"><span style="width:3.33%"></span></div></div><div class="row2"><div class="l"><span>Exports</span><span><b class="num">3</b> of 60</span></div><div class="meter fine"><span style="width:5%"></span></div></div><div class="row2"><div class="l"><span>Internal imports</span><span><b class="num">0</b> of 10</span></div><div class="meter fine"><span style="width:0%"></span></div></div></div>
-<div class="grid"><div class="kv"><span>Rebuild</span>0 agent passes · 1.1 to 1.2 human days</div><div class="kv"><span>Copies</span>0 duplicate blocks cover 0% of lines</div><div class="kv"><span>Complexity</span>cognitive p90 2 · cyclomatic p90 3 · nesting 1</div><div class="kv"><span>Tests</span>0 test functions · 3 of 3 exports untested</div><div class="kv"><span>Used by</span>4 internal packages</div></div></div></td></tr>
-    <tr class="row" tabindex="0" data-i="10" data-band="fine" data-path="tested" data-sloc="27" data-days="1.1" data-hot="7" data-dup_pct="0" data-untested="0" data-churn="-1">
+<div class="grid"><div class="kv"><span>Rebuild</span>0 agent passes · 1,077 rebuild tokens</div><div class="kv"><span>Copies</span>0 duplicate blocks cover 0% of lines</div><div class="kv"><span>Complexity</span>cognitive p90 2 · cyclomatic p90 3 · nesting 1</div><div class="kv"><span>Tests</span>0 test functions · 3 of 3 exports untested</div><div class="kv"><span>Used by</span>4 internal packages</div><div class="kv"><span>Engineer time</span>1.1 to 1.2 human days for one engineer, from two textbook models, not measured</div></div></div></td></tr>
+    <tr class="row" tabindex="0" data-i="10" data-band="fine" data-path="tested" data-sloc="27" data-passes="0" data-hot="7" data-dup_pct="0" data-untested="0" data-churn="-1">
       <td class="path" title="tested"><i class="dot b-fine"></i>tested</td>
       <td><span class="mini"><span style="width:2.7%"></span></span><span class="num">27</span></td>
-      <td class="num" title="1.1 to 1.2 working days for one engineer">one sitting · 1 d</td><td class="num">0%</td><td class="num">0</td><td class="num">n/a</td>
+      <td class="num" title="0 agent passes">one sitting</td><td class="num">0%</td><td class="num">0</td><td class="num">n/a</td>
     </tr>
     <tr class="detail" hidden><td colspan="6"><div class="detail"><p class="say"><b>It is inside every limit.</b> Nothing. Leave it alone.</p>
 <div class="widgets">
-<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests; the engineer time is COCOMO's textbook rule, see the glossary</span></h4>
-<div class="big fine-t">one sitting<small>0 agent passes · 1 day for one engineer</small></div>
+<div class="w"><h4>Agent sittings <span>how many fresh starts an AI agent needs to rewrite this from its tests, fitted on 85 measured rebuilds; the engineer time is in the facts below</span></h4>
+<div class="big fine-t">one sitting<small>0 agent passes</small></div>
 <div class="track"><i class="fine on"></i><i class="watch"></i><i class="split"></i><span class="mk" style="left:0%"></span></div>
 <div class="tracklbl"><span>one sitting</span><span>a few sittings</span><span>split it first</span></div>
-<p>Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 1 day.</p>
+<p>Small enough that an AI agent could rewrite it from its tests in one sitting; a package of one sitting was rebuilt in 97% of measured runs.</p>
 <div class="share"><i class="spec" style="width:48.14%"></i><i class="vol" style="width:51.86%"></i><i class="rest" style="width:0%"></i></div>
 <div class="sharelbl"><span><i class="spec"></i>48% the tests it must satisfy (4)</span><span><i class="vol"></i>52% the amount of code</span></div></div>
 <div class="w"><h4>Copied code <span>lines that appear more than once</span></h4>
@@ -460,19 +460,19 @@ It is inside every limit.
 <div class="fnlist"><div class="f"><span>CountUpper</span><span class="sc fine-t">4</span><span class="where">count.go:6</span><span class="where">4 paths</span><span class="m"><i class="b-fine" style="width:100%"></i></span></div><div class="f"><span>Join</span><span class="sc fine-t">1</span><span class="where">tested.go:12</span><span class="where">2 paths</span><span class="m"><i class="b-fine" style="width:25%"></i></span></div><div class="f"><span>Bounded</span><span class="sc fine-t">0</span><span class="where">tested.go:21</span><span class="where">1 paths</span><span class="m"><i class="b-fine" style="width:0%"></i></span></div></div></div>
 </div>
 <div class="grid"><div class="row2"><div class="l"><span>Lines</span><span><b class="num">27</b> of 1,000</span></div><div class="meter fine"><span style="width:2.7%"></span></div></div><div class="row2"><div class="l"><span>Tokens</span><span><b class="num">237</b> of 16,000</span></div><div class="meter fine"><span style="width:1.48%"></span></div></div><div class="row2"><div class="l"><span>Largest file</span><span><b class="num">16</b> of 600</span></div><div class="meter fine"><span style="width:2.67%"></span></div></div><div class="row2"><div class="l"><span>Exports</span><span><b class="num">3</b> of 60</span></div><div class="meter fine"><span style="width:5%"></span></div></div><div class="row2"><div class="l"><span>Internal imports</span><span><b class="num">1</b> of 10</span></div><div class="meter fine"><span style="width:10%"></span></div></div></div>
-<div class="grid"><div class="kv"><span>Rebuild</span>0 agent passes · 1.1 to 1.2 human days</div><div class="kv"><span>Copies</span>0 duplicate blocks cover 0% of lines</div><div class="kv"><span>Complexity</span>cognitive p90 4 · cyclomatic p90 4 · nesting 2</div><div class="kv"><span>Tests</span>4 test functions · 0 of 3 exports untested</div><div class="kv"><span>Used by</span>0 internal packages</div></div></div></td></tr>
-    <tr class="row" tabindex="0" data-i="3" data-band="watch" data-path="dupes" data-sloc="67" data-days="0.8" data-hot="6" data-dup_pct="80.6" data-untested="3" data-churn="-1">
+<div class="grid"><div class="kv"><span>Rebuild</span>0 agent passes · 457 rebuild tokens</div><div class="kv"><span>Copies</span>0 duplicate blocks cover 0% of lines</div><div class="kv"><span>Complexity</span>cognitive p90 4 · cyclomatic p90 4 · nesting 2</div><div class="kv"><span>Tests</span>4 test functions · 0 of 3 exports untested</div><div class="kv"><span>Used by</span>0 internal packages</div><div class="kv"><span>Engineer time</span>1.1 to 1.2 human days for one engineer, from two textbook models, not measured</div></div></div></td></tr>
+    <tr class="row" tabindex="0" data-i="3" data-band="watch" data-path="dupes" data-sloc="67" data-passes="0" data-hot="6" data-dup_pct="80.6" data-untested="3" data-churn="-1">
       <td class="path" title="dupes"><i class="dot b-watch"></i>dupes</td>
       <td><span class="mini"><span style="width:6.7%"></span></span><span class="num">67</span></td>
-      <td class="num" title="0.8 working days for one engineer">one sitting · 1 d</td><td class="num over">80.6%</td><td class="num">3</td><td class="num">n/a</td>
+      <td class="num" title="0 agent passes">one sitting</td><td class="num over">80.6%</td><td class="num">3</td><td class="num">n/a</td>
     </tr>
     <tr class="detail" hidden><td colspan="6"><div class="detail"><p class="say"><b>It is inside every limit, and 80.6% of its lines are copies of each other.</b> Extract the copied code next time you work here; nothing needs a split yet.</p>
 <div class="widgets">
-<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests; the engineer time is COCOMO's textbook rule, see the glossary</span></h4>
-<div class="big fine-t">one sitting<small>0 agent passes · 1 day for one engineer</small></div>
+<div class="w"><h4>Agent sittings <span>how many fresh starts an AI agent needs to rewrite this from its tests, fitted on 85 measured rebuilds; the engineer time is in the facts below</span></h4>
+<div class="big fine-t">one sitting<small>0 agent passes</small></div>
 <div class="track"><i class="fine on"></i><i class="watch"></i><i class="split"></i><span class="mk" style="left:0%"></span></div>
 <div class="tracklbl"><span>one sitting</span><span>a few sittings</span><span>split it first</span></div>
-<p>Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 1 day.</p>
+<p>Small enough that an AI agent could rewrite it from its tests in one sitting; a package of one sitting was rebuilt in 97% of measured runs.</p>
 <div class="share"><i class="vol" style="width:9.31%"></i><i class="rest" style="width:90.69%"></i></div>
 <div class="sharelbl"><span><i class="vol"></i>9% the amount of code</span></div></div>
 <div class="w"><h4>Copied code <span>lines that appear more than once</span></h4>
@@ -489,19 +489,19 @@ It is inside every limit.
 <div class="fnlist"><div class="f"><span>SumOrders</span><span class="sc fine-t">6</span><span class="where">dupes.go:9</span><span class="where">5 paths</span><span class="m"><i class="b-fine" style="width:100%"></i></span></div><div class="f"><span>TallyScores</span><span class="sc fine-t">6</span><span class="where">dupes.go:31</span><span class="where">5 paths</span><span class="m"><i class="b-fine" style="width:100%"></i></span></div><div class="f"><span>CountVisits</span><span class="sc fine-t">6</span><span class="where">dupes.go:53</span><span class="where">5 paths</span><span class="m"><i class="b-fine" style="width:100%"></i></span></div></div></div>
 </div>
 <div class="grid"><div class="row2"><div class="l"><span>Lines</span><span><b class="num">67</b> of 1,000</span></div><div class="meter fine"><span style="width:6.7%"></span></div></div><div class="row2"><div class="l"><span>Tokens</span><span><b class="num">506</b> of 16,000</span></div><div class="meter fine"><span style="width:3.16%"></span></div></div><div class="row2"><div class="l"><span>Largest file</span><span><b class="num">67</b> of 600</span></div><div class="meter fine"><span style="width:11.17%"></span></div></div><div class="row2"><div class="l"><span>Exports</span><span><b class="num">4</b> of 60</span></div><div class="meter fine"><span style="width:6.67%"></span></div></div><div class="row2"><div class="l"><span>Internal imports</span><span><b class="num">0</b> of 10</span></div><div class="meter fine"><span style="width:0%"></span></div></div></div>
-<div class="grid"><div class="kv"><span>Rebuild</span>0 agent passes · 1 human day</div><div class="kv"><span>Copies</span>1 duplicate block covers 80.6% of lines</div><div class="kv"><span>Complexity</span>cognitive p90 6 · cyclomatic p90 5 · nesting 2</div><div class="kv"><span>Tests</span>1 test function · 3 of 4 exports untested</div><div class="kv"><span>Used by</span>0 internal packages</div></div></div></td></tr>
-    <tr class="row" tabindex="0" data-i="4" data-band="fine" data-path="errs" data-sloc="6" data-days="0.2" data-hot="5" data-dup_pct="0" data-untested="1" data-churn="-1">
+<div class="grid"><div class="kv"><span>Rebuild</span>0 agent passes · 1,053 rebuild tokens</div><div class="kv"><span>Copies</span>1 duplicate block covers 80.6% of lines</div><div class="kv"><span>Complexity</span>cognitive p90 6 · cyclomatic p90 5 · nesting 2</div><div class="kv"><span>Tests</span>1 test function · 3 of 4 exports untested</div><div class="kv"><span>Used by</span>0 internal packages</div><div class="kv"><span>Engineer time</span>1 human day for one engineer, from two textbook models, not measured</div></div></div></td></tr>
+    <tr class="row" tabindex="0" data-i="4" data-band="fine" data-path="errs" data-sloc="6" data-passes="0" data-hot="5" data-dup_pct="0" data-untested="1" data-churn="-1">
       <td class="path" title="errs"><i class="dot b-fine"></i>errs</td>
       <td><span class="mini"><span style="width:0.6%"></span></span><span class="num">6</span></td>
-      <td class="num" title="0.2 to 0.3 working days for one engineer">one sitting · 1 d</td><td class="num">0%</td><td class="num">1</td><td class="num">n/a</td>
+      <td class="num" title="0 agent passes">one sitting</td><td class="num">0%</td><td class="num">1</td><td class="num">n/a</td>
     </tr>
     <tr class="detail" hidden><td colspan="6"><div class="detail"><p class="say"><b>It is inside every limit, and it has no tests at all.</b> Nothing. Leave it alone.</p>
 <div class="widgets">
-<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests; the engineer time is COCOMO's textbook rule, see the glossary</span></h4>
-<div class="big fine-t">one sitting<small>0 agent passes · 1 day for one engineer</small></div>
+<div class="w"><h4>Agent sittings <span>how many fresh starts an AI agent needs to rewrite this from its tests, fitted on 85 measured rebuilds; the engineer time is in the facts below</span></h4>
+<div class="big fine-t">one sitting<small>0 agent passes</small></div>
 <div class="track"><i class="fine on"></i><i class="watch"></i><i class="split"></i><span class="mk" style="left:0%"></span></div>
 <div class="tracklbl"><span>one sitting</span><span>a few sittings</span><span>split it first</span></div>
-<p>Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 1 day.</p>
+<p>Small enough that an AI agent could rewrite it from its tests in one sitting; a package of one sitting was rebuilt in 97% of measured runs.</p>
 <div class="share"><i class="vol" style="width:37.24%"></i><i class="rest" style="width:62.76%"></i></div>
 <div class="sharelbl"><span><i class="vol"></i>37% the amount of code</span></div></div>
 <div class="w"><h4>Copied code <span>lines that appear more than once</span></h4>
@@ -518,19 +518,19 @@ It is inside every limit.
 <div class="fnlist"><div class="f"><span>NotFound.Error</span><span class="sc fine-t">0</span><span class="where">errs.go:9</span><span class="where">1 paths</span><span class="m"><i class="b-fine" style="width:0%"></i></span></div><div class="f"><span>NotFound.Unwrap</span><span class="sc fine-t">0</span><span class="where">errs.go:12</span><span class="where">1 paths</span><span class="m"><i class="b-fine" style="width:0%"></i></span></div><div class="f"><span>Code.Error</span><span class="sc fine-t">0</span><span class="where">errs.go:18</span><span class="where">1 paths</span><span class="m"><i class="b-fine" style="width:0%"></i></span></div></div></div>
 </div>
 <div class="grid"><div class="row2"><div class="l"><span>Lines</span><span><b class="num">6</b> of 1,000</span></div><div class="meter fine"><span style="width:0.6%"></span></div></div><div class="row2"><div class="l"><span>Tokens</span><span><b class="num">178</b> of 16,000</span></div><div class="meter fine"><span style="width:1.11%"></span></div></div><div class="row2"><div class="l"><span>Largest file</span><span><b class="num">6</b> of 600</span></div><div class="meter fine"><span style="width:1%"></span></div></div><div class="row2"><div class="l"><span>Exports</span><span><b class="num">5</b> of 60</span></div><div class="meter fine"><span style="width:8.33%"></span></div></div><div class="row2"><div class="l"><span>Internal imports</span><span><b class="num">0</b> of 10</span></div><div class="meter fine"><span style="width:0%"></span></div></div></div>
-<div class="grid"><div class="kv"><span>Rebuild</span>0 agent passes · 1 human day</div><div class="kv"><span>Copies</span>0 duplicate blocks cover 0% of lines</div><div class="kv"><span>Complexity</span>cognitive p90 0 · cyclomatic p90 1 · nesting 0</div><div class="kv"><span>Tests</span>0 test functions · 1 of 5 exports untested</div><div class="kv"><span>Used by</span>0 internal packages</div></div></div></td></tr>
-    <tr class="row" tabindex="0" data-i="9" data-band="fine" data-path="support" data-sloc="8" data-days="0.2" data-hot="4" data-dup_pct="0" data-untested="0" data-churn="-1">
+<div class="grid"><div class="kv"><span>Rebuild</span>0 agent passes · 478 rebuild tokens</div><div class="kv"><span>Copies</span>0 duplicate blocks cover 0% of lines</div><div class="kv"><span>Complexity</span>cognitive p90 0 · cyclomatic p90 1 · nesting 0</div><div class="kv"><span>Tests</span>0 test functions · 1 of 5 exports untested</div><div class="kv"><span>Used by</span>0 internal packages</div><div class="kv"><span>Engineer time</span>1 human day for one engineer, from two textbook models, not measured</div></div></div></td></tr>
+    <tr class="row" tabindex="0" data-i="9" data-band="fine" data-path="support" data-sloc="8" data-passes="0" data-hot="4" data-dup_pct="0" data-untested="0" data-churn="-1">
       <td class="path" title="support"><i class="dot b-fine"></i>support</td>
       <td><span class="mini"><span style="width:0.8%"></span></span><span class="num">8</span></td>
-      <td class="num" title="0.2 to 0.3 working days for one engineer">one sitting · 1 d</td><td class="num">0%</td><td class="num">0</td><td class="num">n/a</td>
+      <td class="num" title="0 agent passes">one sitting</td><td class="num">0%</td><td class="num">0</td><td class="num">n/a</td>
     </tr>
     <tr class="detail" hidden><td colspan="6"><div class="detail"><p class="say"><b>It is inside every limit.</b> Nothing. Leave it alone.</p>
 <div class="widgets">
-<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests; the engineer time is COCOMO's textbook rule, see the glossary</span></h4>
-<div class="big fine-t">one sitting<small>0 agent passes · 1 day for one engineer</small></div>
+<div class="w"><h4>Agent sittings <span>how many fresh starts an AI agent needs to rewrite this from its tests, fitted on 85 measured rebuilds; the engineer time is in the facts below</span></h4>
+<div class="big fine-t">one sitting<small>0 agent passes</small></div>
 <div class="track"><i class="fine on"></i><i class="watch"></i><i class="split"></i><span class="mk" style="left:0%"></span></div>
 <div class="tracklbl"><span>one sitting</span><span>a few sittings</span><span>split it first</span></div>
-<p>Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 1 day.</p>
+<p>Small enough that an AI agent could rewrite it from its tests in one sitting; a package of one sitting was rebuilt in 97% of measured runs.</p>
 <div class="share"><i class="vol" style="width:100%"></i><i class="rest" style="width:0%"></i></div>
 <div class="sharelbl"><span><i class="vol"></i>100% the amount of code</span></div></div>
 <div class="w"><h4>Copied code <span>lines that appear more than once</span></h4>
@@ -547,19 +547,19 @@ It is inside every limit.
 <div class="fnlist"><div class="f"><span>Equal</span><span class="sc fine-t">1</span><span class="where">support.go:7</span><span class="where">2 paths</span><span class="m"><i class="b-fine" style="width:100%"></i></span></div></div></div>
 </div>
 <div class="grid"><div class="row2"><div class="l"><span>Lines</span><span><b class="num">8</b> of 1,000</span></div><div class="meter fine"><span style="width:0.8%"></span></div></div><div class="row2"><div class="l"><span>Tokens</span><span><b class="num">85</b> of 16,000</span></div><div class="meter fine"><span style="width:0.53%"></span></div></div><div class="row2"><div class="l"><span>Largest file</span><span><b class="num">8</b> of 600</span></div><div class="meter fine"><span style="width:1.33%"></span></div></div><div class="row2"><div class="l"><span>Exports</span><span><b class="num">1</b> of 60</span></div><div class="meter fine"><span style="width:1.67%"></span></div></div><div class="row2"><div class="l"><span>Internal imports</span><span><b class="num">0</b> of 10</span></div><div class="meter fine"><span style="width:0%"></span></div></div></div>
-<div class="grid"><div class="kv"><span>Rebuild</span>0 agent passes · 1 human day</div><div class="kv"><span>Copies</span>0 duplicate blocks cover 0% of lines</div><div class="kv"><span>Complexity</span>cognitive p90 1 · cyclomatic p90 2 · nesting 1</div><div class="kv"><span>Tests</span>0 test functions · 0 of 1 exports untested</div><div class="kv"><span>Used by</span>0 internal packages</div></div></div></td></tr>
-    <tr class="row" tabindex="0" data-i="11" data-band="fine" data-path="trivial" data-sloc="4" data-days="0.2" data-hot="3" data-dup_pct="0" data-untested="1" data-churn="-1">
+<div class="grid"><div class="kv"><span>Rebuild</span>0 agent passes · 85 rebuild tokens</div><div class="kv"><span>Copies</span>0 duplicate blocks cover 0% of lines</div><div class="kv"><span>Complexity</span>cognitive p90 1 · cyclomatic p90 2 · nesting 1</div><div class="kv"><span>Tests</span>0 test functions · 0 of 1 exports untested</div><div class="kv"><span>Used by</span>0 internal packages</div><div class="kv"><span>Engineer time</span>1 human day for one engineer, from two textbook models, not measured</div></div></div></td></tr>
+    <tr class="row" tabindex="0" data-i="11" data-band="fine" data-path="trivial" data-sloc="4" data-passes="0" data-hot="3" data-dup_pct="0" data-untested="1" data-churn="-1">
       <td class="path" title="trivial"><i class="dot b-fine"></i>trivial</td>
       <td><span class="mini"><span style="width:0.4%"></span></span><span class="num">4</span></td>
-      <td class="num" title="0.2 working days for one engineer">one sitting · 1 d</td><td class="num">0%</td><td class="num">1</td><td class="num">n/a</td>
+      <td class="num" title="0 agent passes">one sitting</td><td class="num">0%</td><td class="num">1</td><td class="num">n/a</td>
     </tr>
     <tr class="detail" hidden><td colspan="6"><div class="detail"><p class="say"><b>It is inside every limit, and it has no tests at all.</b> Nothing. Leave it alone.</p>
 <div class="widgets">
-<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests; the engineer time is COCOMO's textbook rule, see the glossary</span></h4>
-<div class="big fine-t">one sitting<small>0 agent passes · 1 day for one engineer</small></div>
+<div class="w"><h4>Agent sittings <span>how many fresh starts an AI agent needs to rewrite this from its tests, fitted on 85 measured rebuilds; the engineer time is in the facts below</span></h4>
+<div class="big fine-t">one sitting<small>0 agent passes</small></div>
 <div class="track"><i class="fine on"></i><i class="watch"></i><i class="split"></i><span class="mk" style="left:0%"></span></div>
 <div class="tracklbl"><span>one sitting</span><span>a few sittings</span><span>split it first</span></div>
-<p>Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 1 day.</p>
+<p>Small enough that an AI agent could rewrite it from its tests in one sitting; a package of one sitting was rebuilt in 97% of measured runs.</p>
 <div class="share"><i class="vol" style="width:13.54%"></i><i class="rest" style="width:86.46%"></i></div>
 <div class="sharelbl"><span><i class="vol"></i>14% the amount of code</span></div></div>
 <div class="w"><h4>Copied code <span>lines that appear more than once</span></h4>
@@ -576,19 +576,19 @@ It is inside every limit.
 <div class="fnlist"><div class="f"><span>Answer</span><span class="sc fine-t">0</span><span class="where">trivial.go:5</span><span class="where">1 paths</span><span class="m"><i class="b-fine" style="width:0%"></i></span></div></div></div>
 </div>
 <div class="grid"><div class="row2"><div class="l"><span>Lines</span><span><b class="num">4</b> of 1,000</span></div><div class="meter fine"><span style="width:0.4%"></span></div></div><div class="row2"><div class="l"><span>Tokens</span><span><b class="num">47</b> of 16,000</span></div><div class="meter fine"><span style="width:0.29%"></span></div></div><div class="row2"><div class="l"><span>Largest file</span><span><b class="num">4</b> of 600</span></div><div class="meter fine"><span style="width:0.67%"></span></div></div><div class="row2"><div class="l"><span>Exports</span><span><b class="num">1</b> of 60</span></div><div class="meter fine"><span style="width:1.67%"></span></div></div><div class="row2"><div class="l"><span>Internal imports</span><span><b class="num">0</b> of 10</span></div><div class="meter fine"><span style="width:0%"></span></div></div></div>
-<div class="grid"><div class="kv"><span>Rebuild</span>0 agent passes · 1 human day</div><div class="kv"><span>Copies</span>0 duplicate blocks cover 0% of lines</div><div class="kv"><span>Complexity</span>cognitive p90 0 · cyclomatic p90 1 · nesting 0</div><div class="kv"><span>Tests</span>0 test functions · 1 of 1 exports untested</div><div class="kv"><span>Used by</span>0 internal packages</div></div></div></td></tr>
-    <tr class="row" tabindex="0" data-i="2" data-band="fine" data-path="consumer" data-sloc="2" data-days="0.1" data-hot="2" data-dup_pct="0" data-untested="0" data-churn="-1">
+<div class="grid"><div class="kv"><span>Rebuild</span>0 agent passes · 347 rebuild tokens</div><div class="kv"><span>Copies</span>0 duplicate blocks cover 0% of lines</div><div class="kv"><span>Complexity</span>cognitive p90 0 · cyclomatic p90 1 · nesting 0</div><div class="kv"><span>Tests</span>0 test functions · 1 of 1 exports untested</div><div class="kv"><span>Used by</span>0 internal packages</div><div class="kv"><span>Engineer time</span>1 human day for one engineer, from two textbook models, not measured</div></div></div></td></tr>
+    <tr class="row" tabindex="0" data-i="2" data-band="fine" data-path="consumer" data-sloc="2" data-passes="0" data-hot="2" data-dup_pct="0" data-untested="0" data-churn="-1">
       <td class="path" title="consumer"><i class="dot b-fine"></i>consumer</td>
       <td><span class="mini"><span style="width:0.2%"></span></span><span class="num">2</span></td>
-      <td class="num" title="0.1 working days for one engineer">one sitting · 1 d</td><td class="num">0%</td><td class="num">0</td><td class="num">n/a</td>
+      <td class="num" title="0 agent passes">one sitting</td><td class="num">0%</td><td class="num">0</td><td class="num">n/a</td>
     </tr>
     <tr class="detail" hidden><td colspan="6"><div class="detail"><p class="say"><b>It is inside every limit.</b> Nothing. Leave it alone.</p>
 <div class="widgets">
-<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests; the engineer time is COCOMO's textbook rule, see the glossary</span></h4>
-<div class="big fine-t">one sitting<small>0 agent passes · 1 day for one engineer</small></div>
+<div class="w"><h4>Agent sittings <span>how many fresh starts an AI agent needs to rewrite this from its tests, fitted on 85 measured rebuilds; the engineer time is in the facts below</span></h4>
+<div class="big fine-t">one sitting<small>0 agent passes</small></div>
 <div class="track"><i class="fine on"></i><i class="watch"></i><i class="split"></i><span class="mk" style="left:0%"></span></div>
 <div class="tracklbl"><span>one sitting</span><span>a few sittings</span><span>split it first</span></div>
-<p>Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 1 day.</p>
+<p>Small enough that an AI agent could rewrite it from its tests in one sitting; a package of one sitting was rebuilt in 97% of measured runs.</p>
 <div class="share"><i class="spec" style="width:57.14%"></i><i class="vol" style="width:42.86%"></i><i class="rest" style="width:0%"></i></div>
 <div class="sharelbl"><span><i class="spec"></i>57% the tests it must satisfy (1)</span><span><i class="vol"></i>43% the amount of code</span></div></div>
 <div class="w"><h4>Copied code <span>lines that appear more than once</span></h4>
@@ -605,19 +605,19 @@ It is inside every limit.
 <div class="fnlist"><div class="f"><span>Name</span><span class="sc fine-t">0</span><span class="where">consumer.go:5</span><span class="where">1 paths</span><span class="m"><i class="b-fine" style="width:0%"></i></span></div></div></div>
 </div>
 <div class="grid"><div class="row2"><div class="l"><span>Lines</span><span><b class="num">2</b> of 1,000</span></div><div class="meter fine"><span style="width:0.2%"></span></div></div><div class="row2"><div class="l"><span>Tokens</span><span><b class="num">45</b> of 16,000</span></div><div class="meter fine"><span style="width:0.28%"></span></div></div><div class="row2"><div class="l"><span>Largest file</span><span><b class="num">2</b> of 600</span></div><div class="meter fine"><span style="width:0.33%"></span></div></div><div class="row2"><div class="l"><span>Exports</span><span><b class="num">1</b> of 60</span></div><div class="meter fine"><span style="width:1.67%"></span></div></div><div class="row2"><div class="l"><span>Internal imports</span><span><b class="num">0</b> of 10</span></div><div class="meter fine"><span style="width:0%"></span></div></div></div>
-<div class="grid"><div class="kv"><span>Rebuild</span>0 agent passes · 1 human day</div><div class="kv"><span>Copies</span>0 duplicate blocks cover 0% of lines</div><div class="kv"><span>Complexity</span>cognitive p90 0 · cyclomatic p90 1 · nesting 0</div><div class="kv"><span>Tests</span>1 test function · 0 of 1 exports untested</div><div class="kv"><span>Used by</span>0 internal packages</div></div></div></td></tr>
-    <tr class="row" tabindex="0" data-i="8" data-band="fine" data-path="sibling" data-sloc="3" data-days="0.1" data-hot="1" data-dup_pct="0" data-untested="1" data-churn="-1">
+<div class="grid"><div class="kv"><span>Rebuild</span>0 agent passes · 105 rebuild tokens</div><div class="kv"><span>Copies</span>0 duplicate blocks cover 0% of lines</div><div class="kv"><span>Complexity</span>cognitive p90 0 · cyclomatic p90 1 · nesting 0</div><div class="kv"><span>Tests</span>1 test function · 0 of 1 exports untested</div><div class="kv"><span>Used by</span>0 internal packages</div><div class="kv"><span>Engineer time</span>1 human day for one engineer, from two textbook models, not measured</div></div></div></td></tr>
+    <tr class="row" tabindex="0" data-i="8" data-band="fine" data-path="sibling" data-sloc="3" data-passes="0" data-hot="1" data-dup_pct="0" data-untested="1" data-churn="-1">
       <td class="path" title="sibling"><i class="dot b-fine"></i>sibling</td>
       <td><span class="mini"><span style="width:0.3%"></span></span><span class="num">3</span></td>
-      <td class="num" title="0.1 working days for one engineer">one sitting · 1 d</td><td class="num">0%</td><td class="num">1</td><td class="num">n/a</td>
+      <td class="num" title="0 agent passes">one sitting</td><td class="num">0%</td><td class="num">1</td><td class="num">n/a</td>
     </tr>
     <tr class="detail" hidden><td colspan="6"><div class="detail"><p class="say"><b>It is inside every limit.</b> Nothing. Leave it alone.</p>
 <div class="widgets">
-<div class="w"><h4>Rebuild cost <span>what it would take to rewrite this from its tests; the engineer time is COCOMO's textbook rule, see the glossary</span></h4>
-<div class="big fine-t">one sitting<small>0 agent passes · 1 day for one engineer</small></div>
+<div class="w"><h4>Agent sittings <span>how many fresh starts an AI agent needs to rewrite this from its tests, fitted on 85 measured rebuilds; the engineer time is in the facts below</span></h4>
+<div class="big fine-t">one sitting<small>0 agent passes</small></div>
 <div class="track"><i class="fine on"></i><i class="watch"></i><i class="split"></i><span class="mk" style="left:0%"></span></div>
 <div class="tracklbl"><span>one sitting</span><span>a few sittings</span><span>split it first</span></div>
-<p>Small enough that an AI agent could rewrite it from its tests in one sitting. For one engineer, about 1 day.</p>
+<p>Small enough that an AI agent could rewrite it from its tests in one sitting; a package of one sitting was rebuilt in 97% of measured runs.</p>
 <div class="share"><i class="vol" style="width:21.47%"></i><i class="rest" style="width:78.53%"></i></div>
 <div class="sharelbl"><span><i class="vol"></i>21% the amount of code</span></div></div>
 <div class="w"><h4>Copied code <span>lines that appear more than once</span></h4>
@@ -634,14 +634,15 @@ It is inside every limit.
 <div class="fnlist"><div class="f"><span>New</span><span class="sc fine-t">0</span><span class="where">sibling.go:6</span><span class="where">1 paths</span><span class="m"><i class="b-fine" style="width:0%"></i></span></div><div class="f"><span>Orphan</span><span class="sc fine-t">0</span><span class="where">sibling.go:9</span><span class="where">1 paths</span><span class="m"><i class="b-fine" style="width:0%"></i></span></div></div></div>
 </div>
 <div class="grid"><div class="row2"><div class="l"><span>Lines</span><span><b class="num">3</b> of 1,000</span></div><div class="meter fine"><span style="width:0.3%"></span></div></div><div class="row2"><div class="l"><span>Tokens</span><span><b class="num">82</b> of 16,000</span></div><div class="meter fine"><span style="width:0.51%"></span></div></div><div class="row2"><div class="l"><span>Largest file</span><span><b class="num">3</b> of 600</span></div><div class="meter fine"><span style="width:0.5%"></span></div></div><div class="row2"><div class="l"><span>Exports</span><span><b class="num">2</b> of 60</span></div><div class="meter fine"><span style="width:3.33%"></span></div></div><div class="row2"><div class="l"><span>Internal imports</span><span><b class="num">0</b> of 10</span></div><div class="meter fine"><span style="width:0%"></span></div></div></div>
-<div class="grid"><div class="kv"><span>Rebuild</span>0 agent passes · 1 human day</div><div class="kv"><span>Copies</span>0 duplicate blocks cover 0% of lines</div><div class="kv"><span>Complexity</span>cognitive p90 0 · cyclomatic p90 1 · nesting 0</div><div class="kv"><span>Tests</span>0 test functions · 1 of 2 exports untested</div><div class="kv"><span>Used by</span>0 internal packages</div></div></div></td></tr>
+<div class="grid"><div class="kv"><span>Rebuild</span>0 agent passes · 382 rebuild tokens</div><div class="kv"><span>Copies</span>0 duplicate blocks cover 0% of lines</div><div class="kv"><span>Complexity</span>cognitive p90 0 · cyclomatic p90 1 · nesting 0</div><div class="kv"><span>Tests</span>0 test functions · 1 of 2 exports untested</div><div class="kv"><span>Used by</span>0 internal packages</div><div class="kv"><span>Engineer time</span>1 human day for one engineer, from two textbook models, not measured</div></div></div></td></tr>
     <tr class="none" hidden><td colspan="6" class="muted">No package matches.</td></tr>
   </tbody></table></div>
-  <p class="note">Click a row for the full story of that package. The table starts in the Start here order. Rebuild is the sittings an AI agent needs to rewrite it from its tests, then one engineer's working time; Changes is commits touching the package in the last 200.</p>
+  <p class="note">Click a row for the full story of that package. The table starts in the Start here order. Rebuild is the sittings an AI agent needs to rewrite it from its tests; the engineer time is in each package's detail; Changes is commits touching the package in the last 200.</p>
 
   <h2>What the words mean</h2>
   <div class="glossary">
-    <div class="term"><b>Rebuild cost</b>How long it would take to rewrite the package from its tests. Shown as a range of one engineer&#39;s working time, and as agent sittings: how many times an AI agent would have to start over with a fresh context window. One sitting means it fits in one go; over three means the package has to be split before anyone can rebuild it. The sittings are measured on agent rebuilds and lead; packages are ranked by how often they changed times their agent passes, then by the low end of the engineer time. Engineer time is a range from two textbook models, not a measurement: for each package, the low end is the lower and the high end the higher of COCOMO 81 (2.4 person-months per thousand lines to the power 1.05) and COCOMO II, rebuild profile (2.381 person-months per thousand lines to the power 1.053, before the package&#39;s complexity rating), at 19 working days a month, on lines inflated by COCOMO II&#39;s software understanding, 20% to 100% under unfm completely_unfamiliar, from each package&#39;s tests, structure and doc comments, summed over the packages. The JSON field human_days is the configured model&#39;s, COCOMO II, rebuild profile. The agent sittings were measured on 85 rebuilds. The ratings under rebuild.cocomo in the configuration set the COCOMO II, rebuild profile figure, and rebuild.cocomo_a scales the COCOMO 81 one.</div>
+    <div class="term"><b>Sittings</b>How many times an AI agent would have to start over with a fresh context window to rewrite the package from its tests. A sitting is a unit of the estimate, not literally one context window: one estimate token is about 7.6 tokens of an agent session&#39;s footprint. The estimate is fitted on 85 measured agent rebuilds of 31 packages: a package of one sitting was rebuilt in 97% of measured runs (65 of 67), one of two or three sittings in 78% (14 of 18). No measured package needed more than three; over three means the package has to be split before anyone can rebuild it. Sittings lead the report: packages are ranked by how often they changed times their agent passes, then by the low end of the engineer time.</div>
+    <div class="term"><b>Engineer time</b>How long one engineer would take to rewrite the package, as a range of working time: a secondary figure, shown once beside the module&#39;s total and in each package&#39;s detail. rebuild.cocomo.unfm, how unfamiliar the engineer is with the code, moves it most, inflating the lines by up to double. Engineer time is a range from two textbook models, not a measurement: for each package, the low end is the lower and the high end the higher of COCOMO 81 (2.4 person-months per thousand lines to the power 1.05) and COCOMO II, rebuild profile (2.381 person-months per thousand lines to the power 1.053, before the package&#39;s complexity rating), at 19 working days a month, on lines inflated by COCOMO II&#39;s software understanding, 20% to 100% under unfm completely_unfamiliar, from each package&#39;s tests, structure and doc comments, summed over the packages. The JSON field human_days is the configured model&#39;s, COCOMO II, rebuild profile. The agent sittings were measured on 85 rebuilds. The ratings under rebuild.cocomo in the configuration set the COCOMO II, rebuild profile figure, and rebuild.cocomo_a scales the COCOMO 81 one.</div>
     <div class="term"><b>Split</b>The package is past what one agent pass can hold, or over two of its limits. Carve it into smaller packages before adding to it.</div>
     <div class="term"><b>Watch</b>Over one limit, large enough to need a few passes, or a quarter or more of it copied. Plan a split or a clean-up before it grows.</div>
     <div class="term"><b>Copied</b>The share of lines inside duplicate blocks of 40 or more tokens. Every copy is a second place a fix has to land.</div>

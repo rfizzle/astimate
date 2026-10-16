@@ -7,21 +7,21 @@ measurement; agent sittings are measured. rebuild.cocomo and rebuild.cocomo_a se
 
 Start here  no change history: costliest to rebuild first
 
- 1  dupes  WATCH  one sitting  1 day
+ 1  dupes  WATCH  one sitting
     It is inside every limit, and 80.6% of its lines are copies of each other.
     Do this → Extract the copied code next time you work here; nothing needs a split yet.
 
 Every package  costliest to rebuild first · * is over its size limit
 
- PACKAGE       BAND      SITTINGS   TIME  LINES   COPIED  UNTESTED  CHANGES
- hidden        FINE   one sitting    2 d     32       0%         1        -
- immut         FINE   one sitting  1–2 d     31       0%         3        -
- a             FINE   one sitting    1 d     22       0%         2        -
- b             FINE   one sitting    1 d     22       0%         2        -
- hub           FINE   one sitting    1 d     20       0%         3        -
- tested        FINE   one sitting    1 d     27       0%         0        -
- dupes         WATCH  one sitting    1 d     67    80.6%         3        -
- errs          FINE   one sitting    1 d      6       0%         1        -
- support       FINE   one sitting    1 d      8       0%         0        -
- trivial       FINE   one sitting    1 d      4       0%         1        -
+ PACKAGE       BAND      SITTINGS  LINES   COPIED  UNTESTED  CHANGES
+ hidden        FINE   one sitting     32       0%         1        -
+ immut         FINE   one sitting     31       0%         3        -
+ a             FINE   one sitting     22       0%         2        -
+ b             FINE   one sitting     22       0%         2        -
+ hub           FINE   one sitting     20       0%         3        -
+ tested        FINE   one sitting     27       0%         0        -
+ dupes         WATCH  one sitting     67    80.6%         3        -
+ errs          FINE   one sitting      6       0%         1        -
+ support       FINE   one sitting      8       0%         0        -
+ trivial       FINE   one sitting      4       0%         1        -
  … 2 more · --all for every row · --format json · --format md · --format html
