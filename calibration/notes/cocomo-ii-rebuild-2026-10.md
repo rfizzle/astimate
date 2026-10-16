@@ -25,8 +25,10 @@ person_months = A × KSLOC^E × ΠEM                    A = 2.94
 human_days    = person_months × 19
 ```
 
-KSLOC is astimate's `kloc_eff`, unchanged: the non-duplicated thousand
-lines, inflated by up to half for untested exports. With every rating
+KSLOC is astimate's `kloc_eff`: the non-duplicated thousand lines. Until
+47cec5a it was inflated by up to half for untested exports; the section
+"Software understanding replaces the untested-export inflation" below
+describes what replaced that. With every rating
 nominal, ΣSF = 3.72 + 3.04 + 4.24 + 3.29 + 4.68 = 18.97, E = 1.0997, and
 every multiplier is 1.00, so the coefficient is A, 2.94. `days_per_month`
 stays 19.
