@@ -38,7 +38,7 @@ func runAssess(args []string, stdout, stderr io.Writer) int {
 		return exitUsage
 	}
 
-	logger := cli.NewLogger(stderr)
+	logger := cli.NewLogger(stderr, fs)
 	r, err := assess(context.Background(), dir, tf.config, tf.tokenizer, engine.AssessOptions{Coverage: coverage}, logger)
 	if err == nil {
 		err = cli.WriteBuffered(stdout, func(w io.Writer) error {

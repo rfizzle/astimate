@@ -37,7 +37,7 @@ func TestTypeScriptCheckSelectsImporters(t *testing.T) {
 	writeRepoFile(t, repo, "hub/types.d.ts", "export type T = number;\n")
 
 	var stdout, stderr bytes.Buffer
-	args := []string{"check", repo, "--format", formatJSON}
+	args := []string{"check", repo, "--format", formatJSON, "--debug"}
 	if got := run(args, &stdout, &stderr); got != exitOK {
 		t.Fatalf("run(%q) exit code = %d, want %d\nstdout:\n%s\nstderr:\n%s",
 			args, got, exitOK, stdout.String(), stderr.String())
@@ -101,7 +101,7 @@ func TestTypeScriptCheckSelectsFormerImporters(t *testing.T) {
 	}
 
 	var stdout, stderr bytes.Buffer
-	args := []string{"check", repo, "--format", formatJSON}
+	args := []string{"check", repo, "--format", formatJSON, "--debug"}
 	if got := run(args, &stdout, &stderr); got != exitOK {
 		t.Fatalf("run(%q) exit code = %d, want %d\nstdout:\n%s\nstderr:\n%s",
 			args, got, exitOK, stdout.String(), stderr.String())

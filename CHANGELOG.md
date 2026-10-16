@@ -453,6 +453,10 @@ history.
 
 ### Changed
 
+- Every command logs at warn level by default, so routine notes such as a
+  package left out for its build constraints no longer print beside the
+  report. A new `--debug` flag, taken by every command including `serve`,
+  restores the detail. `dryrun` still prints its progress lines.
 - Agent sittings are the primary measure and the engineer time is
   demoted. The agent estimate is fitted on 85 measured rebuilds and its
   tiers carry measured success rates (one sitting rebuilt in 97% of runs,

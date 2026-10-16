@@ -55,13 +55,14 @@ func cgoAlongsidePure(t *testing.T) string {
 }
 
 // TestLogSkipped checks that the extractor logs each skipped package once,
-// at info level, however many calls share the load.
+// at debug level, however many calls share the load, because build
+// constraints exclude all their Go files.
 func TestLogSkipped(t *testing.T) {
 	root := cgoAlongsidePure(t)
 	t.Setenv("CGO_ENABLED", "0")
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
+		Level: slog.LevelDebug,
 		ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
 			if a.Key == slog.TimeKey {
 				return slog.Attr{}
@@ -75,8 +76,8 @@ func TestLogSkipped(t *testing.T) {
 			t.Fatalf("Packages: %v", err)
 		}
 	}
-	want := `level=INFO msg="skipped package" package=example.com/mixed/ignored dir=ignored reason="build constraints exclude all Go files"` + "\n" +
-		`level=INFO msg="skipped package" package=example.com/mixed/native dir=native reason="build constraints exclude all Go files; it ` +
+	want := `level=DEBUG msg="skipped package" package=example.com/mixed/ignored dir=ignored reason="build constraints exclude all Go files"` + "\n" +
+		`level=DEBUG msg="skipped package" package=example.com/mixed/native dir=native reason="build constraints exclude all Go files; it ` +
 		`uses cgo, which is disabled (CGO_ENABLED=0, the default when no C compiler is on PATH)"` + "\n"
 	if got := buf.String(); got != want {
 		t.Errorf("log =\n%s\nwant\n%s", got, want)

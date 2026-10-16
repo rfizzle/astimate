@@ -45,7 +45,7 @@ func runReport(args []string, stdout, stderr io.Writer) int {
 		_, _ = fmt.Fprintf(stderr, "astimate: report: %v\n", err)
 		return exitUsage
 	}
-	logger := cli.NewLogger(stderr)
+	logger := cli.NewLogger(stderr, fs)
 	t, err := tf.load(dir, logger)
 	if err != nil {
 		logger.Error("report failed", "dir", dir, "err", err)

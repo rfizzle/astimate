@@ -38,7 +38,7 @@ func runServe(args []string, _, stderr io.Writer) int {
 		return exitUsage
 	}
 
-	logger := cli.NewLogger(stderr)
+	logger := cli.NewLogger(stderr, fs)
 	cfg, source, err := config.Resolve(*configPath)
 	if err != nil {
 		logger.Error("serve failed", "err", fmt.Errorf("resolving config: %w", err))

@@ -62,7 +62,7 @@ func runDryrun(args []string, stdout, stderr io.Writer) int {
 	// repository before the command exits.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	return dryrun(ctx, dir, &f, stdout, stderr)
+	return dryrun(ctx, dir, &f, cli.NewLogger(stderr, fs), stdout, stderr)
 }
 
 // register adds the flags to fs, each defaulting to f's value.
@@ -108,8 +108,7 @@ func (f *dryrunFlags) validate() error {
 // dryrun replays the last commits of dir's repository into a temporary
 // directory under the resolved configuration, then prints the summary or
 // the rows and writes the suggestion.
-func dryrun(ctx context.Context, dir string, f *dryrunFlags, stdout, stderr io.Writer) int {
-	logger := cli.NewLogger(stderr)
+func dryrun(ctx context.Context, dir string, f *dryrunFlags, logger *slog.Logger, stdout, stderr io.Writer) int {
 	fail := func(msg string, err error) int {
 		logger.Error(msg, "err", err)
 		return exitAnalysis
@@ -160,7 +159,7 @@ func dryrun(ctx context.Context, dir string, f *dryrunFlags, stdout, stderr io.W
 		return fail("dryrun failed", err)
 	}
 	if f.out != "" {
-		logger.Info("kept the replay's rows", "dir", out)
+		logger.Warn("kept the replay's rows", "dir", out)
 	}
 	err = cli.WriteBuffered(stdout, func(w io.Writer) error {
 		if f.asJSON {
@@ -180,7 +179,7 @@ func dryrun(ctx context.Context, dir string, f *dryrunFlags, stdout, stderr io.W
 		if err != nil {
 			return fail("writing the suggestion failed", err)
 		}
-		logger.Info("wrote the suggested configuration", "file", f.suggest, "warn", strings.Join(warn, ","))
+		logger.Warn("wrote the suggested configuration", "file", f.suggest, "warn", strings.Join(warn, ","))
 	}
 	return code
 }

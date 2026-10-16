@@ -344,7 +344,8 @@ func (e *Extractor) fresh(repeat bool, key string) bool {
 	return true
 }
 
-// logSkipped logs each module directory l skipped at info level, each
+// logSkipped logs each module directory l skipped at info level, or at debug
+// level when build constraints exclude all its Go files, each
 // package skipped because it fails to load and each embed pattern that
 // matched no file at warn level, when e has a logger. A skipped package's
 // error names files relative to l's module root, which may be a temporary
@@ -357,7 +358,11 @@ func (e *Extractor) logSkipped(l *loaded) {
 	}
 	repeat := e.beginLog(l.root)
 	for _, s := range l.Skipped {
-		e.logger.Info("skipped package", "package", s.ImportPath, "dir", s.Dir, "reason", s.Reason)
+		level := slog.LevelInfo
+		if strings.HasPrefix(s.Reason, "build constraints exclude all Go files") {
+			level = slog.LevelDebug // expected, and not something to act on
+		}
+		e.logger.Log(context.Background(), level, "skipped package", "package", s.ImportPath, "dir", s.Dir, "reason", s.Reason)
 	}
 	for _, s := range l.SkippedPackages {
 		err := relativeTo(s.Err.Error(), l.root)

@@ -36,7 +36,7 @@ func TestServeChild(t *testing.T) {
 	if os.Getenv(serveChildEnv) != "1" {
 		t.Skip("helper process for the serve tests")
 	}
-	os.Args = []string{"astimate", "serve"}
+	os.Args = []string{"astimate", "serve", "--debug"} // the ready line is an info record
 	if path := os.Getenv(serveChildConfigEnv); path != "" {
 		os.Args = append(os.Args, "--config", path)
 	}

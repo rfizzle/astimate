@@ -12,12 +12,16 @@ import (
 	"log/slog"
 )
 
+// debugFlag is the name of the flag every command's flag set registers.
+const debugFlag = "debug"
+
 // NewFlagSet returns the flag set of command name, "astimate <name>",
 // which prints its errors to stderr and, on -h or a usage error, usageLine
-// followed by the flag defaults.
+// followed by the flag defaults. It registers --debug, which NewLogger reads.
 func NewFlagSet(name, usageLine string, stderr io.Writer) *flag.FlagSet {
 	fs := flag.NewFlagSet("astimate "+name, flag.ContinueOnError)
 	fs.SetOutput(stderr)
+	fs.Bool(debugFlag, false, "log at debug level, adding the detail of what the run skipped or left out")
 	fs.Usage = func() {
 		_, _ = fmt.Fprintln(stderr, usageLine)
 		fs.PrintDefaults()
@@ -68,10 +72,15 @@ func ParseModuleArgs(name string, fs *flag.FlagSet, args []string, stderr io.Wri
 	return ModuleRoot(name, positional, fs, stderr)
 }
 
-// NewLogger returns the logger every command logs to stderr with, at info
-// level.
-func NewLogger(stderr io.Writer) *slog.Logger {
-	return slog.New(slog.NewTextHandler(stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
+// NewLogger returns the logger every command logs to stderr with, at warn
+// level, or at debug level when --debug was given to fs, which NewFlagSet
+// made and the caller has parsed.
+func NewLogger(stderr io.Writer, fs *flag.FlagSet) *slog.Logger {
+	level := slog.LevelWarn
+	if f := fs.Lookup(debugFlag); f != nil && f.Value.String() == "true" {
+		level = slog.LevelDebug
+	}
+	return slog.New(slog.NewTextHandler(stderr, &slog.HandlerOptions{Level: level}))
 }
 
 // WriteBuffered renders into a buffer with render and writes it to stdout

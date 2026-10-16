@@ -186,14 +186,14 @@ func (rp *Replayer) Run(ctx context.Context) error {
 		}
 	}
 	rp.info.Totals.Skipped = len(rp.commits) - len(pending)
-	rp.logger.Info("replaying", "range", rp.opts.Range, "commits", len(rp.commits),
+	rp.logger.Warn("replaying", "range", rp.opts.Range, "commits", len(rp.commits),
 		"pending", len(pending), "skipped", rp.info.Totals.Skipped, "out", rp.opts.Out)
 	written, err := rp.replayPending(ctx, st, pending)
 	rp.info.Totals.Written = written
 	if _, statErr := os.Stat(filepath.Join(rp.opts.Out, runFile)); err == nil && (written > 0 || statErr != nil) {
 		err = writeRunInfo(rp.opts.Out, &rp.info, st)
 	} else if err == nil {
-		rp.logger.Info("nothing new to replay", "out", rp.opts.Out)
+		rp.logger.Warn("nothing new to replay", "out", rp.opts.Out)
 	}
 	return errors.Join(err, st.close())
 }
@@ -222,7 +222,7 @@ func (rp *Replayer) replayPending(ctx context.Context, st *store, pending []comm
 			}
 			written++
 			c := &results[i].commit
-			rp.logger.Info("commit recorded", "n", start+i+1, "of", len(pending), "commit", c.Commit[:12],
+			rp.logger.Warn("commit recorded", "n", start+i+1, "of", len(pending), "commit", c.Commit[:12],
 				"loaded", c.Loaded, "packages", len(c.PackagesChanged), "violations", c.Violations,
 				"wall", time.Duration(c.WallMS)*time.Millisecond)
 		}

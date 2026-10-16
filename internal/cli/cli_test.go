@@ -69,12 +69,41 @@ func TestModuleRoot(t *testing.T) {
 func TestNewLogger(t *testing.T) {
 	t.Parallel()
 
-	var stderr bytes.Buffer
-	l := NewLogger(&stderr)
-	l.Debug("hidden")
-	l.Info("shown", "k", "v")
-	if got := stderr.String(); strings.Contains(got, "hidden") || !strings.Contains(got, "msg=shown k=v") {
-		t.Errorf("log = %q, want the info record only", got)
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{"default is warn", nil, "level=WARN msg=warned\n"},
+		{"debug", []string{"--debug"}, "level=DEBUG msg=detail\nlevel=INFO msg=routine\nlevel=WARN msg=warned\n"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			fs := NewFlagSet("demo", "usage", io.Discard)
+			if fs.Lookup("debug") == nil {
+				t.Fatal("NewFlagSet does not register --debug")
+			}
+			if err := fs.Parse(tt.args); err != nil {
+				t.Fatal(err)
+			}
+			var stderr bytes.Buffer
+			l := NewLogger(&stderr, fs)
+			l.Debug("detail")
+			l.Info("routine")
+			l.Warn("warned")
+			got := stderr.String()
+			// Drop the time attribute of each record.
+			var b strings.Builder
+			for line := range strings.SplitSeq(strings.TrimSuffix(got, "\n"), "\n") {
+				_, rest, _ := strings.Cut(line, " level=")
+				b.WriteString("level=" + rest + "\n")
+			}
+			if b.String() != tt.want {
+				t.Errorf("log = %q, want %q", b.String(), tt.want)
+			}
+		})
 	}
 }
 

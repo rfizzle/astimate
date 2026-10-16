@@ -131,7 +131,7 @@ func runCheckInput(args []string, hookStdin func() io.Reader, stdout, stderr io.
 		return exitUsage
 	}
 
-	logger := cli.NewLogger(stderr)
+	logger := cli.NewLogger(stderr, fs)
 	if opts.format == formatHook && opts.hookStdin != nil && report.StopHookActive(opts.hookStdin()) {
 		logger.Info("stop hook already blocked once; allowing the stop without a check")
 		if _, err := io.WriteString(stdout, "{}\n"); err != nil {

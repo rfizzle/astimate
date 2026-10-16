@@ -638,7 +638,7 @@ func TestChangedFunctionNeedsBaseline(t *testing.T) {
 		t.Parallel()
 		base := writeFixtureBaseline(t, false)
 		var out, errOut bytes.Buffer
-		args := []string{"check", degradedDir, "--all", "--baseline", base, "--config", pinnedConfigFile(t), "--format", formatJSON}
+		args := []string{"check", degradedDir, "--all", "--baseline", base, "--config", pinnedConfigFile(t), "--format", formatJSON, "--debug"}
 		if got := run(args, &out, &errOut); got != exitGateFailed {
 			t.Fatalf("run(%q) = %d, want the other degraded rules to fail; stderr:\n%s", args, got, errOut.String())
 		}
@@ -959,7 +959,7 @@ func TestCheckHookStdin(t *testing.T) {
 			t.Parallel()
 
 			var stdout, stderr bytes.Buffer
-			args := []string{"--all", "--baseline", base, "--config", pinnedConfigFile(t), "--format", "hook", degradedDir}
+			args := []string{"--all", "--baseline", base, "--config", pinnedConfigFile(t), "--format", "hook", "--debug", degradedDir}
 			if got := runCheckInput(args, tt.stdin, &stdout, &stderr); got != exitOK {
 				t.Fatalf("exit code = %d, want %d\nstderr:\n%s", got, exitOK, stderr.String())
 			}

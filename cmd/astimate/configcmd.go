@@ -2,11 +2,11 @@ package main
 
 import (
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"os"
 
+	"github.com/rfizzle/astimate/internal/cli"
 	"github.com/rfizzle/astimate/internal/config"
 )
 
@@ -33,8 +33,7 @@ func runConfig(args []string, stdout, stderr io.Writer) int {
 // runConfigInit writes the embedded default configuration to --out, refusing
 // to replace an existing file unless --force is given.
 func runConfigInit(args []string, stdout, stderr io.Writer) int {
-	fs := flag.NewFlagSet("astimate config init", flag.ContinueOnError)
-	fs.SetOutput(stderr)
+	fs := cli.NewFlagSet("config init", "usage: astimate config init [--out path] [--force]", stderr)
 	out := fs.String("out", defaultConfigPath, "path of the configuration file to write")
 	force := fs.Bool("force", false, "overwrite the file if it already exists")
 	if err := fs.Parse(args); err != nil {

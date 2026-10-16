@@ -51,7 +51,7 @@ func runBaselineWrite(args []string, stdout, stderr io.Writer) int {
 		return exitUsage
 	}
 
-	logger := cli.NewLogger(stderr)
+	logger := cli.NewLogger(stderr, fs)
 	path, n, err := writeBaseline(context.Background(), dir, *out, tf.config, tf.tokenizer, logger)
 	if err != nil {
 		logger.Error("baseline write failed", "dir", dir, "err", err)
