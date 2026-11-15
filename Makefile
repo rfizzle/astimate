@@ -22,10 +22,12 @@ BUILD_TAGS := grammar_subset grammar_subset_typescript grammar_subset_tsx
 # all but selfcheck, which is its own job running the action in action/.
 check: actionlint tidy fmt vet lint test selfcheck readme-check
 
-# actionlint lints .github/workflows when the binary is on PATH and skips
-# with a notice otherwise; CI always runs it from a pinned release.
+# actionlint lints .github/workflows. It fails when the binary is not on
+# PATH, so a check that skipped a step never reads as a pass; CI runs it
+# from a pinned release.
 actionlint:
-	@if command -v actionlint >/dev/null 2>&1; then actionlint; else echo "actionlint not installed; skipping"; fi
+	@command -v actionlint >/dev/null 2>&1 || { echo "actionlint is not installed: go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12"; exit 1; }
+	actionlint
 
 # tidy fails when go.mod or go.sum differ from what `go mod tidy` would
 # write, printing the diff; it never modifies either file.

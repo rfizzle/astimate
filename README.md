@@ -69,7 +69,7 @@ make third-party-licenses  # THIRD_PARTY_LICENSES for the release archive (needs
 make readme-samples  # regenerate the sample outputs in this README
 ```
 
-`golangci-lint` v2 is required for `make check`; `actionlint` is used when it is on `PATH`.
+`golangci-lint` v2 and `actionlint` are required for `make check`; it fails naming the install command when `actionlint` is missing.
 
 `make build` and the release builds pass `-tags` with the tags listed as `BUILD_TAGS` in the Makefile so only the TypeScript and TSX tree-sitter grammars are embedded; a plain `go build ./cmd/astimate` works too but embeds every grammar and is larger (`make test-subset` runs the TypeScript tests under the tags).
 
