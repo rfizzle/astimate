@@ -147,7 +147,10 @@ func ForRow(rules []Threshold, row Row) []Threshold {
 // and duplicated_lines (mergePairs). A density rule never fails a head
 // value at or below its Floor, and, against a baseline, duplication_pct and cognitive_p90 fail only when
 // the change raised what they measure (rose). Suggestions come from s; a
-// nil s leaves them empty. Evaluate does no
+// nil s leaves them empty, except the gate's own sentence that leads a
+// capacity rule's warning or its growth over the ceiling. A capacity
+// rule's breach on a package row has its suggestion closed by the advice
+// for a split out of scope (capacityBreach). Evaluate does no
 // I/O. Evaluate applies every rule it is given, whatever the row; callers
 // select a row's rules with ForRow. opts are optional inputs: given the
 // row's changed functions (WithChangedFunctions), the max of
@@ -327,16 +330,36 @@ func (e *evaluator) overMax(r Threshold, b, h float64, hasBase bool) {
 	}
 	switch {
 	case !hasBase || b < limit-epsilon:
-		e.breach(e.finding(r.Metric, b, h, hasBase, "max "+num(limit)))
+		e.capacityBreach(e.finding(r.Metric, b, h, hasBase, "max "+num(limit)))
 	case h <= b+epsilon:
 		e.warn(e.finding(r.Metric, b, h, hasBase, "max "+num(limit)), "over the "+num(limit)+" ceiling (unchanged since baseline); plan a split.")
 	case allowed <= 0:
-		e.breach(e.finding(r.Metric, b, h, hasBase, "max "+num(limit)))
+		e.capacityBreach(e.finding(r.Metric, b, h, hasBase, "max "+num(limit)))
 	case h-b <= allowed+epsilon:
 		e.warn(e.overMaxFinding(r.Metric, b, h, limit, allowed), "")
 	default:
-		e.breach(e.overMaxFinding(r.Metric, b, h, limit, allowed))
+		e.capacityBreach(e.overMaxFinding(r.Metric, b, h, limit, allowed))
 	}
+}
+
+// outOfScope closes the suggestion of a capacity rule's breach on a
+// package row: the fix is a split, and when the split does not belong in
+// this change the debt is recorded as an exemption (SPEC.md 8.6) rather
+// than hidden by an edit that only lowers the number.
+const outOfScope = "If the split is out of scope for this change, stop and say so instead of working around the limit, " +
+	"so a person can record the debt as an exemption with a reason and an expiry."
+
+// capacityBreach records v, a capacity rule's breach, its suggestion,
+// when it has one, closed by outOfScope on a package row. A module-wide
+// metric's fix is an extraction, not a split, so its suggestion is left
+// as it is. Only a breach carries the sentence: it is the finding an
+// exemption can accept, and a capacity rule's warnings ask for nothing in
+// this change.
+func (e *evaluator) capacityBreach(v Violation) {
+	if v.Suggestion != "" && !metrics.ModuleWide(v.Metric) {
+		v.Suggestion = joinSentences(v.Suggestion, outOfScope)
+	}
+	e.breach(v)
 }
 
 // overMaxFinding is the finding for growth of a value already over the

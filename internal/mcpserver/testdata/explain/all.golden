@@ -16,12 +16,12 @@ Thresholds in the loaded config: none
 == sloc ==
 sloc (v0, gated by default)
 Definition: Non-blank, non-comment lines in non-test files. Generated files, those with a "Code generated ... DO NOT EDIT." header, are left out: a rebuild regenerates them; see tokens_est_generated.
-Evidence: Package bloat: successful agent trajectories typically stay under 20 to 30k tokens, resolve rates collapse at 64k tokens of context, and failed trajectories are longer. Strong evidence. Gated as a capacity rule: crossing the max, or a new package over it, fails. A package already over the max warns while its value holds or falls, and may grow by at most the rule's over_max_delta in one change, with a warning to split, before growth fails. The fix is a split, not a smaller change.
+Evidence: Package bloat: successful agent trajectories typically stay under 20 to 30k tokens, resolve rates collapse at 64k tokens of context, and failed trajectories are longer. Strong evidence. Gated as a capacity rule: crossing the max, or a new package over it, fails. A package already over the max warns while its value holds or falls, and may grow by at most the rule's over_max_delta in one change, with a warning to split, before growth fails. The fix is a split, not a smaller change or an edit that only lowers the number; a split out of scope for the change is recorded as an exemption with a reason, not worked around.
 Thresholds in the loaded config: none
 -- structured --
 {
   "definition": "Non-blank, non-comment lines in non-test files. Generated files, those with a \"Code generated ... DO NOT EDIT.\" header, are left out: a rebuild regenerates them; see tokens_est_generated.",
-  "evidence": "Package bloat: successful agent trajectories typically stay under 20 to 30k tokens, resolve rates collapse at 64k tokens of context, and failed trajectories are longer. Strong evidence. Gated as a capacity rule: crossing the max, or a new package over it, fails. A package already over the max warns while its value holds or falls, and may grow by at most the rule's over_max_delta in one change, with a warning to split, before growth fails. The fix is a split, not a smaller change.",
+  "evidence": "Package bloat: successful agent trajectories typically stay under 20 to 30k tokens, resolve rates collapse at 64k tokens of context, and failed trajectories are longer. Strong evidence. Gated as a capacity rule: crossing the max, or a new package over it, fails. A package already over the max warns while its value holds or falls, and may grow by at most the rule's over_max_delta in one change, with a warning to split, before growth fails. The fix is a split, not a smaller change or an edit that only lowers the number; a split out of scope for the change is recorded as an exemption with a reason, not worked around.",
   "gated": true,
   "name": "sloc",
   "release": "v0",
@@ -31,12 +31,12 @@ Thresholds in the loaded config: none
 == largest_file_sloc ==
 largest_file_sloc (v0, gated by default)
 Definition: SLOC of the largest non-test file. Generated files, those with a "Code generated ... DO NOT EDIT." header, are left out: a rebuild regenerates them; see tokens_est_generated.
-Evidence: Package bloat: successful agent trajectories typically stay under 20 to 30k tokens, resolve rates collapse at 64k tokens of context, and failed trajectories are longer. Strong evidence. Files past the ceiling rarely fit an edit in one view. Gated as a capacity rule: crossing the max, or a new package over it, fails. A package already over the max warns while its value holds or falls, and may grow by at most the rule's over_max_delta in one change, with a warning to split, before growth fails. The fix is a split, not a smaller change.
+Evidence: Package bloat: successful agent trajectories typically stay under 20 to 30k tokens, resolve rates collapse at 64k tokens of context, and failed trajectories are longer. Strong evidence. Files past the ceiling rarely fit an edit in one view. Gated as a capacity rule: crossing the max, or a new package over it, fails. A package already over the max warns while its value holds or falls, and may grow by at most the rule's over_max_delta in one change, with a warning to split, before growth fails. The fix is a split, not a smaller change or an edit that only lowers the number; a split out of scope for the change is recorded as an exemption with a reason, not worked around.
 Thresholds in the loaded config: none
 -- structured --
 {
   "definition": "SLOC of the largest non-test file. Generated files, those with a \"Code generated ... DO NOT EDIT.\" header, are left out: a rebuild regenerates them; see tokens_est_generated.",
-  "evidence": "Package bloat: successful agent trajectories typically stay under 20 to 30k tokens, resolve rates collapse at 64k tokens of context, and failed trajectories are longer. Strong evidence. Files past the ceiling rarely fit an edit in one view. Gated as a capacity rule: crossing the max, or a new package over it, fails. A package already over the max warns while its value holds or falls, and may grow by at most the rule's over_max_delta in one change, with a warning to split, before growth fails. The fix is a split, not a smaller change.",
+  "evidence": "Package bloat: successful agent trajectories typically stay under 20 to 30k tokens, resolve rates collapse at 64k tokens of context, and failed trajectories are longer. Strong evidence. Files past the ceiling rarely fit an edit in one view. Gated as a capacity rule: crossing the max, or a new package over it, fails. A package already over the max warns while its value holds or falls, and may grow by at most the rule's over_max_delta in one change, with a warning to split, before growth fails. The fix is a split, not a smaller change or an edit that only lowers the number; a split out of scope for the change is recorded as an exemption with a reason, not worked around.",
   "gated": true,
   "name": "largest_file_sloc",
   "release": "v0",
@@ -46,13 +46,13 @@ Thresholds in the loaded config: none
 == tokens_est ==
 tokens_est (v0, gated by default)
 Definition: Estimated tokens of non-test source: bytes divided by chars_per_token. Generated files, those with a "Code generated ... DO NOT EDIT." header, are left out: a rebuild regenerates them; see tokens_est_generated.
-Evidence: Package bloat: successful agent trajectories typically stay under 20 to 30k tokens, resolve rates collapse at 64k tokens of context, and failed trajectories are longer. Strong evidence. Gated as a capacity rule: crossing the max, or a new package over it, fails. A package already over the max warns while its value holds or falls, and may grow by at most the rule's over_max_delta in one change, with a warning to split, before growth fails. The fix is a split, not a smaller change.
+Evidence: Package bloat: successful agent trajectories typically stay under 20 to 30k tokens, resolve rates collapse at 64k tokens of context, and failed trajectories are longer. Strong evidence. Gated as a capacity rule: crossing the max, or a new package over it, fails. A package already over the max warns while its value holds or falls, and may grow by at most the rule's over_max_delta in one change, with a warning to split, before growth fails. The fix is a split, not a smaller change or an edit that only lowers the number; a split out of scope for the change is recorded as an exemption with a reason, not worked around.
 Thresholds in the loaded config: none
 Merged: when sloc also fires on the row in the same direction, the two are one finding attributed to sloc, whose limit names both and whose also list names tokens_est.
 -- structured --
 {
   "definition": "Estimated tokens of non-test source: bytes divided by chars_per_token. Generated files, those with a \"Code generated ... DO NOT EDIT.\" header, are left out: a rebuild regenerates them; see tokens_est_generated.",
-  "evidence": "Package bloat: successful agent trajectories typically stay under 20 to 30k tokens, resolve rates collapse at 64k tokens of context, and failed trajectories are longer. Strong evidence. Gated as a capacity rule: crossing the max, or a new package over it, fails. A package already over the max warns while its value holds or falls, and may grow by at most the rule's over_max_delta in one change, with a warning to split, before growth fails. The fix is a split, not a smaller change.",
+  "evidence": "Package bloat: successful agent trajectories typically stay under 20 to 30k tokens, resolve rates collapse at 64k tokens of context, and failed trajectories are longer. Strong evidence. Gated as a capacity rule: crossing the max, or a new package over it, fails. A package already over the max warns while its value holds or falls, and may grow by at most the rule's over_max_delta in one change, with a warning to split, before growth fails. The fix is a split, not a smaller change or an edit that only lowers the number; a split out of scope for the change is recorded as an exemption with a reason, not worked around.",
   "gated": true,
   "merged_into": "sloc",
   "name": "tokens_est",
@@ -78,12 +78,12 @@ Thresholds in the loaded config: none
 == internal_imports ==
 internal_imports (v0, gated by default)
 Definition: Fan-out: distinct module-internal packages imported by non-test files.
-Evidence: Coupling growth: agent failures come from coupled facts absent from context. Moderate evidence. Gated as a capacity rule: crossing the max, or a new package over it, fails. A package already over the max warns while its value holds or falls, and may grow by at most the rule's over_max_delta in one change, with a warning to split, before growth fails. The fix is a split, not a smaller change.
+Evidence: Coupling growth: agent failures come from coupled facts absent from context. Moderate evidence. Gated as a capacity rule: crossing the max, or a new package over it, fails. A package already over the max warns while its value holds or falls, and may grow by at most the rule's over_max_delta in one change, with a warning to split, before growth fails. The fix is a split, not a smaller change or an edit that only lowers the number; a split out of scope for the change is recorded as an exemption with a reason, not worked around.
 Thresholds in the loaded config: none
 -- structured --
 {
   "definition": "Fan-out: distinct module-internal packages imported by non-test files.",
-  "evidence": "Coupling growth: agent failures come from coupled facts absent from context. Moderate evidence. Gated as a capacity rule: crossing the max, or a new package over it, fails. A package already over the max warns while its value holds or falls, and may grow by at most the rule's over_max_delta in one change, with a warning to split, before growth fails. The fix is a split, not a smaller change.",
+  "evidence": "Coupling growth: agent failures come from coupled facts absent from context. Moderate evidence. Gated as a capacity rule: crossing the max, or a new package over it, fails. A package already over the max warns while its value holds or falls, and may grow by at most the rule's over_max_delta in one change, with a warning to split, before growth fails. The fix is a split, not a smaller change or an edit that only lowers the number; a split out of scope for the change is recorded as an exemption with a reason, not worked around.",
   "gated": true,
   "name": "internal_imports",
   "release": "v0",
@@ -153,12 +153,12 @@ Thresholds in the loaded config: none
 == exported_symbols ==
 exported_symbols (v0, gated by default)
 Definition: Exported funcs, methods, types, vars and consts in non-test files. Generated files, those with a "Code generated ... DO NOT EDIT." header, are left out: a rebuild regenerates them; see tokens_est_generated.
-Evidence: Exporting everything: no direct study; a wider API surface raises fan-in cost and the facts the next agent must hold. Indirect evidence. Gated as a capacity rule: crossing the max, or a new package over it, fails. A package already over the max warns while its value holds or falls, and may grow by at most the rule's over_max_delta in one change, with a warning to split, before growth fails. The fix is a split, not a smaller change.
+Evidence: Exporting everything: no direct study; a wider API surface raises fan-in cost and the facts the next agent must hold. Indirect evidence. Gated as a capacity rule: crossing the max, or a new package over it, fails. A package already over the max warns while its value holds or falls, and may grow by at most the rule's over_max_delta in one change, with a warning to split, before growth fails. The fix is a split, not a smaller change or an edit that only lowers the number; a split out of scope for the change is recorded as an exemption with a reason, not worked around.
 Thresholds in the loaded config: none
 -- structured --
 {
   "definition": "Exported funcs, methods, types, vars and consts in non-test files. Generated files, those with a \"Code generated ... DO NOT EDIT.\" header, are left out: a rebuild regenerates them; see tokens_est_generated.",
-  "evidence": "Exporting everything: no direct study; a wider API surface raises fan-in cost and the facts the next agent must hold. Indirect evidence. Gated as a capacity rule: crossing the max, or a new package over it, fails. A package already over the max warns while its value holds or falls, and may grow by at most the rule's over_max_delta in one change, with a warning to split, before growth fails. The fix is a split, not a smaller change.",
+  "evidence": "Exporting everything: no direct study; a wider API surface raises fan-in cost and the facts the next agent must hold. Indirect evidence. Gated as a capacity rule: crossing the max, or a new package over it, fails. A package already over the max warns while its value holds or falls, and may grow by at most the rule's over_max_delta in one change, with a warning to split, before growth fails. The fix is a split, not a smaller change or an edit that only lowers the number; a split out of scope for the change is recorded as an exemption with a reason, not worked around.",
   "gated": true,
   "name": "exported_symbols",
   "release": "v0",

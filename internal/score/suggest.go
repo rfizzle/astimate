@@ -146,9 +146,10 @@ func MetricSuggestion(metric string, head float64, m metrics.RawMetrics, n Names
 	case "largest_file_sloc":
 		return "The largest file has " + v + " source lines; split it by responsibility."
 	case "exported_symbols":
-		return "The package exports " + count(int(head), "symbol", "symbols") + "; narrow the surface or split the package."
+		return "The package exports " + count(int(head), "symbol", "symbols") + ": split it along one of its responsibilities. " + notFixExports
 	case "internal_imports":
-		return "The package imports " + count(int(head), "internal package", "internal packages") + "; cut dependencies or split the package."
+		return "The package imports " + count(int(head), "internal package: move the code that needs it",
+			"internal packages: move the code that needs them") + " into a package of its own, or split it. " + notFixImports
 	case "sloc":
 		return "The package has " + v + " source lines; split it before the next feature."
 	case "has_tests":
@@ -167,6 +168,17 @@ func MetricSuggestion(metric string, head float64, m metrics.RawMetrics, n Names
 		return ""
 	}
 }
+
+// notFixExports and notFixImports name the edits that lower the
+// exported_symbols and internal_imports counts without the split the
+// rule asks for, so the agent reading a violation does not take them for
+// fixes: each makes the code worse and none shows in the report.
+const (
+	notFixExports = "Not a fix: unexporting what callers need, folding a new function into an existing one's " +
+		"parameters (a variadic or option argument), or changing what an existing export does."
+	notFixImports = "Not a fix: moving code into a package it does not belong in, or injecting a dependency " +
+		"only to drop the import."
+)
 
 // addedNote follows a cited block the change added.
 const addedNote = ", added in this change"

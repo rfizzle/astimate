@@ -41,14 +41,14 @@ func TestEvaluateSeverity(t *testing.T) {
 			name: "capacity crossing max",
 			rule: capacity("sloc", 1000, 0.75),
 			head: metrics.RawMetrics{SLOC: 1010}, base: &metrics.RawMetrics{SLOC: 950},
-			want: gate.Violation{Metric: "sloc", Base: 950, Head: 1010, HasBase: true, Limit: "max 1000", Suggestion: "Fix sloc."},
+			want: gate.Violation{Metric: "sloc", Base: 950, Head: 1010, HasBase: true, Limit: "max 1000", Suggestion: "Fix sloc." + outOfScope},
 		},
 		{
 			name: "capacity growth past over_max_delta",
 			rule: overMax,
 			head: metrics.RawMetrics{SLOC: 1200}, base: &metrics.RawMetrics{SLOC: 1050},
 			want: gate.Violation{Metric: "sloc", Base: 1050, Head: 1200, HasBase: true, Limit: "over max by 200, allowed 100",
-				Suggestion: "grew 150 while over the 1000 ceiling, more than the 100 one change may add there; split the package. Fix sloc."},
+				Suggestion: "grew 150 while over the 1000 ceiling, more than the 100 one change may add there; split the package. Fix sloc." + outOfScope},
 		},
 		{
 			name: "requirement",

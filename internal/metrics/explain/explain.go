@@ -61,7 +61,8 @@ const (
 	evidenceCapacity = "Gated as a capacity rule: crossing the max, or a new package over it, fails. " +
 		"A package already over the max warns while its value holds or falls, and may grow by at most the " +
 		"rule's over_max_delta in one change, with a warning to split, before growth fails. The fix is a split, " +
-		"not a smaller change."
+		"not a smaller change or an edit that only lowers the number; a split out of scope for the change is " +
+		"recorded as an exemption with a reason, not worked around."
 	evidenceTests = "Untested additions: agents self-correct through a run-and-check loop, and a " +
 		"package without tests denies the next agent that loop. Moderate, indirect evidence."
 	evidenceHiddenState = "Hidden state: no direct study; plausible and kept at low weight."

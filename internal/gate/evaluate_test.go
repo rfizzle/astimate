@@ -2,6 +2,7 @@ package gate_test
 
 import (
 	"reflect"
+	"slices"
 	"strconv"
 	"testing"
 
@@ -900,6 +901,11 @@ func TestEvaluateOverMaxDelta(t *testing.T) {
 	}
 }
 
+// outOfScope is the sentence that closes the suggestion of a capacity
+// rule's breach on a package row.
+const outOfScope = " If the split is out of scope for this change, stop and say so instead of working around the limit, " +
+	"so a person can record the debt as an exemption with a reason and an expiry."
+
 func TestEvaluateOverMaxDeltaText(t *testing.T) {
 	t.Parallel()
 
@@ -920,10 +926,54 @@ func TestEvaluateOverMaxDeltaText(t *testing.T) {
 	got = gate.Evaluate(metrics.RawMetrics{SLOC: 1200}, &base, []gate.Threshold{rule}, suggest)
 	want = gate.Result{Violations: []gate.Violation{{
 		Metric: "sloc", Base: 1050, Head: 1200, HasBase: true, Limit: "over max by 200, allowed 100",
-		Suggestion: "grew 150 while over the 1000 ceiling, more than the 100 one change may add there; split the package. Split sloc.",
+		Suggestion: "grew 150 while over the 1000 ceiling, more than the 100 one change may add there; split the package. Split sloc." + outOfScope,
 	}}}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("past: Evaluate() =\n%+v\nwant\n%+v", got, want)
+	}
+}
+
+// TestEvaluateCapacityOutOfScope checks that a capacity rule's breach on
+// a package row, and only its breach, closes its suggestion with the
+// advice for a split out of scope: the warnings ask for nothing in this
+// change, and an exemption can accept only the breach.
+func TestEvaluateCapacityOutOfScope(t *testing.T) {
+	t.Parallel()
+
+	suggest := func(metric string, _ float64, _ metrics.RawMetrics) string { return "Split " + metric + "." }
+	rule := capacity("exported_symbols", 60, 0.75)
+	allowing := rule
+	allowing.OverMaxDelta = ptr(5.0)
+	warnRule := rule
+	warnRule.Severity = gate.SeverityWarn
+	tests := []struct {
+		name string
+		rule gate.Threshold
+		base *metrics.RawMetrics
+		head int
+		want string
+	}{
+		{"new package over the max", rule, nil, 61, "Split exported_symbols." + outOfScope},
+		{"crossing the max", rule, &metrics.RawMetrics{ExportedSymbols: 59}, 61, "Split exported_symbols." + outOfScope},
+		{"growth over the max", rule, &metrics.RawMetrics{ExportedSymbols: 61}, 62, "Split exported_symbols." + outOfScope},
+		{"warn rule's breach", warnRule, &metrics.RawMetrics{ExportedSymbols: 59}, 61, "Split exported_symbols." + outOfScope},
+		{"warn_at band", rule, &metrics.RawMetrics{ExportedSymbols: 40}, 50,
+			"at 83% of the 60 ceiling; plan a split before the next feature. Split exported_symbols."},
+		{"unchanged over the max", rule, &metrics.RawMetrics{ExportedSymbols: 61}, 61,
+			"over the 60 ceiling (unchanged since baseline); plan a split. Split exported_symbols."},
+		{"growth within over_max_delta", allowing, &metrics.RawMetrics{ExportedSymbols: 61}, 63,
+			"grew 2 while over the 60 ceiling, within the 5 one change may add there; split the package before it grows further. Split exported_symbols."},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := gate.Evaluate(metrics.RawMetrics{ExportedSymbols: tt.head}, tt.base, []gate.Threshold{tt.rule}, suggest)
+			findings := slices.Concat(got.Violations, got.Warnings)
+			if len(findings) != 1 || findings[0].Suggestion != tt.want {
+				t.Errorf("Evaluate() = %+v, want one finding with suggestion %q", got, tt.want)
+			}
+		})
 	}
 }
 

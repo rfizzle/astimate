@@ -128,7 +128,7 @@
         "base": 900,
         "head": 1100,
         "limit": "max 1000; tokens_est 15000 -> 17500, max 16000",
-        "suggestion": "Split the package.",
+        "suggestion": "Split the package. If the split is out of scope for this change, stop and say so instead of working around the limit, so a person can record the debt as an exemption with a reason and an expiry.",
         "also": [
           "tokens_est"
         ]

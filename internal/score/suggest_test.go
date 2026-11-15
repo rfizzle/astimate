@@ -91,6 +91,36 @@ func TestMetricSuggestionEveryTemplate(t *testing.T) {
 	}
 }
 
+// TestMetricSuggestionCapacitySurface pins the exported_symbols and
+// internal_imports templates: the split to make, in the first clause so a
+// format that keeps only that clause still carries it, then the edits
+// that lower the count without one, which are not fixes.
+func TestMetricSuggestionCapacitySurface(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		metric string
+		head   float64
+		want   string
+	}{
+		{"exported_symbols", 64, "The package exports 64 symbols: split it along one of its responsibilities. " +
+			"Not a fix: unexporting what callers need, folding a new function into an existing one's parameters " +
+			"(a variadic or option argument), or changing what an existing export does."},
+		{"internal_imports", 13, "The package imports 13 internal packages: move the code that needs them into a package of its own, or split it. " +
+			"Not a fix: moving code into a package it does not belong in, or injecting a dependency only to drop the import."},
+		{"internal_imports", 1, "The package imports 1 internal package: move the code that needs it into a package of its own, or split it. " +
+			"Not a fix: moving code into a package it does not belong in, or injecting a dependency only to drop the import."},
+	}
+	for _, tt := range tests {
+		t.Run(tt.metric+"/"+formatNum(tt.head), func(t *testing.T) {
+			t.Parallel()
+			if got := MetricSuggestion(tt.metric, tt.head, metrics.RawMetrics{}, Names{}); got != tt.want {
+				t.Errorf("MetricSuggestion = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestMetricSuggestionUnknown(t *testing.T) {
 	t.Parallel()
 
