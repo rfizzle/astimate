@@ -16,6 +16,11 @@ type FunctionInfo struct {
 	// edits to comments, formatting, identifier names or literal values do
 	// not change it.
 	Fingerprint uint64
+	// Signature hashes an exported function's parameter and result types
+	// (SPEC.md 8.1, Reshaped exports); 0 for an unexported function, for
+	// an extractor that does not hash signatures and in a baseline file
+	// written before they were recorded.
+	Signature uint64
 	// Cognitive is the function's cognitive complexity.
 	Cognitive int
 	// Cyclomatic is the function's McCabe cyclomatic complexity, counted

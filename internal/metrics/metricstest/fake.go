@@ -212,6 +212,8 @@ func cloneDetails(d metrics.Details) metrics.Details {
 		GlobalPositions:   slices.Clone(d.GlobalPositions),
 		GlobalNames:       slices.Clone(d.GlobalNames),
 		LargestFile:       d.LargestFile,
+		Exports:           slices.Clone(d.Exports),
+		Unexported:        slices.Clone(d.Unexported),
 		SourceFiles:       slices.Clone(d.SourceFiles),
 	}
 }

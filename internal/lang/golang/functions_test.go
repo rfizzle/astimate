@@ -80,7 +80,7 @@ func (T) Stop() {}
 func helperRenamed(a, b bool) bool { return a && b }
 `
 	infos := func(src string) []metrics.FunctionInfo {
-		return functionInfos(nil, "", inspect.Complexity(nil, parseForComplexity(t, src)).PerFunc)
+		return inspect.FunctionInfos(nil, "", inspect.Complexity(nil, parseForComplexity(t, src)).PerFunc)
 	}
 	var got []string
 	for _, f := range metrics.ChangedFunctions(infos(before), infos(after)) {

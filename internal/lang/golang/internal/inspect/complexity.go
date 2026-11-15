@@ -64,6 +64,9 @@ type Func struct {
 	Nesting int
 	// Fingerprint hashes the body's normalized syntax (see fingerprint.go).
 	Fingerprint uint64
+	// Signature hashes an exported function's parameter and result types
+	// (see signature.go); 0 for an unexported one.
+	Signature uint64
 	// Pos is the declaration's position in the load's file set, resolved
 	// to a file and line only when a caller asks for it.
 	Pos token.Pos
@@ -74,13 +77,15 @@ type Func struct {
 // functions included and generated files left out (SPEC.md 6.5; see
 // load.Module.AuthoredSyntax), so the function list
 // changed_func_cognitive_max diffs holds no generated function either, and
-// fingerprints each body in the same walk that measures its nesting.
+// fingerprints each body in the same walk that measures its nesting, and
+// hashes each exported function's signature from its declaration's type.
 // Function literals are scored as part of the function that contains them.
 // The same walk records the package-level variables each body writes, and
 // the package-level var initializers, which no other metric walks, are
 // scanned for writes too (ComplexityCounts.Written).
 func Complexity(m *load.Module, p *packages.Package) ComplexityCounts {
 	var c ComplexityCounts
+	var sig sigHasher
 	w := newWrites(p)
 	for d := range decls(m, p) {
 		fn, ok := d.(*ast.FuncDecl)
@@ -97,6 +102,9 @@ func Complexity(m *load.Module, p *packages.Package) ComplexityCounts {
 			Pos:       fn.Pos(),
 		}
 		fc.Nesting, fc.Cyclomatic, fc.Fingerprint = inspectBody(fn.Name.Name, fn.Body, w)
+		if fn.Name.IsExported() {
+			fc.Signature = sig.sum(fn)
+		}
 		c.PerFunc = append(c.PerFunc, fc)
 		c.CognitiveTotal += fc.Cognitive
 		c.CyclomaticTotal += fc.Cyclomatic

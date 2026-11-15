@@ -36,7 +36,7 @@ type SizeCounts struct {
 // files only. It iterates the trees of p.GoFiles, so for a cgo package too
 // PerFile has one entry per counted file. Interface types are recognized
 // through p's package scope when p has type information (see
-// exportedInSpec).
+// addSpec).
 func Size(m *load.Module, p *packages.Package, src load.FileSource) (SizeCounts, error) {
 	c := SizeCounts{
 		Files:   len(p.GoFiles),
@@ -61,7 +61,7 @@ func Size(m *load.Module, p *packages.Package, src load.FileSource) (SizeCounts,
 		if c.LargestFile == "" || n > c.LargestFileSLOC {
 			c.LargestFile, c.LargestFileSLOC = tf.Name(), n
 		}
-		c.Exports.add(ExportedSymbols(f, scope))
+		c.Exports.addFile(f, scope)
 	}
 	return c, nil
 }
@@ -120,32 +120,56 @@ type ExportCounts struct {
 	// Types counts exported type specs, aliases included.
 	Types int
 	// InterfaceTypes counts the exported type specs whose type is an
-	// interface; see exportedInSpec.
+	// interface; see addSpec.
 	InterfaceTypes int
 	// Documented is documented_exports: the Symbols that carry a doc
-	// comment; see exportedInSpec.
+	// comment; see addSpec.
 	Documented int
+	// Exported are the declarations Symbols counts, in declaration order,
+	// and Unexported the other top-level funcs, methods, types, vars and
+	// consts, _ and init left out (metrics.Details.Exports).
+	Exported, Unexported []Symbol
 }
 
-// add accumulates o into c.
-func (c *ExportCounts) add(o ExportCounts) {
-	c.Symbols += o.Symbols
-	c.Types += o.Types
-	c.InterfaceTypes += o.InterfaceTypes
-	c.Documented += o.Documented
+// Symbol is one top-level declaration (metrics.Symbol): Kind is "func", a
+// method too, "type", "var" or "const", Receiver a method's receiver base
+// type name, and Pos the position of its name in the load's file set.
+type Symbol struct {
+	Kind, Receiver, Name string
+	Pos                  token.Pos
+}
+
+// note records the declaration of name, of kind and receiver recv, among
+// c's exported or unexported symbols; _ and init are not recorded.
+func (c *ExportCounts) note(kind, recv string, name *ast.Ident) {
+	s := Symbol{Kind: kind, Receiver: recv, Name: name.Name, Pos: name.Pos()}
+	switch {
+	case name.IsExported():
+		c.Exported = append(c.Exported, s)
+	case name.Name != "_" && (kind != "func" || name.Name != "init"):
+		c.Unexported = append(c.Unexported, s)
+	}
 }
 
 // ExportedSymbols counts the exported top-level funcs, types, var and const
 // names, and exported methods on any receiver, exported or not, declared in
 // f, with the exported types among them, the interface types among those and
-// the documented ones among all. Struct fields and interface methods are not
+// the documented ones among all, and records every top-level name, exported
+// or not (ExportCounts.Exported). Struct fields and interface methods are not
 // counted. scope is the package scope interface types are resolved in, or nil
-// to test syntactically; see exportedInSpec.
+// to test syntactically; see addSpec.
 func ExportedSymbols(f *ast.File, scope *types.Scope) ExportCounts {
 	var c ExportCounts
+	c.addFile(f, scope)
+	return c
+}
+
+// addFile adds what ExportedSymbols counts and records in f to c.
+func (c *ExportCounts) addFile(f *ast.File, scope *types.Scope) {
 	for _, d := range f.Decls {
 		switch d := d.(type) {
 		case *ast.FuncDecl:
+			c.note("func", funcReceiver(d), d.Name)
 			if d.Name.IsExported() {
 				c.Symbols++
 				if d.Doc != nil {
@@ -154,15 +178,15 @@ func ExportedSymbols(f *ast.File, scope *types.Scope) ExportCounts {
 			}
 		case *ast.GenDecl:
 			for _, s := range d.Specs {
-				c.add(exportedInSpec(s, d.Doc != nil, scope))
+				c.addSpec(s, d.Tok.String(), d.Doc != nil, scope)
 			}
 		}
 	}
-	return c
 }
 
-// exportedInSpec counts the exported names a type, var or const spec
-// declares. Import specs declare none. A name is documented when its spec
+// addSpec adds to c the exported names a type, var or const spec
+// declares, and records each name, with kind, the spec's keyword, for a
+// var or const. Import specs declare none. A name is documented when its spec
 // has a doc comment, or a line comment for a var or const spec, as go doc
 // shows them, or when declDoc reports that its declaration, the spec's
 // group, has one.
@@ -176,10 +200,10 @@ func ExportedSymbols(f *ast.File, scope *types.Scope) ExportCounts {
 // type-checked or a cgo package's reparsed source. With a nil scope, or a
 // name the scope lacks, the test falls back to syntax: the type expression
 // is an interface literal.
-func exportedInSpec(s ast.Spec, declDoc bool, scope *types.Scope) ExportCounts {
-	var c ExportCounts
+func (c *ExportCounts) addSpec(s ast.Spec, kind string, declDoc bool, scope *types.Scope) {
 	switch s := s.(type) {
 	case *ast.TypeSpec:
+		c.note("type", "", s.Name)
 		if s.Name.IsExported() {
 			c.Symbols++
 			c.Types++
@@ -193,6 +217,7 @@ func exportedInSpec(s ast.Spec, declDoc bool, scope *types.Scope) ExportCounts {
 	case *ast.ValueSpec:
 		documented := declDoc || s.Doc != nil || s.Comment != nil
 		for _, name := range s.Names {
+			c.note(kind, "", name)
 			if name.IsExported() {
 				c.Symbols++
 				if documented {
@@ -201,7 +226,6 @@ func exportedInSpec(s ast.Spec, declDoc bool, scope *types.Scope) ExportCounts {
 			}
 		}
 	}
-	return c
 }
 
 // isInterfaceSpec reports whether the type s declares is an interface: its

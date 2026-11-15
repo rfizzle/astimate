@@ -3,7 +3,6 @@ package golang
 import (
 	"context"
 	"fmt"
-	"go/token"
 	"slices"
 
 	"github.com/rfizzle/astimate/internal/lang/duptok"
@@ -16,10 +15,10 @@ import (
 // Details returns the names behind untested_exports, the duplicate block
 // locations and the cross-package blocks touching the package with import
 // path pkg, the declarations of its untested exports and globals, the names
-// of its globals, its largest file, its functions and its source files,
-// from the details its most recent Extract on mod recorded and the
-// memoized cross-package pass. When nothing is recorded it runs Extract first, so it fails exactly
-// when Extract would.
+// of its globals, its largest file, its functions, its top-level
+// declarations and its source files, from the details its most recent
+// Extract on mod recorded and the memoized cross-package pass. When nothing
+// is recorded it runs Extract first, so it fails exactly when Extract would.
 func (e *Extractor) Details(ctx context.Context, mod *metrics.ModuleContext, pkg string) (metrics.Details, error) {
 	d, l, dir, err := e.recorded(ctx, mod, pkg)
 	if err != nil {
@@ -51,32 +50,15 @@ func (e *Extractor) Details(ctx context.Context, mod *metrics.ModuleContext, pkg
 		DupLocations:      locs,
 		DupBlocks:         blocks,
 		CrossBlocks:       cross,
-		UntestedPositions: positions(l.Fset, dir, d.untested.Pos),
-		GlobalPositions:   positions(l.Fset, dir, d.globals.Pos),
+		UntestedPositions: inspect.Positions(l.Fset, dir, d.untested.Pos),
+		GlobalPositions:   inspect.Positions(l.Fset, dir, d.globals.Pos),
 		GlobalNames:       slices.Clone(d.globals.Names),
 		LargestFile:       load.RelFile(dir, d.largestFile),
-		Functions:         functionInfos(l.Fset, dir, d.functions),
+		Functions:         inspect.FunctionInfos(l.Fset, dir, d.functions),
+		Exports:           inspect.Symbols(l.Fset, dir, d.exports.Exported),
+		Unexported:        inspect.Symbols(l.Fset, dir, d.exports.Unexported),
 		SourceFiles:       files,
 	}, nil
-}
-
-// positions resolves each of ps in fset to a file relative to dir and a
-// line, honoring //line directives, so a cgo package's rewritten sources
-// map back to the files cgo read. It returns nil for no positions, and an
-// invalid position, or a nil fset, yields an empty Position.
-func positions(fset *token.FileSet, dir string, ps []token.Pos) []metrics.Position {
-	if len(ps) == 0 {
-		return nil
-	}
-	out := make([]metrics.Position, len(ps))
-	for i, p := range ps {
-		if fset == nil || !p.IsValid() {
-			continue
-		}
-		pos := fset.Position(p)
-		out[i] = metrics.Position{File: load.RelFile(dir, pos.Filename), Line: pos.Line}
-	}
-	return out
 }
 
 // Functions returns the top-level functions and methods of the package with
@@ -90,28 +72,7 @@ func (e *Extractor) Functions(ctx context.Context, mod *metrics.ModuleContext, p
 	if err != nil {
 		return nil, err
 	}
-	return functionInfos(l.Fset, dir, d.functions), nil
-}
-
-// functionInfos converts the per-function records of a package in dir to
-// metrics.FunctionInfo, resolving each position in fset to a file relative
-// to dir and a line. A nil fset leaves File and Line empty.
-func functionInfos(fset *token.FileSet, dir string, fcs []inspect.Func) []metrics.FunctionInfo {
-	fns := make([]metrics.FunctionInfo, len(fcs))
-	for i, fc := range fcs {
-		fns[i] = metrics.FunctionInfo{
-			Receiver:    fc.Receiver,
-			Name:        fc.Ident,
-			Fingerprint: fc.Fingerprint,
-			Cognitive:   fc.Cognitive,
-			Cyclomatic:  fc.Cyclomatic,
-		}
-		if fset != nil && fc.Pos.IsValid() {
-			pos := fset.Position(fc.Pos)
-			fns[i].File, fns[i].Line = load.RelFile(dir, pos.Filename), pos.Line
-		}
-	}
-	return fns
+	return inspect.FunctionInfos(l.Fset, dir, d.functions), nil
 }
 
 // recorded returns the details the most recent Extract of pkg on mod

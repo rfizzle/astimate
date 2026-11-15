@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/rfizzle/astimate/internal/lang/golang/internal/inspect"
 	"github.com/rfizzle/astimate/internal/lang/golang/internal/load"
 	"github.com/rfizzle/astimate/internal/metrics"
 )
@@ -79,7 +80,7 @@ func ExtractStdlibAllFunctions(ctx context.Context, opts ...Option,
 	for path := range got {
 		// assemble recorded the details of every package it measured.
 		d, _ := l.detailsOf(path)
-		fns[path] = functionInfos(l.Fset, l.Pkgs[path].Dir, d.functions)
+		fns[path] = inspect.FunctionInfos(l.Fset, l.Pkgs[path].Dir, d.functions)
 	}
 	return got, fns, failed, nil
 }

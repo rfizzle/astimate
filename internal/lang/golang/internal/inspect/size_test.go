@@ -91,13 +91,61 @@ func TestExportedSymbols(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			f, scope := typeCheckForSize(t, tc.src)
-			if got := ExportedSymbols(f, scope); got != tc.want {
+			if got := countsOnly(ExportedSymbols(f, scope)); got != countsOnly(tc.want) {
 				t.Errorf("ExportedSymbols(scope) = %+v, want %+v", got, tc.want)
 			}
 			syntactic := tc.want
 			syntactic.InterfaceTypes -= tc.syntacticMiss
-			if got := ExportedSymbols(f, nil); got != syntactic {
+			if got := countsOnly(ExportedSymbols(f, nil)); got != countsOnly(syntactic) {
 				t.Errorf("ExportedSymbols(nil) = %+v, want %+v", got, syntactic)
+			}
+		})
+	}
+}
+
+// countsOnly returns the counts of c, without its recorded declarations,
+// so they compare with ==: Symbols, Types, InterfaceTypes, Documented.
+func countsOnly(c ExportCounts) [4]int {
+	return [4]int{c.Symbols, c.Types, c.InterfaceTypes, c.Documented}
+}
+
+// TestExportedSymbolsNames checks the declarations ExportedSymbols records:
+// every exported name in declaration order, its length the count, and the
+// other top-level names but _ and init, each with its kind and a method's
+// receiver base type.
+func TestExportedSymbolsNames(t *testing.T) {
+	cases := []struct {
+		name               string
+		src                string
+		exported, unexport []string
+	}{
+		{"funcs and methods", "package p\nfunc F() {}\nfunc init() {}\ntype t[T any] struct{}\nfunc (*t[T]) M() {}\nfunc (t[T]) m() {}\n",
+			[]string{"func F", "func t.M"}, []string{"type t", "func t.m"}},
+		{"values and types", "package p\nvar A, _, b = 1, 2, 3\nconst (\n\tC = iota\n\tc\n)\ntype (\n\tT int\n\tu = T\n)\n",
+			[]string{"var A", "const C", "type T"}, []string{"var b", "const c", "type u"}},
+		{"imports declare nothing", "package p\nimport \"fmt\"\nvar _ = fmt.Sprint\n", nil, nil},
+	}
+	render := func(ss []Symbol) []string {
+		var out []string
+		for _, s := range ss {
+			out = append(out, s.Kind+" "+qualify(s.Receiver, s.Name))
+		}
+		return out
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, f := parseForSize(t, tc.src)
+			got := ExportedSymbols(f, nil)
+			if e := render(got.Exported); !slices.Equal(e, tc.exported) || len(e) != got.Symbols {
+				t.Errorf("Exported = %v (Symbols %d), want %v", e, got.Symbols, tc.exported)
+			}
+			if u := render(got.Unexported); !slices.Equal(u, tc.unexport) {
+				t.Errorf("Unexported = %v, want %v", u, tc.unexport)
+			}
+			for _, s := range slices.Concat(got.Exported, got.Unexported) {
+				if !s.Pos.IsValid() {
+					t.Errorf("%s has no position", s.Name)
+				}
 			}
 		})
 	}

@@ -61,6 +61,13 @@ type Details struct {
 	// report's details. Nil when there are none or the implementation does
 	// not list them.
 	Functions []FunctionInfo
+	// Exports are the package-level declarations exported_symbols counts,
+	// in declaration order, so its length equals exported_symbols, and
+	// Unexported the package's other package-level funcs, methods, types,
+	// vars and consts, _ and init left out: what a check reads to tell an
+	// export made unexported (SPEC.md 8.1, Reshaped exports). Nil when
+	// there are none or the implementation does not record them.
+	Exports, Unexported []Symbol
 	// SourceFiles are the package's non-test source files relative to the
 	// package directory in slash form, sorted. Nil when unknown.
 	SourceFiles []string
@@ -108,6 +115,21 @@ type DupBlock struct {
 	// implementation does not classify blocks.
 	Kind      string
 	Locations []string
+}
+
+// Symbol is one package-level declaration: a func or method, a type, a
+// var or a const name.
+type Symbol struct {
+	// Kind is "func" (a method too), "type", "var" or "const".
+	Kind string
+	// Receiver is a method's receiver base type name, as in FunctionInfo;
+	// empty for anything else.
+	Receiver string
+	// Name is the declared name.
+	Name string
+	// Position is where it is declared; zero when unknown, as in a
+	// baseline.
+	Position
 }
 
 // Position is a place in a package's source, for renderers that annotate

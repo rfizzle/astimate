@@ -12,9 +12,10 @@ import (
 
 // checkDetailsConsistency checks the parts of det, the details of pkg, that
 // mirror counts in m: positions recorded index for index with the untested
-// exports and one per global, one global name per global, and the
-// cross-package blocks behind dup_blocks_cross_pkg. Nil positions, names or
-// blocks mean the implementation does not record them and are not checked.
+// exports and one per global, one global name per global, one export
+// declaration per exported symbol, and the cross-package blocks behind
+// dup_blocks_cross_pkg. Nil positions, names, declarations or blocks mean
+// the implementation does not record them and are not checked.
 func checkDetailsConsistency(t *testing.T, pkg string, det metrics.Details, m metrics.RawMetrics, pkgs []string) {
 	t.Helper()
 	if det.UntestedPositions != nil && len(det.UntestedPositions) != len(det.UntestedExports) {
@@ -29,6 +30,9 @@ func checkDetailsConsistency(t *testing.T, pkg string, det metrics.Details, m me
 	}
 	if det.GlobalNames != nil && det.GlobalPositions != nil && len(det.GlobalNames) != len(det.GlobalPositions) {
 		t.Errorf("%s: Details names %d globals at %d positions, want one position per name", pkg, len(det.GlobalNames), len(det.GlobalPositions))
+	}
+	if det.Exports != nil && len(det.Exports) != m.ExportedSymbols {
+		t.Errorf("%s: Details lists %d export declarations, want exported_symbols %d", pkg, len(det.Exports), m.ExportedSymbols)
 	}
 	if det.CrossBlocks == nil {
 		return

@@ -58,6 +58,8 @@ type details struct {
 	dupBlocks    []duptok.Group
 	tokensMethod string
 	functions    []inspect.Func
+	// exports are the package's top-level declarations.
+	exports inspect.ExportCounts
 	// largestFile is the absolute filename of the largest non-test file.
 	largestFile string
 	// files are the absolute filenames of the non-test files.
