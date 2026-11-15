@@ -12,6 +12,18 @@ history.
 
 ### Added
 
+- An opt-in block log for the Claude Code Stop hook. With
+  `hook.block_log: .astimate/blocks.jsonl` in the configuration (off by
+  default; `config init` shows it commented out), each
+  `check --format hook` that blocks appends one JSON line per violation,
+  and each later one that passes appends, for every package and metric
+  still blocked in the file, what the working tree showed: the value now,
+  whether the package still exists, the packages new since the baseline
+  and whether a rename seeded one from it, whether an exemption covers the
+  finding and whether the reshaped-exports heads-up fired. The hook's
+  stdout, decision and exit code are unchanged; a log that cannot be
+  written costs one warning on stderr. The report schema, the hook JSON
+  and the exit codes are unchanged.
 - `check` warns when a change reshapes the exports of a package near its
   `exported_symbols` ceiling without adding one: an existing exported
   function or method whose signature changed (a variadic parameter added

@@ -84,7 +84,8 @@ func New(o Options) *Checker {
 // signature changed or that were made unexported since the baseline
 // (surface.Reshaped) are given to the gate (gate.WithReshaped), whose
 // heads-up is located on the first of them. The result
-// carries the changed functions (report.CheckedPackage.ChangedFunctions).
+// carries the changed functions (report.CheckedPackage.ChangedFunctions)
+// and those exports (report.CheckedPackage.Reshaped).
 // The exemptions are applied to the result
 // (exempt.List.Apply) before the report is built. unrecorded reports
 // that the diff was skipped because the baseline has pkg but no functions
@@ -141,7 +142,7 @@ func (c *Checker) Package(ctx context.Context, pkg string, m metrics.RawMetrics)
 	locateFindings(&r, &det, nameJudged(&r, &res, worst, m, names), lead)
 	locateReshaped(&r, reshapedAt)
 	r.Details = c.details(&det)
-	p = report.CheckedPackage{Report: r, ChangedFunctions: changed}
+	p = report.CheckedPackage{Report: r, ChangedFunctions: changed, Reshaped: reshaped}
 	if bm != nil {
 		// Baselines never measure coverage. When head did, the base is
 		// estimated with head's coverage so that the two agent_passes

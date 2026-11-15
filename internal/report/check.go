@@ -98,6 +98,12 @@ type CheckedPackage struct {
 	// the full count was judged (SPEC.md 8.1). No renderer shows them; the
 	// gate replay records them.
 	CrossGroups []score.CrossGroup
+	// Reshaped names, in full, the exports whose signature changed or that
+	// were made unexported since the baseline, as the reshaped-exports
+	// heads-up lists them (SPEC.md 8.1) when it fires: a warning whose
+	// limit gate.IsReshaped. Nil when the change reshaped none. No renderer
+	// shows them; the block log records them (SPEC.md 8.5).
+	Reshaped []string
 }
 
 // Failed reports whether the module row or any package has a violation.

@@ -52,6 +52,8 @@ type Config struct {
 	Duplication Duplication
 	// Churn holds the churn window.
 	Churn Churn
+	// Hook holds the settings of the hook format: the block log.
+	Hook Hook
 	// Rebuild holds the rebuild-estimate parameters.
 	Rebuild score.RebuildParams
 	// Thresholds holds the gate rules in file order.
@@ -101,6 +103,7 @@ type fileConfig struct {
 	CharsPerToken *float64         `yaml:"chars_per_token"`
 	Duplication   *fileDuplication `yaml:"duplication"`
 	Churn         *fileChurn       `yaml:"churn"`
+	Hook          *fileHook        `yaml:"hook"`
 	Rebuild       *fileRebuild     `yaml:"rebuild"`
 	Thresholds    []fileThreshold  `yaml:"thresholds"`
 	Exemptions    []fileExemption  `yaml:"exemptions"`
@@ -291,6 +294,9 @@ func (c *Config) Validate() error {
 	if err := c.validateChurn(); err != nil {
 		errs = append(errs, err)
 	}
+	if err := c.validateHook(); err != nil {
+		errs = append(errs, err)
+	}
 	if err := c.Rebuild.Validate(); err != nil {
 		errs = append(errs, fmt.Errorf("rebuild: %w", err))
 	}
@@ -376,6 +382,9 @@ func (fc *fileConfig) build() (*Config, error) {
 	}
 	if err := fc.buildChurn(cfg); err != nil {
 		errs = append(errs, err)
+	}
+	if fc.Hook != nil && fc.Hook.BlockLog != nil {
+		cfg.Hook.BlockLog = *fc.Hook.BlockLog
 	}
 	if err := fc.buildCocomo(cfg); err != nil {
 		errs = append(errs, err)

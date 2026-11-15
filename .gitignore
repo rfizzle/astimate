@@ -1,6 +1,9 @@
 # Local working files
 .backlog.md
 
+# The hook's block log, when hook.block_log turns it on: local working state
+.astimate/blocks.jsonl
+
 # Build artifacts
 /astimate
 /dist/

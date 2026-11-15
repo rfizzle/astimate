@@ -82,6 +82,16 @@ churn:
 # exclude:
 #   - "internal/gen/**"
 
+# Hook: settings of `astimate check --format hook`, the Claude Code Stop
+# hook, that never change its decision. block_log names a file, relative to
+# the module root, that each hook check appends to: one JSON line per
+# violation when it blocks, and when it passes one line per package and
+# metric still blocked in the file, so `go run ./calibration/blocks` can
+# say how each block was resolved. Off when absent. The file is local
+# working state: list it in .gitignore.
+# hook:
+#   block_log: .astimate/blocks.jsonl
+
 # Rebuild estimate parameters (SPEC.md sections 7.2 to 7.4).
 rebuild:
   # Tokens one agent can hold in context for a rebuild; past it work is split.

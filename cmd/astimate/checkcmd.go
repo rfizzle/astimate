@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/rfizzle/astimate/internal/blocklog"
 	"github.com/rfizzle/astimate/internal/cli"
 	"github.com/rfizzle/astimate/internal/engine"
 	"github.com/rfizzle/astimate/internal/narrate/render"
@@ -156,7 +157,9 @@ func runCheckInput(args []string, hookStdin func() io.Reader, stdout, stderr io.
 
 // checkTarget runs the gate on t's module with engine.Check and renders the
 // result to stdout in opts.format. A package that fails to extract is
-// logged and skipped; the rest are still rendered.
+// logged and skipped; the rest are still rendered. A hook-format decision
+// is then recorded in the block log when the configuration names one
+// (blocklog.Record), whose failure is only a warning.
 func checkTarget(ctx context.Context, t *engine.Target, opts checkOptions, stdout, stderr io.Writer,
 	logger *slog.Logger,
 ) int {
@@ -190,6 +193,12 @@ func checkTarget(ctx context.Context, t *engine.Target, opts checkOptions, stdou
 	}
 	if len(failed) > 0 {
 		logger.Error("check incomplete", "failed_packages", len(failed))
+	}
+	if opts.format == formatHook && code == exitOK {
+		bl := blocklog.Options{Root: t.Mod.Root, Module: t.Mod.ModulePath, Config: t.Cfg, Version: t.Version}
+		if err := blocklog.Record(ctx, &bl, c); err != nil {
+			logger.Warn("block log not written; the decision stands", "err", err)
+		}
 	}
 	return code
 }

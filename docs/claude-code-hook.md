@@ -88,6 +88,19 @@ violations:
 
 The first line of each finding reads `metric: baseline -> head, limit. suggestion`, as it always has. Under it, indented further, `why:` says why the gate cares (the sentence `astimate report` and `check` print) and `open file:line` names the first place to look; a finding without either leaves its line out. The reason is the findings alone, with no rebuild estimate: no agent passes and no tier, which could contradict what the findings ask for. [reading-violations.md](reading-violations.md) gives the order in which to fix them; point the agent at it from `CLAUDE.md` or `AGENTS.md`.
 
+## Recording how blocks are resolved
+
+A block and the agent's fix both happen before any commit exists, so nothing in the history says whether the agent split the package or cleared the number some other way. To measure it, turn on the block log in `astimate.yaml`:
+
+```yaml
+hook:
+  block_log: .astimate/blocks.jsonl
+```
+
+The path is relative to the module root. It is off by default, and `astimate config init` writes the section commented out. With it on, each hook check that blocks appends one JSON line per violation to the file, and each later hook check that passes appends one line for every package and metric still blocked in the file that it judged or found deleted: the package's value of the blocked metric then, whether it still exists, the packages new since the baseline and whether a rename seeded one from the blocked package, whether an exemption now covers the finding, and whether the reshaped-exports heads-up fired. `SPEC.md` 8.5 has the line format.
+
+The log changes nothing the hook outputs: stdout, the decision and the exit code are the same with it on or off. If the file cannot be written, the hook prints one warning on stderr and the decision stands. A check skipped under `stop_hook_active` writes nothing, so the pass is recorded at the next stop that runs the check, usually the end of a later turn; redirect stdin from `/dev/null` (see Loop protection) if you want every stop checked and recorded. The file is local working state and grows by a few hundred bytes per finding: add it to `.gitignore`. It is not a source file, so it selects no package and moves no metric.
+
 ## Requirements and failure modes
 
 - `astimate` must be on the `PATH` Claude Code runs hooks with. If it is not, the shell exits 127, a non-blocking error: the agent stops and the gate did nothing. Check with `command -v astimate` in the shell you start Claude Code from.
