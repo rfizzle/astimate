@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rfizzle/astimate/internal/gate"
+	"github.com/rfizzle/astimate/internal/gate/exempt"
 	"github.com/rfizzle/astimate/internal/metrics"
 )
 
@@ -33,7 +33,7 @@ func TestParseExemptions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
-	want := []gate.Exemption{
+	want := []exempt.Entry{
 		{Package: "internal/registry", Metric: "globals", Reason: "the registry is process-wide by design", Expires: "2026-12-31"},
 		{Package: metrics.ModuleRowID, Metric: "dup_blocks_cross_pkg", Reason: "two generated clients share their transport"},
 		{Package: ".", Metric: "tokens_est", Reason: "quoted: fine", Expires: "2027-01-31"},

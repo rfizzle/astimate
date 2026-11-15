@@ -1,4 +1,7 @@
-package gate
+// Package exempt applies a configuration's exemptions to the results of
+// the gate (SPEC.md 8.6): each accepts one rule's violations on one row,
+// with its reason, and stays visible in the report.
+package exempt
 
 import (
 	"errors"
@@ -8,13 +11,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rfizzle/astimate/internal/gate"
 	"github.com/rfizzle/astimate/internal/metrics"
 )
 
-// Exemption silences the violations of one rule on one row, with the reason
+// Entry silences the violations of one rule on one row, with the reason
 // recorded beside it (SPEC.md 8.6). A silenced violation does not fail the
 // gate but is still reported, as exempted, with that reason.
-type Exemption struct {
+type Entry struct {
 	// Package is the row the exemption applies to: a package directory
 	// relative to the module root in slash form, "." for the root package,
 	// or metrics.ModuleRowID for the module row.
@@ -34,7 +38,7 @@ type Exemption struct {
 // gated on the module row only and every other metric on package rows only,
 // so the package must agree with the metric. All errors are joined with
 // errors.Join.
-func (e Exemption) Validate(gated func(metric string) bool) error {
+func (e Entry) Validate(gated func(metric string) bool) error {
 	var errs []error
 	pkgOK := validPackage(e.Package)
 	switch {
@@ -72,7 +76,7 @@ func (e Exemption) Validate(gated func(metric string) bool) error {
 // exemption applies through the whole of that day. An Expires that is not
 // a date, which Validate rejects, counts as expired, so an exemption that
 // cannot be read never silences anything.
-func (e Exemption) Expired(now time.Time) bool {
+func (e Entry) Expired(now time.Time) bool {
 	if e.Expires == "" {
 		return false
 	}
@@ -87,7 +91,7 @@ func (e Exemption) Expired(now time.Time) bool {
 // Matches reports whether the exemption applies to v, a violation on the
 // row whose package path is pkg: the same row, and v's metric or one of
 // the metrics merged into v (Violation.Also). It does not consider expiry.
-func (e Exemption) Matches(pkg string, v *Violation) bool {
+func (e Entry) Matches(pkg string, v *gate.Violation) bool {
 	return e.Package == pkg && (e.Metric == v.Metric || slices.Contains(v.Also, e.Metric))
 }
 
@@ -116,28 +120,20 @@ func parseDate(s string) (time.Time, error) {
 	return d, nil
 }
 
-// Exempted is a violation, or a warn rule's breach, that an exemption
-// silenced, with the exemption's reason.
-type Exempted struct {
-	Violation
-	// Reason is the matching exemption's reason.
-	Reason string
-}
-
-// Exemptions applies a list of exemptions to the rows of one check and
+// List applies a list of exemptions to the rows of one check and
 // remembers which of them matched, so that the check can report the ones
 // that matched nothing. It is not safe for concurrent use. Create one with
-// NewExemptions.
-type Exemptions struct {
-	list    []Exemption
+// New.
+type List struct {
+	list    []Entry
 	expired []bool
 	used    []bool
 }
 
-// NewExemptions returns the exemptions of list as they stand at now: an
+// New returns the exemptions of list as they stand at now: an
 // exemption Expired at now never applies.
-func NewExemptions(list []Exemption, now time.Time) *Exemptions {
-	x := &Exemptions{list: list, expired: make([]bool, len(list)), used: make([]bool, len(list))}
+func New(list []Entry, now time.Time) *List {
+	x := &List{list: list, expired: make([]bool, len(list)), used: make([]bool, len(list))}
 	for i, e := range list {
 		x.expired[i] = e.Expired(now)
 	}
@@ -147,17 +143,17 @@ func NewExemptions(list []Exemption, now time.Time) *Exemptions {
 // Apply moves each violation of res, the result of the row whose package
 // path is pkg, that an unexpired exemption matches from res.Violations to
 // res.Exempted, then each breach of a warn rule (a warning whose Severity
-// is SeverityWarn) that one matches from res.Warnings, carrying the reason
+// is gate.SeverityWarn) that one matches from res.Warnings, carrying the reason
 // of the first matching exemption in list order, marks every matching
 // exemption as used, and sets res.Passed from the violations that remain.
 // Other warnings are never exempted: they never fail the gate, so an
 // exemption on a capacity rule matches only its violation. An exemption
 // with a blank reason, which Validate rejects, never matches, so no
 // finding is silenced without a reason to show. A nil x exempts nothing.
-func (x *Exemptions) Apply(pkg string, res *Result) {
+func (x *List) Apply(pkg string, res *gate.Result) {
 	if x != nil && len(x.list) > 0 {
-		res.Violations = x.exempt(pkg, res, res.Violations, func(*Violation) bool { return true })
-		res.Warnings = x.exempt(pkg, res, res.Warnings, func(w *Violation) bool { return w.Severity == SeverityWarn })
+		res.Violations = x.exempt(pkg, res, res.Violations, func(*gate.Violation) bool { return true })
+		res.Warnings = x.exempt(pkg, res, res.Warnings, func(w *gate.Violation) bool { return w.Severity == gate.SeverityWarn })
 	}
 	res.Passed = len(res.Violations) == 0
 }
@@ -165,8 +161,8 @@ func (x *Exemptions) Apply(pkg string, res *Result) {
 // exempt moves each finding of fs for which eligible is true and that an
 // unexpired exemption matches on row pkg to res.Exempted, and returns the
 // findings left, in their order.
-func (x *Exemptions) exempt(pkg string, res *Result, fs []Violation, eligible func(*Violation) bool) []Violation {
-	kept := make([]Violation, 0, len(fs))
+func (x *List) exempt(pkg string, res *gate.Result, fs []gate.Violation, eligible func(*gate.Violation) bool) []gate.Violation {
+	kept := make([]gate.Violation, 0, len(fs))
 	for i := range fs {
 		v := &fs[i]
 		if !eligible(v) {
@@ -178,7 +174,7 @@ func (x *Exemptions) exempt(pkg string, res *Result, fs []Violation, eligible fu
 			kept = append(kept, *v)
 			continue
 		}
-		res.Exempted = append(res.Exempted, Exempted{Violation: *v, Reason: reason})
+		res.Exempted = append(res.Exempted, gate.Exempted{Violation: *v, Reason: reason})
 	}
 	return kept
 }
@@ -189,7 +185,7 @@ func (x *Exemptions) exempt(pkg string, res *Result, fs []Violation, eligible fu
 // exempted only when every rule it carries is matched, since each of
 // those rules would have failed on its own; an exemption matching only
 // some of them is still used.
-func (x *Exemptions) match(pkg string, v *Violation) (string, bool) {
+func (x *List) match(pkg string, v *gate.Violation) (string, bool) {
 	reason, ok := "", false
 	covered := make(map[string]bool, 1+len(v.Also))
 	for i := range x.list {
@@ -209,11 +205,11 @@ func (x *Exemptions) match(pkg string, v *Violation) (string, bool) {
 
 // Expired returns the exemptions that were expired when x was created, in
 // list order.
-func (x *Exemptions) Expired() []Exemption {
+func (x *List) Expired() []Entry {
 	if x == nil {
 		return nil
 	}
-	var out []Exemption
+	var out []Entry
 	for i, e := range x.list {
 		if x.expired[i] {
 			out = append(out, e)
@@ -229,11 +225,11 @@ func (x *Exemptions) Expired() []Exemption {
 // that judged every row can call an exemption stale; after a check of some
 // packages, an exemption on another package matched nothing because its
 // row was never evaluated, so such a check must not call Stale.
-func (x *Exemptions) Stale(unknown func(Exemption) bool) []Exemption {
+func (x *List) Stale(unknown func(Entry) bool) []Entry {
 	if x == nil {
 		return nil
 	}
-	var out []Exemption
+	var out []Entry
 	for i, e := range x.list {
 		if !x.expired[i] && !x.used[i] && !unknown(e) {
 			out = append(out, e)

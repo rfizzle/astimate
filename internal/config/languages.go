@@ -6,6 +6,7 @@ import (
 	"slices"
 
 	"github.com/rfizzle/astimate/internal/gate"
+	"github.com/rfizzle/astimate/internal/gate/exempt"
 	"github.com/rfizzle/astimate/internal/score"
 )
 
@@ -25,7 +26,7 @@ type Effective struct {
 	// Exemptions holds the top-level exemptions (SPEC.md 8.6), the same for
 	// every language: an override carries none. Callers must not modify
 	// it.
-	Exemptions []gate.Exemption
+	Exemptions []exempt.Entry
 	// MinTokensCross is duplication.min_tokens_cross, the same for every
 	// language: the shortest added cross-package block
 	// dup_blocks_cross_pkg judges (SPEC.md 8.1).

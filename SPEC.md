@@ -100,6 +100,7 @@ astimate/
 │   │   ├── golang/              # Go extractor (internal/load, filter, imports, inspect, tests, dup, cover)
 │   │   └── typescript/          # TypeScript extractor (internal/resolve, internal/inspect, internal/walk)
 │   ├── gate/                    # Thresholds config, baseline, ratchet comparison, violations
+│   │   └── exempt/              # Exemptions (8.6): validation, matching, expired and stale ones
 │   ├── score/                   # Rebuild estimate, tiers, drivers, explanations
 │   ├── baseline/                # Git-ref and file baselines, keyed by package directory; rename seeding
 │   │   └── internal/diff/       # git primitives: changed packages, staged index, rename detection

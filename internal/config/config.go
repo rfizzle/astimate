@@ -17,6 +17,7 @@ import (
 
 	"github.com/rfizzle/astimate/internal/exclude"
 	"github.com/rfizzle/astimate/internal/gate"
+	"github.com/rfizzle/astimate/internal/gate/exempt"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/score"
 )
@@ -57,7 +58,7 @@ type Config struct {
 	Thresholds []gate.Threshold
 	// Exemptions holds the exemptions in file order (SPEC.md 8.6). They
 	// apply to every language: a languages override carries none.
-	Exemptions []gate.Exemption
+	Exemptions []exempt.Entry
 	// Exclude holds the exclude patterns (SPEC.md section 9): the source
 	// files every extractor leaves unread. Nil when the file sets none.
 	Exclude *exclude.List
@@ -409,9 +410,9 @@ func (fc *fileConfig) build() (*Config, error) {
 		cfg.Thresholds = append(cfg.Thresholds, t)
 	}
 	if len(fc.Exemptions) > 0 {
-		cfg.Exemptions = make([]gate.Exemption, 0, len(fc.Exemptions))
+		cfg.Exemptions = make([]exempt.Entry, 0, len(fc.Exemptions))
 		for _, fe := range fc.Exemptions {
-			cfg.Exemptions = append(cfg.Exemptions, gate.Exemption{
+			cfg.Exemptions = append(cfg.Exemptions, exempt.Entry{
 				Package: fe.Package, Metric: fe.Metric, Reason: fe.Reason, Expires: fe.Expires,
 			})
 		}

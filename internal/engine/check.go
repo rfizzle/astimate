@@ -84,7 +84,7 @@ type CheckOptions struct {
 	// estimated from head's run.
 	Coverage CoverageOptions
 	// Now is the time an exemption's expiry is judged at
-	// (gate.Exemption.Expired); the zero time means time.Now().
+	// (exempt.Entry.Expired); the zero time means time.Now().
 	Now time.Time
 }
 
@@ -209,7 +209,7 @@ func (c *BaselineCache) get(key string, load func() (baseline.Baseline, error)) 
 // instead of the temporary copy (baseline.TreeRelative).
 //
 // The configured exemptions (config.Effective.Exemptions, SPEC.md 8.6) are
-// applied to every row after it is evaluated (gate.Exemptions.Apply): a
+// applied to every row after it is evaluated (exempt.List.Apply): a
 // violation an unexpired exemption matches moves to the row's exempted
 // findings, located like the others, and the row's verdict is taken from
 // the violations left. Each exemption expired at opts.Now is ignored and

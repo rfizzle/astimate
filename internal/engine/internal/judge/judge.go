@@ -17,6 +17,7 @@ import (
 	"github.com/rfizzle/astimate/internal/baseline"
 	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/gate"
+	"github.com/rfizzle/astimate/internal/gate/exempt"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/report"
 	"github.com/rfizzle/astimate/internal/report/details"
@@ -48,18 +49,18 @@ type Checker struct {
 	o           Options
 	pkgRules    []gate.Threshold
 	moduleRules []gate.Threshold
-	ex          *gate.Exemptions
+	ex          *exempt.List
 }
 
 // New returns a Checker judging with o: the configured thresholds split
 // into those of package rows and of the module row (gate.ForRow), and the
-// configured exemptions as of o.Now (gate.NewExemptions).
+// configured exemptions as of o.Now (exempt.New).
 func New(o Options) *Checker {
 	return &Checker{
 		o:           o,
 		pkgRules:    gate.ForRow(o.Config.Thresholds, gate.PackageRow),
 		moduleRules: gate.ForRow(o.Config.Thresholds, gate.ModuleRow),
-		ex:          gate.NewExemptions(o.Config.Exemptions, o.Now),
+		ex:          exempt.New(o.Config.Exemptions, o.Now),
 	}
 }
 
@@ -79,7 +80,7 @@ func New(o Options) *Checker {
 // count estimated from the same run (coveredBase). The result
 // carries the changed functions (report.CheckedPackage.ChangedFunctions).
 // The exemptions are applied to the result
-// (gate.Exemptions.Apply) before the report is built. unrecorded reports
+// (exempt.List.Apply) before the report is built. unrecorded reports
 // that the diff was skipped because the baseline has pkg but no functions
 // for it. A pkg the baseline has no row for because it failed to load there
 // (baseline.Baseline.Unavailable) is judged against the maxes only, with

@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/config"
-	"github.com/rfizzle/astimate/internal/gate"
+	"github.com/rfizzle/astimate/internal/gate/exempt"
 )
 
 // TestCheckPackageExemptions checks the degraded fixture under the default
@@ -28,9 +28,9 @@ func TestCheckPackageExemptions(t *testing.T) {
 	}
 	violated := []string{"changed_func_cognitive_max", "dup_blocks", "duplication_pct", "globals", "untested_exports"}
 	for _, m := range violated {
-		cfg.Exemptions = append(cfg.Exemptions, gate.Exemption{Package: "tested", Metric: m, Reason: "fixture keeps " + m})
+		cfg.Exemptions = append(cfg.Exemptions, exempt.Entry{Package: "tested", Metric: m, Reason: "fixture keeps " + m})
 	}
-	cfg.Exemptions = append(cfg.Exemptions, gate.Exemption{Package: "a", Metric: "globals", Reason: "not judged here"})
+	cfg.Exemptions = append(cfg.Exemptions, exempt.Entry{Package: "a", Metric: "globals", Reason: "not judged here"})
 
 	cs := newTestClient(t, Options{Config: cfg, WorkDir: workspace(t, degradedDir), Version: "test"})
 	res := callCheck(t, cs, map[string]any{"path": "mod/tested", "baseline_file": "baseline.json"})

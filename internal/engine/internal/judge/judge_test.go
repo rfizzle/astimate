@@ -10,6 +10,7 @@ import (
 	"github.com/rfizzle/astimate/internal/baseline"
 	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/gate"
+	"github.com/rfizzle/astimate/internal/gate/exempt"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/metrics/metricstest"
 )
@@ -32,7 +33,7 @@ func (fakeBaseline) Unavailable(string) (string, bool)         { return "", fals
 // checker returns a Checker over a fake module of one package a, whose
 // globals rose from base, gated by a zero-tolerance globals rule and a
 // dup_blocks_cross_pkg rule on the module row.
-func checker(t *testing.T, row *int, exemptions []gate.Exemption) *Checker {
+func checker(t *testing.T, row *int, exemptions []exempt.Entry) *Checker {
 	t.Helper()
 	const root, modPath = "/mod", "example.com/m"
 	pkgs := map[string]metrics.RawMetrics{modPath + "/a": {Globals: 2}}
@@ -64,11 +65,11 @@ func TestCheckerPackage(t *testing.T) {
 
 	for _, tt := range []struct {
 		name       string
-		exemptions []gate.Exemption
+		exemptions []exempt.Entry
 		wantPassed bool
 	}{
 		{name: "new global fails", wantPassed: false},
-		{name: "exempted", exemptions: []gate.Exemption{{Package: "a", Metric: "globals", Reason: "r"}}, wantPassed: true},
+		{name: "exempted", exemptions: []exempt.Entry{{Package: "a", Metric: "globals", Reason: "r"}}, wantPassed: true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()

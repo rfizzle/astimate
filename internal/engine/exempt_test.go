@@ -12,6 +12,7 @@ import (
 	"github.com/rfizzle/astimate/internal/baseline"
 	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/gate"
+	"github.com/rfizzle/astimate/internal/gate/exempt"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/metrics/metricstest"
 	"github.com/rfizzle/astimate/internal/report"
@@ -25,7 +26,7 @@ func exemptNow() time.Time { return time.Date(2026, 9, 28, 12, 0, 0, 0, time.UTC
 // module row gains a shared block, so a and the module row each have one
 // violation. It is gated by globals and dup_blocks_cross_pkg ratchets and a
 // tokens_est capacity rule, with exemptions ex, logging to logs.
-func exemptTarget(ex []gate.Exemption, logs *bytes.Buffer) *Target {
+func exemptTarget(ex []exempt.Entry, logs *bytes.Buffer) *Target {
 	const root, modPath = "/mod", "example.com/m"
 	pkgs := map[string]metrics.RawMetrics{
 		modPath + "/a": {TokensEst: 100, Globals: 1},
@@ -84,13 +85,13 @@ func limits(fs []report.Finding) []string {
 func TestCheckExemptions(t *testing.T) {
 	t.Parallel()
 
-	registry := gate.Exemption{Package: "a", Metric: "globals", Reason: "process-wide registry"}
-	clients := gate.Exemption{Package: metrics.ModuleRowID, Metric: "dup_blocks_cross_pkg", Reason: "generated clients"}
-	unused := gate.Exemption{Package: "b", Metric: "globals", Reason: "b needed it once"}
-	gone := gate.Exemption{Package: "gone", Metric: "globals", Reason: "package since deleted"}
-	warnOnly := gate.Exemption{Package: "a", Metric: "tokens_est", Reason: "big on purpose"}
-	expired := gate.Exemption{Package: "a", Metric: "globals", Reason: "old", Expires: "2026-09-27"}
-	all := []gate.Exemption{registry, clients, unused, gone, warnOnly, expired}
+	registry := exempt.Entry{Package: "a", Metric: "globals", Reason: "process-wide registry"}
+	clients := exempt.Entry{Package: metrics.ModuleRowID, Metric: "dup_blocks_cross_pkg", Reason: "generated clients"}
+	unused := exempt.Entry{Package: "b", Metric: "globals", Reason: "b needed it once"}
+	gone := exempt.Entry{Package: "gone", Metric: "globals", Reason: "package since deleted"}
+	warnOnly := exempt.Entry{Package: "a", Metric: "tokens_est", Reason: "big on purpose"}
+	expired := exempt.Entry{Package: "a", Metric: "globals", Reason: "old", Expires: "2026-09-27"}
+	all := []exempt.Entry{registry, clients, unused, gone, warnOnly, expired}
 
 	t.Run("all", func(t *testing.T) {
 		t.Parallel()
@@ -150,7 +151,7 @@ func TestCheckExemptions(t *testing.T) {
 			t.Parallel()
 
 			var logs bytes.Buffer
-			expiredB := gate.Exemption{Package: "b", Metric: "globals", Reason: "old b", Expires: "2026-01-01"}
+			expiredB := exempt.Entry{Package: "b", Metric: "globals", Reason: "old b", Expires: "2026-01-01"}
 			opts.BaselineFile, opts.Now = writeExemptBaseline(t), exemptNow()
 			c, failed, err := Check(t.Context(), exemptTarget(append(slices.Clone(all), expiredB), &logs), opts)
 			if err != nil || len(failed) != 0 {
@@ -180,7 +181,7 @@ func TestCheckExemptions(t *testing.T) {
 		t.Parallel()
 
 		var logs bytes.Buffer
-		c, _, err := Check(t.Context(), exemptTarget([]gate.Exemption{expired, clients}, &logs), CheckOptions{
+		c, _, err := Check(t.Context(), exemptTarget([]exempt.Entry{expired, clients}, &logs), CheckOptions{
 			BaselineFile: writeExemptBaseline(t), All: true, Now: exemptNow(),
 		})
 		if err != nil {
@@ -191,7 +192,7 @@ func TestCheckExemptions(t *testing.T) {
 			t.Errorf("a = violations %+v exempted %+v passed %v, want the globals violation to fail", a.Violations, a.Exemptions, a.Passed)
 		}
 		// The day before it expired, it applied.
-		c, _, err = Check(t.Context(), exemptTarget([]gate.Exemption{expired, clients}, &logs), CheckOptions{
+		c, _, err = Check(t.Context(), exemptTarget([]exempt.Entry{expired, clients}, &logs), CheckOptions{
 			BaselineFile: writeExemptBaseline(t), All: true, Now: exemptNow().AddDate(0, 0, -1),
 		})
 		if err != nil {
@@ -205,7 +206,7 @@ func TestCheckExemptions(t *testing.T) {
 		t.Parallel()
 
 		var logs bytes.Buffer
-		tg := exemptTarget([]gate.Exemption{clients, {Package: "a", Metric: "globals", Reason: "r"}}, &logs)
+		tg := exemptTarget([]exempt.Entry{clients, {Package: "a", Metric: "globals", Reason: "r"}}, &logs)
 		// Without the globals rule for this language the exemption on it
 		// cannot be judged; one config may serve another language's module.
 		tg.Cfg.Thresholds = slices.DeleteFunc(slices.Clone(tg.Cfg.Thresholds), func(r gate.Threshold) bool { return r.Metric == "globals" })

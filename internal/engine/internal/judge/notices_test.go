@@ -9,6 +9,7 @@ import (
 
 	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/gate"
+	"github.com/rfizzle/astimate/internal/gate/exempt"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/report"
 )
@@ -21,7 +22,7 @@ func TestNotices(t *testing.T) {
 	t.Parallel()
 
 	now := time.Date(2026, 9, 28, 12, 0, 0, 0, time.UTC)
-	list := []gate.Exemption{
+	list := []exempt.Entry{
 		{Package: "a", Metric: "globals", Reason: "old", Expires: "2026-01-01"},
 		{Package: "gone", Metric: "globals", Reason: "elsewhere", Expires: "2026-01-01"},
 		{Package: "a", Metric: "dup_blocks", Reason: "stale here"},

@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	"github.com/rfizzle/astimate/internal/gate"
+	"github.com/rfizzle/astimate/internal/gate/exempt"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/report"
 )
@@ -54,7 +55,7 @@ func (c *Checker) Notices(ch *report.Check, scope Scope) {
 	if !scope.All {
 		return
 	}
-	unknown := func(e gate.Exemption) bool {
+	unknown := func(e exempt.Entry) bool {
 		if slices.Contains(scope.Failed, e.Package) ||
 			!slices.ContainsFunc(c.o.Config.Thresholds, func(r gate.Threshold) bool { return r.Metric == e.Metric }) {
 			return true

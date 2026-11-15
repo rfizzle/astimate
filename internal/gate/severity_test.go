@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/rfizzle/astimate/internal/gate"
+	"github.com/rfizzle/astimate/internal/gate/exempt"
 	"github.com/rfizzle/astimate/internal/metrics"
 )
 
@@ -121,7 +122,7 @@ func TestExemptionsApplyWarnRule(t *testing.T) {
 	band := capacity("tokens_est", 16000, 0.75)
 	res := gate.Evaluate(metrics.RawMetrics{DupBlocks: 1, TokensEst: 13000}, &metrics.RawMetrics{TokensEst: 13000},
 		[]gate.Threshold{dup, band}, nil)
-	x := gate.NewExemptions([]gate.Exemption{
+	x := exempt.New([]exempt.Entry{
 		{Package: "internal/x", Metric: "dup_blocks", Reason: "generated tables"},
 		{Package: "internal/x", Metric: "tokens_est", Reason: "big on purpose"},
 	}, time.Date(2026, 9, 29, 0, 0, 0, 0, time.UTC))
@@ -139,7 +140,7 @@ func TestExemptionsApplyWarnRule(t *testing.T) {
 	if !reflect.DeepEqual(res, want) {
 		t.Errorf("Apply() =\n%+v\nwant\n%+v", res, want)
 	}
-	stale := x.Stale(func(gate.Exemption) bool { return false })
+	stale := x.Stale(func(exempt.Entry) bool { return false })
 	if len(stale) != 1 || stale[0].Metric != "tokens_est" {
 		t.Errorf("stale = %+v, want only the tokens_est exemption", stale)
 	}

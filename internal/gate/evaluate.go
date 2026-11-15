@@ -77,7 +77,7 @@ type Result struct {
 	// Notes are sorted by metric name.
 	Notes []Note
 	// Exempted are the violations an exemption silenced
-	// (Exemptions.Apply), in the order Violations had, followed by the
+	// (exempt.List.Apply), in the order Violations had, followed by the
 	// warn rules' breaches it silenced, in the order Warnings had;
 	// Evaluate leaves it nil.
 	Exempted []Exempted
