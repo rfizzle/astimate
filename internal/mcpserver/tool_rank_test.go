@@ -60,13 +60,13 @@ func TestRankPackagesTool(t *testing.T) {
 		// wantHeadroom expects the table's HEADROOM column.
 		wantHeadroom bool
 	}{
-		{name: "default sort", in: map[string]any{}, wantRows: 12,
+		{name: "default sort", in: map[string]any{}, wantRows: 15,
 			sorted: func(a, b rows.Row) bool { return a.AgentPasses >= b.AgentPasses }},
-		{name: "duplication", in: map[string]any{"sort": "duplication"}, wantRows: 12, wantFirst: "dupes",
+		{name: "duplication", in: map[string]any{"sort": "duplication"}, wantRows: 15, wantFirst: "dupes",
 			sorted: func(a, b rows.Row) bool { return a.DuplicationPct >= b.DuplicationPct }},
 		{name: "top two", in: map[string]any{"top": 2, "module_root": "."}, wantRows: 2,
 			sorted: func(a, b rows.Row) bool { return a.AgentPasses >= b.AgentPasses }},
-		{name: "headroom", in: map[string]any{"sort": "headroom"}, wantRows: 12, wantHeadroom: true,
+		{name: "headroom", in: map[string]any{"sort": "headroom"}, wantRows: 15, wantHeadroom: true,
 			sorted: func(a, b rows.Row) bool {
 				return a.Headroom != nil && (b.Headroom == nil || a.Headroom.Used >= b.Headroom.Used)
 			}},

@@ -21,6 +21,16 @@ type RawMetrics struct {
 	TokensEstWithTests int `json:"tokens_est_with_tests"`
 	// InternalImports is fan-out: distinct internal packages imported.
 	InternalImports int `json:"internal_imports"`
+	// InternalImportsDescendants counts the internal_imports that lie
+	// below the package's own directory, its own sub-packages (SPEC.md
+	// 6.5). Nil when not computed (v1). Reported, not gated.
+	InternalImportsDescendants *int `json:"internal_imports_descendants"`
+	// InternalImportsPrivate counts the internal_imports_descendants under
+	// the package's own internal directory, which the Go toolchain lets
+	// only the package and its descendants import (SPEC.md 6.5). Nil when
+	// not computed, as for TypeScript, which has no such rule (v1).
+	// Reported, not gated.
+	InternalImportsPrivate *int `json:"internal_imports_private"`
 	// ExternalImports is the number of distinct non-stdlib, non-module imports.
 	ExternalImports int `json:"external_imports"`
 	// StdlibImports is the number of distinct standard-library imports.

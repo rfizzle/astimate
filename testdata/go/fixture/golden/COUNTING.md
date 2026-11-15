@@ -73,9 +73,18 @@ generated file.
   imports count like any other; the fixture has none. Internal means the path
   starts with `example.com/fixture/`. Standard library means the first path
   element has no dot. Everything else is external.
+- **internal_imports_descendants / internal_imports_private** (v1): of the
+  `internal_imports`, those whose path lies below the package's own path
+  (its own sub-packages), and of those, the ones at or below
+  `<package>/internal`, which only the package and its descendants may
+  import. Only `nest` imports packages of its own: `nest/internal/wire`
+  (private) and `nest/open` (public), so `nest` is 2 and 1 and every other
+  package 0 and 0; `a`, `b`, `hidden` and `tested` import `hub`, a sibling,
+  which is no descendant. Both are reported for every package, so both
+  appear in every package golden.
 - **fan_in**: distinct fixture packages whose non-test files import this one,
   by the same rule, so every internal edge counts once on each side and
-  `sum(fan_in) = sum(internal_imports) = 4` over the fixture.
+  `sum(fan_in) = sum(internal_imports) = 6` over the fixture.
 - **fan_in_tests**: distinct fixture packages that import this one only from
   test files. An external test package (`tested_test`) importing its own
   package is folded into that package (section 6.2) and is not a fan-in edge.
@@ -113,7 +122,7 @@ generated file.
   `select` clause other than `default`, `&&` and `||`. p90 as for cognitive
   complexity. Per package (total, p90): `a` 6, 5; `b` 6, 5; `consumer` 1, 1;
   `dupes` 18, 5; `errs` 3, 1; `hidden` 8, 6; `hub` 5, 3; `immut` 5, 3;
-  `sibling` 2, 1; `support` 2, 2; `tested` 7, 4; `trivial` 1, 1; the module
+  `nest`, `nest/internal/wire` and `nest/open` 1, 1 each; `sibling` 2, 1; `support` 2, 2; `tested` 7, 4; `trivial` 1, 1; the module
   row 0, 0.
 - **dup_blocks / duplication_pct / duplicated_lines**: see `dupes` below;
   `duplicated_lines` (v1) is the covered SLOC, the percentage's numerator,
@@ -140,8 +149,9 @@ generated file.
   Every fixture value is 0 or 1, so rounding changes none.
 - **instability** (v1): `internal_imports / (fan_in + internal_imports)`,
   null when both are 0. Present in a golden only when non-null: `hub` is 0
-  (fan-in 4, fan-out 0); `a`, `b`, `hidden` and `tested` are 1 (fan-in 0,
-  fan-out 1); `dupes`, `immut`, `trivial`, `errs`, `sibling`, `support`
+  (fan-in 4, fan-out 0), and so are `nest/internal/wire` and `nest/open`
+  (fan-in 1, fan-out 0); `a`, `b`, `hidden` and `tested` are 1 (fan-in 0,
+  fan-out 1), and so is `nest` (fan-in 0, fan-out 2); `dupes`, `immut`, `trivial`, `errs`, `sibling`, `support`
   and `consumer` have no internal edges from non-test files and are null.
 - **abstractness** (v1): exported interface types over exported types of
   non-generated files, null with no exported types. A type counts as an interface when its underlying
@@ -496,6 +506,28 @@ by `consumer/consumer_test.go`.
 The four packages share no duplicate run of 40 tokens with each other or
 with the rest of the fixture: each is one or a few one-line functions, and
 their `dup_blocks` and `dup_blocks_cross_pkg` are 0.
+
+## nest
+
+Three packages, no test files: `nest/nest.go` (306 bytes) imports
+`example.com/fixture/nest/internal/wire` and `example.com/fixture/nest/open`;
+`nest/internal/wire/wire.go` (150 bytes) and `nest/open/open.go` (135
+bytes) import nothing. They show the own-descendant import counts.
+
+- `nest`: `sloc=6` (package, `import (`, the two import lines, `)`, the
+  one-line `Join`); `tokens_est = 306 / 3.2 = 95.6 -> 95`, the same with
+  tests. `internal_imports=2`, `internal_imports_descendants=2` (both lie
+  below `example.com/fixture/nest/`), `internal_imports_private=1` (only
+  `nest/internal/wire` is at or below `nest/internal`). `fan_in=0`, so
+  `instability = 2 / 2 = 1`.
+- `nest/internal/wire`: `sloc=2` (package and the one-line `Value`);
+  `tokens_est = 150 / 3.2 = 46.9 -> 46`. `fan_in=1` (`nest`), no imports,
+  so `instability = 0`.
+- `nest/open`: `sloc=2`; `tokens_est = 135 / 3.2 = 42.2 -> 42`. `fan_in=1`,
+  `instability = 0`.
+- Each: `exported_symbols=1`, `func_count=1`, the one function 0 for
+  cognitive and 1 for cyclomatic complexity, `untested_exports=1`,
+  `has_tests=false`, no duplicate block.
 
 ## module
 

@@ -5,6 +5,8 @@
   "tokens_est": 45,
   "tokens_est_with_tests": 105,
   "internal_imports": 0,
+  "internal_imports_descendants": 0,
+  "internal_imports_private": 0,
   "external_imports": 0,
   "stdlib_imports": 0,
   "fan_in": 0,

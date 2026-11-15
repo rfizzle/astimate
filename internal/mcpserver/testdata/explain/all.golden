@@ -90,6 +90,36 @@ Thresholds in the loaded config: none
   "thresholds": []
 }
 
+== internal_imports_descendants ==
+internal_imports_descendants (v1, not gated by default)
+Definition: The internal_imports that lie below the package's own directory: its own sub-packages, private or public. Every other package of the module lies below a module's root package.
+Evidence: Reported, not gated: it shows how much of internal_imports is the package's own sub-packages, which splitting a package under the tokens_est ceiling into children adds. internal_imports still counts them; no rule reads this field until a measurement on the hand labels supports one (calibration/notes/own-imports-2026-11-15.md).
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "The internal_imports that lie below the package's own directory: its own sub-packages, private or public. Every other package of the module lies below a module's root package.",
+  "evidence": "Reported, not gated: it shows how much of internal_imports is the package's own sub-packages, which splitting a package under the tokens_est ceiling into children adds. internal_imports still counts them; no rule reads this field until a measurement on the hand labels supports one (calibration/notes/own-imports-2026-11-15.md).",
+  "gated": false,
+  "name": "internal_imports_descendants",
+  "release": "v1",
+  "thresholds": []
+}
+
+== internal_imports_private ==
+internal_imports_private (v1, not gated by default)
+Definition: The internal_imports_descendants under the package's own internal directory, which the Go toolchain lets only the package and its descendants import. Null for TypeScript, which has no such rule.
+Evidence: Reported, not gated: it shows how much of internal_imports is the package's own sub-packages, which splitting a package under the tokens_est ceiling into children adds. internal_imports still counts them; no rule reads this field until a measurement on the hand labels supports one (calibration/notes/own-imports-2026-11-15.md).
+Thresholds in the loaded config: none
+-- structured --
+{
+  "definition": "The internal_imports_descendants under the package's own internal directory, which the Go toolchain lets only the package and its descendants import. Null for TypeScript, which has no such rule.",
+  "evidence": "Reported, not gated: it shows how much of internal_imports is the package's own sub-packages, which splitting a package under the tokens_est ceiling into children adds. internal_imports still counts them; no rule reads this field until a measurement on the hand labels supports one (calibration/notes/own-imports-2026-11-15.md).",
+  "gated": false,
+  "name": "internal_imports_private",
+  "release": "v1",
+  "thresholds": []
+}
+
 == external_imports ==
 external_imports (v0, not gated by default)
 Definition: Distinct imports that are neither standard library nor in the module.

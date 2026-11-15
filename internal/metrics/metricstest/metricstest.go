@@ -87,8 +87,9 @@ type Fixture struct {
 // <= end. When ext also implements the optional
 // metrics.ImporterLister, it checks that Importers lists, for every package,
 // sorted distinct packages of the fixture other than the package itself, as
-// many as fan_in counts, and fails for an unknown package with
-// metrics.ErrUnknownPackage. When ext also implements the optional
+// many as fan_in counts, that a reported internal_imports_descendants counts
+// the packages below the package's directory listing it, and fails for an
+// unknown package with metrics.ErrUnknownPackage. When ext also implements the optional
 // metrics.ModuleMetrics, it checks the module row: it validates, no package
 // collides with metrics.ModuleRowID, its v0 fields are zero and its v1
 // fields null except the module-wide dup_blocks_cross_pkg, it is
@@ -503,10 +504,14 @@ func checkDupBlocks(t *testing.T, pkg string, det *inventory.Details, code *int)
 }
 
 // checkImporters checks that il lists, for every package, sorted distinct
-// packages of pkgs other than the package itself, as many as its fan_in,
-// and rejects an unknown package with metrics.ErrUnknownPackage.
+// packages of pkgs other than the package itself, as many as its fan_in;
+// that a reported internal_imports_descendants is the number of packages
+// whose importers list the package and that lie below it (every other
+// package below the root package "."); and rejects an unknown package with
+// metrics.ErrUnknownPackage.
 func checkImporters(t *testing.T, il metrics.ImporterLister, mod *metrics.ModuleContext, pkgs []string, got map[string]metrics.RawMetrics) {
 	t.Helper()
+	descendants := make(map[string]int, len(pkgs))
 	for _, pkg := range pkgs {
 		imp, err := il.Importers(t.Context(), mod, pkg)
 		if err != nil {
@@ -520,9 +525,18 @@ func checkImporters(t *testing.T, il metrics.ImporterLister, mod *metrics.Module
 			if from == pkg || !slices.Contains(pkgs, from) {
 				t.Errorf("Importers(%s) lists %q, want another package of the fixture", pkg, from)
 			}
+			if from == "." || strings.HasPrefix(pkg, from+"/") {
+				descendants[from]++
+			}
 		}
 		if n, want := len(imp), got[pkg].FanIn; n != want {
 			t.Errorf("%s: Importers lists %d packages %q, want fan_in %d", pkg, n, imp, want)
+		}
+	}
+	for _, pkg := range pkgs {
+		if d := got[pkg].InternalImportsDescendants; d != nil && *d != descendants[pkg] {
+			t.Errorf("%s: internal_imports_descendants %d, want the %d packages below it that list it as an importer",
+				pkg, *d, descendants[pkg])
 		}
 	}
 	if _, err := il.Importers(t.Context(), mod, unknownPackage); !errors.Is(err, metrics.ErrUnknownPackage) {

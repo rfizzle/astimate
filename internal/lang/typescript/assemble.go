@@ -136,6 +136,10 @@ func assemble(m *module, p *pkg, opts assembleOptions) (metrics.RawMetrics, erro
 
 	r.GeneratedFiles = &generated
 	r.InternalImports, r.ExternalImports, r.StdlibImports = len(p.internal), len(p.external), len(p.stdlib)
+	// internal_imports_private stays nil: TypeScript has no rule that
+	// makes a directory private to its parent, as Go's internal does.
+	descendants := descendantImports(p.id, p.internal)
+	r.InternalImportsDescendants = &descendants
 	r.FanIn, r.FanInTests = len(p.fanIn), len(p.fanInTests)
 
 	dup, err := duplication(p, r.SLOC, opts.dup)

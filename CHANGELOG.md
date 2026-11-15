@@ -28,6 +28,18 @@ history.
   agents do in response to a block, which no commit records, can be
   measured. The report schema, the hook JSON and the exit codes are
   unchanged.
+- Two reported metrics split `internal_imports` by whose packages they are:
+  `internal_imports_descendants` counts the internal imports that lie below
+  the package's own path, its own sub-packages, and
+  `internal_imports_private` those of them under its own `internal/`
+  directory, which only the package and its descendants may import. A
+  package split into children to stay under the `tokens_est` ceiling now
+  shows how much of its fan-out is its own. Go reports both; TypeScript
+  reports `internal_imports_descendants` by directory and
+  `internal_imports_private` as null. No rule gates them and
+  `internal_imports` is unchanged; the measurement is in
+  `calibration/notes/own-imports-2026-11-15.md`. The change is additive:
+  rows and baseline files recorded before read them as null.
 - `check` warns when a change reshapes the exports of a package near its
   `exported_symbols` ceiling without adding one: an existing exported
   function or method whose signature changed (a variadic parameter added

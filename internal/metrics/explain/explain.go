@@ -81,6 +81,10 @@ const (
 		"invert the abstract-provider assumption: idiomatic Go puts stable concrete leaf packages near " +
 		"distance 1 by design. No gate rule until the reference-corpus measurement shows where " +
 		"well-regarded Go modules sit."
+	evidenceOwn = "Reported, not gated: it shows how much of internal_imports is the package's own " +
+		"sub-packages, which splitting a package under the tokens_est ceiling into children adds. " +
+		"internal_imports still counts them; no rule reads this field until a measurement on the hand " +
+		"labels supports one (calibration/notes/own-imports-2026-11-15.md)."
 	evidenceCoverage = "Opt-in and reported only: no gate rule, since baselines do not run tests " +
 		"and a check measures head only, so there is no delta to gate."
 	evidenceOpacity = "Opacity: code the next agent cannot follow from Go source alone (C, reflection, " +
@@ -109,6 +113,7 @@ func explainText(s string) string {
 		"{context}", evidenceContext,
 		"{cyclomatic}", evidenceCyclomatic,
 		"{coupling}", evidenceCoupling,
+		"{own}", evidenceOwn,
 		"{coverage}", evidenceCoverage,
 		"{opacity}", evidenceOpacity,
 		"{churn}", evidenceChurn,

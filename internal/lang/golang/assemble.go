@@ -46,7 +46,8 @@ type results struct {
 // assemble computes every v0 metric of p in l and maps it into RawMetrics by
 // its SPEC.md section 6 name, with the v1 fields instability, abstractness
 // and main_sequence_distance derived from them (nil when undefined, else
-// rounded to three decimal places), the opacity flags uses_cgo,
+// rounded to three decimal places), internal_imports_descendants and
+// internal_imports_private, the opacity flags uses_cgo,
 // uses_reflect and generated_files, tokens_est_generated, dup_blocks_code, and
 // dup_blocks_cross_pkg (nil for the standard-library loads, which are not
 // modules), and the package's role (roleOf); coverage_pct and
@@ -110,6 +111,9 @@ func assemble(ctx context.Context, l *loaded, p *packages.Package, opts assemble
 		HasTests:           r.tests.HasTests || r.untested.TestedAnywhere(),
 		UntestedExports:    r.untested.Untested,
 		DocumentedExports:  &r.size.Exports.Documented,
+
+		InternalImportsDescendants: &r.imp.Descendants,
+		InternalImportsPrivate:     &r.imp.Private,
 
 		Instability:          instability,
 		Abstractness:         abstractness,

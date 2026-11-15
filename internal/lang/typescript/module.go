@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 
 	"github.com/rfizzle/astimate/internal/exclude"
@@ -211,6 +212,22 @@ func reexportedNames(res *resolve.Resolver, id string, f *inspect.Facts) int {
 	for _, re := range f.Reexports {
 		if imp := res.Classify(f.Dir, re.Spec); !f.Generated && (imp.Kind != resolve.Internal || imp.Name != id) {
 			n += re.Names
+		}
+	}
+	return n
+}
+
+// descendantImports counts the package ids of internal, the internal
+// imports of package id, that lie below id's directory: its own
+// sub-packages, internal_imports_descendants (SPEC.md 13.1). Every other
+// package of the module lies below the root package ".", so all of the
+// root's internal imports are its descendants.
+func descendantImports(id string, internal map[string]bool) int {
+	prefix := id + "/"
+	n := 0
+	for imp := range internal {
+		if id == "." || strings.HasPrefix(imp, prefix) {
+			n++
 		}
 	}
 	return n

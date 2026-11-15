@@ -20,6 +20,7 @@ Per package, from non-test files unless noted:
 | `dup_blocks`, `duplication_pct` | Repeated token sequences after normalizing identifiers and literals, and the share of lines they cover |
 | `untested_exports` | Exported functions and methods no test file references |
 | `exported_symbols`, `fan_in`, `internal_imports` | The contract other packages depend on and the coupling in both directions |
+| `internal_imports_descendants`, `internal_imports_private` | Of `internal_imports`, the package's own sub-packages, and of those the ones under its own `internal/` directory, so a package split into children shows how much of its fan-out is its own; reported, not gated |
 | `globals`, `init_funcs` | Hidden state and ordering no signature reveals |
 | `max_nesting`, `cognitive_p90`, `changed_func_cognitive_max` | Structural complexity, including that of the most complex function changed since the baseline |
 | `cyclomatic_total`, `cyclomatic_p90` | McCabe's cyclomatic complexity per function as gocyclo counts it, summed and at the 90th percentile; reported, not gated, with each function's value beside its cognitive complexity in the JSON report's `details.functions` |
@@ -98,24 +99,25 @@ suggestions:
   - 3 exported functions have no test (CountVisits, SumOrders, TallyScores); a rebuild would have to reverse-engineer their behavior.
 
 metrics:
-  files                  1      sloc                67
-  largest_file_sloc      67     tokens_est          506
-  tokens_est_with_tests  561    internal_imports    0
-  external_imports       0      stdlib_imports      0
-  fan_in                 0      fan_in_tests        0
-  exported_symbols       4      globals             0
-  init_funcs             0      max_nesting         2
-  cognitive_total        19     cognitive_p90       6
-  cyclomatic_total       18     cyclomatic_p90      5
-  func_count             4      dup_blocks          1
-  dup_blocks_code        1      duplication_pct     80.6
-  duplicated_lines       54     test_files          1
-  test_funcs             1      has_tests           true
-  untested_exports       3      documented_exports  4
-  dup_blocks_cross_pkg   0      uses_cgo            false
-  uses_reflect           false  generated_files     0
-  tokens_est_generated   0      churn_commits       n/a
-  churn_authors          n/a
+  files                         1      sloc                      67
+  largest_file_sloc             67     tokens_est                506
+  tokens_est_with_tests         561    internal_imports          0
+  internal_imports_descendants  0      internal_imports_private  0
+  external_imports              0      stdlib_imports            0
+  fan_in                        0      fan_in_tests              0
+  exported_symbols              4      globals                   0
+  init_funcs                    0      max_nesting               2
+  cognitive_total               19     cognitive_p90             6
+  cyclomatic_total              18     cyclomatic_p90            5
+  func_count                    4      dup_blocks                1
+  dup_blocks_code               1      duplication_pct           80.6
+  duplicated_lines              54     test_files                1
+  test_funcs                    1      has_tests                 true
+  untested_exports              3      documented_exports        4
+  dup_blocks_cross_pkg          0      uses_cgo                  false
+  uses_reflect                  false  generated_files           0
+  tokens_est_generated          0      churn_commits             n/a
+  churn_authors                 n/a
 ```
 <!-- /sample:assess -->
 
@@ -160,19 +162,22 @@ $ astimate assess testdata/go/fixture/dupes --json | head -25
 <!-- sample:rank -->
 ```
 $ astimate rank testdata/go/fixture
-PATH      PASSES  TIER         DAYS  FAN_IN  TOKENS  DUP%  CHURN  ROLE
-a            0.0  ONE_PASS  1.3-1.4       0     159   0.0      -  library
-b            0.0  ONE_PASS  1.3-1.4       0     179   0.0      -  library
-consumer     0.0  ONE_PASS      0.1       0      45   0.0      -  library
-dupes        0.0  ONE_PASS      0.8       0     506  80.6      -  library
-errs         0.0  ONE_PASS  0.2-0.3       0     178   0.0      -  library
-hidden       0.0  ONE_PASS      2.0       0     226   0.0      -  library
-hub          0.0  ONE_PASS  1.1-1.2       4     177   0.0      -  library
-immut        0.0  ONE_PASS  1.4-1.7       0     344   0.0      -  library
-sibling      0.0  ONE_PASS      0.1       0      82   0.0      -  test-support
-support      0.0  ONE_PASS  0.2-0.3       0      85   0.0      -  test-support
-tested       0.0  ONE_PASS  1.1-1.2       0     237   0.0      -  library
-trivial      0.0  ONE_PASS      0.2       0      47   0.0      -  library
+PATH                PASSES  TIER         DAYS  FAN_IN  TOKENS  DUP%  CHURN  ROLE
+a                      0.0  ONE_PASS  1.3-1.4       0     159   0.0      -  library
+b                      0.0  ONE_PASS  1.3-1.4       0     179   0.0      -  library
+consumer               0.0  ONE_PASS      0.1       0      45   0.0      -  library
+dupes                  0.0  ONE_PASS      0.8       0     506  80.6      -  library
+errs                   0.0  ONE_PASS  0.2-0.3       0     178   0.0      -  library
+hidden                 0.0  ONE_PASS      2.0       0     226   0.0      -  library
+hub                    0.0  ONE_PASS  1.1-1.2       4     177   0.0      -  library
+immut                  0.0  ONE_PASS  1.4-1.7       0     344   0.0      -  library
+nest                   0.0  ONE_PASS  0.2-0.3       0      95   0.0      -  library
+nest/internal/wire     0.0  ONE_PASS      0.1       1      46   0.0      -  library
+nest/open              0.0  ONE_PASS      0.1       1      42   0.0      -  library
+sibling                0.0  ONE_PASS      0.1       0      82   0.0      -  test-support
+support                0.0  ONE_PASS  0.2-0.3       0      85   0.0      -  test-support
+tested                 0.0  ONE_PASS  1.1-1.2       0     237   0.0      -  library
+trivial                0.0  ONE_PASS      0.2       0      47   0.0      -  library
 PASSES and TIER: fitted on 85 measured agent rebuilds (SPEC.md 7.4). DAYS: one engineer's working days, the lower to the higher of COCOMO 81 and COCOMO II, not measured (SPEC.md 7.3).
 ```
 <!-- /sample:rank -->
@@ -206,7 +211,7 @@ PASSES and TIER: fitted on 85 measured agent rebuilds (SPEC.md 7.4). DAYS: one e
 <!-- sample:baseline-write -->
 ```
 $ astimate baseline write testdata/go/fixture --out /tmp/fixture-baseline.json
-wrote /tmp/fixture-baseline.json (12 packages)
+wrote /tmp/fixture-baseline.json (15 packages)
 ```
 <!-- /sample:baseline-write -->
 
@@ -222,7 +227,7 @@ The text is the change report: `FAIL` or `PASS` first, the counts, then each fai
 ```
 $ astimate check testdata/go/fixture-degraded --baseline /tmp/fixture-baseline.json --all
 FAIL  1 package needs attention before this merges.  against fixture-baseline.json
-      12 changed · 1 fail · 2 heads up · 11 pass clean · copies between packages 1 → 1
+      15 changed · 1 fail · 2 heads up · 14 pass clean · copies between packages 1 → 1
 
  ✗ tested  1 finding · rebuilds in one sitting
    changed func cognitive max  51  max 50

@@ -1,12 +1,12 @@
 [1mFixture[0m  [2mexample.com/fixture · thresholds-2026-10-14b[0m
 
 [1mFixture has no package that needs a split.[0m
-12 packages · 0 need more than one sitting · 2 weeks for one engineer · [32m11 fine[0m
-[33m1 watch[0m · [31m0 split[0m · 7 without tests
+15 packages · 0 need more than one sitting · 2 weeks for one engineer · [32m14 fine[0m
+[33m1 watch[0m · [31m0 split[0m · 10 without tests
 [2mEngineer time runs, per package, from the lower to the higher of COCOMO 81 and[0m
 [2mCOCOMO II, rebuild profile; not a measurement; agent sittings are measured.[0m
 [2mrebuild.cocomo and rebuild.cocomo_a set it.[0m
-[32m██████████████████░░[0m  [2mshare of packages that are fine[0m
+[32m███████████████████░[0m  [2mshare of packages that are fine[0m
 
 [1mStart here[0m  [2mno change history: most sittings first[0m
 
@@ -26,6 +26,6 @@
  [36mtested      [0m  [32mFINE [0m  one sitting     27         -
  [36mdupes       [0m  [33mWATCH[0m  one sitting     67         -
  [36merrs        [0m  [32mFINE [0m  one sitting      6         -
+ [36mnest        [0m  [32mFINE [0m  one sitting      6         -
  [36msupport     [0m  [32mFINE [0m  one sitting      8         -
- [36mtrivial     [0m  [32mFINE [0m  one sitting      4         -
- [2m… 2 more[0m · [2m--all for every row[0m · [2m--format json[0m · [2m--format md[0m · [2m--format html[0m
+ [2m… 5 more[0m · [2m--all for every row[0m · [2m--format json[0m · [2m--format md[0m · [2m--format html[0m

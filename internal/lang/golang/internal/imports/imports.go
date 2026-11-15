@@ -17,10 +17,14 @@ import (
 
 // Counts holds the distinct imported packages of a package's non-test files
 // by category, the fan-out metrics internal_imports, external_imports and
-// stdlib_imports. Blank and Dot record the paths of blank (_) and dot (.)
-// imports, which count like any other import; they are kept for debugging.
+// stdlib_imports. Descendants and Private are the internal imports that lie
+// below the package's own path and at or below its own internal directory,
+// internal_imports_descendants and internal_imports_private (SPEC.md 6.5).
+// Blank and Dot record the paths of blank (_) and dot (.) imports, which
+// count like any other import; they are kept for debugging.
 type Counts struct {
 	Internal, External, Stdlib int
+	Descendants, Private       int
 	Blank, Dot                 []string
 }
 
@@ -37,8 +41,10 @@ const (
 // Count classifies the imports of p's non-test files and counts distinct
 // imported packages per category, as Imported lists them: blank and dot
 // imports count, a package imported by several files counts once, and an
-// import with no loaded package, such as cgo's "C", is skipped. Blank and
-// dot imports are also recorded by path.
+// import with no loaded package, such as cgo's "C", is skipped. Of the
+// internal ones it also counts p's own descendants and, among them, those
+// private to p (Own), in the same pass. Blank and dot imports are also
+// recorded by path.
 func Count(m *load.Module, p *packages.Package) Counts {
 	var c Counts
 	files := m.SourceSyntax(p)
@@ -64,11 +70,33 @@ func Count(m *load.Module, p *packages.Package) Counts {
 			c.Stdlib++
 		case Internal:
 			c.Internal++
+			descendant, private := Own(p.PkgPath, imp.PkgPath)
+			if descendant {
+				c.Descendants++
+			}
+			if private {
+				c.Private++
+			}
 		case External:
 			c.External++
 		}
 	}
 	return c
+}
+
+// Own reports whether the package at importPath is a descendant of the
+// package at pkgPath, a path below it, and whether it is private to it, a
+// path at or below pkgPath/internal, which by the Go toolchain's rule only
+// pkgPath and its descendants may import. A path below a deeper internal
+// directory, pkgPath/x/internal/y, is a descendant but not private to
+// pkgPath. Every package of a module lies below the module's root package,
+// so all of the root's internal imports are its descendants.
+func Own(pkgPath, importPath string) (descendant, private bool) {
+	rest, ok := strings.CutPrefix(importPath, pkgPath+"/")
+	if !ok || rest == "" {
+		return false, false
+	}
+	return true, rest == "internal" || strings.HasPrefix(rest, "internal/")
 }
 
 // Imported returns the distinct packages the import specs of files resolve

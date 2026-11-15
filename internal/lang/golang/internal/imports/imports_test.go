@@ -161,3 +161,46 @@ func TestImported(t *testing.T) {
 		t.Errorf("Imported = %v, want %v", got, want)
 	}
 }
+
+func TestOwn(t *testing.T) {
+	for _, tc := range []struct {
+		name, pkg, imp      string
+		descendant, private bool
+	}{
+		{"child", "example.com/m/p", "example.com/m/p/c", true, false},
+		{"grandchild", "example.com/m/p", "example.com/m/p/c/d", true, false},
+		{"own internal", "example.com/m/p", "example.com/m/p/internal", true, true},
+		{"below own internal", "example.com/m/p", "example.com/m/p/internal/c", true, true},
+		{"internal of a child", "example.com/m/p", "example.com/m/p/c/internal/d", true, false},
+		{"name starting internal", "example.com/m/p", "example.com/m/p/internals", true, false},
+		{"sibling", "example.com/m/p", "example.com/m/q", false, false},
+		{"path prefix without slash", "example.com/m/p", "example.com/m/pq", false, false},
+		{"parent", "example.com/m/p/c", "example.com/m/p", false, false},
+		{"module internal from a package", "example.com/m/p", "example.com/m/internal/x", false, false},
+		{"module internal from the root", "example.com/m", "example.com/m/internal/x", true, true},
+		{"any package from the root", "example.com/m", "example.com/m/q", true, false},
+		{"itself", "example.com/m/p", "example.com/m/p", false, false},
+		{"standard library", "net/http", "net/http/internal/ascii", true, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d, p := Own(tc.pkg, tc.imp)
+			if d != tc.descendant || p != tc.private {
+				t.Errorf("Own(%q, %q) = %v, %v, want %v, %v", tc.pkg, tc.imp, d, p, tc.descendant, tc.private)
+			}
+		})
+	}
+}
+
+// TestCountOwn counts a package's own descendants and private packages
+// among its distinct internal imports, in the pass that counts them.
+func TestCountOwn(t *testing.T) {
+	s := newSynth(t)
+	p := s.pkg("example.com/m/p",
+		"example.com/m/p/internal/a", "example.com/m/p/internal/a/b", "example.com/m/p/c",
+		"example.com/m/p/c/internal/d", "example.com/m/q", "example.com/m/internal/x", "strings")
+	p.Syntax = append(p.Syntax, s.pkg("example.com/m/p", "example.com/m/p/c").Syntax...)
+	got := Count(s.load(p), p)
+	if got.Internal != 6 || got.Descendants != 4 || got.Private != 2 {
+		t.Errorf("internal/descendants/private = %d/%d/%d, want 6/4/2", got.Internal, got.Descendants, got.Private)
+	}
+}

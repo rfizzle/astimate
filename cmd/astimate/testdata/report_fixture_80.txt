@@ -1,8 +1,8 @@
 Fixture  example.com/fixture · thresholds-2026-10-14b
 
 Fixture has no package that needs a split.
-12 packages · 0 need more than one sitting · 2 weeks for one engineer · 11 fine
-1 watch · 0 split · 7 without tests
+15 packages · 0 need more than one sitting · 2 weeks for one engineer · 14 fine
+1 watch · 0 split · 10 without tests
 Engineer time runs, per package, from the lower to the higher of COCOMO 81 and
 COCOMO II, rebuild profile; not a measurement; agent sittings are measured.
 rebuild.cocomo and rebuild.cocomo_a set it.
@@ -25,6 +25,6 @@ Every package  most sittings first · * is over its size limit
  tested        FINE   one sitting     27         -
  dupes         WATCH  one sitting     67         -
  errs          FINE   one sitting      6         -
+ nest          FINE   one sitting      6         -
  support       FINE   one sitting      8         -
- trivial       FINE   one sitting      4         -
- … 2 more · --all for every row · --format json · --format md · --format html
+ … 5 more · --all for every row · --format json · --format md · --format html

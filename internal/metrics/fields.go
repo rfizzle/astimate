@@ -3,7 +3,7 @@ package metrics
 import "strings"
 
 // numFields is the number of RawMetrics fields, the rows of fieldTable.
-const numFields = 41
+const numFields = 43
 
 // field is one row of SPEC.md section 6's metric table: what MetricNames,
 // Value, Delta, Validate and ModuleWide know about a RawMetrics field. Its
@@ -45,6 +45,8 @@ func fieldTable() [numFields]field {
 		{"tokens_est", "v0", 0, ""},
 		{"tokens_est_with_tests", "v0", 0, ""},
 		{"internal_imports", "v0", 0, ""},
+		{"internal_imports_descendants", "v1", 0, ""},
+		{"internal_imports_private", "v1", 0, ""},
 		{"external_imports", "v0", 0, ""},
 		{"stdlib_imports", "v0", 0, ""},
 		{"fan_in", "v0", 0, ""},
@@ -100,6 +102,7 @@ func fieldIndex(name string) int {
 func (m *RawMetrics) slots() [numFields]any {
 	return [numFields]any{
 		&m.Files, &m.SLOC, &m.LargestFileSLOC, &m.TokensEst, &m.TokensEstWithTests, &m.InternalImports,
+		&m.InternalImportsDescendants, &m.InternalImportsPrivate,
 		&m.ExternalImports, &m.StdlibImports, &m.FanIn, &m.FanInTests, &m.ExportedSymbols, &m.Globals,
 		&m.InitFuncs, &m.MaxNesting, &m.CognitiveTotal, &m.CognitiveP90, &m.CyclomaticTotal, &m.CyclomaticP90, &m.FuncCount, &m.DupBlocks,
 		&m.DupBlocksCode, &m.DuplicationPct, &m.DuplicatedLines, &m.TestFiles, &m.TestFuncs, &m.HasTests,

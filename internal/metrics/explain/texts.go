@@ -71,6 +71,16 @@ func texts() []entry {
 			"Coupling growth: agent failures come from coupled facts absent from context. Moderate evidence.",
 		},
 		{
+			"internal_imports_descendants", "",
+			"The internal_imports that lie below the package's own directory: its own sub-packages, private or public. Every other package of the module lies below a module's root package.",
+			"{own}",
+		},
+		{
+			"internal_imports_private", "",
+			"The internal_imports_descendants under the package's own internal directory, which the Go toolchain lets only the package and its descendants import. Null for TypeScript, which has no such rule.",
+			"{own}",
+		},
+		{
 			"external_imports", "",
 			"Distinct imports that are neither standard library nor in the module.",
 			"{context}",

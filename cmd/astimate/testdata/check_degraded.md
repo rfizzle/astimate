@@ -1,4 +1,4 @@
-## astimate: FAIL — 1 of 12 changed packages needs attention
+## astimate: FAIL — 1 of 15 changed packages needs attention
 
 | Package | What moved | Change | Open |
 |---|---|---|---|
@@ -7,4 +7,4 @@
 | `tested` | globals | 0 → 1 | `tested/degraded.go:9` |
 | `tested` | untested exports | 0 → 1 | `tested/degraded.go:13` |
 
-11 packages pass clean. Copies between packages 1 → 1.
+14 packages pass clean. Copies between packages 1 → 1.
