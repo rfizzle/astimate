@@ -51,7 +51,7 @@ func (e *Extractor) Coverage(ctx context.Context, mod *metrics.ModuleContext, pk
 		if err != nil {
 			return nil, err
 		}
-		if d.untested.Untested > 0 {
+		if d.Untested.Untested > 0 {
 			settle[pkg] = true
 		}
 	}
@@ -67,9 +67,9 @@ func (e *Extractor) Coverage(ctx context.Context, mod *metrics.ModuleContext, pk
 			if err != nil {
 				return nil, err
 			}
-			covered := coveredExports(l.Fset, pkg, d.untested.Names, d.untested.Body, profile)
-			l.setCovered(pkg, covered)
-			n := d.untested.Untested - len(covered)
+			covered := coveredExports(l.Fset, pkg, d.Untested.Names, d.Untested.Body, profile)
+			l.SetCovered(pkg, covered)
+			n := d.Untested.Untested - len(covered)
 			c.UntestedExports = &n
 		}
 		res[pkg] = c

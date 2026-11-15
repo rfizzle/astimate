@@ -1,4 +1,4 @@
-package golang
+package extract
 
 import (
 	"go/ast"
@@ -45,7 +45,7 @@ func (c *countingFiles) Length(name string) (int64, error) {
 func TestAssembleReadsEachFileOnce(t *testing.T) {
 	l := loadFixture(t)
 	p := l.Pkgs["example.com/fixture/tested"]
-	if _, err := l.cross.Cross(l.Module, load.OSFiles{}, dup.DefaultOptions()); err != nil {
+	if _, err := l.CrossDup.Cross(l.Module, load.OSFiles{}, dup.DefaultOptions()); err != nil {
 		t.Fatalf("Cross: %v", err)
 	}
 	for _, tc := range []struct {
@@ -57,9 +57,9 @@ func TestAssembleReadsEachFileOnce(t *testing.T) {
 	} {
 		t.Run(tc.counter.Method(), func(t *testing.T) {
 			files := newCountingFiles()
-			opts := assembleOptions{counter: tc.counter, dup: dup.DefaultOptions(), files: files}
-			if _, err := assemble(t.Context(), l, p, opts); err != nil {
-				t.Fatalf("assemble: %v", err)
+			opts := Options{Counter: tc.counter, Dup: dup.DefaultOptions(), Files: files}
+			if _, err := Assemble(t.Context(), l, p, opts); err != nil {
+				t.Fatalf("Assemble: %v", err)
 			}
 			for _, name := range p.GoFiles {
 				if files.reads[name] != 1 || files.lengths[name] != 0 {
@@ -101,12 +101,14 @@ func TestAssembleReadsEachFileOnce(t *testing.T) {
 // package's files.
 func TestCrossDuplicationReadsEachFileOnce(t *testing.T) {
 	l := loadFixture(t)
-	opts := func(files load.FileSource) assembleOptions {
-		return assembleOptions{counter: inspect.NewRatioCounter(inspect.DefaultCharsPerToken), dup: dup.DefaultOptions(), files: files}
+	opts := func(files load.FileSource) Options {
+		o := defaultOptions()
+		o.Files = files
+		return o
 	}
 	first := newCountingFiles()
-	if _, err := assemble(t.Context(), l, l.Pkgs["example.com/fixture/tested"], opts(first)); err != nil {
-		t.Fatalf("assemble: %v", err)
+	if _, err := Assemble(t.Context(), l, l.Pkgs["example.com/fixture/tested"], opts(first)); err != nil {
+		t.Fatalf("Assemble: %v", err)
 	}
 	for _, path := range l.Paths {
 		for _, f := range l.SourceSyntax(l.Pkgs[path]) {
@@ -128,8 +130,8 @@ func TestCrossDuplicationReadsEachFileOnce(t *testing.T) {
 
 	second := newCountingFiles()
 	p := l.Pkgs["example.com/fixture/dupes"]
-	if _, err := assemble(t.Context(), l, p, opts(second)); err != nil {
-		t.Fatalf("assemble: %v", err)
+	if _, err := Assemble(t.Context(), l, p, opts(second)); err != nil {
+		t.Fatalf("Assemble: %v", err)
 	}
 	for name := range second.reads {
 		if !slices.Contains(p.GoFiles, name) && !strings.HasSuffix(name, "_test.go") {

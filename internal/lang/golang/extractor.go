@@ -13,6 +13,7 @@ import (
 
 	"github.com/rfizzle/astimate/internal/exclude"
 	"github.com/rfizzle/astimate/internal/lang/golang/internal/dup"
+	"github.com/rfizzle/astimate/internal/lang/golang/internal/extract"
 	"github.com/rfizzle/astimate/internal/lang/golang/internal/inspect"
 	"github.com/rfizzle/astimate/internal/lang/golang/internal/load"
 	"github.com/rfizzle/astimate/internal/metrics"
@@ -56,7 +57,7 @@ type Extractor struct {
 // closed once l and err are set.
 type moduleLoad struct {
 	done chan struct{}
-	l    *loaded
+	l    *extract.Module
 	err  error
 }
 
@@ -165,7 +166,7 @@ func (e *Extractor) Packages(root string) ([]string, error) {
 }
 
 // Extract computes the v0 metrics of the package with import path pkg in the
-// module at mod.Root, and the v1 fields assemble lists; coverage_pct and
+// module at mod.Root, and the v1 fields extract.Assemble lists; coverage_pct and
 // changed_func_cognitive_max are left nil. The module is loaded on the
 // first call for its root and cached in mod.Cache. An import path that is not
 // a non-test package of the module yields an error wrapping
@@ -182,7 +183,7 @@ func (e *Extractor) Extract(ctx context.Context, mod *metrics.ModuleContext, pkg
 	}
 	p, ok := l.Pkgs[pkg]
 	if !ok {
-		if s, skipped := l.skipped(pkg); skipped {
+		if s, skipped := skippedPackage(l.Module, pkg); skipped {
 			return metrics.RawMetrics{}, fmt.Errorf("extracting %s: %w: skipped, it does not load (%s): %w",
 				pkg, metrics.ErrUnknownPackage, s.Reason, s.Err)
 		}
@@ -192,7 +193,7 @@ func (e *Extractor) Extract(ctx context.Context, mod *metrics.ModuleContext, pkg
 	if err != nil {
 		return metrics.RawMetrics{}, fmt.Errorf("extracting %s: %w", pkg, err)
 	}
-	return assemble(ctx, l, p, assembleOptions{counter: counter, dup: e.dup})
+	return extract.Assemble(ctx, l, p, extract.Options{Counter: counter, Dup: e.dup})
 }
 
 // ModuleRow returns the module-level row of the module at mod.Root
@@ -212,7 +213,7 @@ func (e *Extractor) ModuleRow(ctx context.Context, mod *metrics.ModuleContext) (
 // ModuleDetails returns the details of the module row of the module at
 // mod.Root (metrics.ModuleDetailer): every cross-package duplicate block
 // counted by the row's dup_blocks_cross_pkg, with all its occurrences, and
-// the role of every package they lie in (roleOf). It
+// the role of every package they lie in (extract.BlockRoles). It
 // shares the memoized cross-package pass with ModuleRow and Extract, so it
 // reads no file once either has run, and fails when ModuleRow would.
 func (e *Extractor) ModuleDetails(ctx context.Context, mod *metrics.ModuleContext) (inventory.Details, error) {
@@ -225,7 +226,7 @@ func (e *Extractor) ModuleDetails(ctx context.Context, mod *metrics.ModuleContex
 		return inventory.Details{}, err
 	}
 	blocks := cross.BlocksOf("")
-	return inventory.Details{CrossBlocks: blocks, Roles: blockRoles(l, blocks)}, nil
+	return inventory.Details{CrossBlocks: blocks, Roles: extract.BlockRoles(l, blocks)}, nil
 }
 
 // moduleCross returns the memoized cross-package duplication of the module
@@ -237,7 +238,7 @@ func (e *Extractor) moduleCross(ctx context.Context, mod *metrics.ModuleContext)
 	}
 	var cross dup.Cross
 	if err = ctx.Err(); err == nil {
-		cross, err = l.cross.Cross(l.Module, load.OSFiles{}, e.dup)
+		cross, err = l.CrossDup.Cross(l.Module, load.OSFiles{}, e.dup)
 	}
 	if err != nil {
 		return dup.Cross{}, fmt.Errorf("extracting %s: %w", metrics.ModuleRowID, err)
@@ -261,9 +262,9 @@ func (e *Extractor) counter() (inspect.Counter, error) {
 
 // cached returns the load held in mod.Cache, loading the module and filling
 // the slot on first use.
-func (e *Extractor) cached(ctx context.Context, mod *metrics.ModuleContext) (*loaded, error) {
+func (e *Extractor) cached(ctx context.Context, mod *metrics.ModuleContext) (*extract.Module, error) {
 	e.mu.Lock()
-	l, ok := mod.Cache.(*loaded)
+	l, ok := mod.Cache.(*extract.Module)
 	e.mu.Unlock()
 	if ok {
 		return l, nil
@@ -322,9 +323,7 @@ func (e *Extractor) Forget(root string) {
 	if !ok || m.l == nil {
 		return
 	}
-	m.l.detailsMu.Lock()
-	m.l.details = nil
-	m.l.detailsMu.Unlock()
+	m.l.ForgetDetails()
 }
 
 // beginLog reports whether the load of root is a repeat (Repeat); any other
@@ -360,11 +359,11 @@ func (e *Extractor) fresh(repeat bool, key string) bool {
 // copy whose name means nothing to the user. A load marked Repeat logs only the
 // skipped-package warnings
 // the last other load did not log; any other load starts the record afresh.
-func (e *Extractor) logSkipped(l *loaded) {
+func (e *Extractor) logSkipped(l *extract.Module) {
 	if e.logger == nil {
 		return
 	}
-	repeat := e.beginLog(l.root)
+	repeat := e.beginLog(l.Root)
 	for _, s := range l.Skipped {
 		level := slog.LevelInfo
 		if strings.HasPrefix(s.Reason, "build constraints exclude all Go files") {
@@ -373,7 +372,7 @@ func (e *Extractor) logSkipped(l *loaded) {
 		e.logger.Log(context.Background(), level, "skipped package", "package", s.ImportPath, "dir", s.Dir, "reason", s.Reason)
 	}
 	for _, s := range l.SkippedPackages {
-		err := relativeTo(s.Err.Error(), l.root)
+		err := relativeTo(s.Err.Error(), l.Root)
 		if e.fresh(repeat, s.Package) {
 			e.logger.Warn("skipped package; it does not load and is not measured",
 				"package", s.Package, "reason", s.Reason, "err", err)
@@ -390,7 +389,7 @@ func (e *Extractor) logSkipped(l *loaded) {
 // load. A failed load is not kept, so a later call retries it; a waiter whose
 // own context is still live retries a load that another caller's context
 // cancelled.
-func (e *Extractor) module(ctx context.Context, root string) (*loaded, error) {
+func (e *Extractor) module(ctx context.Context, root string) (*extract.Module, error) {
 	abs, err := filepath.Abs(root)
 	if err != nil {
 		return nil, fmt.Errorf("resolving module root %s: %w", root, err)
@@ -444,14 +443,14 @@ func relativeTo(msg, root string) string {
 	return msg
 }
 
-// skipped returns the skipped package with import path importPath, and
-// whether the load skipped it.
-func (l *loaded) skipped(importPath string) (load.SkippedPackage, bool) {
-	i := slices.IndexFunc(l.SkippedPackages, func(s load.SkippedPackage) bool { return s.Package == importPath })
+// skippedPackage returns the skipped package of m with import path
+// importPath, and whether the load skipped it.
+func skippedPackage(m *load.Module, importPath string) (load.SkippedPackage, bool) {
+	i := slices.IndexFunc(m.SkippedPackages, func(s load.SkippedPackage) bool { return s.Package == importPath })
 	if i < 0 {
 		return load.SkippedPackage{}, false
 	}
-	return l.SkippedPackages[i], true
+	return m.SkippedPackages[i], true
 }
 
 // Skipped returns the packages of the module at root that Packages leaves
@@ -474,8 +473,8 @@ func (e *Extractor) Excluded(root string) ([]metrics.SkippedPackage, error) {
 
 // leftOut returns the packages the load of the module at root left out,
 // sorted by import path: with excluded the directories none of whose
-// files is built (loaded.Skipped), else the packages that fail to load
-// (loaded.SkippedPackages), each with its first error.
+// files is built (load.Module.Skipped), else the packages that fail to load
+// (load.Module.SkippedPackages), each with its first error.
 func (e *Extractor) leftOut(root string, excluded bool) ([]metrics.SkippedPackage, error) {
 	l, err := e.module(context.Background(), root)
 	if err != nil {

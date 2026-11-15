@@ -11,7 +11,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/rfizzle/astimate/internal/lang/golang/internal/dup"
+	"github.com/rfizzle/astimate/internal/lang/golang/internal/extract"
 	"github.com/rfizzle/astimate/internal/lang/golang/internal/inspect"
 	"github.com/rfizzle/astimate/internal/lang/golang/internal/load"
 	"github.com/rfizzle/astimate/internal/metrics"
@@ -189,8 +189,8 @@ func TestOneLoadPerModule(t *testing.T) {
 			t.Fatalf("Extract(%s): %v", pkg, err)
 		}
 	}
-	if _, ok := mod.Cache.(*loaded); !ok {
-		t.Errorf("mod.Cache = %T, want *loaded", mod.Cache)
+	if _, ok := mod.Cache.(*extract.Module); !ok {
+		t.Errorf("mod.Cache = %T, want *extract.Module", mod.Cache)
 	}
 	// A second context whose root is spelled differently shares the load.
 	sep := string(filepath.Separator)
@@ -371,7 +371,7 @@ func TestExtractO200kConcurrent(t *testing.T) {
 		wg.Go(func() { got[i], errs[i] = e.Extract(t.Context(), mod, pkg) })
 	}
 	wg.Wait()
-	l := mod.Cache.(*loaded)
+	l := mod.Cache.(*extract.Module)
 	for i, pkg := range pkgs {
 		if errs[i] != nil {
 			t.Errorf("Extract(%s): %v", pkg, errs[i])
@@ -392,7 +392,7 @@ func TestExtractO200kConcurrent(t *testing.T) {
 		if g := got[i].TokensEstGenerated; g == nil || *g != wantGen {
 			t.Errorf("%s: tokens_est_generated = %v, want o200k count %d", pkg, g, wantGen)
 		}
-		if d, ok := l.detailsOf(pkg); !ok || d.tokensMethod != inspect.MethodO200k {
+		if d, ok := l.DetailsOf(pkg); !ok || d.TokensMethod != inspect.MethodO200k {
 			t.Errorf("%s: details = %+v, %v, want tokens method %q", pkg, d, ok, inspect.MethodO200k)
 		}
 	}
@@ -407,52 +407,23 @@ func TestExtractRecordsDetails(t *testing.T) {
 			t.Fatalf("Extract(%s): %v", pkg, err)
 		}
 	}
-	l := mod.Cache.(*loaded)
-	dupes, ok := l.detailsOf("example.com/fixture/dupes")
+	l := mod.Cache.(*extract.Module)
+	dupes, ok := l.DetailsOf("example.com/fixture/dupes")
 	if !ok {
 		t.Fatal("no details for dupes")
 	}
-	if len(dupes.dupBlocks) != 1 || len(dupes.dupBlocks[0].Locations) != 3 || dupes.tokensMethod != inspect.MethodEst {
+	if len(dupes.DupBlocks) != 1 || len(dupes.DupBlocks[0].Locations) != 3 || dupes.TokensMethod != inspect.MethodEst {
 		t.Errorf("dupes details = %+v, want 3 duplicate locations and method %q", dupes, inspect.MethodEst)
 	}
-	hub, ok := l.detailsOf("example.com/fixture/hub")
+	hub, ok := l.DetailsOf("example.com/fixture/hub")
 	if !ok {
 		t.Fatal("no details for hub")
 	}
-	if len(hub.untested.Names) != 3 {
-		t.Errorf("hub untested names = %v, want 3", hub.untested.Names)
+	if len(hub.Untested.Names) != 3 {
+		t.Errorf("hub untested names = %v, want 3", hub.Untested.Names)
 	}
-	if _, ok := l.detailsOf("example.com/fixture/a"); ok {
+	if _, ok := l.DetailsOf("example.com/fixture/a"); ok {
 		t.Error("details recorded for a package never extracted")
-	}
-}
-
-// TestExtractStdlibErrors assembles the standard library errors package,
-// loaded with its test variants by load.StdPackage outside the module
-// loader, through the same mapping Extract uses. It checks that assemble
-// works on a load the module loader did not build; the module path is
-// "std", the standard library's, but internal_imports=0 holds under any
-// module path because imports.Classify rules out the standard library before
-// it consults the module path. runtime.GOROOT is deprecated, so a toolchain without usable sources
-// is detected by the load failing, and the test skips.
-func TestExtractStdlibErrors(t *testing.T) {
-	m, err := load.StdPackage(t.Context(), packages.Load, "errors")
-	if err != nil || m.Pkgs["errors"] == nil || len(m.Pkgs["errors"].Syntax) == 0 {
-		t.Skipf("loading stdlib errors: %v", err)
-	}
-	l := &loaded{Module: m}
-
-	got, err := assemble(t.Context(), l, l.Pkgs["errors"],
-		assembleOptions{counter: inspect.NewRatioCounter(inspect.DefaultCharsPerToken), dup: dup.DefaultOptions()})
-	if err != nil {
-		t.Fatalf("assemble: %v", err)
-	}
-	if got.Globals != 1 || got.InternalImports != 0 || got.TestFuncs <= 0 {
-		t.Errorf("globals=%d internal_imports=%d test_funcs=%d, want 1 (errorType; ErrUnsupported is a sentinel), 0, >0",
-			got.Globals, got.InternalImports, got.TestFuncs)
-	}
-	if err := got.Validate(); err != nil {
-		t.Errorf("Validate: %v", err)
 	}
 }
 
@@ -483,7 +454,7 @@ func BenchmarkExtractAll(b *testing.B) {
 
 // splitGenerated returns the names of p's non-test files split into the
 // authored ones and the generated ones, in p.GoFiles order.
-func splitGenerated(l *loaded, p *packages.Package) (authored, generated []string) {
+func splitGenerated(l *extract.Module, p *packages.Package) (authored, generated []string) {
 	gen := l.GeneratedNames(p)
 	for _, name := range p.GoFiles {
 		if gen[name] {

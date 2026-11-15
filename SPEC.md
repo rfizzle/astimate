@@ -102,7 +102,7 @@ astimate/
 │   │   ├── internal/narration/  # Module and change reports from the engine's rows (10.3): compose input, glossary, change Markdown and annotations
 │   │   └── internal/detect/     # Every extractor configured from the config; the module and language a directory belongs to
 │   ├── lang/
-│   │   ├── golang/              # Go extractor (internal/load, filter, imports, inspect, tests, dup, cover)
+│   │   ├── golang/              # Go extractor (internal/load, filter, imports, inspect, tests, dup, cover, extract)
 │   │   └── typescript/          # TypeScript extractor (internal/resolve, internal/inspect, internal/walk)
 │   ├── gate/                    # Thresholds config, baseline, ratchet comparison, violations
 │   │   └── exempt/              # Exemptions (8.6): validation, matching, expired and stale ones

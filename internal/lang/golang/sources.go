@@ -51,5 +51,5 @@ func (e *Extractor) Importers(ctx context.Context, mod *metrics.ModuleContext, p
 	if _, ok := l.Pkgs[pkg]; !ok {
 		return nil, fmt.Errorf("importers of %s: %w", pkg, metrics.ErrUnknownPackage)
 	}
-	return slices.Clone(l.graph.Importers(l.Module, pkg)), nil
+	return slices.Clone(l.Graph.Importers(l.Module, pkg)), nil
 }

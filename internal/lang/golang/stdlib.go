@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/rfizzle/astimate/internal/lang/golang/internal/extract"
 	"github.com/rfizzle/astimate/internal/lang/golang/internal/inspect"
 	"github.com/rfizzle/astimate/internal/lang/golang/internal/load"
 	"github.com/rfizzle/astimate/internal/metrics"
@@ -39,7 +40,7 @@ func ExtractStdlib(ctx context.Context, importPath string, opts ...Option) (metr
 	if !ok {
 		return metrics.RawMetrics{}, fmt.Errorf("extracting %s: %w", importPath, metrics.ErrUnknownPackage)
 	}
-	return assemble(ctx, &loaded{Module: m}, p, assembleOptions{counter: counter, dup: e.dup})
+	return extract.Assemble(ctx, extract.New(m, ""), p, extract.Options{Counter: counter, Dup: e.dup})
 }
 
 // ExtractStdlibAll computes the v0 metrics of every package of the standard
@@ -79,16 +80,16 @@ func ExtractStdlibAllFunctions(ctx context.Context, opts ...Option,
 	}
 	fns := make(map[string][]inventory.FunctionInfo, len(got))
 	for path := range got {
-		// assemble recorded the details of every package it measured.
-		d, _ := l.detailsOf(path)
-		fns[path] = inspect.FunctionInfos(l.Fset, l.Pkgs[path].Dir, d.functions)
+		// extract.Assemble recorded the details of every package it measured.
+		d, _ := l.DetailsOf(path)
+		fns[path] = inspect.FunctionInfos(l.Fset, l.Pkgs[path].Dir, d.Functions)
 	}
 	return got, fns, failed, nil
 }
 
 // extractStdlibAll does the work of ExtractStdlibAll and also returns the
 // load, whose recorded details hold each measured package's functions.
-func extractStdlibAll(ctx context.Context, opts ...Option) (map[string]metrics.RawMetrics, map[string]error, *loaded, error) {
+func extractStdlibAll(ctx context.Context, opts ...Option) (map[string]metrics.RawMetrics, map[string]error, *extract.Module, error) {
 	e := New(opts...)
 	counter, err := e.counter()
 	if err != nil {
@@ -101,7 +102,7 @@ func extractStdlibAll(ctx context.Context, opts ...Option) (map[string]metrics.R
 	if len(m.Paths) == 0 {
 		return nil, nil, nil, fmt.Errorf("loading std: %w", ErrNoPackages)
 	}
-	l := &loaded{Module: m}
+	l := extract.New(m, "")
 
 	results := make([]metrics.RawMetrics, len(l.Paths))
 	errs := make([]error, len(l.Paths))
@@ -110,8 +111,8 @@ func extractStdlibAll(ctx context.Context, opts ...Option) (map[string]metrics.R
 	for range min(runtime.GOMAXPROCS(0), len(l.Paths)) {
 		wg.Go(func() {
 			for i := range next {
-				results[i], errs[i] = assemble(ctx, l, l.Pkgs[l.Paths[i]],
-					assembleOptions{counter: counter, dup: e.dup})
+				results[i], errs[i] = extract.Assemble(ctx, l, l.Pkgs[l.Paths[i]],
+					extract.Options{Counter: counter, Dup: e.dup})
 			}
 		})
 	}

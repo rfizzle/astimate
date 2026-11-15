@@ -12,7 +12,7 @@ cyclomatic fields were taken from `gocyclo` v0.6.0 run over the fixture with
 test and generated files ignored, its per-function values summed and their
 p90 taken per package. A v1 field
 missing from a golden is not compared, so a null value cannot be expressed
-here; `internal/lang/golang/assemble_test.go` checks the null cases.
+here; `internal/lang/golang/internal/extract/assemble_test.go` checks the null cases.
 
 If you edit any `.go` file under `testdata/go/fixture`, the byte-derived
 fields (`tokens_est`, `tokens_est_with_tests`) and possibly line counts change.

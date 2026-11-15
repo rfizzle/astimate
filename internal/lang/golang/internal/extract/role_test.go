@@ -1,4 +1,4 @@
-package golang
+package extract
 
 import (
 	"maps"
@@ -6,7 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/lang/golang/internal/dup"
+	"github.com/rfizzle/astimate/internal/lang/golang/internal/load"
 	"github.com/rfizzle/astimate/internal/metrics/role"
 )
 
@@ -27,8 +28,9 @@ var flags = []struct {
 
 // TestRoles checks SPEC.md 6.5: a package main is main, one whose every
 // non-test file is generated is generated-only, one only other packages'
-// tests use is test-support, and any other is a library; the module
-// details give the role of every package a cross-package block lies in.
+// tests use is test-support, and any other is a library; BlockRoles, behind
+// the module details, gives the role of every package a cross-package block
+// lies in.
 func TestRoles(t *testing.T) {
 	dir := t.TempDir()
 	files := map[string]string{
@@ -47,8 +49,7 @@ func TestRoles(t *testing.T) {
 		}
 		writeFile(t, p, data)
 	}
-	e := New()
-	mod := &metrics.ModuleContext{Root: dir}
+	l := loadRoot(t, dir)
 	want := map[string]string{
 		"example.com/roles/cmd/a": role.Main,
 		"example.com/roles/cmd/b": role.Main,
@@ -57,22 +58,22 @@ func TestRoles(t *testing.T) {
 		"example.com/roles/gen":   role.GeneratedOnly,
 	}
 	for pkg, w := range want {
-		m, err := e.Extract(t.Context(), mod, pkg)
-		if err != nil {
-			t.Fatalf("Extract(%s): %v", pkg, err)
-		}
-		if m.Role != w {
+		if m := assemblePackage(t, l, pkg); m.Role != w {
 			t.Errorf("%s role = %q, want %q", pkg, m.Role, w)
 		}
 	}
-	det, err := e.ModuleDetails(t.Context(), mod)
+	cross, err := l.CrossDup.Cross(l.Module, load.OSFiles{}, dup.DefaultOptions())
 	if err != nil {
-		t.Fatalf("ModuleDetails: %v", err)
+		t.Fatalf("Cross: %v", err)
 	}
-	if len(det.CrossBlocks) == 0 || det.CrossBlocks[0].Kind != "declarative" {
-		t.Fatalf("cross blocks = %+v, want the shared flag table, declarative", det.CrossBlocks)
+	blocks := cross.BlocksOf("")
+	if len(blocks) == 0 || blocks[0].Kind != "declarative" {
+		t.Fatalf("cross blocks = %+v, want the shared flag table, declarative", blocks)
 	}
-	if wantRoles := map[string]string{"example.com/roles/cmd/a": role.Main, "example.com/roles/cmd/b": role.Main}; !maps.Equal(det.Roles, wantRoles) {
-		t.Errorf("module details roles = %v, want %v", det.Roles, wantRoles)
+	if wantRoles := map[string]string{"example.com/roles/cmd/a": role.Main, "example.com/roles/cmd/b": role.Main}; !maps.Equal(BlockRoles(l, blocks), wantRoles) {
+		t.Errorf("block roles = %v, want %v", BlockRoles(l, blocks), wantRoles)
+	}
+	if got := BlockRoles(l, nil); got != nil {
+		t.Errorf("block roles of no blocks = %v, want nil", got)
 	}
 }

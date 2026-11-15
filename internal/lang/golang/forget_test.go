@@ -5,6 +5,8 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/rfizzle/astimate/internal/lang/golang/internal/extract"
+
 	"github.com/rfizzle/astimate/internal/metrics"
 	"golang.org/x/tools/go/packages"
 )
@@ -32,11 +34,11 @@ func TestForgetDropsLoadAndExtractReloads(t *testing.T) {
 	if _, err := e.Extract(t.Context(), mod, "example.com/fixture/a"); err != nil {
 		t.Fatalf("Extract: %v", err)
 	}
-	l, ok := mod.Cache.(*loaded)
+	l, ok := mod.Cache.(*extract.Module)
 	if !ok {
-		t.Fatalf("mod.Cache = %T, want *loaded", mod.Cache)
+		t.Fatalf("mod.Cache = %T, want *extract.Module", mod.Cache)
 	}
-	if _, ok := l.detailsOf("example.com/fixture/a"); !ok {
+	if _, ok := l.DetailsOf("example.com/fixture/a"); !ok {
 		t.Fatal("Extract recorded no details")
 	}
 
@@ -47,7 +49,7 @@ func TestForgetDropsLoadAndExtractReloads(t *testing.T) {
 	if holds(e, root) {
 		t.Fatal("extractor still holds a load for the root after Forget")
 	}
-	if _, ok := l.detailsOf("example.com/fixture/a"); ok {
+	if _, ok := l.DetailsOf("example.com/fixture/a"); ok {
 		t.Error("Forget kept the load's per-package details")
 	}
 

@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rfizzle/astimate/internal/lang/golang/internal/extract"
+
 	"golang.org/x/tools/go/packages"
 )
 
@@ -33,13 +35,13 @@ func fixtureRoot(t testing.TB) string {
 
 // loadFixture loads the fixture module, bypassing the Extractor, for tests
 // that call metric functions directly.
-func loadFixture(tb testing.TB) *loaded {
+func loadFixture(tb testing.TB) *extract.Module {
 	tb.Helper()
 	return loadRoot(tb, fixtureRoot(tb))
 }
 
 // loadRoot loads the module at root, bypassing the Extractor.
-func loadRoot(tb testing.TB, root string) *loaded {
+func loadRoot(tb testing.TB, root string) *extract.Module {
 	tb.Helper()
 	l, err := loadModule(&packages.Config{Dir: root}, packages.Load)
 	if err != nil {

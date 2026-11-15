@@ -7,6 +7,7 @@ import (
 
 	"github.com/rfizzle/astimate/internal/lang/duptok"
 	"github.com/rfizzle/astimate/internal/lang/golang/internal/dup"
+	"github.com/rfizzle/astimate/internal/lang/golang/internal/extract"
 	"github.com/rfizzle/astimate/internal/lang/golang/internal/inspect"
 	"github.com/rfizzle/astimate/internal/lang/golang/internal/load"
 	"github.com/rfizzle/astimate/internal/metrics"
@@ -29,35 +30,35 @@ func (e *Extractor) Details(ctx context.Context, mod *metrics.ModuleContext, pkg
 	if dup.Applies(l.Module) {
 		// Extract has run the cross-package pass for e.dup, so this is the
 		// memoized result and reads no file.
-		c, err := l.cross.Cross(l.Module, load.OSFiles{}, e.dup)
+		c, err := l.CrossDup.Cross(l.Module, load.OSFiles{}, e.dup)
 		if err != nil {
 			return inventory.Details{}, fmt.Errorf("details of %s: %w", pkg, err)
 		}
 		cross = c.BlocksOf(pkg)
 	}
-	files := relFiles(dir, d.files)
+	files := relFiles(dir, d.Files)
 	slices.Sort(files)
-	locs, blocks := duptok.Details(d.dupBlocks, func(f string) string { return load.RelFile(dir, f) })
+	locs, blocks := duptok.Details(d.DupBlocks, func(f string) string { return load.RelFile(dir, f) })
 	return inventory.Details{
-		UntestedExports:  slices.Clone(d.untested.Names),
-		UntestedExcluded: slices.Clone(d.untested.Excluded),
-		UntestedCovered:  slices.Clone(d.covered),
+		UntestedExports:  slices.Clone(d.Untested.Names),
+		UntestedExcluded: slices.Clone(d.Untested.Excluded),
+		UntestedCovered:  slices.Clone(d.Covered),
 
 		UntestedRules: inventory.UntestedRules{
-			OptionFuncs:      d.untested.OptionFuncs,
-			InterfaceMethods: d.untested.InterfaceMethods,
-			TestSupport:      d.untested.TestSupport,
+			OptionFuncs:      d.Untested.OptionFuncs,
+			InterfaceMethods: d.Untested.InterfaceMethods,
+			TestSupport:      d.Untested.TestSupport,
 		}.Clone(),
 		DupLocations:      locs,
 		DupBlocks:         blocks,
 		CrossBlocks:       cross,
-		UntestedPositions: inspect.Positions(l.Fset, dir, d.untested.Pos),
-		GlobalPositions:   inspect.Positions(l.Fset, dir, d.globals.Pos),
-		GlobalNames:       slices.Clone(d.globals.Names),
-		LargestFile:       load.RelFile(dir, d.largestFile),
-		Functions:         inspect.FunctionInfos(l.Fset, dir, d.functions),
-		Exports:           inspect.Symbols(l.Fset, dir, d.exports.Exported),
-		Unexported:        inspect.Symbols(l.Fset, dir, d.exports.Unexported),
+		UntestedPositions: inspect.Positions(l.Fset, dir, d.Untested.Pos),
+		GlobalPositions:   inspect.Positions(l.Fset, dir, d.Globals.Pos),
+		GlobalNames:       slices.Clone(d.Globals.Names),
+		LargestFile:       load.RelFile(dir, d.LargestFile),
+		Functions:         inspect.FunctionInfos(l.Fset, dir, d.Functions),
+		Exports:           inspect.Symbols(l.Fset, dir, d.Exports.Exported),
+		Unexported:        inspect.Symbols(l.Fset, dir, d.Exports.Unexported),
 		SourceFiles:       files,
 	}, nil
 }
@@ -73,23 +74,23 @@ func (e *Extractor) Functions(ctx context.Context, mod *metrics.ModuleContext, p
 	if err != nil {
 		return nil, err
 	}
-	return inspect.FunctionInfos(l.Fset, dir, d.functions), nil
+	return inspect.FunctionInfos(l.Fset, dir, d.Functions), nil
 }
 
 // recorded returns the details the most recent Extract of pkg on mod
 // recorded, running Extract first when there are none, the load they came
 // from, and pkg's directory, empty when the load has no such package.
-func (e *Extractor) recorded(ctx context.Context, mod *metrics.ModuleContext, pkg string) (details, *loaded, string, error) {
+func (e *Extractor) recorded(ctx context.Context, mod *metrics.ModuleContext, pkg string) (extract.Details, *extract.Module, string, error) {
 	l, err := e.cached(ctx, mod)
 	if err != nil {
-		return details{}, nil, "", err
+		return extract.Details{}, nil, "", err
 	}
-	d, ok := l.detailsOf(pkg)
+	d, ok := l.DetailsOf(pkg)
 	if !ok {
 		if _, err := e.Extract(ctx, mod, pkg); err != nil {
-			return details{}, nil, "", err
+			return extract.Details{}, nil, "", err
 		}
-		d, _ = l.detailsOf(pkg)
+		d, _ = l.DetailsOf(pkg)
 	}
 	dir := ""
 	if p, ok := l.Pkgs[pkg]; ok {

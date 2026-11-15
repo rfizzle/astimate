@@ -3,9 +3,9 @@
 //
 // An Extractor loads each module root once (internal/load), with syntax and
 // full type information for the module packages, and keeps the result in an
-// unexported loaded value shared by Packages and every Extract call for that
-// root. Extract also stores the value in ModuleContext.Cache so later calls
-// on the same context reuse it directly.
+// extract.Module shared by Packages and every Extract call for that root.
+// Extract also stores the value in ModuleContext.Cache so later calls on
+// the same context reuse it directly.
 //
 // The metrics are computed by functions in packages under internal, each of
 // the shape
@@ -21,6 +21,10 @@
 // metrics and untested_exports; internal/dup duplication; internal/cover
 // coverage. A module-wide index, the reverse import graph (imports.Graph)
 // or the cross-package duplication pass (dup.Memo), is built once per load
-// and kept in its slot on loaded, never recomputed per package. Extract
-// calls the metric functions and assembles RawMetrics from their results.
+// and kept in its slot on extract.Module, never recomputed per package.
+// internal/extract calls the metric functions and assembles RawMetrics from
+// their results (extract.Assemble); this package holds the Extractor that
+// loads, caches and forgets modules, logs and lists what a load left out,
+// and answers Details, Functions, Importers, the module row and coverage
+// from what extract.Assemble recorded.
 package golang

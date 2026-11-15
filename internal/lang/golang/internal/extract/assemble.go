@@ -1,4 +1,4 @@
-package golang
+package extract
 
 import (
 	"context"
@@ -14,20 +14,20 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-// assembleOptions carries the extractor configuration assemble needs.
-type assembleOptions struct {
-	// counter counts tokens_est and tokens_est_with_tests.
-	counter inspect.Counter
-	// dup configures duplicate detection.
-	dup dup.Options
-	// files is where source bytes are read from; nil means the disk. It is
+// Options carries the extractor configuration Assemble needs.
+type Options struct {
+	// Counter counts tokens_est and tokens_est_with_tests.
+	Counter inspect.Counter
+	// Dup configures duplicate detection.
+	Dup dup.Options
+	// Files is where source bytes are read from; nil means the disk. It is
 	// wrapped in a load.FileCache per call, so each file is opened at most
 	// once.
-	files load.FileSource
+	Files load.FileSource
 }
 
 // results holds the per-package results of every metric function, before
-// assemble maps them into RawMetrics.
+// Assemble maps them into RawMetrics.
 type results struct {
 	imp      imports.Counts
 	fanIn    imports.FanIn
@@ -43,7 +43,7 @@ type results struct {
 	tokens   inspect.TokenCounts
 }
 
-// assemble computes every v0 metric of p in l and maps it into RawMetrics by
+// Assemble computes every v0 metric of p in m and maps it into RawMetrics by
 // its SPEC.md section 6 name, with the v1 fields instability, abstractness
 // and main_sequence_distance derived from them (nil when undefined, else
 // rounded to three decimal places), internal_imports_descendants and
@@ -52,10 +52,10 @@ type results struct {
 // dup_blocks_cross_pkg (nil for the standard-library loads, which are not
 // modules), and the package's role (roleOf); coverage_pct and
 // changed_func_cognitive_max are left nil. It
-// records the debug details of p in l. Errors are wrapped with p's import
-// path.
-func assemble(ctx context.Context, l *loaded, p *packages.Package, opts assembleOptions) (metrics.RawMetrics, error) {
-	r, err := measure(ctx, l, p, opts)
+// records the debug details of p in m (DetailsOf). Errors are wrapped with
+// p's import path.
+func Assemble(ctx context.Context, m *Module, p *packages.Package, opts Options) (metrics.RawMetrics, error) {
+	r, err := measure(ctx, m, p, opts)
 	if err != nil {
 		return metrics.RawMetrics{}, fmt.Errorf("extracting %s: %w", p.PkgPath, err)
 	}
@@ -71,16 +71,16 @@ func assemble(ctx context.Context, l *loaded, p *packages.Package, opts assemble
 	instability = metrics.RoundRatio(instability)
 	abstractness = metrics.RoundRatio(abstractness)
 
-	l.setDetails(p.PkgPath, details{
-		untested:     r.untested,
-		globals:      r.globals,
-		imp:          r.imp,
-		dupBlocks:    r.dup.Groups(),
-		tokensMethod: r.tokens.Method,
-		functions:    r.cx.PerFunc,
-		exports:      r.size.Exports,
-		largestFile:  r.size.LargestFile,
-		files:        p.GoFiles,
+	m.setDetails(p.PkgPath, Details{
+		Untested:     r.untested,
+		Globals:      r.globals,
+		Imports:      r.imp,
+		DupBlocks:    r.dup.Groups(),
+		TokensMethod: r.tokens.Method,
+		Functions:    r.cx.PerFunc,
+		Exports:      r.size.Exports,
+		LargestFile:  r.size.LargestFile,
+		Files:        p.GoFiles,
 	})
 	return metrics.RawMetrics{
 		Files:              r.size.Files,
@@ -124,11 +124,11 @@ func assemble(ctx context.Context, l *loaded, p *packages.Package, opts assemble
 		GeneratedFiles:       &r.opacity.Generated,
 		TokensEstGenerated:   &r.tokens.TokensEstGenerated,
 
-		Role: roleOf(l, p),
+		Role: roleOf(m, p),
 	}, nil
 }
 
-// measure runs every metric function on p in l. Complexity runs before
+// measure runs every metric function on p in mod. Complexity runs before
 // Globals, which reads the variable writes its walk records. Size runs before
 // duplication, which weighs lines by it, and ctx is checked after each of
 // the expensive steps, duplication and cross-package duplication, before
@@ -136,15 +136,15 @@ func assemble(ctx context.Context, l *loaded, p *packages.Package, opts assemble
 // file is opened at most once. The module-wide cross-package pass runs once
 // per load (see dup.Memo); the call that runs it reads every module file
 // through the same cache, so p's own files are still opened once.
-func measure(ctx context.Context, l *loaded, p *packages.Package, opts assembleOptions) (r results, err error) {
-	m := l.Module
+func measure(ctx context.Context, mod *Module, p *packages.Package, opts Options) (r results, err error) {
+	m := mod.Module
 	r.imp = imports.Count(m, p)
-	r.fanIn = l.graph.FanIn(m, p)
+	r.fanIn = mod.Graph.FanIn(m, p)
 	r.cx = inspect.Complexity(m, p)
 	r.globals = inspect.Globals(m, p, r.cx.Written)
 	r.tests = tests.Count(m, p)
-	r.untested = tests.Untested(m, &l.testRefs, p)
-	next := opts.files
+	r.untested = tests.Untested(m, &mod.testRefs, p)
+	next := opts.Files
 	if next == nil {
 		next = load.OSFiles{}
 	}
@@ -155,14 +155,14 @@ func measure(ctx context.Context, l *loaded, p *packages.Package, opts assembleO
 	if err := ctx.Err(); err != nil {
 		return r, err
 	}
-	if r.dup, err = dup.Package(m, p, src, r.size.SLOC, opts.dup); err != nil {
+	if r.dup, err = dup.Package(m, p, src, r.size.SLOC, opts.Dup); err != nil {
 		return r, err
 	}
 	if err := ctx.Err(); err != nil {
 		return r, err
 	}
 	if dup.Applies(m) {
-		cross, err := l.cross.Cross(m, src, opts.dup)
+		cross, err := mod.CrossDup.Cross(m, src, opts.Dup)
 		if err != nil {
 			return r, err
 		}
@@ -173,6 +173,6 @@ func measure(ctx context.Context, l *loaded, p *packages.Package, opts assembleO
 		}
 	}
 	r.opacity = inspect.Opacity(m, p)
-	r.tokens, err = inspect.Tokens(m, p, src, opts.counter)
+	r.tokens, err = inspect.Tokens(m, p, src, opts.Counter)
 	return r, err
 }
