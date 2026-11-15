@@ -156,8 +156,8 @@ func Metric(metric string, head float64, m metrics.RawMetrics, n Names) string {
 	case "exported_symbols":
 		return "The package exports " + count(int(head), "symbol", "symbols") + ": split it along one of its responsibilities. " + notFixExports
 	case "internal_imports":
-		return "The package imports " + count(int(head), "internal package: move the code that needs it",
-			"internal packages: move the code that needs them") + " into a package of its own, or split it. " + notFixImports
+		return "The package imports " + count(int(head), "internal package", "internal packages") + ownImports(int(head), m.InternalImportsPrivate) +
+			": move the code that needs " + oneOrMany(int(head), "it", "them") + " into a package of its own, or split it. " + notFixImports
 	case "sloc":
 		return "The package has " + v + " source lines; split it before the next feature."
 	case "has_tests":
@@ -175,6 +175,26 @@ func Metric(metric string, head float64, m metrics.RawMetrics, n Names) string {
 	default:
 		return ""
 	}
+}
+
+// ownImports says how many of a package's n internal imports are packages
+// under its own internal directory (internal_imports_private), which a
+// split of the package into children adds: fan-out of its own making, so
+// a reader can tell it from coupling to the rest of the module. Empty
+// when the extractor does not count them or there are none.
+func ownImports(n int, private *int) string {
+	if private == nil || *private <= 0 || *private > n {
+		return ""
+	}
+	return ", " + strconv.Itoa(*private) + " of them its own internal " + oneOrMany(*private, "package", "packages")
+}
+
+// oneOrMany returns one for n == 1 and many otherwise.
+func oneOrMany(n int, one, many string) string {
+	if n == 1 {
+		return one
+	}
+	return many
 }
 
 // notFixExports and notFixImports name the edits that lower the

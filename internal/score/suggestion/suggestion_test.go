@@ -97,6 +97,37 @@ func TestMetricSuggestionEveryTemplate(t *testing.T) {
 // internal_imports templates: the split to make, in the first clause so a
 // format that keeps only that clause still carries it, then the edits
 // that lower the count without one, which are not fixes.
+// TestMetricSuggestionOwnImports checks that an internal_imports finding
+// says how many of the imports are the package's own internal packages,
+// and says nothing when the extractor does not count them or has none.
+func TestMetricSuggestionOwnImports(t *testing.T) {
+	t.Parallel()
+
+	n := func(v int) *int { return &v }
+	const rest = ": move the code that needs them into a package of its own, or split it. " +
+		"Not a fix: moving code into a package it does not belong in, or injecting a dependency only to drop the import."
+	tests := []struct {
+		name    string
+		private *int
+		want    string
+	}{
+		{"not counted", nil, "The package imports 16 internal packages" + rest},
+		{"none", n(0), "The package imports 16 internal packages" + rest},
+		{"several", n(6), "The package imports 16 internal packages, 6 of them its own internal packages" + rest},
+		{"one", n(1), "The package imports 16 internal packages, 1 of them its own internal package" + rest},
+		{"more than the total is not quoted", n(17), "The package imports 16 internal packages" + rest},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			m := metrics.RawMetrics{InternalImports: 16, InternalImportsPrivate: tt.private}
+			if got := Metric("internal_imports", 16, m, Names{}); got != tt.want {
+				t.Errorf("Metric = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestMetricSuggestionCapacitySurface(t *testing.T) {
 	t.Parallel()
 
