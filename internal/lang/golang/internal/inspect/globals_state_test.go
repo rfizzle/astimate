@@ -92,9 +92,26 @@ func TestGlobalsMutableState(t *testing.T) {
 			names: []string{"ErrS"},
 		},
 		{
-			name:  "error from another package counts",
-			src:   "package p\nimport \"io\"\nvar ErrEOF = io.EOF\n",
+			// Without type information the variable cannot be shown to be
+			// an error of another package, so it counts.
+			name:         "error variable of another package, re-exported",
+			src:          "package p\nimport \"io\"\nvar ErrEOF = io.EOF\n",
+			untypedNames: []string{"ErrEOF"},
+		},
+		{
+			name:  "re-exported error assigned in a function counts",
+			src:   "package p\nimport \"io\"\nvar ErrEOF = io.EOF\nfunc Reset() { ErrEOF = nil }\n",
 			names: []string{"ErrEOF"},
+		},
+		{
+			name:  "a non-error variable of another package counts",
+			src:   "package p\nimport \"os\"\nvar Out = os.Stdout\n",
+			names: []string{"Out"},
+		},
+		{
+			name:  "error from a call of another package counts",
+			src:   "package p\nimport \"os\"\nvar ErrX = os.NewSyscallError(\"x\", nil)\n",
+			names: []string{"ErrX"},
 		},
 		{
 			name:  "errors.New of a non-constant counts",

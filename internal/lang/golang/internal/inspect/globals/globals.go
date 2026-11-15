@@ -46,7 +46,8 @@ type Counts struct {
 // A spec none of whose names is in written (the Written set the complexity walk records) is
 // left out when it is one of five immutable idioms (SPEC.md 6.5):
 //   - a sentinel error: every name has type error and every initializer is
-//     a call to errors.New or fmt.Errorf whose arguments are all constant;
+//     a call to errors.New or fmt.Errorf whose arguments are all constant,
+//     or another package's error variable, re-exported;
 //   - an embedded file: the spec carries a //go:embed directive;
 //   - build information: every name has a boolean, numeric or string basic
 //     type and every initializer, if any, is constant, as for a value set
@@ -162,10 +163,28 @@ func hasEmbed(g *ast.CommentGroup) bool {
 
 // sentinel reports whether every name of vs has type error and every
 // initializer is a call to errors.New or fmt.Errorf with constant
-// arguments only.
+// arguments only, or another package's error variable, which the name
+// re-exports.
 func (k *varKinds) sentinel(vs *ast.ValueSpec) bool {
 	errType := types.Universe.Lookup("error").Type()
-	return k.each(vs, func(_ string, t types.Type) bool { return types.Identical(t, errType) }, k.constErrorCall)
+	return k.each(vs, func(_ string, t types.Type) bool { return types.Identical(t, errType) },
+		func(e ast.Expr) bool { return k.constErrorCall(e) || k.importedError(e) })
+}
+
+// importedError reports whether e names a package-level variable of type
+// error of another package, as var ErrX = other.ErrX does to keep a
+// sentinel reachable under the name its callers match with errors.Is
+// after the code that returns it moved. The name holds no state of its
+// own. It needs the type information, so in a tree that information does
+// not cover the variable counts.
+func (k *varKinds) importedError(e ast.Expr) bool {
+	sel, ok := ast.Unparen(e).(*ast.SelectorExpr)
+	if !ok || k.info == nil {
+		return false
+	}
+	v, ok := k.info.Uses[sel.Sel].(*types.Var)
+	return ok && !v.IsField() && v.Pkg() != nil && v.Pkg().Path() != k.pkgPath && v.Parent() == v.Pkg().Scope() &&
+		types.Identical(v.Type(), types.Universe.Lookup("error").Type())
 }
 
 // constErrorCall reports whether e is a call to errors.New or fmt.Errorf
