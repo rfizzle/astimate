@@ -10,6 +10,23 @@ history.
 
 ## [Unreleased]
 
+### Changed
+
+- An `internal_imports` finding says how many of the imports are the
+  package's own internal packages (`internal_imports_private`), as in
+  "imports 16 internal packages, 6 of them its own internal packages", so
+  fan-out a split created reads apart from coupling to the rest of the
+  module. Nothing is said where the extractor does not count them or
+  there are none. Wording only.
+- `globals` no longer counts a re-exported sentinel error, a package-level
+  variable of type `error` initialised with another package's error
+  variable (`var ErrNoLanguage = detect.ErrNoLanguage`) and never written:
+  it holds no state of its own, and it is how a sentinel keeps its name
+  for `errors.Is` when a split moves the code that returns it. It needs
+  type information, so in a cgo package's source trees it still counts.
+
+## [0.9.0] - 2026-11-15
+
 ### Added
 
 - An opt-in block log for the Claude Code Stop hook. With
@@ -51,6 +68,27 @@ history.
   block log. Expired and stale notices about its entries, and its
   validation errors, name the file. Without the file nothing changes.
   Protect it from agent edits as you protect `astimate.yaml`.
+
+### Changed
+
+- The default configuration and the spec describe gating `dup_blocks_code`
+  at `fail` beside `dup_blocks` at `severity: warn`, which fails on pasted
+  code and keeps blocks of the other kinds as a warning; a test pins that
+  the two findings do not merge. No behaviour changed.
+- Six packages near their capacity ceilings were split along a
+  responsibility, with no behaviour, output or schema change: the module
+  and change report building and extractor detection moved out of
+  `internal/engine` (`engine/internal/narration`, `engine/internal/detect`),
+  `explain_metric`'s answer out of `internal/mcpserver`, the baseline
+  file's layout out of `internal/baseline`, and the fix suggestions'
+  wording out of `internal/score` into `internal/score/suggestion`, and
+  the per-package detail records out of `internal/metrics` into
+  `internal/metrics/inventory`.
+
+## [0.8.0] - 2026-11-15
+
+### Added
+
 - `check` warns when a change reshapes the exports of a package near its
   `exported_symbols` ceiling without adding one: an existing exported
   function or method whose signature changed (a variadic parameter added
@@ -85,6 +123,39 @@ history.
   it on both sides so a new pattern does not read as a deleted package,
   `--debug` logs each excluded file, a malformed pattern is a config error
   naming it, and `config init` writes the key commented out.
+
+### Changed
+
+- A capacity violation now says what does not fix it. The
+  `exported_symbols` suggestion names the split and rules out unexporting
+  what callers need, folding a new function into an existing one's
+  parameters, and changing what an existing export does; the
+  `internal_imports` suggestion rules out moving code where it does not
+  belong and injecting a dependency only to drop the import. Every
+  capacity breach on a package ends by telling the agent to stop and say
+  so when the split is out of scope, so a person can record an exemption
+  with a reason and an expiry. Wording only: no threshold, verdict or
+  schema field changed.
+- The module report takes its ceilings from the gate's own definition, a
+  capacity rule with a positive `max`, as `rank --sort headroom` does. A
+  density rule's `max` on a size metric is no longer shown as a ceiling,
+  and where a metric has one rule per set of roles a package is shown
+  against the rule that judges its role.
+- `ast.Visitor` joins the closed list of interfaces whose methods
+  `untested_exports` does not count: `ast.Walk` calls `Visit`.
+- Exemptions moved from `internal/gate` to `internal/gate/exempt`. No
+  behaviour changed.
+- `make check` fails when `actionlint` is not installed instead of
+  skipping the step.
+
+## [0.2.0] to [0.7.2] - 2026-09-28 to 2026-10-16
+
+These ten releases were not given headings of their own when they were
+cut; the entries below shipped across them, and the git history says
+which commit went into which.
+
+### Added
+
 - TypeScript files marked as generated are recognised. A non-test `.ts`,
   `.tsx`, `.mts` or `.cts` file whose leading comment block holds
   `@generated`, a `Code generated ... DO NOT EDIT` line, or a "generated"
@@ -116,7 +187,6 @@ history.
   workflow waits for the commit's `ci` run to finish green before
   goreleaser runs, and fails naming the run otherwise. `docs/release.md`
   is the runbook: the tag, the secrets and what to check afterwards.
-
 - Terminal text for the module report. `astimate report` now prints, by
   default, a verdict sentence, the packages counted as Split, Watch and
   Fine, "Start here" with the three hottest packages and what to do about
@@ -230,7 +300,6 @@ history.
   (`calibration/notes/dup-blocks-code-2026-10-14.md`). `calibration/validate`
   accepts such a rule in a replayed rule's place and re-evaluates it on the
   stored metrics.
-
 - A package that existed at the baseline but failed to load there (a type
   error, a missing module) is no longer judged as new. It is judged
   against the capacity and density `max` values only, with the ratchets
@@ -331,7 +400,6 @@ history.
   itself fails. The replay engine moved from `calibration/replay` to
   `internal/replay`; the calibration command keeps its flags and data
   format.
-
 - A Go package that does not load, such as one whose test imports a
   private module missing from the module cache, is skipped instead of
   failing the whole module: `check`, `rank` and `assess` measure and gate
@@ -364,7 +432,6 @@ history.
   hand-set from the field adjudication instead of the sweep's 3 and 0. crush's config package
   failed on +1, +3 and +5 exports and bug fixes of +6 to +24 lines failed in
   files over 600; the same changes now pass with a warning.
-
 - The over-ceiling allowance (`over_max_delta`) of three more capacity rules
   is fitted from per-commit replays of five more repositories, and the
   TypeScript override now has one on each capacity rule. At the top level
@@ -545,40 +612,6 @@ history.
 
 ### Changed
 
-- The default configuration and the spec describe gating `dup_blocks_code`
-  at `fail` beside `dup_blocks` at `severity: warn`, which fails on pasted
-  code and keeps blocks of the other kinds as a warning; a test pins that
-  the two findings do not merge. No behaviour changed.
-- Six packages near their capacity ceilings were split along a
-  responsibility, with no behaviour, output or schema change: the module
-  and change report building and extractor detection moved out of
-  `internal/engine` (`engine/internal/narration`, `engine/internal/detect`),
-  `explain_metric`'s answer out of `internal/mcpserver`, the baseline
-  file's layout out of `internal/baseline`, and the fix suggestions'
-  wording out of `internal/score` into `internal/score/suggestion`, and
-  the per-package detail records out of `internal/metrics` into
-  `internal/metrics/inventory`.
-- A capacity violation now says what does not fix it. The
-  `exported_symbols` suggestion names the split and rules out unexporting
-  what callers need, folding a new function into an existing one's
-  parameters, and changing what an existing export does; the
-  `internal_imports` suggestion rules out moving code where it does not
-  belong and injecting a dependency only to drop the import. Every
-  capacity breach on a package ends by telling the agent to stop and say
-  so when the split is out of scope, so a person can record an exemption
-  with a reason and an expiry. Wording only: no threshold, verdict or
-  schema field changed.
-- The module report takes its ceilings from the gate's own definition, a
-  capacity rule with a positive `max`, as `rank --sort headroom` does. A
-  density rule's `max` on a size metric is no longer shown as a ceiling,
-  and where a metric has one rule per set of roles a package is shown
-  against the rule that judges its role.
-- `ast.Visitor` joins the closed list of interfaces whose methods
-  `untested_exports` does not count: `ast.Walk` calls `Visit`.
-- Exemptions moved from `internal/gate` to `internal/gate/exempt`. No
-  behaviour changed.
-- `make check` fails when `actionlint` is not installed instead of
-  skipping the step.
 - Every command logs at warn level by default, so routine notes such as a
   package left out for its build constraints no longer print beside the
   report. A new `--debug` flag, taken by every command including `serve`,
@@ -604,7 +637,6 @@ history.
   `engineer_time`, and still `rebuild_cost`, as Sittings. The MCP tool
   descriptions say which figure is measured. The JSON keeps every
   `human_*` field.
-
 - Engineer time is a range. Until human rebuild time is measured no
   single figure is honest, so each package carries the lower and the
   higher of COCOMO 81 and COCOMO II under the rebuild profile, on the same
@@ -626,7 +658,6 @@ history.
   have no tests", which was no longer true. An empty
   `rebuild.cocomo.unfm` is now a configuration error, like any unknown
   rating, where it was read as `completely_unfamiliar`.
-
 - Engineer time inflates the code to rebuild by COCOMO II's software
   understanding, `1 + 0.02 × SU × UNFM`, in place of the guessed
   `1 + 0.5 × untested_ratio`, under both `cocomo-ii` and `basic-81`. SU
@@ -640,7 +671,6 @@ history.
   repository's total rises 42%, from 1,703 to 2,424 days.
   `completely_familiar` removes it. SPEC.md 7.3 and
   `calibration/notes/cocomo-ii-rebuild-2026-10.md` give the cut points.
-
 - The report leads with the measured agent estimate. The counts line reads
   "<n> packages, <k> need more than one sitting, <time> of one engineer's
   time", the HTML hero and the bubbles show the sittings with the engineer
@@ -652,7 +682,6 @@ history.
   ranks by the figure fitted on 85 measured rebuilds, not by a textbook
   rule. The module JSON gains `counts.multi_sitting`, and a package's
   `hotspot` is now churn times agent passes.
-
 - The engineer time is now COCOMO II's post-architecture form under a
   rebuild-from-tests profile instead of COCOMO 81 basic organic mode. A
   rebuild has known behaviour, an exact target and fixed boundaries, which
@@ -692,7 +721,6 @@ history.
 - The `dup_blocks` suggestion says it counts blocks of any kind and how
   many of them are code, and `explain_metric` says which kinds the
   default gate judges.
-
 - The embedded default is `thresholds-2026-10-14`, retuned on 14
   hand-labelled `block` and 138 `allow` agent commits from five
   repositories (`calibration/reports/thresholds-2026-10-14.md`): duplicate
@@ -797,7 +825,6 @@ history.
   (rebuild.yaml regenerated, 33 experiments, the 26 recorded stub hashes
   unchanged); new whole-tree rebuild experiments (`select --unit tree`,
   rebuild-trees.yaml) with unit-aware runs and fit.
-
 - The embedded default's rebuild parameters are calibrated: `config_version`
   is `rebuild-2026-09-28-claude-code-opus`, fitted by
   `calibration/rebuild/fit` from 85 Claude Code (Opus) rebuilds of 31
@@ -833,13 +860,11 @@ history.
   handling, and `calibration/fit`, `calibration/rebuild` and
   `calibration/collect` are split into internal packages. Output, flags and
   reports are unchanged.
-
 - `check` summary lines count exempted violations after the warnings:
   `<pkg>: N violations, M warnings, K exempted`.
 - SPEC: `fan_in` is documented as unproven and outside the rebuild formula, the
   capacity ceilings no longer claim to ensure one pass, section 4 citations were
   checked against their abstracts, and milestone M8 was added.
-
 - `check` text, and `check_package`'s text, no longer show agent passes, tier
   or the change in passes from the baseline while the rebuild estimate is
   uncalibrated (a `config_version` not starting `rebuild-`): the summary line
@@ -882,7 +907,6 @@ history.
   `calibration/notes/cross-package-duplication-2026-09-28.md` measures the
   pass: at most 0.5 s and 214 MiB on the corpus, and 0.8 s and 317 MiB on
   the standard library, for which the metric is still null.
-
 - The text report's estimate line now reads `(estimate from uncalibrated
   parameters)` instead of `(estimate, uncalibrated)`, so it no longer reads
   as a statement about the gate thresholds, which are calibrated. The JSON
@@ -975,7 +999,6 @@ history.
   embeds a build directory. The package is extracted as usual and one
   warning per package and pattern is written to stderr; any other load
   error still fails.
-
 - calibration: rebuild runs, `select`'s verification, replays and corpus
   collection no longer build into the shared Go build cache, which every
   rebuild run grew by a whole corpus module and its tests until it filled
@@ -1014,5 +1037,8 @@ under the MIT license.
   placeholders are kept as `configs/uncalibrated.yaml`. The rebuild
   parameters are unchanged and still uncalibrated.
 
-[Unreleased]: https://github.com/rfizzle/astimate/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/rfizzle/astimate/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/rfizzle/astimate/compare/v0.8.0...v0.9.0
+[0.8.0]: https://github.com/rfizzle/astimate/compare/v0.7.2...v0.8.0
+[0.7.2]: https://github.com/rfizzle/astimate/compare/v0.1.0...v0.7.2
 [0.1.0]: https://github.com/rfizzle/astimate/releases/tag/v0.1.0
