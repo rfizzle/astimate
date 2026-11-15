@@ -7,12 +7,10 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/rfizzle/astimate/internal/config"
+	"github.com/rfizzle/astimate/internal/engine/internal/detect"
 	"github.com/rfizzle/astimate/internal/engine/internal/judge"
-	"github.com/rfizzle/astimate/internal/lang/golang"
-	"github.com/rfizzle/astimate/internal/lang/typescript"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/score/suggestion"
 )
@@ -28,8 +26,9 @@ const (
 // ErrNotDir reports a target path that is not a directory.
 var ErrNotDir = errors.New("not a directory")
 
-// ErrNoLanguage reports a module root no extractor detects.
-var ErrNoLanguage = errors.New("no supported language detected")
+// ErrNoLanguage reports a module root no extractor detects
+// (detect.ErrNoLanguage).
+var ErrNoLanguage = detect.ErrNoLanguage
 
 // ErrUnknownTokenizer reports a tokenizer name other than TokenizerEst and
 // TokenizerO200k.
@@ -138,22 +137,22 @@ func LoadTarget(dir string, opts TargetOptions) (*Target, error) {
 			}
 		}
 	}
-	reg, err := newRegistry(cfg, tokenizer, opts.Logger)
+	reg, err := detect.Registry(cfg, tokenizer, opts.Logger)
 	if err != nil {
 		return nil, err
 	}
 	if opts.Config == nil && opts.Logger != nil {
-		for _, w := range languageWarnings(cfg, reg) {
+		for _, w := range detect.Warnings(cfg, reg) {
 			opts.Logger.Warn("config", "source", source, "warning", w)
 		}
 	}
-	root, ext, err := detectModule(abs, reg, opts.Logger)
+	root, ext, err := detect.Module(abs, reg, opts.Logger)
 	if err != nil {
 		return nil, fmt.Errorf("resolving %s: %w", dir, err)
 	}
 	modPath := ""
-	if ext.Language() == languageGo {
-		modPath, err = golang.ModulePath(root)
+	if read := detect.ModulePathFunc(ext.Language()); read != nil {
+		modPath, err = read(root)
 		if err != nil {
 			return nil, fmt.Errorf("reading module path of %s: %w", root, err)
 		}
@@ -180,96 +179,11 @@ func LoadTarget(dir string, opts TargetOptions) (*Target, error) {
 // can never apply. The extractor registry, not the config package, is the
 // source of truth for language ids.
 func LanguageWarnings(cfg *config.Config) ([]string, error) {
-	reg, err := newRegistry(cfg, TokenizerEst, nil)
+	reg, err := detect.Registry(cfg, TokenizerEst, nil)
 	if err != nil {
 		return nil, err
 	}
-	return languageWarnings(cfg, reg), nil
-}
-
-// languageWarnings returns one warning for each language id cfg's languages
-// section names that reg has no extractor for.
-func languageWarnings(cfg *config.Config, reg *metrics.Registry) []string {
-	var warns []string
-	for _, id := range cfg.Languages() {
-		if _, ok := reg.Lookup(id); !ok {
-			warns = append(warns, "languages."+id+": unknown language; known: "+strings.Join(reg.Languages(), ", "))
-		}
-	}
-	return warns
-}
-
-// languageGo is the language identifier of the Go extractor.
-const languageGo = "go"
-
-// newRegistry returns every supported extractor configured from cfg, the
-// tokenizer and logger, Go first so that it wins a tie.
-func newRegistry(cfg *config.Config, tokenizer string, logger *slog.Logger) (*metrics.Registry, error) {
-	reg, err := metrics.NewRegistry(
-		golang.New(
-			golang.WithCharsPerToken(cfg.CharsPerToken),
-			golang.WithDupMinTokens(cfg.Duplication.MinTokens),
-			golang.WithDupIgnoreLiteralOnly(cfg.Duplication.IgnoreLiteralOnly),
-			golang.WithDupFoldSigns(cfg.Duplication.FoldSigns),
-			golang.WithDupSplitLiteralRuns(cfg.Duplication.SplitLiteralRuns),
-			golang.WithTokenizer(tokenizer),
-			golang.WithLogger(logger),
-			golang.WithExclude(cfg.Exclude),
-		),
-		typescript.New(
-			typescript.WithCharsPerToken(cfg.CharsPerToken),
-			typescript.WithDuplication(cfg.Duplication.MinTokens, cfg.Duplication.IgnoreLiteralOnly,
-				cfg.Duplication.FoldSigns),
-			typescript.WithDupSplitLiteralRuns(cfg.Duplication.SplitLiteralRuns),
-			typescript.WithTokenizer(tokenizer),
-			typescript.WithLogger(logger),
-			typescript.WithExclude(cfg.Exclude),
-		),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("registering extractors: %w", err)
-	}
-	return reg, nil
-}
-
-// detectModule walks up from the absolute directory dir to the nearest
-// directory some extractor of reg detects, and returns it with that
-// extractor. When several detect the same directory, the first registered
-// wins and logger, if set, is warned. It wraps golang.ErrNoModule when no
-// directory up to the file system root is detected.
-func detectModule(dir string, reg *metrics.Registry, logger *slog.Logger) (string, metrics.Extractor, error) {
-	for {
-		ext, err := reg.Detect(dir)
-		switch {
-		case err == nil:
-			return dir, ext, nil
-		case errors.Is(err, metrics.ErrAmbiguousLanguage):
-			ext = firstDetecting(dir, reg)
-			if logger != nil {
-				logger.Warn("several languages detected; using the first", "root", dir, "language", ext.Language(), "detail", err.Error())
-			}
-			return dir, ext, nil
-		case !errors.Is(err, metrics.ErrNoExtractor):
-			return "", nil, err
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return "", nil, fmt.Errorf("%w (nor any package.json): %w", golang.ErrNoModule, ErrNoLanguage)
-		}
-		dir = parent
-	}
-}
-
-// firstDetecting returns the first extractor of reg, in registration order,
-// that detects root. Call it only when one does.
-func firstDetecting(root string, reg *metrics.Registry) metrics.Extractor {
-	var first metrics.Extractor
-	for _, lang := range reg.Languages() {
-		if ext, ok := reg.Lookup(lang); ok && first == nil && ext.Detect(root) {
-			first = ext
-		}
-	}
-	return first
+	return detect.Warnings(cfg, reg), nil
 }
 
 // packagePaths returns the slash-separated path of dir relative to root ("."

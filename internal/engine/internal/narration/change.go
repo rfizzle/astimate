@@ -1,4 +1,4 @@
-package engine
+package narration
 
 import (
 	"bytes"
@@ -23,7 +23,7 @@ type ChangeOptions struct {
 	SummaryFile string
 }
 
-// WriteChange renders the check c, already run on t's module, as the
+// WriteChange renders the check c, already run on mod, as the
 // change block of the module report (SPEC.md 10.3): Markdown on w, or,
 // with opts.GitHub, the workflow annotations of report.WriteGitHubRanked
 // on w, ranked as the report ranks its failing packages and capped at
@@ -31,13 +31,13 @@ type ChangeOptions struct {
 // line saying how many annotations the cap left out, appended to
 // opts.SummaryFile. The report is narrated from the check's own rows
 // (CheckReport), so the module is not extracted again.
-func WriteChange(t *Target, c *report.Check, opts ChangeOptions, w io.Writer) error {
+func WriteChange(mod *Module, c *report.Check, opts ChangeOptions, w io.Writer) error {
 	base := opts.Base
 	if base == "" {
 		base = "baseline"
 	}
 	if !opts.GitHub {
-		return writeChangeMarkdown(w, CheckReport(t, c, base), "")
+		return writeChangeMarkdown(w, CheckReport(mod, c, base), "")
 	}
 	// Ranking needs the report; the first pass in check order is final
 	// when the cap left nothing out and no summary is wanted.
@@ -48,7 +48,7 @@ func WriteChange(t *Target, c *report.Check, opts ChangeOptions, w io.Writer) er
 	}
 	var m *narrate.Module
 	if omitted != (report.Omitted{}) || opts.SummaryFile != "" {
-		m = CheckReport(t, c, base)
+		m = CheckReport(mod, c, base)
 		if omitted != (report.Omitted{}) {
 			buf.Reset()
 			rank := make([]string, len(m.Change.Failing))

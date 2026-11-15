@@ -4,10 +4,6 @@ import (
 	"errors"
 	"slices"
 	"testing"
-
-	"github.com/rfizzle/astimate/internal/config"
-	"github.com/rfizzle/astimate/internal/gate"
-	"github.com/rfizzle/astimate/internal/narrate"
 )
 
 func TestReport(t *testing.T) {
@@ -42,42 +38,4 @@ func TestReport(t *testing.T) {
 			t.Errorf("Report = (%v, %v), want no report and an error", m, err)
 		}
 	})
-}
-
-func TestCeilings(t *testing.T) {
-	t.Parallel()
-
-	maxOf := func(v float64) *float64 { return &v }
-	ts := []gate.Threshold{
-		{Metric: "internal_imports", Kind: gate.Capacity, Max: maxOf(10), Roles: []string{"library"}},
-		{Metric: "dup_blocks", Kind: gate.Density, MaxDelta: maxOf(0)},
-		{Metric: "sloc", Kind: gate.Capacity, Max: maxOf(1000)},
-		{Metric: "sloc", Kind: gate.Capacity, Max: maxOf(2000)},
-		// A density rule's max is no ceiling, nor is a capacity rule's
-		// zero max: gate.Ceilings leaves both out, so the report does.
-		{Metric: "tokens_est", Kind: gate.Density, Max: maxOf(16000), MaxDelta: maxOf(0)},
-		{Metric: "largest_file_sloc", Kind: gate.Capacity, Max: maxOf(0)},
-		{Metric: "internal_imports", Kind: gate.Capacity, Max: maxOf(25), Roles: []string{"main"}},
-	}
-	want := []narrate.Limit{
-		{Metric: "sloc", Max: 1000}, {Metric: "sloc", Max: 2000},
-		{Metric: "internal_imports", Max: 10, Roles: []string{"library"}},
-		{Metric: "internal_imports", Max: 25, Roles: []string{"main"}},
-	}
-	got := ceilings(&config.Effective{Thresholds: ts})
-	if len(got) != len(want) {
-		t.Fatalf("ceilings = %+v, want %+v", got, want)
-	}
-	for i := range want {
-		if got[i].Metric != want[i].Metric || got[i].Max != want[i].Max || !slices.Equal(got[i].Roles, want[i].Roles) {
-			t.Errorf("ceilings[%d] = %+v, want %+v", i, got[i], want[i])
-		}
-	}
-	cfg, err := config.Parse(config.Default())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := ceilings(&config.Effective{Thresholds: cfg.Thresholds}); len(got) != 5 {
-		t.Errorf("default ceilings = %+v, want five", got)
-	}
 }

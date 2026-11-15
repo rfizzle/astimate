@@ -95,7 +95,9 @@ astimate/
 │   │   ├── internal/judge/      # Per-row gating: package and module rows, function diff, locations, blame, exemption notices
 │   │   ├── internal/selection/  # The packages a check gates: changed, importers, every package, skipped; rename seeding
 │   │   ├── internal/coverage/   # One coverage run over the extracted packages, per-package reasons logged
-│   │   └── internal/ranking/    # Rank's rows: estimate, ceilings and headroom (8.1), sort and truncation
+│   │   ├── internal/ranking/    # Rank's rows: estimate, ceilings and headroom (8.1), sort and truncation
+│   │   ├── internal/narration/  # Module and change reports from the engine's rows (10.3): compose input, glossary, change Markdown and annotations
+│   │   └── internal/detect/     # Every extractor configured from the config; the module and language a directory belongs to
 │   ├── lang/
 │   │   ├── golang/              # Go extractor (internal/load, filter, imports, inspect, tests, dup, cover)
 │   │   └── typescript/          # TypeScript extractor (internal/resolve, internal/inspect, internal/walk)

@@ -14,9 +14,9 @@ import (
 	"time"
 
 	"github.com/rfizzle/astimate/internal/baseline"
+	"github.com/rfizzle/astimate/internal/engine/internal/detect"
 	"github.com/rfizzle/astimate/internal/engine/internal/judge"
 	"github.com/rfizzle/astimate/internal/engine/internal/selection"
-	"github.com/rfizzle/astimate/internal/lang/golang"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/report"
 )
@@ -482,7 +482,7 @@ func fileBaseline(path string, cache *BaselineCache, logger *slog.Logger) (basel
 // nil cache leaves the whole resolution to baseline.FromGit.
 func gitBaseline(ctx context.Context, t *Target, ref string, cache *BaselineCache) (baseline.Baseline, error) {
 	if cache == nil {
-		return baseline.FromGit(ctx, t.Mod.Root, ref, t.Ext, t.modulePathFunc(), t.tokenizer())
+		return baseline.FromGit(ctx, t.Mod.Root, ref, t.Ext, detect.ModulePathFunc(t.Ext.Language()), t.tokenizer())
 	}
 	sha, err := baseline.MergeBase(ctx, t.Mod.Root, ref)
 	if err != nil {
@@ -490,19 +490,8 @@ func gitBaseline(ctx context.Context, t *Target, ref string, cache *BaselineCach
 	}
 	return cache.get("git:"+sha, func() (baseline.Baseline, error) {
 		// The merge-base of HEAD and one of its ancestors is that ancestor.
-		return baseline.FromGit(ctx, t.Mod.Root, sha, t.Ext, t.modulePathFunc(), t.tokenizer())
+		return baseline.FromGit(ctx, t.Mod.Root, sha, t.Ext, detect.ModulePathFunc(t.Ext.Language()), t.tokenizer())
 	})
-}
-
-// modulePathFunc returns how to read the module path of a tree of t's
-// language, which a git baseline keys its packages' directories by:
-// golang.ModulePath for Go, nil for a language whose package identifiers
-// already are module-relative directories.
-func (t *Target) modulePathFunc() baseline.ModulePathFunc {
-	if t.Ext.Language() == languageGo {
-		return golang.ModulePath
-	}
-	return nil
 }
 
 // failedPaths returns the package paths of the rows in failed, each a
