@@ -506,13 +506,15 @@ history.
 
 ### Changed
 
-- Five packages near their capacity ceilings were split along a
+- Six packages near their capacity ceilings were split along a
   responsibility, with no behaviour, output or schema change: the module
   and change report building and extractor detection moved out of
   `internal/engine` (`engine/internal/narration`, `engine/internal/detect`),
   `explain_metric`'s answer out of `internal/mcpserver`, the baseline
   file's layout out of `internal/baseline`, and the fix suggestions'
-  wording out of `internal/score` into `internal/score/suggestion`.
+  wording out of `internal/score` into `internal/score/suggestion`, and
+  the per-package detail records out of `internal/metrics` into
+  `internal/metrics/inventory`.
 - A capacity violation now says what does not fix it. The
   `exported_symbols` suggestion names the split and rules out unexporting
   what callers need, folding a new function into an existing one's
