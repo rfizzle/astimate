@@ -19,7 +19,8 @@ func TestFileNamed(t *testing.T) {
 
 	pkgs := map[string]metrics.RawMetrics{"example.com/m/a": {}, "example.com/m/b": {}, metrics.ModuleRowID: {}}
 	named := map[string]Named{
-		"example.com/m/a": {DupBlocks: []uint64{0xff, 0xfedcba9876543210}, UntestedExports: []string{"Join", "T.Run"}},
+		"example.com/m/a": {DupBlocks: []uint64{0xff, 0xfedcba9876543210}, UntestedExports: []string{"Join", "T.Run"},
+			Exports: []metrics.Symbol{{Kind: "func", Name: "Join"}, {Kind: "type", Name: "T"}, {Kind: "func", Receiver: "T", Name: "Run"}}},
 		"example.com/m/b": {},
 	}
 	path := filepath.Join(t.TempDir(), "baseline.json")
@@ -55,6 +56,11 @@ func TestFileNamed(t *testing.T) {
 	if got := raw.PackageRows["example.com/m/b"]["untested_exports"]; !reflect.DeepEqual(got, []any{}) {
 		t.Errorf("b's untested_exports recorded as %v, want an empty list", got)
 	}
+	wantExports := []any{map[string]any{"kind": "func", "name": "Join"}, map[string]any{"kind": "type", "name": "T"},
+		map[string]any{"kind": "func", "receiver": "T", "name": "Run"}}
+	if got := raw.PackageRows["example.com/m/a"]["exports"]; !reflect.DeepEqual(got, wantExports) {
+		t.Errorf("a's exports recorded as %v, want %v", got, wantExports)
+	}
 
 	t.Run("file without details", func(t *testing.T) {
 		t.Parallel()
@@ -75,6 +81,24 @@ func TestFileNamed(t *testing.T) {
 		}
 		if r, ok := b.Row("a"); !ok || r.HasNamed {
 			t.Errorf("Row(a) = %+v, %v, want a row recording no details", r, ok)
+		}
+	})
+	t.Run("file before exports and signatures", func(t *testing.T) {
+		t.Parallel()
+		old := filepath.Join(t.TempDir(), "old.json")
+		body := `{"ref": "", "module_path": "example.com/m", "packages": {"example.com/m/a": {}},
+			"functions": {"example.com/m/a": [{"name": "F", "fingerprint": "00000000000000ff", "cognitive": 1}]},
+			"package_rows": {"example.com/m/a": {"package_path": "a", "dup_blocks": [], "untested_exports": ["F"]}}}`
+		if err := os.WriteFile(old, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		b, err := FromFile(old)
+		if err != nil {
+			t.Fatalf("FromFile: %v", err)
+		}
+		r, _ := b.Row("a")
+		if !r.HasNamed || r.Named.Exports != nil || !r.HasFunctions || r.Functions[0].Signature != 0 {
+			t.Errorf("Row(a) = %+v, want details and functions recorded, with no exports and no signature", r)
 		}
 	})
 	t.Run("bad fingerprint", func(t *testing.T) {
@@ -133,19 +157,29 @@ func TestFromGitRecordsNamed(t *testing.T) {
 		!slices.Equal(row.Named.UntestedExports, []string{"Fold1", "Fold2"}) {
 		t.Errorf("Row(a) named = %+v, %v, want the two anchors of one block and Fold1, Fold2 untested", row.Named, row.HasNamed)
 	}
+	wantExports := []metrics.Symbol{{Kind: "func", Name: "Fold1"}, {Kind: "func", Name: "Fold2"}}
+	if !reflect.DeepEqual(row.Named.Exports, wantExports) {
+		t.Errorf("Row(a) exports = %+v, want %+v without positions", row.Named.Exports, wantExports)
+	}
+	for _, f := range row.Functions {
+		if f.Signature == 0 {
+			t.Errorf("Row(a) function %s has no signature", f.Name)
+		}
+	}
 }
 
 func TestSeededNamed(t *testing.T) {
 	t.Parallel()
 
 	base := rowsBaseline(map[string]Row{
-		"a": {Named: Named{DupBlocks: []uint64{9, 3}, UntestedExports: []string{"Z"}}, HasNamed: true},
-		"b": {Named: Named{DupBlocks: []uint64{5, 9}, UntestedExports: []string{"A"}}, HasNamed: true},
+		"a": {Named: Named{DupBlocks: []uint64{9, 3}, UntestedExports: []string{"Z"}, Exports: []metrics.Symbol{{Kind: "func", Name: "Z"}}}, HasNamed: true},
+		"b": {Named: Named{DupBlocks: []uint64{5, 9}, UntestedExports: []string{"A"}, Exports: []metrics.Symbol{{Kind: "func", Name: "A"}}}, HasNamed: true},
 		"c": {},
 	})
 	s := Seeded(base, Renames{"sub": {{Dir: "a", Files: 1}, {Dir: "b", Files: 1}}, "new": {{Dir: "c", Files: 1}}}, nil)
 	sub, _ := s.Row("sub")
-	want := Named{DupBlocks: []uint64{3, 5, 9}, UntestedExports: []string{"A", "Z"}}
+	want := Named{DupBlocks: []uint64{3, 5, 9}, UntestedExports: []string{"A", "Z"},
+		Exports: []metrics.Symbol{{Kind: "func", Name: "A"}, {Kind: "func", Name: "Z"}}}
 	if !sub.HasNamed || !reflect.DeepEqual(sub.Named, want) {
 		t.Errorf("Row(sub) named = %+v, %v, want every source's, sorted and distinct: %+v", sub.Named, sub.HasNamed, want)
 	}

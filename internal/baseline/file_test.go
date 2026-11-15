@@ -223,7 +223,7 @@ func TestFileFunctions(t *testing.T) {
 	pkgs := map[string]metrics.RawMetrics{"example.com/m/a": {}, "example.com/m/b": {}}
 	funcs := map[string][]metrics.FunctionInfo{
 		"example.com/m/a": {
-			{Name: "Parse", Fingerprint: 0xff, Cognitive: 4, File: "a.go", Line: 3},
+			{Name: "Parse", Fingerprint: 0xff, Signature: 0xabc, Cognitive: 4, File: "a.go", Line: 3},
 			{Receiver: "T", Name: "Run", Fingerprint: 0xfedcba9876543210, Cognitive: 12},
 		},
 		"example.com/m/b": {},
@@ -239,7 +239,7 @@ func TestFileFunctions(t *testing.T) {
 	}
 	// File and line are not stored: a baseline function is only matched.
 	want := []metrics.FunctionInfo{
-		{Name: "Parse", Fingerprint: 0xff, Cognitive: 4},
+		{Name: "Parse", Fingerprint: 0xff, Signature: 0xabc, Cognitive: 4},
 		{Receiver: "T", Name: "Run", Fingerprint: 0xfedcba9876543210, Cognitive: 12},
 	}
 	if got, _ := b.Row("a"); !got.HasFunctions || !reflect.DeepEqual(got.Functions, want) {
@@ -260,6 +260,12 @@ func TestFileFunctions(t *testing.T) {
 	}
 	if fp := raw.Functions["example.com/m/a"][0]["fingerprint"]; fp != "00000000000000ff" {
 		t.Errorf("fingerprint recorded as %v, want 16 hex digits", fp)
+	}
+	if sig := raw.Functions["example.com/m/a"][0]["signature"]; sig != "0000000000000abc" {
+		t.Errorf("signature recorded as %v, want 16 hex digits", sig)
+	}
+	if sig, ok := raw.Functions["example.com/m/a"][1]["signature"]; ok {
+		t.Errorf("signature recorded as %v for a function without one, want it omitted", sig)
 	}
 	if _, ok := raw.Functions["example.com/m/a"][0]["file"]; ok {
 		t.Error("baseline file records a function's file, want only receiver, name, fingerprint and cognitive")
@@ -289,6 +295,18 @@ func TestFileFunctions(t *testing.T) {
 		}
 		if _, err := FromFile(bad); err == nil {
 			t.Error("FromFile accepted a malformed fingerprint")
+		}
+	})
+	t.Run("bad signature", func(t *testing.T) {
+		t.Parallel()
+		bad := filepath.Join(t.TempDir(), "bad.json")
+		body := `{"ref": "", "module_path": "example.com/m", "packages": {},
+			"functions": {"example.com/m/a": [{"name": "F", "fingerprint": "00", "signature": "xyz", "cognitive": 1}]}}`
+		if err := os.WriteFile(bad, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := FromFile(bad); err == nil {
+			t.Error("FromFile accepted a malformed signature")
 		}
 	})
 }

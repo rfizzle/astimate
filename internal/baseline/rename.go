@@ -20,9 +20,9 @@ type seeded struct {
 // baseline (FindRenames). A package without a row of its own in b whose
 // files were renamed from packages that have one is served a row seeded
 // from them: the metrics of the source most files came from (ties going
-// to the first directory), the functions, duplicate blocks and untested
-// exports of every source, and From naming every source. The seeded row
-// records duplicate blocks and untested exports (Row.HasNamed) only when
+// to the first directory), the functions, duplicate blocks, untested
+// exports and exports of every source, and From naming every source. The
+// seeded row records its details (Row.HasNamed) only when
 // every source does, since a source without them would read all of its
 // blocks as added. imports reports whether the package in the directory
 // from imports the package in to at head; nil means none does. An import
@@ -96,6 +96,7 @@ func (s *seeded) Row(dir string) (Row, bool) {
 		named = named && r.HasNamed
 		seed.Named.DupBlocks = append(seed.Named.DupBlocks, r.Named.DupBlocks...)
 		seed.Named.UntestedExports = append(seed.Named.UntestedExports, r.Named.UntestedExports...)
+		seed.Named.Exports = append(seed.Named.Exports, r.Named.Exports...)
 		if s.imports(src.Dir, dir) {
 			seed.Metrics.FanIn++
 		}
@@ -113,5 +114,6 @@ func (s *seeded) Row(dir string) (Row, bool) {
 	slices.Sort(seed.Named.DupBlocks)
 	seed.Named.DupBlocks = slices.Compact(seed.Named.DupBlocks)
 	slices.Sort(seed.Named.UntestedExports)
+	sortSymbols(seed.Named.Exports)
 	return seed, true
 }

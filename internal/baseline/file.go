@@ -59,17 +59,29 @@ type fileRow struct {
 	// from an absent one.
 	DupBlocks       *[]string `json:"dup_blocks,omitempty"`
 	UntestedExports *[]string `json:"untested_exports,omitempty"`
+	// Exports are the package's exported declarations (Named.Exports),
+	// absent from files written before they were recorded.
+	Exports *[]fileSymbol `json:"exports,omitempty"`
+}
+
+// fileSymbol is one exported declaration in a baseline file.
+type fileSymbol struct {
+	Kind     string `json:"kind"`
+	Receiver string `json:"receiver,omitempty"`
+	Name     string `json:"name"`
 }
 
 // fileFunction is one function in a baseline file: the matching key, the
-// fingerprint as 16 hexadecimal digits and the cognitive and cyclomatic
-// complexity, the latter omitted by files written before it existed. File
-// and line are not stored; a baseline function is only ever matched, never
-// named.
+// fingerprint and an exported function's signature hash as 16 hexadecimal
+// digits and the cognitive and cyclomatic complexity; the signature and
+// cyclomatic complexity are omitted by files written before they existed,
+// and the signature for an unexported function. File and line are not
+// stored; a baseline function is only ever matched, never named.
 type fileFunction struct {
 	Receiver    string `json:"receiver,omitempty"`
 	Name        string `json:"name"`
 	Fingerprint string `json:"fingerprint"`
+	Signature   string `json:"signature,omitempty"`
 	Cognitive   int    `json:"cognitive"`
 	Cyclomatic  int    `json:"cyclomatic,omitempty"`
 }
@@ -92,9 +104,10 @@ type Contents struct {
 	// CollectFunctions returns them; nil records none, so a check against
 	// the file leaves changed_func_cognitive_max null.
 	Functions map[string][]metrics.FunctionInfo
-	// Named are each package's duplicate blocks and untested exports keyed
-	// by import path, as CollectNamed returns them; nil records none, so a
-	// check against the file cannot tell which of them a change added.
+	// Named are each package's duplicate blocks, untested exports and
+	// exports keyed by import path, as CollectNamed returns them; nil
+	// records none, so a check against the file cannot tell which of them a
+	// change added or made unexported.
 	Named map[string]Named
 }
 
@@ -226,7 +239,14 @@ func decodeFunctions(in map[string][]fileFunction) (map[string][]metrics.Functio
 			if err != nil {
 				return nil, fmt.Errorf("function %s of %s: fingerprint %q: %w", ff.Name, pkg, ff.Fingerprint, err)
 			}
-			fns[i] = metrics.FunctionInfo{Receiver: ff.Receiver, Name: ff.Name, Fingerprint: fp, Cognitive: ff.Cognitive, Cyclomatic: ff.Cyclomatic}
+			var sig uint64
+			if ff.Signature != "" {
+				if sig, err = parseHex16(ff.Signature); err != nil {
+					return nil, fmt.Errorf("function %s of %s: signature %q: %w", ff.Name, pkg, ff.Signature, err)
+				}
+			}
+			fns[i] = metrics.FunctionInfo{Receiver: ff.Receiver, Name: ff.Name, Fingerprint: fp, Signature: sig,
+				Cognitive: ff.Cognitive, Cyclomatic: ff.Cyclomatic}
 		}
 		out[pkg] = fns
 	}
@@ -243,6 +263,9 @@ func encodeFunctions(in map[string][]metrics.FunctionInfo) map[string][]fileFunc
 		ffs := make([]fileFunction, len(fns))
 		for i := range fns {
 			ffs[i] = fileFunction{Receiver: fns[i].Receiver, Name: fns[i].Name, Fingerprint: hex16(fns[i].Fingerprint), Cognitive: fns[i].Cognitive, Cyclomatic: fns[i].Cyclomatic}
+			if fns[i].Signature != 0 {
+				ffs[i].Signature = hex16(fns[i].Signature)
+			}
 		}
 		out[pkg] = ffs
 	}
@@ -278,7 +301,7 @@ func parseAnchors(hex []string) ([]uint64, error) {
 func decodeNamed(rows map[string]fileRow) (map[string]Named, error) {
 	var out map[string]Named
 	for id, r := range rows {
-		if r.DupBlocks == nil && r.UntestedExports == nil {
+		if r.DupBlocks == nil && r.UntestedExports == nil && r.Exports == nil {
 			continue
 		}
 		var n Named
@@ -290,6 +313,12 @@ func decodeNamed(rows map[string]fileRow) (map[string]Named, error) {
 		}
 		if r.UntestedExports != nil {
 			n.UntestedExports = *r.UntestedExports
+		}
+		if r.Exports != nil && len(*r.Exports) > 0 {
+			n.Exports = make([]metrics.Symbol, len(*r.Exports))
+			for i, e := range *r.Exports {
+				n.Exports[i] = metrics.Symbol{Kind: e.Kind, Receiver: e.Receiver, Name: e.Name}
+			}
 		}
 		if out == nil {
 			out = make(map[string]Named, len(rows))
@@ -316,7 +345,11 @@ func packageRows(modulePath string, pkgs map[string]metrics.RawMetrics, named ma
 				blocks[i] = hex16(fp)
 			}
 			untested := append([]string{}, n.UntestedExports...)
-			r.DupBlocks, r.UntestedExports = &blocks, &untested
+			exports := make([]fileSymbol, len(n.Exports))
+			for i, e := range n.Exports {
+				exports[i] = fileSymbol{Kind: e.Kind, Receiver: e.Receiver, Name: e.Name}
+			}
+			r.DupBlocks, r.UntestedExports, r.Exports = &blocks, &untested, &exports
 		}
 		rows[id] = r
 	}

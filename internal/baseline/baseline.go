@@ -1,6 +1,7 @@
 package baseline
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"maps"
@@ -94,6 +95,11 @@ type Named struct {
 	DupBlocks []uint64
 	// UntestedExports names the package's untested exports, sorted.
 	UntestedExports []string
+	// Exports are the package's exported declarations
+	// (metrics.Details.Exports) without positions, sorted (sortSymbols);
+	// nil in a baseline file written before they were recorded, against
+	// which no export reads as made unexported.
+	Exports []metrics.Symbol
 }
 
 // namedOf returns the part of d a baseline records.
@@ -105,7 +111,19 @@ func namedOf(d *metrics.Details) Named {
 	slices.Sort(n.DupBlocks)
 	n.DupBlocks = slices.Compact(n.DupBlocks)
 	slices.Sort(n.UntestedExports)
+	for _, s := range d.Exports {
+		s.Position = metrics.Position{}
+		n.Exports = append(n.Exports, s)
+	}
+	sortSymbols(n.Exports)
 	return n
+}
+
+// sortSymbols sorts ss by receiver, then name, then kind.
+func sortSymbols(ss []metrics.Symbol) {
+	slices.SortFunc(ss, func(a, b metrics.Symbol) int {
+		return cmp.Or(cmp.Compare(a.Receiver, b.Receiver), cmp.Compare(a.Name, b.Name), cmp.Compare(a.Kind, b.Kind))
+	})
 }
 
 // snapshot is the map-backed Baseline shared by the git and file sources.
