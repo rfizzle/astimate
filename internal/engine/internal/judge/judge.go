@@ -2,23 +2,21 @@
 // row, against their baseline: it fills changed_func_cognitive_max from the
 // function-level diff, evaluates the rules, applies the exemptions, builds
 // each row's report with its findings located on the file and line that
-// caused them, blames a check of named packages only for the cross-package
-// copies it made, and reports the exemptions the check ignored or did not
-// need. Package engine composes it; it knows nothing of targets or
-// package selection.
+// caused them, and blames a check of named packages only for the
+// cross-package copies it made. Package engine composes it; it knows
+// nothing of targets, package selection or which exemptions a check
+// ignored or did not need (package exemptions).
 package judge
 
 import (
 	"context"
 	"fmt"
 	"log/slog"
-	"time"
 
 	"github.com/rfizzle/astimate/internal/baseline"
 	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/engine/internal/surface"
 	"github.com/rfizzle/astimate/internal/gate"
-	"github.com/rfizzle/astimate/internal/gate/exempt"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/metrics/inventory"
 	"github.com/rfizzle/astimate/internal/report"
@@ -41,10 +39,19 @@ type Options struct {
 	Tokenizer string
 	// Version is the astimate version recorded in reports.
 	Version string
-	// Now is the time an exemption's expiry is judged at.
-	Now time.Time
-	// Logger receives skipped rules and exemption notices without a row.
+	// Exemptions are applied to each row's result; nil applies none.
+	Exemptions Exempter
+	// Logger receives skipped rules.
 	Logger *slog.Logger
+}
+
+// Exempter applies the configured exemptions to a row's result (SPEC.md
+// 8.6): a violation an unexpired exemption matches moves to the result's
+// exempted findings. Package exemptions implements it.
+type Exempter interface {
+	// Apply applies the exemptions to res, the result of the row with
+	// package path pkg.
+	Apply(pkg string, res *gate.Result)
 }
 
 // Checker judges the rows of one check.
@@ -52,18 +59,15 @@ type Checker struct {
 	o           Options
 	pkgRules    []gate.Threshold
 	moduleRules []gate.Threshold
-	ex          *exempt.List
 }
 
 // New returns a Checker judging with o: the configured thresholds split
-// into those of package rows and of the module row (gate.ForRow), and the
-// configured exemptions as of o.Now (exempt.New).
+// into those of package rows and of the module row (gate.ForRow).
 func New(o Options) *Checker {
 	return &Checker{
 		o:           o,
 		pkgRules:    gate.ForRow(o.Config.Thresholds, gate.PackageRow),
 		moduleRules: gate.ForRow(o.Config.Thresholds, gate.ModuleRow),
-		ex:          exempt.New(o.Config.Exemptions, o.Now),
 	}
 }
 
@@ -87,7 +91,7 @@ func New(o Options) *Checker {
 // carries the changed functions (report.CheckedPackage.ChangedFunctions)
 // and those exports (report.CheckedPackage.Reshaped).
 // The exemptions are applied to the result
-// (exempt.List.Apply) before the report is built. unrecorded reports
+// (Options.Exemptions) before the report is built. unrecorded reports
 // that the diff was skipped because the baseline has pkg but no functions
 // for it. A pkg the baseline has no row for because it failed to load there
 // (baseline.Baseline.Unavailable) is judged against the maxes only, with
@@ -260,7 +264,9 @@ func (c *Checker) row(path string, m, gm metrics.RawMetrics, bm, gb *metrics.Raw
 ) (report.Report, gate.Result) {
 	o := &c.o
 	res := gate.Evaluate(gm, gb, rules, suggest, opts...)
-	c.ex.Apply(path, &res)
+	if o.Exemptions != nil {
+		o.Exemptions.Apply(path, &res)
+	}
 	for _, n := range res.Notes {
 		o.Logger.Info("rule skipped", "path", path, "metric", n.Metric, "reason", n.Text)
 	}

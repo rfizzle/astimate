@@ -1,13 +1,45 @@
-package judge
+// Package exemptions holds the configured exemptions of one check (SPEC.md
+// 8.6): it applies them to each row's result as package judge evaluates
+// the rows, and, once every row is judged, reports those the check
+// ignored because they expired or did not need because they matched no
+// violation. Package engine composes it; it judges no row.
+package exemptions
 
 import (
+	"log/slog"
 	"slices"
+	"time"
 
+	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/gate"
 	"github.com/rfizzle/astimate/internal/gate/exempt"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/report"
 )
+
+// Set is the configured exemptions of one check as of the time it runs.
+type Set struct {
+	ex *exempt.List
+	// rules are the configured thresholds, which tell a stale exemption
+	// from one on a metric the language gates no rule on.
+	rules []gate.Threshold
+	// logger receives the notices without a row.
+	logger *slog.Logger
+}
+
+// New returns the exemptions of cfg as of now (exempt.New), the time an
+// exemption's expiry is judged at, whose notices without a row go to
+// logger.
+func New(cfg config.Effective, now time.Time, logger *slog.Logger) *Set {
+	return &Set{ex: exempt.New(cfg.Exemptions, now), rules: cfg.Thresholds, logger: logger}
+}
+
+// Apply applies the exemptions to res, the result of the row with package
+// path pkg (exempt.List.Apply): a violation an unexpired exemption matches
+// moves to res's exempted findings.
+func (s *Set) Apply(pkg string, res *gate.Result) {
+	s.ex.Apply(pkg, res)
+}
 
 // Scope is what Notices needs to know about a check to tell a stale
 // exemption from one whose row it could not judge.
@@ -26,7 +58,7 @@ type Scope struct {
 // Notices reports the configured exemptions that ch ignored or did not
 // need, as warnings a reader sees in every format (SPEC.md 8.6):
 //
-//   - each exemption expired at Options.Now is ignored, so the
+//   - each exemption expired at the time New was given is ignored, so the
 //     violation it would have silenced fails the gate; it is reported on
 //     its row when ch has that row, and otherwise, since a check of other
 //     packages has nowhere to show it, in a warning log;
@@ -44,9 +76,9 @@ type Scope struct {
 // A notice about an exemption from a file other than the configuration
 // (exempt.Entry.Source) names that file; one about the configuration's
 // own reads as it always has.
-func (c *Checker) Notices(ch *report.Check, scope Scope) {
-	logger := c.o.Logger
-	for _, e := range c.ex.Expired() {
+func (s *Set) Notices(ch *report.Check, scope Scope) {
+	logger := s.logger
+	for _, e := range s.ex.Expired() {
 		text := "The exemption for " + e.Metric + " on " + e.Package + inFile(e) + " expired on " + e.Expires +
 			" and no longer applies; fix the finding or renew the exemption with a new date. Its reason: " + e.Reason
 		if r := row(ch, e.Package); r != nil {
@@ -61,7 +93,7 @@ func (c *Checker) Notices(ch *report.Check, scope Scope) {
 	}
 	unknown := func(e exempt.Entry) bool {
 		if slices.Contains(scope.Failed, e.Package) ||
-			!slices.ContainsFunc(c.o.Config.Thresholds, func(r gate.Threshold) bool { return r.Metric == e.Metric }) {
+			!slices.ContainsFunc(s.rules, func(r gate.Threshold) bool { return r.Metric == e.Metric }) {
 			return true
 		}
 		if e.Package == metrics.ModuleRowID && !scope.ModuleJudged {
@@ -73,7 +105,7 @@ func (c *Checker) Notices(ch *report.Check, scope Scope) {
 		}
 		return false
 	}
-	for _, e := range c.ex.Stale(unknown) {
+	for _, e := range s.ex.Stale(unknown) {
 		text := "The exemption for " + e.Metric + " on " + e.Package + inFile(e) + " matched no violation; remove it from " + home(e) + ". Its reason: " + e.Reason
 		r := row(ch, e.Package)
 		if r == nil {

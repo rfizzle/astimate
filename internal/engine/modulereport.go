@@ -8,6 +8,7 @@ import (
 	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/engine/internal/judge"
 	"github.com/rfizzle/astimate/internal/engine/internal/narration"
+	"github.com/rfizzle/astimate/internal/engine/internal/selection"
 	"github.com/rfizzle/astimate/internal/narrate"
 	"github.com/rfizzle/astimate/internal/report"
 )
@@ -25,7 +26,7 @@ type ReportOptions struct {
 // Report builds the module report of t's module (narration.Build): every
 // package extracted once (as Rank does), with its churn from one history
 // walk and its report and details (as Assess builds them), the packages
-// left out (judge.SkippedIn) and, with opts.Base, the check of the changed
+// left out (selection.SkippedIn) and, with opts.Base, the check of the changed
 // packages against it (Check). A package that fails to extract or name its
 // details is logged, left out and returned as a *PackageError in failed,
 // as are Check's failures.
@@ -34,7 +35,7 @@ func Report(ctx context.Context, t *Target, opts ReportOptions) (m *narrate.Modu
 	if err != nil {
 		return nil, nil, err
 	}
-	skips, err := judge.SkippedIn(t.Ext, t.Mod.Root)
+	skips, err := selection.SkippedIn(t.Ext, t.Mod.Root)
 	if err != nil {
 		return nil, nil, err
 	}

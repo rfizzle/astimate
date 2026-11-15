@@ -1,4 +1,4 @@
-package judge
+package selection
 
 import (
 	"errors"
@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/rfizzle/astimate/internal/baseline"
+	"github.com/rfizzle/astimate/internal/engine/internal/judge"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/report"
 )
@@ -102,7 +103,7 @@ func (s Skips) Report(modPath string, selected []string) []report.Skipped {
 		p := &all[i]
 		_, failed := s.byPkg[p.Package]
 		out = append(out, report.Skipped{
-			Package:  Rel(modPath, p.Package),
+			Package:  judge.Rel(modPath, p.Package),
 			Reason:   p.Reason,
 			Error:    p.Error,
 			Selected: failed && slices.Contains(selected, p.Package),

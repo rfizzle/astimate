@@ -1,10 +1,12 @@
 // Package selection picks the packages a check gates: the ones changed
 // since the baseline's merge-base, the importers of a package whose
 // declarations changed, or every package when what changed cannot be told,
-// leaving out the skipped packages that did not change. It also seeds the
-// baseline with the renames found in the same diff, so a moved package is
-// compared with the one it came from. Package engine composes it; it
-// resolves no baseline and judges no row.
+// leaving out the skipped packages that did not change. It holds the
+// packages a tree's extractor skipped because they do not load, or
+// excluded (Skips), which a check also consults to fail a selected one and
+// to report them. It also seeds the baseline with the renames found in the
+// same diff, so a moved package is compared with the one it came from.
+// Package engine composes it; it resolves no baseline and judges no row.
 package selection
 
 import (
@@ -51,7 +53,7 @@ type Request struct {
 	// the index.
 	Tree baseline.Head
 	// Skips are the packages the extractor skipped.
-	Skips judge.Skips
+	Skips Skips
 	// LoadBase returns the baseline, loading it on first use.
 	LoadBase func() (baseline.Baseline, error)
 	// Logger receives the info and warning lines that say why a package
@@ -64,7 +66,7 @@ type Request struct {
 // baseline. With r.All set it returns r.Packages. Every return of all of
 // r.Packages leaves out the packages r.Skips holds whose own files did not
 // change, since a package that does not load is selected only when it
-// changed (judge.Skips.Unchanged). Otherwise it takes the packages changed
+// changed (Skips.Unchanged). Otherwise it takes the packages changed
 // since the merge-base of HEAD and the baseline's ref and keeps those in
 // r.Packages, which drops the directories the go tool ignores. A file
 // baseline whose ref does not resolve in git, for example outside a

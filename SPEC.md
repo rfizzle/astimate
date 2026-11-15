@@ -93,7 +93,8 @@ astimate/
 │   │   └── metricstest/         # Conformance suite every extractor runs, plus a fake extractor
 │   ├── config/                  # Embedded default config, the unified loader and the exemptions file
 │   ├── engine/                  # Operations: resolve a target, assess, rank, check, baseline write
-│   │   ├── internal/judge/      # Per-row gating: package and module rows, function diff, locations, blame, exemption notices
+│   │   ├── internal/judge/      # Per-row gating: package and module rows, function diff, locations, blame
+│   │   ├── internal/exemptions/ # A check's exemptions (8.6): applied to each row, expired and stale ones reported
 │   │   ├── internal/selection/  # The packages a check gates: changed, importers, every package, skipped; rename seeding
 │   │   ├── internal/coverage/   # One coverage run over the extracted packages, per-package reasons logged
 │   │   ├── internal/ranking/    # Rank's rows: estimate, ceilings and headroom (8.1), sort and truncation

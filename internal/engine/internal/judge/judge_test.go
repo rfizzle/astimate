@@ -51,13 +51,13 @@ func checker(t *testing.T, row *int, exemptions []exempt.Entry) *Checker {
 		Ext:  metricstest.NewFake("go", root, pkgs, opts...),
 		Mod:  &metrics.ModuleContext{Root: root, ModulePath: modPath},
 		Base: fakeBaseline{"a": {Globals: 1}, metrics.ModuleRowID: {DupBlocksCrossPkg: new(int)}},
-		Config: config.Effective{Version: "v", Exemptions: exemptions, Thresholds: []gate.Threshold{
+		Config: config.Effective{Version: "v", Thresholds: []gate.Threshold{
 			{Metric: "globals", Kind: gate.Density, MaxDelta: &zero},
 			{Metric: "dup_blocks_cross_pkg", Kind: gate.Density, MaxDelta: &zero},
 		}},
-		Tokenizer: "est",
-		Now:       time.Date(2026, 9, 28, 0, 0, 0, 0, time.UTC),
-		Logger:    slog.New(slog.DiscardHandler),
+		Tokenizer:  "est",
+		Exemptions: exempt.New(exemptions, time.Date(2026, 9, 28, 0, 0, 0, 0, time.UTC)),
+		Logger:     slog.New(slog.DiscardHandler),
 	})
 }
 

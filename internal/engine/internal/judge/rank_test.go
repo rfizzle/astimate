@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/rfizzle/astimate/internal/baseline"
 	"github.com/rfizzle/astimate/internal/config"
@@ -161,7 +160,6 @@ func TestCheckerPackageCitesAdded(t *testing.T) {
 			{Metric: "untested_exports", Kind: gate.Density, MaxDelta: &zero},
 		}},
 		Tokenizer: "est",
-		Now:       time.Date(2026, 10, 13, 0, 0, 0, 0, time.UTC),
 		Logger:    slog.New(slog.DiscardHandler),
 	})
 	p, _, err := jc.Package(t.Context(), modPath+"/a", head)
@@ -231,7 +229,6 @@ func TestCheckerModuleCitesAdded(t *testing.T) {
 		},
 		Config:    config.Effective{Version: "v", Thresholds: []gate.Threshold{{Metric: "dup_blocks_cross_pkg", Kind: gate.Density, MaxDelta: &zero}}},
 		Tokenizer: "est",
-		Now:       time.Date(2026, 10, 13, 0, 0, 0, 0, time.UTC),
 		Logger:    slog.New(slog.DiscardHandler),
 	})
 	p, _, err := jc.Module(t.Context(), ext.(metrics.ModuleMetrics), false, nil)

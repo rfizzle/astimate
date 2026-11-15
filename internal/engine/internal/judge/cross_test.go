@@ -4,7 +4,6 @@ import (
 	"log/slog"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/rfizzle/astimate/internal/baseline"
 	"github.com/rfizzle/astimate/internal/config"
@@ -71,7 +70,6 @@ func TestCheckerModuleJudgesAddedBlocks(t *testing.T) {
 					{Metric: "dup_blocks_cross_pkg", Kind: gate.Density, MaxDelta: &zero, Max: &ceiling},
 				}},
 				Tokenizer: "est",
-				Now:       time.Date(2026, 10, 14, 0, 0, 0, 0, time.UTC),
 				Logger:    slog.New(slog.DiscardHandler),
 			})
 			var named []string

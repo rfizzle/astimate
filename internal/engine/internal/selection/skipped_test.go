@@ -1,4 +1,4 @@
-package judge
+package selection
 
 import (
 	"errors"

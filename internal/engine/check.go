@@ -15,6 +15,7 @@ import (
 
 	"github.com/rfizzle/astimate/internal/baseline"
 	"github.com/rfizzle/astimate/internal/engine/internal/detect"
+	"github.com/rfizzle/astimate/internal/engine/internal/exemptions"
 	"github.com/rfizzle/astimate/internal/engine/internal/judge"
 	"github.com/rfizzle/astimate/internal/engine/internal/selection"
 	"github.com/rfizzle/astimate/internal/metrics"
@@ -34,7 +35,7 @@ var ErrNoBaseline = errors.New("no baseline")
 
 // IsSkipped reports whether err, from Check's failed, is that of a
 // selected package the extractor skipped because it does not load.
-func IsSkipped(err error) bool { return errors.Is(err, judge.ErrSkipped) }
+func IsSkipped(err error) bool { return errors.Is(err, selection.ErrSkipped) }
 
 // noBaselineError carries the reason no baseline resolved and matches
 // ErrNoBaseline, keeping the reason's text as its own.
@@ -209,14 +210,14 @@ func (c *BaselineCache) get(key string, load func() (baseline.Baseline, error)) 
 // instead of the temporary copy (baseline.TreeRelative).
 //
 // The configured exemptions (config.Effective.Exemptions, SPEC.md 8.6) are
-// applied to every row after it is evaluated (exempt.List.Apply): a
+// applied to every row after it is evaluated (exemptions.Set.Apply): a
 // violation an unexpired exemption matches moves to the row's exempted
 // findings, located like the others, and the row's verdict is taken from
 // the violations left. Each exemption expired at opts.Now is ignored and
 // reported, in every check, as a warning on its row when the check has
 // that row, else in a warning log. A check with opts.All and no
 // opts.Packages judges every row, so it also reports each exemption that
-// matched no violation as stale (judge.Checker.Notices); no other check
+// matched no violation as stale (exemptions.Set.Notices); no other check
 // can tell, since the rows it did not select were never evaluated.
 func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, failed []error, err error) {
 	if opts.Base != "" && opts.BaselineFile != "" {
@@ -245,7 +246,7 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 			return nil, nil, baseline.TreeRelative(err, tmp)
 		}
 	}
-	skipped, err := judge.SkippedIn(ht.Ext, ht.Mod.Root)
+	skipped, err := selection.SkippedIn(ht.Ext, ht.Mod.Root)
 	if err != nil {
 		return nil, nil, baseline.TreeRelative(err, tmp)
 	}
@@ -304,9 +305,11 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 	if now.IsZero() {
 		now = time.Now()
 	}
+	cfg := t.langConfig()
+	ex := exemptions.New(cfg, now, logger)
 	jc := judge.New(judge.Options{
-		Ext: ht.Ext, Mod: ht.Mod, Base: base, Config: t.langConfig(),
-		Tokenizer: t.tokenizer(), Version: t.Version, Now: now, Logger: logger,
+		Ext: ht.Ext, Mod: ht.Mod, Base: base, Config: cfg,
+		Tokenizer: t.tokenizer(), Version: t.Version, Exemptions: ex, Logger: logger,
 	})
 	fail := func(pkg string, err error) {
 		err = baseline.TreeRelative(err, tmp)
@@ -358,7 +361,7 @@ func Check(ctx context.Context, t *Target, opts CheckOptions) (c *report.Check, 
 			moduleJudged = judged
 		}
 	}
-	jc.Notices(c, judge.Scope{
+	ex.Notices(c, exemptions.Scope{
 		All:          opts.All && len(opts.Packages) == 0,
 		Failed:       failedPaths(failed),
 		ModuleJudged: moduleJudged,

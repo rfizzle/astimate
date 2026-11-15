@@ -1,4 +1,4 @@
-package judge
+package exemptions
 
 import (
 	"bytes"
@@ -60,8 +60,7 @@ func TestNotices(t *testing.T) {
 			}
 			var logs bytes.Buffer
 			logger := slog.New(slog.NewTextHandler(&logs, nil))
-			jc := New(Options{Config: config.Effective{Thresholds: rules, Exemptions: list}, Now: now, Logger: logger})
-			jc.Notices(c, Scope{All: tt.all, Failed: []string{"broken"}})
+			New(config.Effective{Thresholds: rules, Exemptions: list}, now, logger).Notices(c, Scope{All: tt.all, Failed: []string{"broken"}})
 			if got := limits(c.Packages[0].Report.Warnings); !equal(got, tt.wantA) {
 				t.Errorf("row a warnings = %q, want %q", got, tt.wantA)
 			}
@@ -75,6 +74,44 @@ func TestNotices(t *testing.T) {
 			}
 			if tt.all && !strings.Contains(c.Module.Report.Warnings[0].Suggestion, "the module has no such package") {
 				t.Errorf("module row notice = %q, want it to say the package is missing", c.Module.Report.Warnings[0].Suggestion)
+			}
+		})
+	}
+}
+
+// TestSetApply checks that a Set silences the violations its unexpired
+// exemptions match on their row only, and ignores an expired one.
+func TestSetApply(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 9, 28, 12, 0, 0, 0, time.UTC)
+	list := []exempt.Entry{
+		{Package: "a", Metric: "globals", Reason: "kept"},
+		{Package: "a", Metric: "dup_blocks", Reason: "old", Expires: "2026-01-01"},
+	}
+	ex := New(config.Effective{Exemptions: list}, now, slog.New(slog.DiscardHandler))
+	for _, tt := range []struct {
+		pkg          string
+		wantLeft     []string
+		wantExempted []string
+	}{
+		{pkg: "a", wantLeft: []string{"dup_blocks"}, wantExempted: []string{"globals"}},
+		{pkg: "b", wantLeft: []string{"globals", "dup_blocks"}},
+	} {
+		t.Run(tt.pkg, func(t *testing.T) {
+			t.Parallel()
+			res := gate.Result{Violations: []gate.Violation{{Metric: "globals"}, {Metric: "dup_blocks"}}}
+			ex.Apply(tt.pkg, &res)
+			left := make([]string, 0, len(res.Violations))
+			for _, v := range res.Violations {
+				left = append(left, v.Metric)
+			}
+			exempted := make([]string, 0, len(res.Exempted))
+			for _, e := range res.Exempted {
+				exempted = append(exempted, e.Metric)
+			}
+			if !equal(left, tt.wantLeft) || !equal(exempted, tt.wantExempted) {
+				t.Errorf("Apply(%s) left %q and exempted %q, want %q and %q", tt.pkg, left, exempted, tt.wantLeft, tt.wantExempted)
 			}
 		})
 	}
@@ -118,9 +155,8 @@ func TestNoticesNameTheirFile(t *testing.T) {
 		Module: &report.CheckedPackage{Report: report.Report{PackagePath: metrics.ModuleRowID}},
 	}
 	var logs bytes.Buffer
-	jc := New(Options{Config: config.Effective{Thresholds: rules, Exemptions: list}, Now: now,
-		Logger: slog.New(slog.NewTextHandler(&logs, nil))})
-	jc.Notices(c, Scope{All: true})
+	ex := New(config.Effective{Thresholds: rules, Exemptions: list}, now, slog.New(slog.NewTextHandler(&logs, nil)))
+	ex.Notices(c, Scope{All: true})
 
 	suggestions := func(r *report.Report) []string {
 		out := make([]string, 0, len(r.Warnings))
