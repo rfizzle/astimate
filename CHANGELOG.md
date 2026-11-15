@@ -22,8 +22,12 @@ history.
   and whether a rename seeded one from it, whether an exemption covers the
   finding and whether the reshaped-exports heads-up fired. The hook's
   stdout, decision and exit code are unchanged; a log that cannot be
-  written costs one warning on stderr. The report schema, the hook JSON
-  and the exit codes are unchanged.
+  written costs one warning on stderr. `go run ./calibration/blocks` reads
+  the log and classifies each block as exempted, split, reshaped, reduced,
+  unexplained or open, with the evidence and counts per metric, so what
+  agents do in response to a block, which no commit records, can be
+  measured. The report schema, the hook JSON and the exit codes are
+  unchanged.
 - `check` warns when a change reshapes the exports of a package near its
   `exported_symbols` ceiling without adding one: an existing exported
   function or method whose signature changed (a variadic parameter added

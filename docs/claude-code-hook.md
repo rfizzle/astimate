@@ -101,6 +101,14 @@ The path is relative to the module root. It is off by default, and `astimate con
 
 The log changes nothing the hook outputs: stdout, the decision and the exit code are the same with it on or off. If the file cannot be written, the hook prints one warning on stderr and the decision stands. A check skipped under `stop_hook_active` writes nothing, so the pass is recorded at the next stop that runs the check, usually the end of a later turn; redirect stdin from `/dev/null` (see Loop protection) if you want every stop checked and recorded. The file is local working state and grows by a few hundred bytes per finding: add it to `.gitignore`. It is not a source file, so it selects no package and moves no metric.
 
+Read it with:
+
+```
+go run ./calibration/blocks [--json] [.astimate/blocks.jsonl]
+```
+
+from a checkout of astimate (it is a calibration tool, not an `astimate` command), passing the log's path. It lists each block as `exempted`, `split` (a package carved out of it by a rename, or a capacity value down at least 25%, or the package deleted), `reshaped` (the exports heads-up fired), `reduced` (the value fell by less: a smaller change, an extraction or a workaround, which it cannot tell apart), `unexplained` (the check passed without the value falling) or `open`, with the evidence for each and counts per metric. `SPEC.md` 11.5 has the rules. Treat the result as pointers for a reviewer, not a verdict on the agent.
+
 ## Requirements and failure modes
 
 - `astimate` must be on the `PATH` Claude Code runs hooks with. If it is not, the shell exits 127, a non-blocking error: the agent stops and the gate did nothing. Check with `command -v astimate` in the shell you start Claude Code from.
