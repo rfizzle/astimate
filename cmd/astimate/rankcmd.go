@@ -17,14 +17,14 @@ import (
 )
 
 // runRank ranks every package of a module: `rank [<module-root>] [--json]
-// [--top N] [--sort passes|days|fan_in|tokens|duplication|churn|hotspot] [--config path]
+// [--top N] [--sort passes|days|fan_in|tokens|duplication|churn|hotspot|headroom] [--config path]
 // [--tokenizer est|o200k] [--coverage] [--coverage-timeout d]`. The root
 // defaults to the current directory. A
 // package that fails to extract is logged to stderr and left out; the other
 // rows are still printed and the command exits 2.
 func runRank(args []string, stdout, stderr io.Writer) int {
 	fs := cli.NewFlagSet("rank", "usage: astimate rank [<module-root>] [--json] [--top N] "+
-		"[--sort passes|days|fan_in|tokens|duplication|churn|hotspot] [--config path] [--tokenizer est|o200k] "+
+		"[--sort passes|days|fan_in|tokens|duplication|churn|hotspot|headroom] [--config path] [--tokenizer est|o200k] "+
 		"[--coverage] [--coverage-timeout 2m]", stderr)
 	asJSON := fs.Bool("json", false, "print a JSON array instead of the table")
 	top := fs.Int("top", 0, "print only the first N rows (0 prints all)")
@@ -62,10 +62,15 @@ func runRank(args []string, stdout, stderr io.Writer) int {
 // rankFooter closes the text table: it says which column is measured and what DAYS ranges over.
 const rankFooter = "PASSES and TIER: fitted on 85 measured agent rebuilds (SPEC.md 7.4). DAYS: one engineer's working days, the lower to the higher of COCOMO 81 and COCOMO II, not measured (SPEC.md 7.3).\n"
 
+// headroomFooter follows rankFooter when the table has the HEADROOM
+// column: it says which ceiling the column shows.
+const headroomFooter = "HEADROOM: the capacity ceiling the package has used the most of, value/max and what is left, warn rules included; - when no capacity rule judges it (SPEC.md 8.1).\n"
+
 // rankTarget ranks t's module with engine.Rank and prints the rows to
-// stdout, as a JSON array when asJSON is set and a table otherwise. It
-// returns exitAnalysis when listing fails (stdout stays empty) or when any
-// package failed to extract (the other rows are printed), else exitOK.
+// stdout, as a JSON array when asJSON is set and a table otherwise, with
+// the HEADROOM column when sorting by headroom. It returns exitAnalysis
+// when listing fails (stdout stays empty) or when any package failed to
+// extract (the other rows are printed), else exitOK.
 func rankTarget(ctx context.Context, t *engine.Target, opts engine.RankOptions, asJSON bool,
 	stdout io.Writer, logger *slog.Logger,
 ) int {
@@ -87,10 +92,15 @@ func rankTarget(ctx context.Context, t *engine.Target, opts engine.RankOptions, 
 		if asJSON {
 			return rows.WriteRowsJSON(w, ranked)
 		}
-		if err := rows.WriteRowsTable(w, ranked); err != nil {
+		table := rows.TableOptions{Headroom: opts.Sort == rows.SortHeadroom}
+		if err := rows.WriteRowsTable(w, ranked, table); err != nil {
 			return err
 		}
-		_, err := io.WriteString(w, rankFooter+notAnalysedFooter(len(skipped)))
+		footer := rankFooter
+		if table.Headroom {
+			footer += headroomFooter
+		}
+		_, err := io.WriteString(w, footer+notAnalysedFooter(len(skipped)))
 		return err
 	})
 }

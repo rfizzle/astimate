@@ -26,6 +26,7 @@ const (
 	SortDuplication = "duplication"
 	SortChurn       = "churn"
 	SortHotspot     = "hotspot"
+	SortHeadroom    = "headroom"
 )
 
 // ErrUnknownSortKey is returned by SortRows for a key not in SortKeys.
@@ -59,6 +60,61 @@ type Row struct {
 	// Role is the package's role (metrics.RawMetrics.Role, SPEC.md 6.5);
 	// omitted when the extractor records none.
 	Role string `json:"role,omitempty"`
+	// Headroom is the tightest of Ceilings, the one with the highest Used
+	// (the first on ties); nil when no capacity rule judges the package.
+	// SetCeilings sets it.
+	Headroom *Ceiling `json:"headroom"`
+	// Ceilings are the capacity rules that judge the package, in the
+	// configuration's rule order; omitted when none does. SetCeilings
+	// sets them.
+	Ceilings []Ceiling `json:"ceilings,omitempty"`
+}
+
+// Ceiling is one capacity rule's ceiling on a package and the room left
+// under it (SPEC.md 8.1, Headroom).
+type Ceiling struct {
+	// Metric is the rule's metric.
+	Metric string `json:"metric"`
+	// Value is the package's value of the metric.
+	Value float64 `json:"value"`
+	// Max is the rule's ceiling.
+	Max float64 `json:"max"`
+	// Remaining is Max less Value, negative when the package is over the
+	// ceiling, rounded to three decimals.
+	Remaining float64 `json:"remaining"`
+	// Used is Value over Max, the share of the ceiling used, above 1 when
+	// the package is over it, rounded to three decimals.
+	Used float64 `json:"used"`
+}
+
+// NewCeiling returns the ceiling limit of metric on a package whose value
+// of it is value; limit must be greater than zero.
+func NewCeiling(metric string, value, limit float64) Ceiling {
+	return Ceiling{
+		Metric:    metric,
+		Value:     value,
+		Max:       limit,
+		Remaining: round3(limit - value),
+		Used:      round3(value / limit),
+	}
+}
+
+// round3 rounds v to three decimals.
+func round3(v float64) float64 {
+	return math.Round(v*1000) / 1000
+}
+
+// SetCeilings sets r's Ceilings to cs, which r keeps, and its Headroom to
+// a copy of the one with the highest Used, the first of those on ties, or
+// nil when cs is empty.
+func (r *Row) SetCeilings(cs []Ceiling) {
+	r.Ceilings, r.Headroom = cs, nil
+	for i := range cs {
+		if r.Headroom == nil || cs[i].Used > r.Headroom.Used {
+			c := cs[i]
+			r.Headroom = &c
+		}
+	}
 }
 
 // NewRow estimates the rebuild effort of m under p and returns the ranking
@@ -82,7 +138,7 @@ func NewRow(path string, m *metrics.RawMetrics, p score.RebuildParams) Row {
 
 // SortKeys returns the keys SortRows accepts; SortPasses is the default.
 func SortKeys() []string {
-	return []string{SortPasses, SortDays, SortFanIn, SortTokens, SortDuplication, SortChurn, SortHotspot}
+	return []string{SortPasses, SortDays, SortFanIn, SortTokens, SortDuplication, SortChurn, SortHotspot, SortHeadroom}
 }
 
 // Hotspot returns churn_commits times agent_passes, to one decimal: how
@@ -122,6 +178,15 @@ func SortRows(rows []Row, key string) error {
 		}
 	case SortHotspot:
 		value = func(r *Row) float64 { return Hotspot(r.ChurnCommits, r.AgentPasses) }
+	case SortHeadroom:
+		// The tightest ceiling first, packages over one at the top; a
+		// package no capacity rule judges sorts last.
+		value = func(r *Row) float64 {
+			if r.Headroom == nil {
+				return -1
+			}
+			return r.Headroom.Used
+		}
 	default:
 		return fmt.Errorf("%w %q: want one of %s", ErrUnknownSortKey, key, strings.Join(SortKeys(), ", "))
 	}
@@ -157,27 +222,41 @@ func WriteRowsJSON(w io.Writer, rows []Row) error {
 	return nil
 }
 
+// TableOptions shape WriteRowsTable's columns.
+type TableOptions struct {
+	// Headroom adds the HEADROOM column, the package's tightest capacity
+	// ceiling (headroomText); rank shows it when sorting by SortHeadroom.
+	Headroom bool
+}
+
 // rowColumns are the ranking table's column headers: the measured agent
-// estimate and its tier before the textbook DAYS.
-func rowColumns() []string {
-	return []string{"PATH", "PASSES", "TIER", "DAYS", "FAN_IN", "TOKENS", "DUP%", "CHURN", "ROLE"}
+// estimate and its tier before the textbook DAYS, and HEADROOM last when
+// opts asks for it.
+func rowColumns(opts TableOptions) []string {
+	cols := []string{"PATH", "PASSES", "TIER", "DAYS", "FAN_IN", "TOKENS", "DUP%", "CHURN", "ROLE"}
+	if opts.Headroom {
+		cols = append(cols, "HEADROOM")
+	}
+	return cols
 }
 
 // numericColumn reports whether column i of the ranking table holds numbers,
-// which are right-aligned; PATH, TIER and ROLE are text.
+// which are right-aligned; PATH, TIER, ROLE and HEADROOM are text.
 func numericColumn(i int) bool {
-	return i != 0 && i != 2 && i != 8
+	return i != 0 && i != 2 && i < 8
 }
 
 // WriteRowsTable writes rows for a human reader: one header line, then one
-// line per row, with numbers right-aligned in their columns.
-func WriteRowsTable(w io.Writer, rows []Row) error {
-	cols := rowColumns()
+// line per row, with numbers right-aligned in their columns, and the
+// HEADROOM column last when opts asks for it.
+func WriteRowsTable(w io.Writer, rows []Row, opts TableOptions) error {
+	cols := rowColumns(opts)
 	cells := make([][]string, 0, len(rows)+1)
 	cells = append(cells, cols)
 	for i := range rows {
 		r := &rows[i]
-		cells = append(cells, []string{
+		line := make([]string, 0, len(cols))
+		line = append(line,
 			r.Path,
 			strconv.FormatFloat(r.AgentPasses, 'f', 1, 64),
 			string(r.Tier),
@@ -187,7 +266,11 @@ func WriteRowsTable(w io.Writer, rows []Row) error {
 			strconv.FormatFloat(r.DuplicationPct, 'f', 1, 64),
 			churnText(r.ChurnCommits),
 			cmp.Or(r.Role, "-"),
-		})
+		)
+		if opts.Headroom {
+			line = append(line, headroomText(r.Headroom))
+		}
+		cells = append(cells, line)
 	}
 	// Pad numeric cells on the left to their column's width so they
 	// right-align; tabwriter then lays out the columns.
@@ -221,6 +304,45 @@ func WriteRowsTable(w io.Writer, rows []Row) error {
 		return fmt.Errorf("writing table ranking: %w", err)
 	}
 	return nil
+}
+
+// headroomText is the HEADROOM cell, "tokens_est 14,100/16,000 (1,900
+// left)", "(300 over)" for a package over the ceiling, and "-" for one no
+// capacity rule judges.
+func headroomText(c *Ceiling) string {
+	if c == nil {
+		return "-"
+	}
+	room := grouped(c.Remaining) + " left"
+	if c.Remaining < 0 {
+		room = grouped(-c.Remaining) + " over"
+	}
+	return c.Metric + " " + grouped(c.Value) + "/" + grouped(c.Max) + " (" + room + ")"
+}
+
+// grouped writes v without trailing zeros, its integer part in groups of
+// three digits separated by commas.
+func grouped(v float64) string {
+	s := strconv.FormatFloat(v, 'f', -1, 64)
+	sign := ""
+	if strings.HasPrefix(s, "-") {
+		sign, s = "-", s[1:]
+	}
+	whole, frac, hasFrac := strings.Cut(s, ".")
+	var b strings.Builder
+	b.Grow(len(s) + len(s)/3 + 1)
+	b.WriteString(sign)
+	for i := range len(whole) {
+		if i > 0 && (len(whole)-i)%3 == 0 {
+			b.WriteByte(',')
+		}
+		b.WriteByte(whole[i])
+	}
+	if hasFrac {
+		b.WriteByte('.')
+		b.WriteString(frac)
+	}
+	return b.String()
 }
 
 // daysText is the DAYS cell, the human range to one decimal, "3.1-4.2",

@@ -214,7 +214,7 @@ func TestTextEmptyModulePath(t *testing.T) {
 		}},
 		{name: "rows table empty", write: func(b *bytes.Buffer, r Report) error {
 			m := workedExample()
-			return rows.WriteRowsTable(b, []rows.Row{rows.NewRow(r.PackagePath, &m, params())})
+			return rows.WriteRowsTable(b, []rows.Row{rows.NewRow(r.PackagePath, &m, params())}, rows.TableOptions{})
 		}},
 	}
 	for _, tt := range tests {

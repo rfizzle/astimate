@@ -2,7 +2,9 @@ package rows
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -45,6 +47,8 @@ func TestSortRowsStableOrdering(t *testing.T) {
 		{SortDuplication, []string{"b", "a", "d", "c"}},
 		{SortChurn, []string{"a", "d", "b", "c"}},
 		{SortHotspot, []string{"d", "a", "b", "c"}},
+		// No row has a ceiling: all tie, in path order.
+		{SortHeadroom, []string{"a", "b", "c", "d"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.key, func(t *testing.T) {
@@ -91,8 +95,190 @@ func TestNewRowWorkedExample(t *testing.T) {
 		Path: "internal/billing", AgentPasses: 1.2, HumanDays: 71.6, HumanDaysLow: 71.6, HumanDaysHigh: 89.6, Tier: score.TierFewPasses,
 		FanIn: 7, TokensEst: 10000, DuplicationPct: 20,
 	}
-	if got != want {
+	if !reflect.DeepEqual(got, want) {
 		t.Errorf("NewRow = %+v, want %+v", got, want)
+	}
+}
+
+func TestNewCeiling(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name               string
+		value, limit       float64
+		wantRemain, wantUs float64
+	}{
+		{name: "under", value: 14100, limit: 16000, wantRemain: 1900, wantUs: 0.881},
+		{name: "at the max", value: 60, limit: 60, wantRemain: 0, wantUs: 1},
+		{name: "over", value: 16694, limit: 16000, wantRemain: -694, wantUs: 1.043},
+		{name: "empty", value: 0, limit: 10, wantRemain: 10, wantUs: 0},
+		{name: "fractional", value: 33.3, limit: 45, wantRemain: 11.7, wantUs: 0.74},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := NewCeiling("m", tt.value, tt.limit)
+			want := Ceiling{Metric: "m", Value: tt.value, Max: tt.limit, Remaining: tt.wantRemain, Used: tt.wantUs}
+			if got != want {
+				t.Errorf("NewCeiling(%v, %v) = %+v, want %+v", tt.value, tt.limit, got, want)
+			}
+		})
+	}
+}
+
+// TestSetCeilingsTightest: the headroom is the ceiling with the highest
+// share used, the first in rule order on a tie, a copy of it, and nil
+// with no ceiling.
+func TestSetCeilingsTightest(t *testing.T) {
+	t.Parallel()
+
+	tokens := NewCeiling("tokens_est", 14100, 16000)  // 0.881
+	exports := NewCeiling("exported_symbols", 30, 60) // 0.5
+	imports := NewCeiling("internal_imports", 11, 10) // 1.1, over
+	sloc := NewCeiling("sloc", 881, 1000)             // 0.881, ties tokens
+	tests := []struct {
+		name string
+		cs   []Ceiling
+		want *Ceiling
+	}{
+		{name: "none", cs: nil, want: nil},
+		{name: "one", cs: []Ceiling{exports}, want: &exports},
+		{name: "tightest last", cs: []Ceiling{exports, tokens}, want: &tokens},
+		{name: "tightest first", cs: []Ceiling{tokens, exports}, want: &tokens},
+		{name: "over a max wins", cs: []Ceiling{tokens, imports, exports}, want: &imports},
+		{name: "tie takes the first", cs: []Ceiling{sloc, exports, tokens}, want: &sloc},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var r Row
+			r.SetCeilings(tt.cs)
+			if !reflect.DeepEqual(r.Headroom, tt.want) {
+				t.Errorf("Headroom = %+v, want %+v", r.Headroom, tt.want)
+			}
+			if !slices.Equal(r.Ceilings, tt.cs) {
+				t.Errorf("Ceilings = %+v, want %+v", r.Ceilings, tt.cs)
+			}
+			if r.Headroom != nil && len(r.Ceilings) > 0 {
+				r.Headroom.Used = 99
+				if slices.ContainsFunc(r.Ceilings, func(c Ceiling) bool { return c.Used == 99 }) {
+					t.Error("Headroom aliases an element of Ceilings, want a copy")
+				}
+			}
+		})
+	}
+}
+
+// TestSortHeadroom: tightest first, a package over its max at the top,
+// ties by path, and a package no capacity rule judges last.
+func TestSortHeadroom(t *testing.T) {
+	t.Parallel()
+
+	withRoom := func(path string, cs ...Ceiling) Row {
+		r := Row{Path: path}
+		r.SetCeilings(cs)
+		return r
+	}
+	base := []Row{
+		{Path: "a-unjudged"},
+		withRoom("roomy", NewCeiling("tokens_est", 1000, 16000)),
+		withRoom("z-tied", NewCeiling("exported_symbols", 45, 60)),
+		withRoom("over", NewCeiling("tokens_est", 17000, 16000)),
+		withRoom("b-tied", NewCeiling("tokens_est", 12000, 16000)),
+		withRoom("empty", NewCeiling("internal_imports", 0, 10)),
+	}
+	want := []string{"over", "b-tied", "z-tied", "roomy", "empty", "a-unjudged"}
+	for _, perm := range [][]int{{0, 1, 2, 3, 4, 5}, {5, 4, 3, 2, 1, 0}, {2, 0, 5, 1, 3, 4}} {
+		rs := make([]Row, 0, len(base))
+		for _, i := range perm {
+			rs = append(rs, base[i])
+		}
+		if err := SortRows(rs, SortHeadroom); err != nil {
+			t.Fatal(err)
+		}
+		if got := paths(rs); !slices.Equal(got, want) {
+			t.Errorf("SortRows(headroom) from permutation %v = %q, want %q", perm, got, want)
+		}
+	}
+}
+
+// TestWriteRowsJSONHeadroom: a row carries its headroom and ceilings; one
+// no capacity rule judges has a null headroom and no ceilings key.
+func TestWriteRowsJSONHeadroom(t *testing.T) {
+	t.Parallel()
+
+	judged := Row{Path: "big", Tier: score.TierOnePass}
+	judged.SetCeilings([]Ceiling{NewCeiling("tokens_est", 14100, 16000), NewCeiling("exported_symbols", 12, 60)})
+	var buf bytes.Buffer
+	if err := WriteRowsJSON(&buf, []Row{judged, {Path: "cmd/app", Tier: score.TierOnePass, Role: "main"}}); err != nil {
+		t.Fatal(err)
+	}
+	var got []map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
+		t.Fatalf("decoding %s: %v", buf.String(), err)
+	}
+	wantHeadroom := map[string]any{"metric": "tokens_est", "value": 14100.0, "max": 16000.0, "remaining": 1900.0, "used": 0.881}
+	if !reflect.DeepEqual(got[0]["headroom"], wantHeadroom) {
+		t.Errorf("headroom = %v, want %v", got[0]["headroom"], wantHeadroom)
+	}
+	wantCeilings := []any{
+		wantHeadroom,
+		map[string]any{"metric": "exported_symbols", "value": 12.0, "max": 60.0, "remaining": 48.0, "used": 0.2},
+	}
+	if !reflect.DeepEqual(got[0]["ceilings"], wantCeilings) {
+		t.Errorf("ceilings = %v, want %v", got[0]["ceilings"], wantCeilings)
+	}
+	if h, ok := got[1]["headroom"]; !ok || h != nil {
+		t.Errorf("unjudged row headroom = %v (present %v), want null", h, ok)
+	}
+	if _, ok := got[1]["ceilings"]; ok {
+		t.Errorf("unjudged row = %v, want no ceilings key", got[1])
+	}
+	if !strings.Contains(buf.String(), `"headroom": {`+"\n"+`      "metric": "tokens_est",`+"\n"+`      "value": 14100,`) {
+		t.Errorf("JSON = %s, want integer values written without a fraction", buf.String())
+	}
+}
+
+func TestWriteRowsTableHeadroom(t *testing.T) {
+	t.Parallel()
+
+	tight := Row{Path: "internal/big", AgentPasses: 1.2, HumanDays: 2, HumanDaysLow: 2, HumanDaysHigh: 2, Tier: score.TierFewPasses, TokensEst: 14100, Role: "library"}
+	tight.SetCeilings([]Ceiling{NewCeiling("tokens_est", 14100, 16000)})
+	over := Row{Path: "x", HumanDays: 1, HumanDaysLow: 1, HumanDaysHigh: 1, Tier: score.TierOnePass, TokensEst: 17250, Role: "library"}
+	over.SetCeilings([]Ceiling{NewCeiling("tokens_est", 17250, 16000)})
+	rs := []Row{over, tight, {Path: "cmd/app", Tier: score.TierOnePass, Role: "main"}}
+	var buf bytes.Buffer
+	if err := WriteRowsTable(&buf, rs, TableOptions{Headroom: true}); err != nil {
+		t.Fatal(err)
+	}
+	want := strings.Join([]string{
+		"PATH          PASSES  TIER        DAYS  FAN_IN  TOKENS  DUP%  CHURN  ROLE     HEADROOM",
+		"x                0.0  ONE_PASS     1.0       0   17250   0.0      -  library  tokens_est 17,250/16,000 (1,250 over)",
+		"internal/big     1.2  FEW_PASSES   2.0       0   14100   0.0      -  library  tokens_est 14,100/16,000 (1,900 left)",
+		"cmd/app          0.0  ONE_PASS     0.0       0       0   0.0      -  main     -",
+		"",
+	}, "\n")
+	if got := buf.String(); got != want {
+		t.Errorf("WriteRowsTable with headroom =\n%s\nwant:\n%s", got, want)
+	}
+}
+
+func TestGrouped(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		in   float64
+		want string
+	}{
+		{0, "0"}, {12, "12"}, {999, "999"}, {1000, "1,000"}, {16000, "16,000"},
+		{1234567, "1,234,567"}, {-1250, "-1,250"}, {6.7, "6.7"}, {12345.25, "12,345.25"},
+	}
+	for _, tt := range tests {
+		if got := grouped(tt.in); got != tt.want {
+			t.Errorf("grouped(%v) = %q, want %q", tt.in, got, tt.want)
+		}
 	}
 }
 
@@ -119,7 +305,7 @@ func TestWriteRowsTable(t *testing.T) {
 		{Path: ".", AgentPasses: 0, HumanDays: 0.3, HumanDaysLow: 0.3, HumanDaysHigh: 0.3, Tier: score.TierOnePass, TokensEst: 55},
 	}
 	var buf bytes.Buffer
-	if err := WriteRowsTable(&buf, rows); err != nil {
+	if err := WriteRowsTable(&buf, rows, TableOptions{}); err != nil {
 		t.Fatalf("WriteRowsTable error = %v", err)
 	}
 	// A row whose extractor records no role, or without churn, shows a

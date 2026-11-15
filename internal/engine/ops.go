@@ -10,6 +10,7 @@ import (
 	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/engine/internal/coverage"
 	"github.com/rfizzle/astimate/internal/engine/internal/judge"
+	"github.com/rfizzle/astimate/internal/engine/internal/ranking"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/report"
 	"github.com/rfizzle/astimate/internal/report/details"
@@ -119,7 +120,8 @@ func (t *Target) details(d *metrics.Details) *details.Details {
 }
 
 // Rank lists the packages of t's module with one Packages call, extracts
-// and estimates each, then sorts and truncates the rows. It returns an
+// each, then estimates, sorts and truncates the rows (ranking.Rows), each
+// with its ceilings under the rules of t's language. It returns an
 // error when listing fails or opts.Sort is not a sort key (wrapping
 // rows.ErrUnknownSortKey). A package that fails to extract is logged,
 // left out of the rows and returned as a *PackageError in failed. With
@@ -131,21 +133,15 @@ func Rank(ctx context.Context, t *Target, opts RankOptions) (ranked []rows.Row, 
 	if err != nil {
 		return nil, nil, err
 	}
-	params := t.langConfig().Rebuild
 	extracted, order, failed := t.extractAll(ctx, pkgs)
 	measureCoverage(ctx, t, opts.Coverage, extracted, order)
 	fillChurn(ctx, t, extracted)
-	ranked = make([]rows.Row, 0, len(order))
-	for _, pkg := range order {
-		ranked = append(ranked, rows.NewRow(judge.Rel(t.Mod.ModulePath, pkg), extracted[pkg], params))
-	}
-	if err := rows.SortRows(ranked, opts.Sort); err != nil {
-		return nil, failed, err
-	}
-	if opts.Top > 0 && opts.Top < len(ranked) {
-		ranked = ranked[:opts.Top]
-	}
-	return ranked, failed, nil
+	eff := t.langConfig()
+	ranked, err = ranking.Rows(&ranking.Input{
+		ModulePath: t.Mod.ModulePath, Packages: extracted, Order: order,
+		Rebuild: eff.Rebuild, Rules: eff.Thresholds, Sort: opts.Sort, Top: opts.Top,
+	})
+	return ranked, failed, err
 }
 
 // extractAll extracts every package of pkgs, keyed by identifier, in

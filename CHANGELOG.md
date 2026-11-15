@@ -12,6 +12,18 @@ history.
 
 ### Added
 
+- `astimate rank --sort headroom` ranks packages by how close they are to
+  a capacity ceiling, tightest first and packages over one at the top, so
+  work handed out in parallel can steer clear of a package one more
+  feature would push over. Each rank row (`--json` and the MCP
+  `rank_packages` tool, which accepts the same sort value) gains
+  `headroom`, the capacity rule of the active configuration with the
+  highest share used (`metric`, `value`, `max`, `remaining`, `used`; null
+  when no capacity rule judges the package), and `ceilings`, every
+  capacity rule that judges it. Roles and `languages:` overrides apply as
+  `check` applies them, and a rule at `severity: warn` counts. The table
+  adds a HEADROOM column, `tokens_est 14,100/16,000 (1,900 left)` or
+  `(300 over)`, when sorting by headroom. The change is additive.
 - An `exclude:` list in the configuration keeps files out of the analysis,
   for generated code no header marks and vendored or experimental trees.
   Patterns match a file's path relative to the module root (`*`, `?` and

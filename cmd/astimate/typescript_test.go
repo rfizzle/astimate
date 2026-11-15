@@ -43,6 +43,13 @@ func TestTypeScriptRank(t *testing.T) {
 		if ranked[i].Path == "hub" && ranked[i].FanIn != 4 {
 			t.Errorf("hub fan_in = %d, want 4", ranked[i].FanIn)
 		}
+		// The headroom is measured against the languages.typescript
+		// override's ceilings, as check judges the row: tokens_est 35,000,
+		// not the top level's 16,000.
+		j := slices.IndexFunc(ranked[i].Ceilings, func(c rows.Ceiling) bool { return c.Metric == "tokens_est" })
+		if j < 0 || ranked[i].Ceilings[j].Max != 35000 {
+			t.Errorf("%s ceilings = %+v, want tokens_est at the override's max 35000", ranked[i].Path, ranked[i].Ceilings)
+		}
 	}
 }
 

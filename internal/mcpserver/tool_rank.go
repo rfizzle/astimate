@@ -24,9 +24,12 @@ const rankToolDescription = "Rank every package of a Go module by estimated rebu
 	"package path, agent_passes and tier (fitted on 85 measured agent rebuilds, the default sort), human_days " +
 	"(the configured model's) with human_days_low and human_days_high (the range between two textbook models, " +
 	"not measured), fan_in, tokens_est, duplication_pct, churn_commits and role " +
-	"(main for a composition root, library, test-support or generated-only), sorted " +
-	"descending by the sort key. Packages that fail to analyze are listed as skipped; the rest are " +
-	"still ranked."
+	"(main for a composition root, library, test-support or generated-only), and headroom: the capacity " +
+	"ceiling (tokens_est, exported_symbols, internal_imports and the like) the package has used the most of, " +
+	"with its value, max, remaining and used share, null when no capacity rule judges it, beside ceilings, " +
+	"every capacity rule that judges it. Rows are sorted descending by the sort key; sort by headroom to see " +
+	"which packages are closest to a ceiling before planning parallel work. Packages that fail to analyze " +
+	"are listed as skipped; the rest are still ranked."
 
 // RankInput is the input of the rank_packages tool.
 type RankInput struct {
@@ -35,7 +38,7 @@ type RankInput struct {
 	// Top keeps only the first Top rows; 0 keeps every row.
 	Top int `json:"top,omitempty" jsonschema:"Return only the first top rows after sorting. 0 or omitted returns every package."`
 	// Sort is the sort key, one of rows.SortKeys.
-	Sort string `json:"sort,omitempty" jsonschema:"Sort key, descending: passes (default), days, fan_in, tokens, duplication or churn (churn_commits)."`
+	Sort string `json:"sort,omitempty" jsonschema:"Sort key, descending: passes (default), days, fan_in, tokens, duplication, churn (churn_commits), hotspot (churn times passes) or headroom (the share of the tightest capacity ceiling used, packages over a ceiling first and those no capacity rule judges last)."`
 	// Coverage measures coverage_pct for every package (engine.RankOptions.Coverage).
 	Coverage bool `json:"coverage,omitempty" jsonschema:"Run the module's tests with go test -cover and scale each estimate's unspecified term by the package's coverage. Slower. Defaults to false."`
 }
@@ -103,19 +106,19 @@ func (s *session) runRank(ctx context.Context, in RankInput) (string, rankResult
 	if err != nil {
 		return "", rankResult{}, err
 	}
-	return rankOutput(ranked, failed)
+	return rankOutput(ranked, failed, rows.TableOptions{Headroom: key == rows.SortHeadroom})
 }
 
 // rankOutput builds the text and structured content of a ranking: the
-// table, then, when any package failed, a "skipped N packages:" list with
-// each error.
-func rankOutput(ranked []rows.Row, failed []error) (string, rankResult, error) {
+// table with the columns table asks for, then, when any package failed, a
+// "skipped N packages:" list with each error.
+func rankOutput(ranked []rows.Row, failed []error, table rows.TableOptions) (string, rankResult, error) {
 	res := rankResult{Rows: ranked, Failed: failures(failed)}
 	if res.Rows == nil {
 		res.Rows = []rows.Row{}
 	}
 	var b strings.Builder
-	if err := rows.WriteRowsTable(&b, ranked); err != nil {
+	if err := rows.WriteRowsTable(&b, ranked, table); err != nil {
 		return "", rankResult{}, err
 	}
 	if len(failed) > 0 {

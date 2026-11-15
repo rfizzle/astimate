@@ -66,6 +66,11 @@ func sortValue(r *rows.Row, key string) float64 {
 		return float64(*r.ChurnCommits)
 	case rows.SortHotspot:
 		return rows.Hotspot(r.ChurnCommits, r.AgentPasses)
+	case rows.SortHeadroom:
+		if r.Headroom == nil {
+			return -1
+		}
+		return r.Headroom.Used
 	default:
 		return r.AgentPasses
 	}
@@ -152,6 +157,60 @@ func TestRankTable(t *testing.T) {
 	if len(lines) != 4 || strings.Join(strings.Fields(lines[0]), " ") != "PATH PASSES TIER DAYS FAN_IN TOKENS DUP% CHURN ROLE" ||
 		lines[3] != strings.TrimSuffix(rankFooter, "\n") {
 		t.Errorf("table output = %q, want the header, two rows and the footer", stdout.String())
+	}
+}
+
+// TestRankHeadroomTable: --sort headroom adds HEADROOM as the last column,
+// one cell per row naming a ceiling and the room left under it, and its
+// footer line; the default sort has neither (TestRankTable).
+func TestRankHeadroomTable(t *testing.T) {
+	t.Parallel()
+
+	var stdout, stderr bytes.Buffer
+	args := []string{"rank", fixtureDir, "--sort", "headroom"}
+	if got := run(args, &stdout, &stderr); got != exitOK {
+		t.Fatalf("run(%q) exit code = %d, want %d; stderr = %q", args, got, exitOK, stderr.String())
+	}
+	lines := strings.Split(strings.TrimSuffix(stdout.String(), "\n"), "\n")
+	if len(lines) != len(fixturePackages())+3 {
+		t.Fatalf("table output = %q, want the header, a row per package and two footer lines", stdout.String())
+	}
+	if got := strings.Join(strings.Fields(lines[0]), " "); got != "PATH PASSES TIER DAYS FAN_IN TOKENS DUP% CHURN ROLE HEADROOM" {
+		t.Errorf("header = %q, want HEADROOM last", got)
+	}
+	ranked := runRankJSON(t, "--sort", "headroom")
+	for i, line := range lines[1 : len(lines)-2] {
+		h := ranked[i].Headroom
+		if h == nil {
+			t.Fatalf("row %s has no headroom; every fixture package is judged by tokens_est", ranked[i].Path)
+		}
+		if !strings.Contains(line, " "+h.Metric+" ") || !strings.HasSuffix(line, " left)") {
+			t.Errorf("row %q, want its headroom on %s and the room left", line, h.Metric)
+		}
+	}
+	if got := strings.Join(lines[len(lines)-2:], "\n") + "\n"; got != rankFooter+headroomFooter {
+		t.Errorf("footer = %q, want %q", got, rankFooter+headroomFooter)
+	}
+}
+
+// TestRankHeadroomJSON: every row of the fixture carries its ceilings in
+// rule order and, as headroom, the one with the highest share used.
+func TestRankHeadroomJSON(t *testing.T) {
+	t.Parallel()
+
+	for _, r := range runRankJSON(t, "--sort", "headroom") {
+		if r.Headroom == nil || len(r.Ceilings) == 0 {
+			t.Fatalf("row %s = %+v, want a headroom and its ceilings", r.Path, r)
+		}
+		tightest := slices.MaxFunc(r.Ceilings, func(a, b rows.Ceiling) int { return cmp.Compare(a.Used, b.Used) })
+		if r.Headroom.Used != tightest.Used {
+			t.Errorf("row %s headroom = %+v, want the tightest of %+v", r.Path, *r.Headroom, r.Ceilings)
+		}
+		for _, c := range r.Ceilings {
+			if c.Remaining != c.Max-c.Value {
+				t.Errorf("row %s ceiling %+v: remaining is not max - value", r.Path, c)
+			}
+		}
 	}
 }
 

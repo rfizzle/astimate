@@ -57,6 +57,8 @@ func TestRankPackagesTool(t *testing.T) {
 		wantRows  int
 		wantFirst string
 		sorted    func(a, b rows.Row) bool
+		// wantHeadroom expects the table's HEADROOM column.
+		wantHeadroom bool
 	}{
 		{name: "default sort", in: map[string]any{}, wantRows: 12,
 			sorted: func(a, b rows.Row) bool { return a.AgentPasses >= b.AgentPasses }},
@@ -64,6 +66,10 @@ func TestRankPackagesTool(t *testing.T) {
 			sorted: func(a, b rows.Row) bool { return a.DuplicationPct >= b.DuplicationPct }},
 		{name: "top two", in: map[string]any{"top": 2, "module_root": "."}, wantRows: 2,
 			sorted: func(a, b rows.Row) bool { return a.AgentPasses >= b.AgentPasses }},
+		{name: "headroom", in: map[string]any{"sort": "headroom"}, wantRows: 12, wantHeadroom: true,
+			sorted: func(a, b rows.Row) bool {
+				return a.Headroom != nil && (b.Headroom == nil || a.Headroom.Used >= b.Headroom.Used)
+			}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -92,6 +98,14 @@ func TestRankPackagesTool(t *testing.T) {
 			}
 			if strings.Contains(text, "skipped") {
 				t.Errorf("text = %q, want no skipped list", text)
+			}
+			if header, _, _ := strings.Cut(text, "\n"); strings.HasSuffix(header, "HEADROOM") != tt.wantHeadroom {
+				t.Errorf("header = %q, want HEADROOM last: %v", header, tt.wantHeadroom)
+			}
+			for _, r := range r.Rows {
+				if r.Headroom == nil || len(r.Ceilings) == 0 {
+					t.Errorf("row %s = %+v, want a headroom and its ceilings", r.Path, r)
+				}
 			}
 		})
 	}
@@ -146,7 +160,7 @@ func TestRankOutputPartialFailure(t *testing.T) {
 		&engine.PackageError{Path: "broken", Err: errors.New("type-checking: undefined: x")},
 		errors.New("bare failure"),
 	}
-	text, res, err := rankOutput(ranked, failed)
+	text, res, err := rankOutput(ranked, failed, rows.TableOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,7 +174,7 @@ func TestRankOutputPartialFailure(t *testing.T) {
 		t.Errorf("structured = %+v, want one row and failed %+v", res, want)
 	}
 
-	text, res, err = rankOutput(nil, nil)
+	text, res, err = rankOutput(nil, nil, rows.TableOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
