@@ -30,6 +30,12 @@ type Entry struct {
 	// Expires is the last day the exemption applies, as YYYY-MM-DD; empty
 	// means it never expires.
 	Expires string
+	// Source names the file the exemption was read from when that is not
+	// the configuration file, such as astimate.exemptions.yaml; empty for
+	// an exemption of the configuration itself. The notices about an
+	// expired or stale exemption name it, so a person knows which file to
+	// edit.
+	Source string
 }
 
 // Validate checks the exemption's fields: a package of the form Package

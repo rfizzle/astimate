@@ -58,7 +58,9 @@ type Config struct {
 	Rebuild score.RebuildParams
 	// Thresholds holds the gate rules in file order.
 	Thresholds []gate.Threshold
-	// Exemptions holds the exemptions in file order (SPEC.md 8.6). They
+	// Exemptions holds the exemptions in file order (SPEC.md 8.6): the
+	// configuration's own, then those of its exemptions file
+	// (ExemptionsFileName) once Resolve or ForModule has read it. They
 	// apply to every language: a languages override carries none.
 	Exemptions []exempt.Entry
 	// Exclude holds the exclude patterns (SPEC.md section 9): the source
@@ -71,6 +73,9 @@ type Config struct {
 	// languages holds the per-language overrides by language id; ForLanguage
 	// applies them.
 	languages map[string]languageOverride
+	// exemptionsAtRoot marks the embedded default Resolve fell back to,
+	// whose exemptions file is in the module root, which ForModule reads.
+	exemptionsAtRoot bool
 }
 
 // Duplication is the optional duplication section. Keys absent from the file
@@ -213,7 +218,11 @@ func Load(path string) (*Config, error) {
 
 // Resolve picks the configuration by precedence: flagPath when non-empty,
 // then ./astimate.yaml, then the embedded default. It returns the config and
-// the source used: SourceFlag, SourceWorkDir or SourceEmbedded.
+// the source used: SourceFlag, SourceWorkDir or SourceEmbedded. A
+// configuration file's exemptions are followed by those of the exemptions
+// file beside it (ExemptionsFileName), read here once; the embedded
+// default's exemptions file is in the module root, which ForModule reads
+// once the root is known.
 func Resolve(flagPath string) (*Config, string, error) {
 	return resolveIn(flagPath, ".")
 }
@@ -244,13 +253,13 @@ func ResolveFile(flagPath string) (cfg *Config, data []byte, path string, err er
 // resolveIn is Resolve with the working directory made explicit for tests.
 func resolveIn(flagPath, dir string) (*Config, string, error) {
 	if flagPath != "" {
-		cfg, err := Load(flagPath)
+		cfg, err := loadWithExemptions(flagPath)
 		return cfg, SourceFlag, err
 	}
 	local := filepath.Join(dir, FileName)
 	switch _, err := os.Stat(local); {
 	case err == nil:
-		cfg, err := Load(local)
+		cfg, err := loadWithExemptions(local)
 		return cfg, SourceWorkDir, err
 	case !errors.Is(err, fs.ErrNotExist):
 		return nil, "", fmt.Errorf("checking %s: %w", local, err)
@@ -259,6 +268,7 @@ func resolveIn(flagPath, dir string) (*Config, string, error) {
 	if err != nil {
 		return nil, SourceEmbedded, fmt.Errorf("embedded default: %w", err)
 	}
+	cfg.exemptionsAtRoot = true
 	return cfg, SourceEmbedded, nil
 }
 

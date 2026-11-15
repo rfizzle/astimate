@@ -91,3 +91,68 @@ func limits(fs []report.Finding) []string {
 func equal(a, b []string) bool {
 	return strings.Join(a, "|") == strings.Join(b, "|")
 }
+
+// TestNoticesNameTheirFile checks that a notice about an exemption read
+// from the exemptions file names that file, on a row and in a log, and
+// that one about the configuration's own exemption reads as it always
+// has.
+func TestNoticesNameTheirFile(t *testing.T) {
+	t.Parallel()
+
+	const file = config.ExemptionsFileName
+	now := time.Date(2026, 9, 28, 12, 0, 0, 0, time.UTC)
+	list := []exempt.Entry{
+		{Package: "a", Metric: "globals", Reason: "old", Expires: "2026-01-01", Source: file},
+		{Package: "a", Metric: "dup_blocks", Reason: "unused", Source: file},
+		{Package: "b", Metric: "dup_blocks", Reason: "own", Expires: "2026-01-01"},
+		{Package: "b", Metric: "globals", Reason: "own unused"},
+		{Package: "gone", Metric: "dup_blocks", Reason: "deleted", Source: file},
+		{Package: "nowhere", Metric: "globals", Reason: "not checked", Expires: "2026-01-01", Source: file},
+	}
+	rules := []gate.Threshold{{Metric: "globals"}, {Metric: "dup_blocks"}}
+	c := &report.Check{
+		Packages: []report.CheckedPackage{
+			{Report: report.Report{PackagePath: "a"}},
+			{Report: report.Report{PackagePath: "b"}},
+		},
+		Module: &report.CheckedPackage{Report: report.Report{PackagePath: metrics.ModuleRowID}},
+	}
+	var logs bytes.Buffer
+	jc := New(Options{Config: config.Effective{Thresholds: rules, Exemptions: list}, Now: now,
+		Logger: slog.New(slog.NewTextHandler(&logs, nil))})
+	jc.Notices(c, Scope{All: true})
+
+	suggestions := func(r *report.Report) []string {
+		out := make([]string, 0, len(r.Warnings))
+		for _, w := range r.Warnings {
+			out = append(out, w.Suggestion)
+		}
+		return out
+	}
+	for _, tt := range []struct {
+		row  *report.Report
+		want []string
+	}{
+		{&c.Packages[0].Report, []string{
+			"The exemption for globals on a in " + file + " expired on 2026-01-01 and no longer applies; " +
+				"fix the finding or renew the exemption with a new date. Its reason: old",
+			"The exemption for dup_blocks on a in " + file + " matched no violation; remove it from " + file + ". Its reason: unused",
+		}},
+		{&c.Packages[1].Report, []string{
+			"The exemption for dup_blocks on b expired on 2026-01-01 and no longer applies; " +
+				"fix the finding or renew the exemption with a new date. Its reason: own",
+			"The exemption for globals on b matched no violation; remove it from the config. Its reason: own unused",
+		}},
+		{&c.Module.Report, []string{
+			"The exemption for dup_blocks on gone in " + file + " matched no violation: the module has no such package. " +
+				"Remove it from " + file + ". Its reason: deleted",
+		}},
+	} {
+		if got := suggestions(tt.row); !equal(got, tt.want) {
+			t.Errorf("%s notices =\n%q\nwant\n%q", tt.row.PackagePath, got, tt.want)
+		}
+	}
+	if want := "package=nowhere metric=globals expires=2026-01-01 reason=\"not checked\" file=" + file; !strings.Contains(logs.String(), want) {
+		t.Errorf("logs lack %q:\n%s", want, logs.String())
+	}
+}

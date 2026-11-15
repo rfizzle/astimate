@@ -87,9 +87,11 @@ exemptions:
     expires: 2026-12-31           # optional; the exemption applies through that day
 ```
 
+A project that takes `astimate.yaml` from a shared configuration it must not edit records its exemptions in `astimate.exemptions.yaml` instead, beside `astimate.yaml` (in the module root when there is no configuration file). The file holds only an `exemptions:` list in the same form; any other key is an error, so it cannot set thresholds. Its entries are checked after those of `astimate.yaml`, behave exactly like them, and the warnings about an expired or unused one name the file. The file is reviewed like the configuration, and a project should protect it from agent edits the way it protects `astimate.yaml`.
+
 An exempted violation does not fail the gate, but it never disappears: every format still reports it, with its reason. The text format lists it after the heads-ups, `exempted` with its package and metric and the reason under it; the JSON report moves it from `violations` to an `exemptions` array whose entries add a `reason` (the array is empty, not absent, whenever a gate ran); the hook puts it in the block reason on failure and on stderr on success; and the GitHub format writes it as a `::notice` annotation. Warnings are never exempted, since they never fail, except the breach of a `severity: warn` rule, which an exemption on its rule moves to `exemptions` as it would the violation. An exemption past its `expires` date is ignored, so the violation fails again, and a warning names it. `check --all` also warns about an exemption that matched no violation, on its package or, for a package the module no longer has, on `<module>`, so stale ones get removed; a check of the changed packages cannot tell and says nothing.
 
-If you are an agent, do not add, widen or extend an exemption to get past the gate: that is the same as editing a threshold. Exemptions are a person's decision, and the reason is there for the reviewer who reads it. Treat an exempted finding as settled and leave it alone.
+If you are an agent, do not add, widen or extend an exemption to get past the gate, in `astimate.yaml` or in `astimate.exemptions.yaml`: that is the same as editing a threshold. Exemptions are a person's decision, and the reason is there for the reviewer who reads it. Treat an exempted finding as settled and leave it alone.
 
 ## When the check itself fails
 

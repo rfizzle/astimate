@@ -40,17 +40,21 @@ type Scope struct {
 // config may serve modules of several languages), the metric is not
 // computed on the row, or it is on the module row and the check did not
 // evaluate that row's rules (scope.ModuleJudged).
+//
+// A notice about an exemption from a file other than the configuration
+// (exempt.Entry.Source) names that file; one about the configuration's
+// own reads as it always has.
 func (c *Checker) Notices(ch *report.Check, scope Scope) {
 	logger := c.o.Logger
 	for _, e := range c.ex.Expired() {
-		text := "The exemption for " + e.Metric + " on " + e.Package + " expired on " + e.Expires +
+		text := "The exemption for " + e.Metric + " on " + e.Package + inFile(e) + " expired on " + e.Expires +
 			" and no longer applies; fix the finding or renew the exemption with a new date. Its reason: " + e.Reason
 		if r := row(ch, e.Package); r != nil {
 			r.Warnings = append(r.Warnings, notice(r, e.Metric, "exemption expired "+e.Expires, text))
 			continue
 		}
-		logger.Warn("exemption expired; ignored", "package", e.Package, "metric", e.Metric,
-			"expires", e.Expires, "reason", e.Reason)
+		logger.Warn("exemption expired; ignored", logArgs(e, "package", e.Package, "metric", e.Metric,
+			"expires", e.Expires, "reason", e.Reason)...)
 	}
 	if !scope.All {
 		return
@@ -70,21 +74,48 @@ func (c *Checker) Notices(ch *report.Check, scope Scope) {
 		return false
 	}
 	for _, e := range c.ex.Stale(unknown) {
-		text := "The exemption for " + e.Metric + " on " + e.Package + " matched no violation; remove it from the config. Its reason: " + e.Reason
+		text := "The exemption for " + e.Metric + " on " + e.Package + inFile(e) + " matched no violation; remove it from " + home(e) + ". Its reason: " + e.Reason
 		r := row(ch, e.Package)
 		if r == nil {
-			text = "The exemption for " + e.Metric + " on " + e.Package + " matched no violation: the module has no such package. " +
-				"Remove it from the config. Its reason: " + e.Reason
+			text = "The exemption for " + e.Metric + " on " + e.Package + inFile(e) + " matched no violation: the module has no such package. " +
+				"Remove it from " + home(e) + ". Its reason: " + e.Reason
 			if ch.Module != nil {
 				r = &ch.Module.Report
 			}
 		}
 		if r == nil {
-			logger.Warn("exemption matched no violation; remove it", "package", e.Package, "metric", e.Metric, "reason", e.Reason)
+			logger.Warn("exemption matched no violation; remove it", logArgs(e, "package", e.Package, "metric", e.Metric, "reason", e.Reason)...)
 			continue
 		}
 		r.Warnings = append(r.Warnings, notice(r, e.Metric, "stale exemption", text))
 	}
+}
+
+// inFile names the file e came from, " in <file>", when it is not the
+// configuration; empty for the configuration's own, whose notices read as
+// they always have.
+func inFile(e exempt.Entry) string {
+	if e.Source == "" {
+		return ""
+	}
+	return " in " + e.Source
+}
+
+// home names the file a person edits to remove e.
+func home(e exempt.Entry) string {
+	if e.Source == "" {
+		return "the config"
+	}
+	return e.Source
+}
+
+// logArgs returns args, the attributes of a logged notice about e, with
+// the file e came from added when it is not the configuration.
+func logArgs(e exempt.Entry, args ...any) []any {
+	if e.Source != "" {
+		args = append(args, "file", e.Source)
+	}
+	return args
 }
 
 // row returns the report of c's row whose package path is pkg, the module

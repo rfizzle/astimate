@@ -85,7 +85,9 @@ func (s *session) loadTarget(dir string) (*engine.Target, *rootCache, error) {
 		rc.builds++
 	}
 	t := *rc.target
-	t.Dir, t.ImportPath = fresh.Dir, fresh.ImportPath
+	// The fresh configuration carries the module root's exemptions file as
+	// it is now, under the embedded default (config.Config.ForModule).
+	t.Dir, t.ImportPath, t.Cfg = fresh.Dir, fresh.ImportPath, fresh.Cfg
 	return &t, rc, nil
 }
 

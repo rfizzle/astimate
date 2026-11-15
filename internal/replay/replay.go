@@ -62,7 +62,9 @@ type Options struct {
 	// when it holds rows.
 	Out string
 	// Config is the configuration every commit is gated under, whatever
-	// the commit's own astimate.yaml says.
+	// the commit's own astimate.yaml and exemptions file say; under the
+	// embedded default, New reads the exemptions file of the working
+	// tree's module at Repo/Dir (config.Config.ForModule).
 	Config *config.Config
 	// ConfigPath names Config's file in run.json; empty records
 	// "embedded".
@@ -127,8 +129,14 @@ func New(ctx context.Context, opts Options) (*Replayer, error) {
 	if opts.ToolCommit == "" {
 		opts.ToolCommit = astimateCommit(ctx)
 	}
+	// Under the embedded default the exemptions file is read once, from the
+	// working tree's module, never from a replayed commit's.
+	cfg, err := opts.Config.ForModule(filepath.Join(repo, opts.Dir))
+	if err != nil {
+		return nil, fmt.Errorf("resolving config: %w", err)
+	}
 	rp := &Replayer{
-		opts: opts, repo: repo, cfg: opts.Config, commits: commits,
+		opts: opts, repo: repo, cfg: cfg, commits: commits,
 		logger: orDiscard(opts.Logger), engineLogger: orDiscard(opts.EngineLogger),
 	}
 	rp.info = newRunInfo(ctx, rp)

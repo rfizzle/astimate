@@ -100,7 +100,10 @@ func ValidTokenizer(name string) bool {
 // TypeScript. When both are at the same root, Go is chosen and a warning
 // logged. A Go module's packages are named by import path; a TypeScript
 // module has no module path and names its packages by their directory
-// relative to the root. When it resolves the configuration itself, it logs
+// relative to the root. A configuration config.Resolve fell back to the
+// embedded default for, resolved here or passed in, takes its exemptions
+// file from the module root (config.Config.ForModule), read once per call;
+// Target.Cfg is that result. When it resolves the configuration itself, it logs
 // the configuration's warnings, and one for each languages override whose id
 // no registered extractor reports. A dir outside any module yields an error wrapping
 // golang.ErrNoModule, whose text names go.mod; an unknown tokenizer yields
@@ -149,6 +152,10 @@ func LoadTarget(dir string, opts TargetOptions) (*Target, error) {
 	root, ext, err := detect.Module(abs, reg, opts.Logger)
 	if err != nil {
 		return nil, fmt.Errorf("resolving %s: %w", dir, err)
+	}
+	// Under the embedded default the exemptions file is the module root's.
+	if cfg, err = cfg.ForModule(root); err != nil {
+		return nil, fmt.Errorf("resolving config: %w", err)
 	}
 	modPath := ""
 	if read := detect.ModulePathFunc(ext.Language()); read != nil {

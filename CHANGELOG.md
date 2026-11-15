@@ -40,6 +40,17 @@ history.
   `internal_imports` is unchanged; the measurement is in
   `calibration/notes/own-imports-2026-11-15.md`. The change is additive:
   rows and baseline files recorded before read them as null.
+- A project-owned exemptions file, `astimate.exemptions.yaml`, so a
+  project whose `astimate.yaml` comes from a shared kit can record its own
+  reviewed exemptions without editing that file. It sits beside the
+  configuration file in use, or in the module root under the embedded
+  default, holds only an `exemptions:` list in the usual form (any other
+  key is an error naming the file and the key), and its entries follow the
+  configuration's own: validated, matched, expired and reported stale the
+  same way, by `check` in every format, `check_package`, `dryrun` and the
+  block log. Expired and stale notices about its entries, and its
+  validation errors, name the file. Without the file nothing changes.
+  Protect it from agent edits as you protect `astimate.yaml`.
 - `check` warns when a change reshapes the exports of a package near its
   `exported_symbols` ceiling without adding one: an existing exported
   function or method whose signature changed (a variadic parameter added

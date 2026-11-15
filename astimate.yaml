@@ -468,6 +468,7 @@ languages:
 # day the exemption is ignored with a warning. Warnings are never exempted.
 # A check with --all warns about an exemption that matched no violation. A
 # languages override carries no exemptions; they apply to every language.
+# A project can also list them in astimate.exemptions.yaml beside this file.
 # For example:
 #
 #   exemptions:
