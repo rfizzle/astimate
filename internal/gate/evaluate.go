@@ -156,7 +156,9 @@ func ForRow(rules []Threshold, row Row) []Threshold {
 // row's changed functions (WithChangedFunctions), the max of
 // changed_func_cognitive_max judges each function against its own
 // baseline complexity (changedFunctionsOverMax) instead of the row's one
-// value.
+// value; given what the change reshaped (WithReshaped), a capacity rule on
+// exported_symbols in its warn band or over its max adds a heads-up
+// naming it (reshaped).
 func Evaluate(head metrics.RawMetrics, base *metrics.RawMetrics, rules []Threshold, s Suggester, opts ...Option) Result {
 	e := evaluator{head: head, base: base, suggest: s}
 	for _, o := range opts {
@@ -298,19 +300,24 @@ func (e *evaluator) capacity(r Threshold, h float64) {
 	}
 	limit := *r.Max
 	b, hasBase, _ := e.baseValue(e.read)
-	if h > limit+epsilon {
-		e.overMax(r, b, h, hasBase)
-		return
-	}
 	warnAt := r.WarnAt
 	if warnAt == 0 {
 		warnAt = defaultWarnAt
 	}
-	if h < warnAt*limit-epsilon {
+	switch {
+	case h > limit+epsilon:
+		e.overMax(r, b, h, hasBase)
+	case h < warnAt*limit-epsilon:
 		return
+	default:
+		pct := strconv.Itoa(int(math.Floor(h / limit * 100)))
+		e.warn(e.finding(r.Metric, b, h, hasBase, "max "+num(limit)), "at "+pct+"% of the "+num(limit)+" ceiling; plan a split before the next feature.")
 	}
-	pct := strconv.Itoa(int(math.Floor(h / limit * 100)))
-	e.warn(e.finding(r.Metric, b, h, hasBase, "max "+num(limit)), "at "+pct+"% of the "+num(limit)+" ceiling; plan a split before the next feature.")
+	// In the warn band or over the max, a change that held the surface by
+	// reshaping it gets a heads-up of its own (SPEC.md 8.1).
+	if r.Metric == SurfaceMetric && hasBase && len(e.opts.reshaped) > 0 {
+		e.reshaped(limit, b, h)
+	}
 }
 
 // overMax judges a capacity value h above the rule's max (SPEC.md 8.1); it

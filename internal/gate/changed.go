@@ -19,6 +19,8 @@ type options struct {
 	hasChanged bool
 	// baselineUnavailable is set by WithBaselineUnavailable.
 	baselineUnavailable bool
+	// reshaped names what WithReshaped says the change reshaped.
+	reshaped []string
 }
 
 // WithChangedFunctions gives Evaluate the row's functions added or

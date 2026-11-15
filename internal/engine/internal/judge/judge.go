@@ -16,6 +16,7 @@ import (
 
 	"github.com/rfizzle/astimate/internal/baseline"
 	"github.com/rfizzle/astimate/internal/config"
+	"github.com/rfizzle/astimate/internal/engine/internal/surface"
 	"github.com/rfizzle/astimate/internal/gate"
 	"github.com/rfizzle/astimate/internal/gate/exempt"
 	"github.com/rfizzle/astimate/internal/metrics"
@@ -77,7 +78,10 @@ func New(o Options) *Checker {
 // suggestions and the locations (rankNew); when head's coverage run
 // counted untested_exports_covered, the exports it executed follow the
 // others (coveredLast), and the rules judge it against the baseline's
-// count estimated from the same run (coveredBase). The result
+// count estimated from the same run (coveredBase). The exports whose
+// signature changed or that were made unexported since the baseline
+// (surface.Reshaped) are given to the gate (gate.WithReshaped), whose
+// heads-up is located on the first of them. The result
 // carries the changed functions (report.CheckedPackage.ChangedFunctions).
 // The exemptions are applied to the result
 // (exempt.List.Apply) before the report is built. unrecorded reports
@@ -123,6 +127,9 @@ func (c *Checker) Package(ctx context.Context, pkg string, m metrics.RawMetrics)
 		names.ChangedFunction = worst.name
 		opts = append(opts, gate.WithChangedFunctions(changed))
 	}
+	// The zero row of a package new at head records neither.
+	reshaped, reshapedAt := surface.Reshaped(&det, row.Functions, row.Named.Exports)
+	opts = append(opts, gate.WithReshaped(reshaped))
 	suggest := func(metric string, h float64, hm metrics.RawMetrics) string {
 		return score.MetricSuggestion(metric, h, hm, names)
 	}
@@ -130,6 +137,7 @@ func (c *Checker) Package(ctx context.Context, pkg string, m metrics.RawMetrics)
 	r.BaselineFrom = row.From
 	r.BaselineUnavailable = unavailable
 	locateFindings(&r, &det, nameJudged(&r, &res, worst, m, names), lead)
+	locateReshaped(&r, reshapedAt)
 	r.Details = c.details(&det)
 	p = report.CheckedPackage{Report: r, ChangedFunctions: changed}
 	if bm != nil {
