@@ -6,6 +6,8 @@ import (
 
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/rfizzle/astimate/internal/mcpserver/internal/explanation"
 )
 
 // resolveSchema resolves the JSON schema s, as listed by tools/list.
@@ -57,7 +59,7 @@ func TestToolOutputSchemas(t *testing.T) {
 			ok:     map[string]any{"path": "mod"},
 			failed: map[string]any{"path": "missing"},
 		},
-		explainToolName: {
+		explanation.ToolName: {
 			ok:     map[string]any{"metric": "dup_blocks"},
 			failed: map[string]any{"metric": "missing"},
 		},

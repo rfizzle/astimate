@@ -241,7 +241,7 @@ func TestImportBoundary(t *testing.T) {
 		t.Fatalf("go list: %v", err)
 	}
 	for dep := range strings.FieldsSeq(string(out)) {
-		if strings.Contains(dep, "/astimate/cmd/") || strings.HasSuffix(dep, "/internal/mcpserver") {
+		if strings.Contains(dep, "/astimate/cmd/") || strings.HasSuffix(dep, "/internal/mcpserver") || strings.Contains(dep, "/internal/mcpserver/") {
 			t.Errorf("engine depends on %s", dep)
 		}
 	}

@@ -115,6 +115,7 @@ astimate/
 │   ├── replay/                  # The gate over a repository's history in temporary worktrees (dryrun, calibration replay)
 │   │   └── summary/             # dryrun's summary, row output and suggested configuration
 │   └── mcpserver/               # MCP tools on github.com/modelcontextprotocol/go-sdk
+│       └── internal/explanation/ # explain_metric's name, description, input and answer, the server registering it
 ├── action/                      # GitHub Action definition
 ├── testdata/                    # Fixture modules with known expected metrics
 └── SPEC.md

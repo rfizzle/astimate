@@ -12,6 +12,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/rfizzle/astimate/internal/config"
+	"github.com/rfizzle/astimate/internal/mcpserver/internal/explanation"
 )
 
 func TestDiscovery(t *testing.T) {
@@ -58,7 +59,7 @@ func TestDiscovery(t *testing.T) {
 			whenText: "before choosing what to touch"},
 		{name: moduleToolName, props: []string{`"path"`, `"base"`},
 			whenText: "what should I split first"},
-		{name: explainToolName, props: []string{`"metric"`, `"required":["metric"]`},
+		{name: explanation.ToolName, props: []string{`"metric"`, `"required":["metric"]`},
 			whenText: "names a metric you do not understand"},
 	}
 	if len(tools) != len(tests) {

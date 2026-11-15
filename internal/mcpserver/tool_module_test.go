@@ -14,6 +14,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/rfizzle/astimate/internal/mcpserver/internal/explanation"
 	"github.com/rfizzle/astimate/internal/narrate/html"
 )
 
@@ -138,12 +139,12 @@ func TestExplainGlossaryMatchesPage(t *testing.T) {
 	for _, m := range termDiv.FindAllStringSubmatch(page.String(), -1) {
 		onPage[strings.ToLower(strings.ReplaceAll(stdhtml.UnescapeString(m[1]), " ", "_"))] = stdhtml.UnescapeString(m[2])
 	}
-	if len(onPage) != len(mod.Report.Glossary) || len(onPage) < len(glossaryNames())-1 {
-		t.Fatalf("page glossary has %d terms, report %d, want the same and at least %d: %v", len(onPage), len(mod.Report.Glossary), len(glossaryNames())-1, onPage)
+	if len(onPage) != len(mod.Report.Glossary) || len(onPage) < len(explanation.Words())-1 {
+		t.Fatalf("page glossary has %d terms, report %d, want the same and at least %d: %v", len(onPage), len(mod.Report.Glossary), len(explanation.Words())-1, onPage)
 	}
 
 	var golden strings.Builder
-	for _, name := range glossaryNames() {
+	for _, name := range explanation.Words() {
 		res := callExplain(t, cs, name)
 		if res.IsError {
 			t.Fatalf("explain_metric %s: IsError = true; text:\n%s", name, resultText(res))
