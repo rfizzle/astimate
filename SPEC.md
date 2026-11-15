@@ -96,6 +96,7 @@ astimate/
 │   │   ├── internal/selection/  # The packages a check gates: changed, importers, every package, skipped; rename seeding
 │   │   ├── internal/coverage/   # One coverage run over the extracted packages, per-package reasons logged
 │   │   ├── internal/ranking/    # Rank's rows: estimate, ceilings and headroom (8.1), sort and truncation
+│   │   ├── internal/surface/    # Exports a change reshaped: signature changes, unexported symbols (8.1)
 │   │   ├── internal/narration/  # Module and change reports from the engine's rows (10.3): compose input, glossary, change Markdown and annotations
 │   │   └── internal/detect/     # Every extractor configured from the config; the module and language a directory belongs to
 │   ├── lang/
