@@ -9,6 +9,7 @@ import (
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/report/details"
 	"github.com/rfizzle/astimate/internal/score"
+	"github.com/rfizzle/astimate/internal/score/suggestion"
 )
 
 // Report is the per-package report of SPEC.md 10.2. Field names and JSON
@@ -202,7 +203,7 @@ type Input struct {
 	// Params are the rebuild parameters the estimate uses.
 	Params score.RebuildParams
 	// Names supplies identifiers for suggestions; the zero value is valid.
-	Names score.Names
+	Names suggestion.Names
 	// ConfigVersion is the config_version of the configuration used.
 	ConfigVersion string
 	// AstimateVersion is the version of the running binary.
@@ -218,7 +219,7 @@ func Build(in *Input) Report {
 	for _, d := range ds {
 		drivers = append(drivers, Driver{Term: d.Term, Tokens: roundInt(d.Tokens), Detail: d.Detail})
 	}
-	suggestions := score.DriverSuggestions(est, in.Metrics, in.Names)
+	suggestions := suggestion.Drivers(est, in.Metrics, in.Names)
 	if suggestions == nil {
 		suggestions = []string{}
 	}

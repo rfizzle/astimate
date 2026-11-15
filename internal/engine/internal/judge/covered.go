@@ -5,7 +5,7 @@ import (
 
 	"github.com/rfizzle/astimate/internal/baseline"
 	"github.com/rfizzle/astimate/internal/metrics"
-	"github.com/rfizzle/astimate/internal/score"
+	"github.com/rfizzle/astimate/internal/score/suggestion"
 )
 
 // coveredBase returns the baseline metrics a source: coverage rule judges
@@ -41,7 +41,7 @@ func coveredBase(m metrics.RawMetrics, bm *metrics.RawMetrics, row *baseline.Row
 // no test ran. l.untested then holds only when the first export left is
 // one the change added: the package is new at head (inBase false) or base,
 // the baseline's untested exports, lacks it. Without a run d is unchanged.
-func coveredLast(d *metrics.Details, names *score.Names, l *leads, base []string, inBase bool) {
+func coveredLast(d *metrics.Details, names *suggestion.Names, l *leads, base []string, inBase bool) {
 	if len(d.UntestedCovered) == 0 {
 		return
 	}

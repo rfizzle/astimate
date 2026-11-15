@@ -1,4 +1,10 @@
-package score
+// Package suggestion words the fix suggestions of SPEC.md 7.4 and 8.1: one
+// sentence per rebuild driver for assess and rank, one per gate violation
+// or warning for check, and the sentences that name the cross-package
+// copies a change added. It reads the estimate package score computes and
+// the metrics it quotes, and holds no arithmetic of its own beyond
+// rounding what it prints.
+package suggestion
 
 import (
 	"math"
@@ -6,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/score"
 )
 
 const (
@@ -28,7 +35,7 @@ type Names struct {
 	// "parse.go:40-58", the one to cite first.
 	DupLocations []string
 	// DupAdded reports that the change added the block DupLocations
-	// starts with (RankDupBlocks), so the suggestion says so.
+	// starts with (score.RankDupBlocks), so the suggestion says so.
 	DupAdded bool
 	// DupCodeLocations lists the occurrences of the duplicate blocks of
 	// kind code (SPEC.md 6.3), the ones dup_blocks_code counts, in the
@@ -47,18 +54,18 @@ type Names struct {
 	// the module root.
 	CrossBlocks []metrics.CrossBlock
 	// CrossAdded reports that the change added the first of CrossBlocks
-	// (RankCrossBlocks), so the suggestion says so.
+	// (score.RankCrossBlocks), so the suggestion says so.
 	CrossAdded bool
 	// Globals names the package-level variables counted by globals, in
 	// declaration order.
 	Globals []string
 }
 
-// DriverSuggestions returns one suggestion per driver of r, in driver order,
+// Drivers returns one suggestion per driver of r, in driver order,
 // for each driver whose tokens are at least 10% of r.RebuildTokens. m supplies
 // the metric values quoted in the text and n the names, when known.
-func DriverSuggestions(r Rebuild, m metrics.RawMetrics, n Names) []string {
-	ds := Drivers(r)
+func Drivers(r score.Rebuild, m metrics.RawMetrics, n Names) []string {
+	ds := score.Drivers(r)
 	out := make([]string, 0, len(ds))
 	for _, d := range ds {
 		if d.Tokens < driverShareMin*r.RebuildTokens {
@@ -72,10 +79,10 @@ func DriverSuggestions(r Rebuild, m metrics.RawMetrics, n Names) []string {
 }
 
 // driverSuggestion renders the template for one driver's term.
-func driverSuggestion(d Driver, m *metrics.RawMetrics, n Names) string {
+func driverSuggestion(d score.Driver, m *metrics.RawMetrics, n Names) string {
 	tokens := formatNum(d.Tokens)
 	switch d.Term {
-	case TermVolume:
+	case score.TermVolume:
 		s := "The package is " + strconv.Itoa(m.TokensEst) + " tokens of non-test source"
 		if m.DuplicationPct > 0 {
 			s += ", " + formatPct(m.DuplicationPct) + "% of it duplicated"
@@ -84,20 +91,20 @@ func driverSuggestion(d Driver, m *metrics.RawMetrics, n Names) string {
 			}
 		}
 		return s + "; its volume is " + tokens + " tokens of the rebuild; split the package to shrink it."
-	case TermSpec:
+	case score.TermSpec:
 		return "Tests are " + tokens + " tokens of the rebuild context; they are the spec a rebuild is checked against."
-	case TermContract:
+	case score.TermContract:
 		return count(m.ExportedSymbols, "exported symbol", "exported symbols") + " used by " +
 			count(m.FanIn, "internal package", "internal packages") + " cost " + tokens +
 			" tokens of the rebuild; narrow the exported surface."
-	case TermUnspecified:
+	case score.TermUnspecified:
 		s := untestedSentence(m.UntestedExports, n.UntestedExports)
 		if m.CoveragePct != nil {
 			s += " Tests cover " + formatPct(*m.CoveragePct) + "% of statements, which scales this term to " +
 				tokens + " tokens."
 		}
 		return s
-	case TermHidden:
+	case score.TermHidden:
 		return count(m.Globals, "package-level variable", "package-level variables") + " and " +
 			count(m.InitFuncs, "init function", "init functions") + " are hidden state worth " + tokens +
 			" tokens of the rebuild; pass state explicitly instead."
@@ -106,14 +113,14 @@ func driverSuggestion(d Driver, m *metrics.RawMetrics, n Names) string {
 	}
 }
 
-// MetricSuggestion returns the fix suggestion for a gate violation or warning
+// Metric returns the fix suggestion for a gate violation or warning
 // on metric, whose value at head is head. m supplies related values quoted in
 // the text and n the names, when known. It returns "" for a metric without a
 // template; every metric with a default threshold in SPEC.md 8.2 has one, and
 // so do dup_blocks_cross_pkg, dup_blocks_code, duplicated_lines, the informational flags uses_cgo,
 // uses_reflect and generated_files, and tokens_est_generated, which a config
 // may gate.
-func MetricSuggestion(metric string, head float64, m metrics.RawMetrics, n Names) string {
+func Metric(metric string, head float64, m metrics.RawMetrics, n Names) string {
 	v := formatNum(head)
 	switch metric {
 	case "dup_blocks":
@@ -331,3 +338,36 @@ func formatNum(v float64) string {
 func formatPct(v float64) string {
 	return strconv.FormatFloat(math.Round(v*10)/10, 'f', -1, 64)
 }
+
+// AddedCross is the dup_blocks_cross_pkg suggestion when the rule
+// judges the blocks the change added (score.AddedCrossBlocks): it counts
+// added, says they are at least floor tokens long when floor is positive,
+// and cites the first one's first occurrence and its first occurrence in
+// another package. Empty when added is.
+func AddedCross(added []metrics.CrossBlock, floor int) string {
+	if len(added) == 0 {
+		return ""
+	}
+	s := "The change added " + count(len(added), "duplicate block", "duplicate blocks")
+	if floor > 0 {
+		s += " of at least " + strconv.Itoa(floor) + " tokens"
+	}
+	s += " shared with other packages; "
+	where := crossPair(added)
+	switch {
+	case where == "" && len(added) == 1:
+		return s + "extract it into one place."
+	case where == "":
+		return s + "extract them into one place."
+	case len(added) == 1:
+		return s + "extract the shared block in " + where + " into one package."
+	default:
+		return s + "extract each into one package, starting with the block in " + where + "."
+	}
+}
+
+// CrossCountNote follows a dup_blocks_cross_pkg suggestion when the
+// baseline recorded no cross-package blocks, a baseline file or an
+// extractor that does not name them, so the rule judged the count rather
+// than the blocks the change added.
+const CrossCountNote = "The baseline records no cross-package blocks, so the whole count is judged rather than the blocks this change added."

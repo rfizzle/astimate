@@ -7,7 +7,7 @@ import (
 	"github.com/rfizzle/astimate/internal/gate"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/report"
-	"github.com/rfizzle/astimate/internal/score"
+	"github.com/rfizzle/astimate/internal/score/suggestion"
 )
 
 // TestNameJudged checks a changed_func_cognitive_max finding the gate
@@ -31,7 +31,7 @@ func TestNameJudged(t *testing.T) {
 			res.Violations = []gate.Violation{v}
 			r.Violations = []report.Finding{finding}
 		}
-		got := nameJudged(&r, &res, worst, metrics.RawMetrics{}, score.Names{ChangedFunction: worst.name})
+		got := nameJudged(&r, &res, worst, metrics.RawMetrics{}, suggestion.Names{ChangedFunction: worst.name})
 		if got.file != "f.go" || got.line != 4 || !got.files["ui.go"] {
 			t.Errorf("exempted %v: nameJudged = %+v, want fresh at f.go:4 with worst's files", exempted, got)
 		}
@@ -44,7 +44,7 @@ func TestNameJudged(t *testing.T) {
 			t.Errorf("exempted %v: location = %+v, want old/f.go:4", exempted, f.Location)
 		}
 	}
-	if got := nameJudged(&report.Report{}, &gate.Result{}, worst, metrics.RawMetrics{}, score.Names{}); got != worst {
+	if got := nameJudged(&report.Report{}, &gate.Result{}, worst, metrics.RawMetrics{}, suggestion.Names{}); got != worst {
 		t.Errorf("without a judged function nameJudged = %+v, want worst", got)
 	}
 }

@@ -23,6 +23,7 @@ import (
 	"github.com/rfizzle/astimate/internal/report"
 	"github.com/rfizzle/astimate/internal/report/details"
 	"github.com/rfizzle/astimate/internal/score"
+	"github.com/rfizzle/astimate/internal/score/suggestion"
 )
 
 // Options are what a Checker judges rows with.
@@ -131,7 +132,7 @@ func (c *Checker) Package(ctx context.Context, pkg string, m metrics.RawMetrics)
 	reshaped, reshapedAt := surface.Reshaped(&det, row.Functions, row.Named.Exports)
 	opts = append(opts, gate.WithReshaped(reshaped))
 	suggest := func(metric string, h float64, hm metrics.RawMetrics) string {
-		return score.MetricSuggestion(metric, h, hm, names)
+		return suggestion.Metric(metric, h, hm, names)
 	}
 	r, res := c.row(path, m, m, bm, coveredBase(m, bm, &row, det.UntestedCovered), c.pkgRules, suggest, names, opts...)
 	r.BaselineFrom = row.From
@@ -214,7 +215,7 @@ func (c *Checker) Module(ctx context.Context, mm metrics.ModuleMetrics, fromFile
 	baseBlocks, known := o.Base.CrossBlocks()
 	// The baseline names packages by directory; head by identifier.
 	baseBlocks = metrics.MapPackages(baseBlocks, func(dir string) string { return ImportPath(o.Mod.ModulePath, dir) })
-	names := score.Names{CrossBlocks: det.CrossBlocks}
+	names := suggestion.Names{CrossBlocks: det.CrossBlocks}
 	if known {
 		var added int
 		names.CrossBlocks, added = score.RankCrossBlocks(det.CrossBlocks, baseBlocks)
@@ -231,11 +232,11 @@ func (c *Checker) Module(ctx context.Context, mm metrics.ModuleMetrics, fromFile
 	det.CrossBlocks = names.CrossBlocks
 	suggest := func(metric string, h float64, hm metrics.RawMetrics) string {
 		if metric != "dup_blocks_cross_pkg" {
-			return score.MetricSuggestion(metric, h, hm, names)
+			return suggestion.Metric(metric, h, hm, names)
 		}
-		return cj.suggestion(blame, hm, o.Mod.ModulePath, score.MetricSuggestion(metric, h, hm, names))
+		return cj.suggestion(blame, hm, o.Mod.ModulePath, suggestion.Metric(metric, h, hm, names))
 	}
-	r, _ := c.row(metrics.ModuleRowID, m, gm, bm, bm, rules, suggest, score.Names{})
+	r, _ := c.row(metrics.ModuleRowID, m, gm, bm, bm, rules, suggest, suggestion.Names{})
 	located := names.CrossBlocks
 	if len(cited) > 0 {
 		located = cited
@@ -253,7 +254,7 @@ func (c *Checker) Module(ctx context.Context, mm metrics.ModuleMetrics, fromFile
 // row with metrics m, baseline metrics bm and names, with the verdict and
 // the baseline's tokenizer applied, and the result it was built from.
 func (c *Checker) row(path string, m, gm metrics.RawMetrics, bm, gb *metrics.RawMetrics, rules []gate.Threshold,
-	suggest gate.Suggester, names score.Names, opts ...gate.Option,
+	suggest gate.Suggester, names suggestion.Names, opts ...gate.Option,
 ) (report.Report, gate.Result) {
 	o := &c.o
 	res := gate.Evaluate(gm, gb, rules, suggest, opts...)
@@ -314,16 +315,16 @@ func (c *Checker) changedFunctions(ctx context.Context, pkg string, row baseline
 // and the zero metrics.Details otherwise, with the names in them that
 // suggestions quote; zero names yield suggestions with counts only. Call
 // it after Extract for pkg on mod.
-func Details(ctx context.Context, ext metrics.Extractor, mod *metrics.ModuleContext, pkg string) (metrics.Details, score.Names, error) {
+func Details(ctx context.Context, ext metrics.Extractor, mod *metrics.ModuleContext, pkg string) (metrics.Details, suggestion.Names, error) {
 	d, ok := ext.(metrics.Detailer)
 	if !ok {
-		return metrics.Details{}, score.Names{}, nil
+		return metrics.Details{}, suggestion.Names{}, nil
 	}
 	det, err := d.Details(ctx, mod, pkg)
 	if err != nil {
-		return metrics.Details{}, score.Names{}, fmt.Errorf("naming suggestions for %s: %w", pkg, err)
+		return metrics.Details{}, suggestion.Names{}, fmt.Errorf("naming suggestions for %s: %w", pkg, err)
 	}
-	names := score.Names{UntestedExports: det.UntestedExports, DupLocations: det.DupLocations,
+	names := suggestion.Names{UntestedExports: det.UntestedExports, DupLocations: det.DupLocations,
 		DupCodeLocations: codeLocations(det.DupBlocks), CrossBlocks: det.CrossBlocks, Globals: det.GlobalNames}
 	return det, names, nil
 }

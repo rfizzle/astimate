@@ -101,7 +101,8 @@ astimate/
 │   │   └── typescript/          # TypeScript extractor (internal/resolve, internal/inspect, internal/walk)
 │   ├── gate/                    # Thresholds config, baseline, ratchet comparison, violations
 │   │   └── exempt/              # Exemptions (8.6): validation, matching, expired and stale ones
-│   ├── score/                   # Rebuild estimate, tiers, drivers, explanations
+│   ├── score/                   # Rebuild estimate, tiers, drivers; the blocks and exports a change added
+│   │   └── suggestion/          # Fix suggestions: per driver, per gate finding, per added cross-package copy
 │   ├── baseline/                # Git-ref and file baselines, keyed by package directory; rename seeding
 │   │   ├── internal/diff/       # git primitives: changed packages, staged index, rename detection
 │   │   └── internal/fileformat/ # The baseline file's JSON layout (8.3): encode, decode, older layouts

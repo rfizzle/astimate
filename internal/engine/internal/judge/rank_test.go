@@ -13,7 +13,7 @@ import (
 	"github.com/rfizzle/astimate/internal/gate"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/metrics/metricstest"
-	"github.com/rfizzle/astimate/internal/score"
+	"github.com/rfizzle/astimate/internal/score/suggestion"
 )
 
 // legacyThenNew returns the details of a package whose legacy duplicate
@@ -64,7 +64,7 @@ func TestRankNewCodeBlocks(t *testing.T) {
 			t.Parallel()
 
 			d := metrics.Details{DupBlocks: tt.blocks}
-			var names score.Names
+			var names suggestion.Names
 			if got := rankNew(&d, &names, &row, true); got != tt.want {
 				t.Errorf("leads = %+v, want %+v", got, tt.want)
 			}
@@ -99,7 +99,7 @@ func TestRankNew(t *testing.T) {
 			t.Parallel()
 
 			d := legacyThenNew()
-			names := score.Names{DupLocations: d.DupLocations, UntestedExports: d.UntestedExports}
+			names := suggestion.Names{DupLocations: d.DupLocations, UntestedExports: d.UntestedExports}
 			got := rankNew(&d, &names, &tt.row, tt.inBase)
 			if got != tt.want {
 				t.Errorf("leads = %+v, want %+v", got, tt.want)

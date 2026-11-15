@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/rfizzle/astimate/internal/metrics"
-	"github.com/rfizzle/astimate/internal/score"
+	"github.com/rfizzle/astimate/internal/score/suggestion"
 )
 
 // crossBlame is the part of the module row's cross-package duplication a
@@ -92,14 +92,14 @@ func (b crossBlame) suggestion(m metrics.RawMetrics, modulePath string) string {
 	if len(b.blocks) == 0 {
 		return ""
 	}
-	s := score.MetricSuggestion("dup_blocks_cross_pkg", float64(len(b.blocks)), m,
-		score.Names{CrossBlocks: b.blocks})
+	s := suggestion.Metric("dup_blocks_cross_pkg", float64(len(b.blocks)), m,
+		suggestion.Names{CrossBlocks: b.blocks})
 	var sb strings.Builder
 	sb.WriteString(s)
 	if b.known {
 		sb.WriteString(" Added blocks touching the checked package are shared by ")
 	} else {
-		sb.WriteString(" " + score.CrossCountNote + " Blocks touching the checked package are shared by ")
+		sb.WriteString(" " + suggestion.CrossCountNote + " Blocks touching the checked package are shared by ")
 	}
 	for i := range b.blocks {
 		if i > 0 {
@@ -146,7 +146,7 @@ func touchesAny(b *metrics.CrossBlock, named map[string]bool) bool {
 // suggestion returns the module row's dup_blocks_cross_pkg suggestion:
 // blame's when a check of named packages blamed a block, else the sentence
 // naming the blocks the change added when it added any, else def, the
-// row's usual sentence, which is followed by score.CrossCountNote when the
+// row's usual sentence, which is followed by suggestion.CrossCountNote when the
 // baseline recorded no blocks, so the full count was judged. m is the
 // module row and modulePath the module's path.
 func (j crossJudgment) suggestion(blame *crossBlame, m metrics.RawMetrics, modulePath, def string) string {
@@ -154,11 +154,11 @@ func (j crossJudgment) suggestion(blame *crossBlame, m metrics.RawMetrics, modul
 		if s := blame.suggestion(m, modulePath); s != "" {
 			return s
 		}
-	} else if s := score.AddedCrossSuggestion(j.added, j.floor); s != "" {
+	} else if s := suggestion.AddedCross(j.added, j.floor); s != "" {
 		return s
 	}
 	if !j.known {
-		return def + " " + score.CrossCountNote
+		return def + " " + suggestion.CrossCountNote
 	}
 	return def
 }

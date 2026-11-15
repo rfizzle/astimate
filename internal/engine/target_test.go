@@ -15,7 +15,7 @@ import (
 	"github.com/rfizzle/astimate/internal/lang/golang"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/metrics/metricstest"
-	"github.com/rfizzle/astimate/internal/score"
+	"github.com/rfizzle/astimate/internal/score/suggestion"
 )
 
 // fixtureDir is the fixture module, relative to this package's directory.
@@ -116,7 +116,7 @@ func TestDupesDuplicationSuggestionNamesLocation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Names: %v", err)
 	}
-	got := score.MetricSuggestion("dup_blocks", float64(m.DupBlocks), m, names)
+	got := suggestion.Metric("dup_blocks", float64(m.DupBlocks), m, names)
 	want := "1 duplicate block of any kind (1 code) covers 80.6% of lines; extract shared helpers, starting with dupes.go:9-26."
 	if got != want {
 		t.Errorf("dup_blocks suggestion = %q, want %q", got, want)
@@ -141,10 +141,10 @@ func TestSuggestionNames(t *testing.T) {
 	tests := []struct {
 		name string
 		ext  metrics.Extractor
-		want score.Names
+		want suggestion.Names
 	}{
 		{name: "detailer", ext: metricstest.NewFake("fake", root, pkgs, metricstest.WithDetails(details)),
-			want: score.Names{UntestedExports: []string{"Parse"}, DupLocations: []string{"p.go:3-9", "q.go:1-7"}, CrossBlocks: cross}},
+			want: suggestion.Names{UntestedExports: []string{"Parse"}, DupLocations: []string{"p.go:3-9", "q.go:1-7"}, CrossBlocks: cross}},
 		{name: "counts only", ext: metricstest.NewFake("fake", root, pkgs)},
 	}
 	for _, tt := range tests {

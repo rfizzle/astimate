@@ -2,7 +2,6 @@ package score
 
 import (
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/rfizzle/astimate/internal/metrics"
@@ -140,36 +139,3 @@ func moved(b *metrics.CrossBlock, group map[string]string) bool {
 	}
 	return true
 }
-
-// AddedCrossSuggestion is the dup_blocks_cross_pkg suggestion when the
-// rule judges the blocks the change added (AddedCrossBlocks): it counts
-// added, says they are at least floor tokens long when floor is positive,
-// and cites the first one's first occurrence and its first occurrence in
-// another package. Empty when added is.
-func AddedCrossSuggestion(added []metrics.CrossBlock, floor int) string {
-	if len(added) == 0 {
-		return ""
-	}
-	s := "The change added " + count(len(added), "duplicate block", "duplicate blocks")
-	if floor > 0 {
-		s += " of at least " + strconv.Itoa(floor) + " tokens"
-	}
-	s += " shared with other packages; "
-	where := crossPair(added)
-	switch {
-	case where == "" && len(added) == 1:
-		return s + "extract it into one place."
-	case where == "":
-		return s + "extract them into one place."
-	case len(added) == 1:
-		return s + "extract the shared block in " + where + " into one package."
-	default:
-		return s + "extract each into one package, starting with the block in " + where + "."
-	}
-}
-
-// CrossCountNote follows a dup_blocks_cross_pkg suggestion when the
-// baseline recorded no cross-package blocks, a baseline file or an
-// extractor that does not name them, so the rule judged the count rather
-// than the blocks the change added.
-const CrossCountNote = "The baseline records no cross-package blocks, so the whole count is judged rather than the blocks this change added."

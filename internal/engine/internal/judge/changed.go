@@ -6,7 +6,7 @@ import (
 	"github.com/rfizzle/astimate/internal/gate"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/report"
-	"github.com/rfizzle/astimate/internal/score"
+	"github.com/rfizzle/astimate/internal/score/suggestion"
 )
 
 // nameJudged returns the changed function r's changed_func_cognitive_max
@@ -18,7 +18,7 @@ import (
 // metrics and the names its suggestions were made with. res is the result
 // r was built from.
 func nameJudged(r *report.Report, res *gate.Result, worst *changedFunction, m metrics.RawMetrics,
-	names score.Names,
+	names suggestion.Names,
 ) *changedFunction {
 	fn := judgedFunction(res)
 	if fn == nil || worst == nil {
@@ -29,7 +29,7 @@ func nameJudged(r *report.Report, res *gate.Result, worst *changedFunction, m me
 	names.ChangedFunction = j.name
 	for _, f := range r.AllFindings() {
 		if f.Metric == gate.ChangedFuncMetric {
-			f.Suggestion = score.MetricSuggestion(f.Metric, f.Head, m, names)
+			f.Suggestion = suggestion.Metric(f.Metric, f.Head, m, names)
 		}
 	}
 	return j

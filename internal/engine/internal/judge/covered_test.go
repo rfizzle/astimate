@@ -6,7 +6,7 @@ import (
 
 	"github.com/rfizzle/astimate/internal/baseline"
 	"github.com/rfizzle/astimate/internal/metrics"
-	"github.com/rfizzle/astimate/internal/score"
+	"github.com/rfizzle/astimate/internal/score/suggestion"
 )
 
 func TestCoveredBase(t *testing.T) {
@@ -125,7 +125,7 @@ func TestCoveredLast(t *testing.T) {
 				lines[i] = i + 1
 			}
 			d := metrics.Details{UntestedExports: slices.Clone(tt.exports), UntestedPositions: pos(lines...), UntestedCovered: tt.covered}
-			names := score.Names{UntestedExports: d.UntestedExports}
+			names := suggestion.Names{UntestedExports: d.UntestedExports}
 			l := leads{untested: tt.lead}
 			coveredLast(&d, &names, &l, tt.base, tt.inBase)
 			if !slices.Equal(d.UntestedExports, tt.want) || !slices.Equal(names.UntestedExports, tt.want) {

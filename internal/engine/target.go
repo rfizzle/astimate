@@ -14,7 +14,7 @@ import (
 	"github.com/rfizzle/astimate/internal/lang/golang"
 	"github.com/rfizzle/astimate/internal/lang/typescript"
 	"github.com/rfizzle/astimate/internal/metrics"
-	"github.com/rfizzle/astimate/internal/score"
+	"github.com/rfizzle/astimate/internal/score/suggestion"
 )
 
 // Tokenizer names a Target's extractor accepts (SPEC.md 6.1).
@@ -288,17 +288,17 @@ func packagePaths(root, dir, modPath string) (pkgPath, importPath string, err er
 
 // Names returns the names behind the counts of the package with import path
 // pkg in t's module, for suggestions: identifiers when t.Ext implements
-// metrics.Detailer, the zero score.Names otherwise. Call it after Extract
+// metrics.Detailer, the zero suggestion.Names otherwise. Call it after Extract
 // for pkg.
-func Names(ctx context.Context, t *Target, pkg string) (score.Names, error) {
+func Names(ctx context.Context, t *Target, pkg string) (suggestion.Names, error) {
 	return suggestionNames(ctx, t.Ext, t.Mod, pkg)
 }
 
 // suggestionNames returns the names behind pkg's counts for suggestions when
-// ext implements metrics.Detailer, and the zero score.Names, which yields
+// ext implements metrics.Detailer, and the zero suggestion.Names, which yields
 // suggestions with counts only, when it does not (judge.Details). Call it
 // after Extract for pkg on mod.
-func suggestionNames(ctx context.Context, ext metrics.Extractor, mod *metrics.ModuleContext, pkg string) (score.Names, error) {
+func suggestionNames(ctx context.Context, ext metrics.Extractor, mod *metrics.ModuleContext, pkg string) (suggestion.Names, error) {
 	_, names, err := judge.Details(ctx, ext, mod, pkg)
 	return names, err
 }

@@ -4,6 +4,7 @@ import (
 	"github.com/rfizzle/astimate/internal/baseline"
 	"github.com/rfizzle/astimate/internal/metrics"
 	"github.com/rfizzle/astimate/internal/score"
+	"github.com/rfizzle/astimate/internal/score/suggestion"
 )
 
 // leads says which of a package's findings cite something the change
@@ -21,7 +22,7 @@ type leads struct {
 // package new at head added all of them. When the row recorded no details
 // (baseline.Row.HasNamed false) nothing can be told new, and d and names
 // keep their order.
-func rankNew(d *metrics.Details, names *score.Names, row *baseline.Row, inBase bool) leads {
+func rankNew(d *metrics.Details, names *suggestion.Names, row *baseline.Row, inBase bool) leads {
 	var l leads
 	if inBase && !row.HasNamed {
 		return l

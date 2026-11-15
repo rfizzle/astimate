@@ -1,4 +1,4 @@
-package score
+package suggestion
 
 import (
 	"slices"
@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/score"
 )
 
 func sevenNames() []string {
@@ -42,8 +43,8 @@ func TestMetricSuggestionChangedFunction(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if got := MetricSuggestion("changed_func_cognitive_max", 41, metrics.RawMetrics{}, tt.names); got != tt.want {
-				t.Errorf("MetricSuggestion = %q, want %q", got, tt.want)
+			if got := Metric("changed_func_cognitive_max", 41, metrics.RawMetrics{}, tt.names); got != tt.want {
+				t.Errorf("Metric = %q, want %q", got, tt.want)
 			}
 		})
 	}
@@ -83,9 +84,9 @@ func TestMetricSuggestionEveryTemplate(t *testing.T) {
 			if !ok {
 				t.Fatalf("no sample values for %s", metric)
 			}
-			got := MetricSuggestion(metric, tt.head, m, Names{})
+			got := Metric(metric, tt.head, m, Names{})
 			if !strings.Contains(got, tt.want) {
-				t.Errorf("MetricSuggestion(%s) = %q, want it to contain %q", metric, got, tt.want)
+				t.Errorf("Metric(%s) = %q, want it to contain %q", metric, got, tt.want)
 			}
 		})
 	}
@@ -114,8 +115,8 @@ func TestMetricSuggestionCapacitySurface(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.metric+"/"+formatNum(tt.head), func(t *testing.T) {
 			t.Parallel()
-			if got := MetricSuggestion(tt.metric, tt.head, metrics.RawMetrics{}, Names{}); got != tt.want {
-				t.Errorf("MetricSuggestion = %q, want %q", got, tt.want)
+			if got := Metric(tt.metric, tt.head, metrics.RawMetrics{}, Names{}); got != tt.want {
+				t.Errorf("Metric = %q, want %q", got, tt.want)
 			}
 		})
 	}
@@ -125,8 +126,8 @@ func TestMetricSuggestionUnknown(t *testing.T) {
 	t.Parallel()
 
 	for _, metric := range []string{"files", "fan_in", "coverage_pct", "nope"} {
-		if got := MetricSuggestion(metric, 1, metrics.RawMetrics{}, Names{}); got != "" {
-			t.Errorf("MetricSuggestion(%s) = %q, want empty", metric, got)
+		if got := Metric(metric, 1, metrics.RawMetrics{}, Names{}); got != "" {
+			t.Errorf("Metric(%s) = %q, want empty", metric, got)
 		}
 	}
 }
@@ -134,10 +135,10 @@ func TestMetricSuggestionUnknown(t *testing.T) {
 func TestMetricSuggestionSingular(t *testing.T) {
 	t.Parallel()
 
-	got := MetricSuggestion("untested_exports", 1, metrics.RawMetrics{}, Names{UntestedExports: []string{"Parse"}})
+	got := Metric("untested_exports", 1, metrics.RawMetrics{}, Names{UntestedExports: []string{"Parse"}})
 	want := "1 exported function has no test (Parse); a rebuild would have to reverse-engineer its behavior."
 	if got != want {
-		t.Errorf("MetricSuggestion = %q, want %q", got, want)
+		t.Errorf("Metric = %q, want %q", got, want)
 	}
 }
 
@@ -182,7 +183,7 @@ func TestUntestedExportsNamesTruncated(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := MetricSuggestion("untested_exports", tt.head, metrics.RawMetrics{}, Names{UntestedExports: tt.names})
+			got := Metric("untested_exports", tt.head, metrics.RawMetrics{}, Names{UntestedExports: tt.names})
 			if got != tt.want {
 				t.Errorf("got  %q\nwant %q", got, tt.want)
 			}
@@ -220,8 +221,8 @@ func TestMetricSuggestionGlobalsNames(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if got := MetricSuggestion("globals", tt.head, metrics.RawMetrics{}, Names{Globals: tt.names}); got != tt.want {
-				t.Errorf("MetricSuggestion = %q, want %q", got, tt.want)
+			if got := Metric("globals", tt.head, metrics.RawMetrics{}, Names{Globals: tt.names}); got != tt.want {
+				t.Errorf("Metric = %q, want %q", got, tt.want)
 			}
 		})
 	}
@@ -232,18 +233,18 @@ func TestDuplicationNamesFirstLocation(t *testing.T) {
 
 	m := metrics.RawMetrics{DupBlocks: 4, DuplicationPct: 9.23}
 	n := Names{DupLocations: []string{"parse.go:40", "encode.go:12"}}
-	got := MetricSuggestion("dup_blocks", 4, m, n)
+	got := Metric("dup_blocks", 4, m, n)
 	want := "4 duplicate blocks cover 9.2% of lines; extract shared helpers, starting with parse.go:40."
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
 	n.DupAdded = true
-	got = MetricSuggestion("duplication_pct", 9.23, m, n)
+	got = Metric("duplication_pct", 9.23, m, n)
 	want = "4 duplicate blocks cover 9.2% of lines; extract shared helpers, starting with parse.go:40, added in this change."
 	if got != want {
 		t.Errorf("added: got  %q\nwant %q", got, want)
 	}
-	if got := MetricSuggestion("dup_blocks", 4, m, Names{DupAdded: true}); got != "4 duplicate blocks cover 9.2% of lines; extract shared helpers." {
+	if got := Metric("dup_blocks", 4, m, Names{DupAdded: true}); got != "4 duplicate blocks cover 9.2% of lines; extract shared helpers." {
 		t.Errorf("added without locations: got %q, want no citation", got)
 	}
 }
@@ -272,11 +273,11 @@ func TestDuplicationKinds(t *testing.T) {
 		{"dup_blocks_code", 2, metrics.RawMetrics{DupBlocks: 2}, "2 duplicate code blocks (of 2 of any kind; not declarative, idiom or self-overlap); extract shared helpers, starting with parse.go:40-52, added in this change."},
 	}
 	for _, tt := range tests {
-		if got := MetricSuggestion(tt.metric, tt.head, tt.m, n); got != tt.want {
+		if got := Metric(tt.metric, tt.head, tt.m, n); got != tt.want {
 			t.Errorf("%s at %v:\ngot  %q\nwant %q", tt.metric, tt.head, got, tt.want)
 		}
 	}
-	if got := MetricSuggestion("dup_blocks_code", 0, m, Names{}); got != "0 duplicate code blocks (of 3 of any kind; not declarative, idiom or self-overlap); extract shared helpers." {
+	if got := Metric("dup_blocks_code", 0, m, Names{}); got != "0 duplicate code blocks (of 3 of any kind; not declarative, idiom or self-overlap); extract shared helpers." {
 		t.Errorf("no code locations: got %q", got)
 	}
 }
@@ -293,16 +294,16 @@ func TestDriverSuggestionEveryTerm(t *testing.T) {
 		tokens float64
 		want   []string
 	}{
-		{TermVolume, 8000, []string{"10000 tokens", "20% of it duplicated", "8000 tokens of the rebuild"}},
-		{TermSpec, 6000, []string{"Tests are 6000 tokens of the rebuild context"}},
-		{TermContract, 1200, []string{"30 exported symbols", "4 internal packages", "1200 tokens"}},
-		{TermUnspecified, 5600, []string{"7 exported functions have no test (Parse, Encode, Decode, Flush, Close and 2 more)"}},
-		{TermHidden, 1200, []string{"2 package-level variables", "1 init function", "1200 tokens"}},
+		{score.TermVolume, 8000, []string{"10000 tokens", "20% of it duplicated", "8000 tokens of the rebuild"}},
+		{score.TermSpec, 6000, []string{"Tests are 6000 tokens of the rebuild context"}},
+		{score.TermContract, 1200, []string{"30 exported symbols", "4 internal packages", "1200 tokens"}},
+		{score.TermUnspecified, 5600, []string{"7 exported functions have no test (Parse, Encode, Decode, Flush, Close and 2 more)"}},
+		{score.TermHidden, 1200, []string{"2 package-level variables", "1 init function", "1200 tokens"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.term, func(t *testing.T) {
 			t.Parallel()
-			got := driverSuggestion(Driver{Term: tt.term, Tokens: tt.tokens}, &m, Names{UntestedExports: sevenNames()})
+			got := driverSuggestion(score.Driver{Term: tt.term, Tokens: tt.tokens}, &m, Names{UntestedExports: sevenNames()})
 			for _, w := range tt.want {
 				if !strings.Contains(got, w) {
 					t.Errorf("driverSuggestion(%s) = %q, want it to contain %q", tt.term, got, w)
@@ -315,7 +316,7 @@ func TestDriverSuggestionEveryTerm(t *testing.T) {
 func TestDriverSuggestionVolumeWithoutDuplication(t *testing.T) {
 	t.Parallel()
 
-	got := driverSuggestion(Driver{Term: TermVolume, Tokens: 10000}, &metrics.RawMetrics{TokensEst: 10000}, Names{})
+	got := driverSuggestion(score.Driver{Term: score.TermVolume, Tokens: 10000}, &metrics.RawMetrics{TokensEst: 10000}, Names{})
 	if strings.Contains(got, "duplicated") {
 		t.Errorf("driverSuggestion(volume) = %q, want no duplication clause", got)
 	}
@@ -353,7 +354,7 @@ func TestDriverSuggestionVolumeDupLocation(t *testing.T) {
 			m := metrics.RawMetrics{TokensEst: 9000, DuplicationPct: tt.pct, Globals: 1}
 			// Volume is exactly 10% of the rebuild, the smallest share that
 			// still earns a suggestion.
-			got := DriverSuggestions(rebuildOf(900, 0, 0, 0, 8100), m, Names{DupLocations: tt.locs})
+			got := Drivers(rebuildOf(900, 0, 0, 0, 8100), m, Names{DupLocations: tt.locs})
 			for _, s := range got {
 				if strings.HasPrefix(s, "The package is") {
 					if s != tt.want {
@@ -362,7 +363,7 @@ func TestDriverSuggestionVolumeDupLocation(t *testing.T) {
 					return
 				}
 			}
-			t.Fatalf("DriverSuggestions = %q, want a volume suggestion", got)
+			t.Fatalf("Drivers = %q, want a volume suggestion", got)
 		})
 	}
 }
@@ -373,7 +374,7 @@ func TestDriverSuggestionsCutoff(t *testing.T) {
 	m := metrics.RawMetrics{TokensEst: 900, UntestedExports: 1, Globals: 1}
 	tests := []struct {
 		name string
-		r    Rebuild
+		r    score.Rebuild
 		want int
 	}{
 		{name: "second driver at exactly 10%", r: rebuildOf(900, 0, 0, 100, 0), want: 2},
@@ -384,8 +385,8 @@ func TestDriverSuggestionsCutoff(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if got := DriverSuggestions(tt.r, m, Names{}); len(got) != tt.want {
-				t.Errorf("DriverSuggestions() = %q, want %d suggestions", got, tt.want)
+			if got := Drivers(tt.r, m, Names{}); len(got) != tt.want {
+				t.Errorf("Drivers() = %q, want %d suggestions", got, tt.want)
 			}
 		})
 	}
@@ -399,9 +400,9 @@ func TestDriverSuggestionsOrderAndUnspecified(t *testing.T) {
 		SLOC: 1200, TokensEst: 10000, TokensEstWithTests: 16000, DuplicationPct: 20,
 		ExportedSymbols: 30, UntestedExports: 15, Globals: 2, InitFuncs: 1,
 	}
-	got := DriverSuggestions(Estimate(m, validParams()), m, Names{UntestedExports: sevenNames()})
+	got := Drivers(score.Estimate(m, validParams()), m, Names{UntestedExports: sevenNames()})
 	if len(got) != 2 {
-		t.Fatalf("DriverSuggestions() = %q, want 2", got)
+		t.Fatalf("Drivers() = %q, want 2", got)
 	}
 	want := "15 exported functions have no test (Parse, Encode, Decode, Flush, Close and 10 more)"
 	if !strings.HasPrefix(got[0], want) {
@@ -436,15 +437,15 @@ func TestDriverSuggestionUnspecifiedCoverage(t *testing.T) {
 			t.Parallel()
 			mm := m
 			mm.CoveragePct = tt.coverage
-			r := Estimate(mm, validParams())
-			ds := Drivers(r)
-			if len(ds) == 0 || ds[0].Term != TermUnspecified {
+			r := score.Estimate(mm, validParams())
+			ds := score.Drivers(r)
+			if len(ds) == 0 || ds[0].Term != score.TermUnspecified {
 				t.Fatalf("Drivers = %+v, want unspecified first", ds)
 			}
 			if tt.coverage != nil && !strings.Contains(ds[0].Detail, "coverage_pct=25") {
 				t.Errorf("driver detail = %q, want coverage_pct named", ds[0].Detail)
 			}
-			if got := DriverSuggestions(r, mm, Names{})[0]; got != tt.want {
+			if got := Drivers(r, mm, Names{})[0]; got != tt.want {
 				t.Errorf("got  %q\nwant %q", got, tt.want)
 			}
 		})
@@ -472,9 +473,9 @@ func TestMetricSuggestionV1Templates(t *testing.T) {
 		{"duplicated_lines", 1, "1 source line is duplicated."},
 	}
 	for _, tt := range tests {
-		got := MetricSuggestion(tt.metric, tt.head, metrics.RawMetrics{}, Names{})
+		got := Metric(tt.metric, tt.head, metrics.RawMetrics{}, Names{})
 		if !strings.Contains(got, tt.want) {
-			t.Errorf("MetricSuggestion(%s, %v) = %q, want it to contain %q", tt.metric, tt.head, got, tt.want)
+			t.Errorf("Metric(%s, %v) = %q, want it to contain %q", tt.metric, tt.head, got, tt.want)
 		}
 	}
 }
@@ -516,9 +517,79 @@ func TestMetricSuggestionCrossBlocks(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := MetricSuggestion("dup_blocks_cross_pkg", tt.head, metrics.RawMetrics{}, Names{CrossBlocks: tt.blocks, CrossAdded: tt.added})
+			got := Metric("dup_blocks_cross_pkg", tt.head, metrics.RawMetrics{}, Names{CrossBlocks: tt.blocks, CrossAdded: tt.added})
 			if got != tt.want {
-				t.Errorf("MetricSuggestion = %q, want %q", got, tt.want)
+				t.Errorf("Metric = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// validParams returns the rebuild parameters package score's own tests
+// use, which pass Validate.
+func validParams() score.RebuildParams {
+	p := score.RebuildParams{
+		ContextBudget:           25000,
+		TokensPerExport:         40,
+		TokensPerUntestedExport: 800,
+		TokensPerHiddenState:    400,
+		SuperlinearExponent:     1.3,
+		CocomoA:                 2.4,
+		CocomoB:                 1.05,
+		DaysPerMonth:            19,
+		Cocomo:                  score.Cocomo{Model: score.ModelBasic81, UNFM: "completely_unfamiliar"},
+	}
+	p.Tiers.OnePassMax = 1
+	p.Tiers.FewPassesMax = 3
+	return p
+}
+
+// rebuildOf returns a rebuild whose terms carry the given tokens, in the
+// fixed term order, and whose total is their sum.
+func rebuildOf(volume, spec, contract, unspecified, hidden float64) score.Rebuild {
+	names := []string{score.TermVolume, score.TermSpec, score.TermContract, score.TermUnspecified, score.TermHidden}
+	tokens := []float64{volume, spec, contract, unspecified, hidden}
+	r := score.Rebuild{Terms: make([]score.Term, 0, len(names))}
+	for i, n := range names {
+		r.Terms = append(r.Terms, score.Term{Name: n, Tokens: tokens[i], Detail: n + "-detail"})
+		r.RebuildTokens += tokens[i]
+	}
+	return r
+}
+
+// crossOf returns a block of tokens normalized tokens with one occurrence
+// in each of pkgs, in order.
+func crossOf(tokens int, pkgs ...string) metrics.CrossBlock {
+	b := metrics.CrossBlock{Tokens: tokens}
+	for i, p := range pkgs {
+		b.Occurrences = append(b.Occurrences, metrics.Occurrence{Package: p, File: p + "/x.go", StartLine: 10*i + 1, EndLine: 10*i + 9})
+	}
+	return b
+}
+
+func TestAddedCrossSuggestion(t *testing.T) {
+	t.Parallel()
+
+	one := []metrics.CrossBlock{crossOf(100, "a", "b")}
+	tests := []struct {
+		name  string
+		added []metrics.CrossBlock
+		floor int
+		want  string
+	}{
+		{name: "none", want: ""},
+		{name: "one", added: one, floor: 80,
+			want: "The change added 1 duplicate block of at least 80 tokens shared with other packages; " +
+				"extract the shared block in a/x.go:1-9 and b/x.go:11-19 into one package."},
+		{name: "two without a floor", added: append(slices.Clone(one), crossOf(90, "c", "d")),
+			want: "The change added 2 duplicate blocks shared with other packages; " +
+				"extract each into one package, starting with the block in a/x.go:1-9 and b/x.go:11-19."},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := AddedCross(tt.added, tt.floor); got != tt.want {
+				t.Errorf("AddedCross = %q, want %q", got, tt.want)
 			}
 		})
 	}

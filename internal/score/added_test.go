@@ -98,31 +98,3 @@ func TestAddedCrossBlocks(t *testing.T) {
 		})
 	}
 }
-
-func TestAddedCrossSuggestion(t *testing.T) {
-	t.Parallel()
-
-	one := []metrics.CrossBlock{crossOf(100, "a", "b")}
-	tests := []struct {
-		name  string
-		added []metrics.CrossBlock
-		floor int
-		want  string
-	}{
-		{name: "none", want: ""},
-		{name: "one", added: one, floor: 80,
-			want: "The change added 1 duplicate block of at least 80 tokens shared with other packages; " +
-				"extract the shared block in a/x.go:1-9 and b/x.go:11-19 into one package."},
-		{name: "two without a floor", added: append(slices.Clone(one), crossOf(90, "c", "d")),
-			want: "The change added 2 duplicate blocks shared with other packages; " +
-				"extract each into one package, starting with the block in a/x.go:1-9 and b/x.go:11-19."},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			if got := AddedCrossSuggestion(tt.added, tt.floor); got != tt.want {
-				t.Errorf("AddedCrossSuggestion = %q, want %q", got, tt.want)
-			}
-		})
-	}
-}

@@ -84,8 +84,9 @@ type Result struct {
 }
 
 // Suggester returns the fix sentence for a metric at its head value. The gate
-// package cannot import score, so callers inject score.MetricSuggestion
-// through a closure that supplies its Names argument.
+// package cannot import score or its sub-package suggestion, so callers
+// inject suggestion.Metric through a closure that supplies its Names
+// argument.
 type Suggester func(metric string, head float64, m metrics.RawMetrics) string
 
 // Row is the kind of row a set of rules is evaluated on (SPEC.md 8.1).
