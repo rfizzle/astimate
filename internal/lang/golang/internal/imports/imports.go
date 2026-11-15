@@ -48,40 +48,57 @@ const (
 func Count(m *load.Module, p *packages.Package) Counts {
 	var c Counts
 	files := m.SourceSyntax(p)
+	c.Blank, c.Dot = namedImports(files)
+	for _, imp := range Imported(p, files) {
+		switch Classify(m, imp) {
+		case Stdlib:
+			c.Stdlib++
+		case Internal:
+			c.addInternal(p.PkgPath, imp.PkgPath)
+		case External:
+			c.External++
+		}
+	}
+	return c
+}
+
+// addInternal counts one internal import, at importPath, of the package at
+// pkgPath: in Internal always, and in Descendants and Private when Own
+// finds it below pkgPath and under pkgPath's own internal directory.
+func (c *Counts) addInternal(pkgPath, importPath string) {
+	c.Internal++
+	descendant, private := Own(pkgPath, importPath)
+	if descendant {
+		c.Descendants++
+	}
+	if private {
+		c.Private++
+	}
+}
+
+// namedImports returns the paths of the blank (_) and dot (.) import specs
+// of files, in order of appearance and with repeats, for Counts.Blank and
+// Counts.Dot. A spec with any other name, or none, is left out, as is one
+// whose path does not unquote.
+func namedImports(files []*ast.File) (blank, dot []string) {
 	for _, f := range files {
 		for _, spec := range f.Imports {
-			if spec.Name == nil || (spec.Name.Name != "_" && spec.Name.Name != ".") {
+			if spec.Name == nil {
 				continue
 			}
 			path, err := strconv.Unquote(spec.Path.Value)
 			if err != nil {
 				continue
 			}
-			if spec.Name.Name == "_" {
-				c.Blank = append(c.Blank, path)
-			} else {
-				c.Dot = append(c.Dot, path)
+			switch spec.Name.Name {
+			case "_":
+				blank = append(blank, path)
+			case ".":
+				dot = append(dot, path)
 			}
 		}
 	}
-	for _, imp := range Imported(p, files) {
-		switch Classify(m, imp) {
-		case Stdlib:
-			c.Stdlib++
-		case Internal:
-			c.Internal++
-			descendant, private := Own(p.PkgPath, imp.PkgPath)
-			if descendant {
-				c.Descendants++
-			}
-			if private {
-				c.Private++
-			}
-		case External:
-			c.External++
-		}
-	}
-	return c
+	return blank, dot
 }
 
 // Own reports whether the package at importPath is a descendant of the
