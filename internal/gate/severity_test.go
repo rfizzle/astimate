@@ -2,6 +2,7 @@ package gate_test
 
 import (
 	"reflect"
+	"slices"
 	"testing"
 	"time"
 
@@ -143,5 +144,60 @@ func TestExemptionsApplyWarnRule(t *testing.T) {
 	stale := x.Stale(func(exempt.Entry) bool { return false })
 	if len(stale) != 1 || stale[0].Metric != "tokens_est" {
 		t.Errorf("stale = %+v, want only the tokens_est exemption", stale)
+	}
+}
+
+// TestEvaluateCodeBlocksFailAllBlocksWarn pins the configuration that
+// fails on a pasted code block and only warns on a block of another kind
+// (SPEC.md 8.2): dup_blocks_code at fail beside dup_blocks at warn. The
+// two findings differ in severity, so they do not merge: a code block is
+// a violation and a warning, a declarative block the warning alone.
+func TestEvaluateCodeBlocksFailAllBlocksWarn(t *testing.T) {
+	t.Parallel()
+
+	all := density("dup_blocks", 0, nil)
+	all.Severity = gate.SeverityWarn
+	rules := []gate.Threshold{density("dup_blocks_code", 0, nil), all}
+	n := func(v int) *int { return &v }
+	tests := []struct {
+		name            string
+		blocks, code    int
+		wantPassed      bool
+		wantViolations  []string
+		wantWarnMetrics []string
+	}{
+		{name: "declarative block warns and passes", blocks: 1, code: 0, wantPassed: true, wantViolations: []string{}, wantWarnMetrics: []string{"dup_blocks"}},
+		{name: "code block fails and warns", blocks: 1, code: 1, wantPassed: false, wantViolations: []string{"dup_blocks_code"}, wantWarnMetrics: []string{"dup_blocks"}},
+		{name: "no new block", blocks: 0, code: 0, wantPassed: true, wantViolations: []string{}, wantWarnMetrics: []string{}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			head := metrics.RawMetrics{DupBlocks: tt.blocks, DupBlocksCode: n(tt.code)}
+			res := gate.Evaluate(head, &metrics.RawMetrics{DupBlocksCode: n(0)}, rules, nil)
+			if res.Passed != tt.wantPassed {
+				t.Errorf("Passed = %v, want %v", res.Passed, tt.wantPassed)
+			}
+			got := make([]string, 0, len(res.Violations))
+			for _, v := range res.Violations {
+				got = append(got, v.Metric)
+				if len(v.Also) != 0 {
+					t.Errorf("violation %s merged %v, want no merge across severities", v.Metric, v.Also)
+				}
+			}
+			if !slices.Equal(got, tt.wantViolations) {
+				t.Errorf("violations = %v, want %v", got, tt.wantViolations)
+			}
+			warned := make([]string, 0, len(res.Warnings))
+			for _, w := range res.Warnings {
+				warned = append(warned, w.Metric)
+				if w.Severity != gate.SeverityWarn {
+					t.Errorf("warning %s has severity %q, want warn", w.Metric, w.Severity)
+				}
+			}
+			if !slices.Equal(warned, tt.wantWarnMetrics) {
+				t.Errorf("warnings = %v, want %v", warned, tt.wantWarnMetrics)
+			}
+		})
 	}
 }

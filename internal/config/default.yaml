@@ -196,6 +196,10 @@ thresholds:
   # 6.3). A rule on dup_blocks_code would judge code blocks only; on the
   # 2026-10-14 hand labels it lowered the rule's J and the gate's, and
   # the gate's recall to 80% (calibration/notes/dup-blocks-code-2026-10-14.md).
+  # To fail on pasted code only and keep the other kinds as guidance, gate
+  # both: dup_blocks_code as below without a severity, and dup_blocks with
+  # severity: warn. Findings of different severity never merge, so a code
+  # block fails and a declarative or idiom block only warns.
   - metric: dup_blocks
     kind: density
     max_delta: 0

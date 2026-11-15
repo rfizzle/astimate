@@ -522,6 +522,10 @@ history.
 
 ### Changed
 
+- The default configuration and the spec describe gating `dup_blocks_code`
+  at `fail` beside `dup_blocks` at `severity: warn`, which fails on pasted
+  code and keeps blocks of the other kinds as a warning; a test pins that
+  the two findings do not merge. No behaviour changed.
 - Six packages near their capacity ceilings were split along a
   responsibility, with no behaviour, output or schema change: the module
   and change report building and extractor detection moved out of
