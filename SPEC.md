@@ -103,7 +103,8 @@ astimate/
 │   │   └── exempt/              # Exemptions (8.6): validation, matching, expired and stale ones
 │   ├── score/                   # Rebuild estimate, tiers, drivers, explanations
 │   ├── baseline/                # Git-ref and file baselines, keyed by package directory; rename seeding
-│   │   └── internal/diff/       # git primitives: changed packages, staged index, rename detection
+│   │   ├── internal/diff/       # git primitives: changed packages, staged index, rename detection
+│   │   └── internal/fileformat/ # The baseline file's JSON layout (8.3): encode, decode, older layouts
 │   ├── churn/                   # Churn per package: one git log over the window, attributed by module-relative directory
 │   ├── exclude/                 # The exclude list's matcher (6.5), shared by both extractors
 │   ├── report/                  # JSON, text and hook output shaping

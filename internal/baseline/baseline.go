@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/rfizzle/astimate/internal/baseline/internal/fileformat"
 	"github.com/rfizzle/astimate/internal/metrics"
 )
 
@@ -59,7 +60,7 @@ type Baseline interface {
 // Row is what a baseline records for one package, or for the module row.
 // It is the one place a per-package baseline record lives: a new record is
 // a field here, filled from the extraction in collected.rows and from a
-// baseline file's per-package fileRow in FromFile.
+// baseline file's per-package record (fileformat) in FromFile.
 type Row struct {
 	// Metrics are the package's metrics at the baseline.
 	Metrics metrics.RawMetrics
@@ -88,19 +89,11 @@ type Row struct {
 	HasNamed bool
 }
 
-// Named is the part of a package's metrics.Details a baseline records.
-type Named struct {
-	// DupBlocks are the anchors of the package's duplicate blocks
-	// (metrics.DupBlock), both of each block's, sorted and distinct.
-	DupBlocks []uint64
-	// UntestedExports names the package's untested exports, sorted.
-	UntestedExports []string
-	// Exports are the package's exported declarations
-	// (metrics.Details.Exports) without positions, sorted (sortSymbols);
-	// nil in a baseline file written before they were recorded, against
-	// which no export reads as made unexported.
-	Exports []metrics.Symbol
-}
+// Named is the part of a package's metrics.Details a baseline records:
+// its duplicate blocks' anchors, its untested exports and its exports
+// (sortSymbols), each sorted. It is defined beside the baseline file's
+// layout, which records it.
+type Named = fileformat.Named
 
 // namedOf returns the part of d a baseline records.
 func namedOf(d *metrics.Details) Named {
