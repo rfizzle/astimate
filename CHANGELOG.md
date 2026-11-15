@@ -12,6 +12,17 @@ history.
 
 ### Added
 
+- `check` warns when a change reshapes the exports of a package near its
+  `exported_symbols` ceiling without adding one: an existing exported
+  function or method whose signature changed (a variadic parameter added
+  in place of a new function), or an exported symbol made unexported.
+  The count cannot see either, so a package could stay at its ceiling
+  with nothing for a reviewer to look at. The heads-up names the symbols
+  and where the first is declared, appears in every format as a warning
+  (`exports reshaped, max N`), never fails the gate and is not silenced
+  by an exemption. Go only. A baseline file gains `functions[].signature`
+  and `package_rows[].exports`; a file without them loads as before and
+  yields no heads-up.
 - `astimate rank --sort headroom` ranks packages by how close they are to
   a capacity ceiling, tightest first and packages over one at the top, so
   work handed out in parallel can steer clear of a package one more
@@ -495,6 +506,27 @@ history.
 
 ### Changed
 
+- A capacity violation now says what does not fix it. The
+  `exported_symbols` suggestion names the split and rules out unexporting
+  what callers need, folding a new function into an existing one's
+  parameters, and changing what an existing export does; the
+  `internal_imports` suggestion rules out moving code where it does not
+  belong and injecting a dependency only to drop the import. Every
+  capacity breach on a package ends by telling the agent to stop and say
+  so when the split is out of scope, so a person can record an exemption
+  with a reason and an expiry. Wording only: no threshold, verdict or
+  schema field changed.
+- The module report takes its ceilings from the gate's own definition, a
+  capacity rule with a positive `max`, as `rank --sort headroom` does. A
+  density rule's `max` on a size metric is no longer shown as a ceiling,
+  and where a metric has one rule per set of roles a package is shown
+  against the rule that judges its role.
+- `ast.Visitor` joins the closed list of interfaces whose methods
+  `untested_exports` does not count: `ast.Walk` calls `Visit`.
+- Exemptions moved from `internal/gate` to `internal/gate/exempt`. No
+  behaviour changed.
+- `make check` fails when `actionlint` is not installed instead of
+  skipping the step.
 - Every command logs at warn level by default, so routine notes such as a
   package left out for its build constraints no longer print beside the
   report. A new `--debug` flag, taken by every command including `serve`,
