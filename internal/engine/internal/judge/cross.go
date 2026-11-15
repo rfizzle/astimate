@@ -2,6 +2,7 @@ package judge
 
 import (
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 	"github.com/rfizzle/astimate/internal/score"
 )
 
@@ -13,7 +14,7 @@ type crossJudgment struct {
 	// added are the head blocks the change added that the rule judges
 	// (score.AddedCrossBlocks): new, at least floor tokens long and not
 	// moved by a rename.
-	added []metrics.CrossBlock
+	added []inventory.CrossBlock
 	// groups are the sets of packages on which the change added a block
 	// at some floor (score.CrossGroups), so the count can be re-derived at
 	// any floor; nil when the count is judged.
@@ -26,7 +27,7 @@ type crossJudgment struct {
 // given head, its blocks at head, base, the baseline's blocks named like
 // head's and known when the baseline recorded them, and roles, the role
 // of each package of head's blocks.
-func (c *Checker) judgeCross(head, base []metrics.CrossBlock, known bool, roles map[string]string) crossJudgment {
+func (c *Checker) judgeCross(head, base []inventory.CrossBlock, known bool, roles map[string]string) crossJudgment {
 	j := crossJudgment{known: known, floor: c.o.Config.MinTokensCross}
 	if known {
 		from := c.renamedFrom(head)
@@ -53,7 +54,7 @@ func (j crossJudgment) recorded(m metrics.RawMetrics, bm *metrics.RawMetrics, re
 	}
 	out := make([]score.CrossGroup, len(j.groups))
 	for i, g := range j.groups {
-		out[i] = score.CrossGroup{Base: g.Base, Head: metrics.MapPackages(g.Head, rel)}
+		out[i] = score.CrossGroup{Base: g.Base, Head: inventory.MapPackages(g.Head, rel)}
 	}
 	return out
 }
@@ -76,7 +77,7 @@ func (j crossJudgment) gated(m metrics.RawMetrics, bm *metrics.RawMetrics) metri
 // whose baseline row was seeded by a rename (baseline.Row.From), the
 // packages it was seeded from, all named by identifier as blocks are; nil
 // when there is none.
-func (c *Checker) renamedFrom(blocks []metrics.CrossBlock) map[string][]string {
+func (c *Checker) renamedFrom(blocks []inventory.CrossBlock) map[string][]string {
 	modPath := c.o.Mod.ModulePath
 	var from map[string][]string
 	seen := make(map[string]bool)

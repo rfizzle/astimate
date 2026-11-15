@@ -12,6 +12,7 @@ import (
 	"github.com/rfizzle/astimate/internal/engine/internal/judge"
 	"github.com/rfizzle/astimate/internal/engine/internal/ranking"
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 	"github.com/rfizzle/astimate/internal/report"
 	"github.com/rfizzle/astimate/internal/report/details"
 	"github.com/rfizzle/astimate/internal/report/rows"
@@ -115,7 +116,7 @@ func (t *Target) build(ctx context.Context, pkg, dir string, m *metrics.RawMetri
 
 // details returns the report details block of d, with cross-package
 // occurrences named by their module-relative package path.
-func (t *Target) details(d *metrics.Details) *details.Details {
+func (t *Target) details(d *inventory.Details) *details.Details {
 	return details.NewDetails(d, func(pkg string) string { return judge.Rel(t.Mod.ModulePath, pkg) })
 }
 

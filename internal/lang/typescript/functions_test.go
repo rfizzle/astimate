@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 )
 
 // The extractor lists functions for the changed-function rule.
@@ -119,7 +120,7 @@ export class K {
 // a package: a comment-only edit changes nothing, a changed body and a new
 // function are changed, and a method moved to another class is new.
 func TestFunctionsChanged(t *testing.T) {
-	list := func(src string) []metrics.FunctionInfo {
+	list := func(src string) []inventory.FunctionInfo {
 		t.Helper()
 		root := t.TempDir()
 		writeTree(t, root, map[string]string{"package.json": "{}", "p/p.ts": src})
@@ -147,7 +148,7 @@ export class A {}
 export class B { move(x: number) { if (x) { return 1; } return 2; } }
 `)
 	var got []string
-	for _, f := range metrics.ChangedFunctions(base, head) {
+	for _, f := range inventory.ChangedFunctions(base, head) {
 		got = append(got, f.QualifiedName())
 	}
 	want := []string{"edit", "added", "B.move"}

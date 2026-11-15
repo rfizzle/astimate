@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 )
 
 // legacyModuleKey is the key files written before metrics.ModuleRowID was
@@ -22,18 +23,18 @@ import (
 // module row only when the row it keys has the module row's shape.
 const legacyModuleKey = "module"
 
-// Named is the part of a package's metrics.Details a baseline records.
+// Named is the part of a package's inventory.Details a baseline records.
 type Named struct {
 	// DupBlocks are the anchors of the package's duplicate blocks
-	// (metrics.DupBlock), both of each block's, sorted and distinct.
+	// (inventory.DupBlock), both of each block's, sorted and distinct.
 	DupBlocks []uint64
 	// UntestedExports names the package's untested exports, sorted.
 	UntestedExports []string
 	// Exports are the package's exported declarations
-	// (metrics.Details.Exports) without positions, sorted by receiver,
+	// (inventory.Details.Exports) without positions, sorted by receiver,
 	// then name, then kind; nil in a baseline file written before they
 	// were recorded, against which no export reads as made unexported.
-	Exports []metrics.Symbol
+	Exports []inventory.Symbol
 }
 
 // File is what a baseline file holds, keyed by package identifier (the
@@ -53,7 +54,7 @@ type File struct {
 	Packages map[string]metrics.RawMetrics
 	// Functions are each package's functions keyed like Packages; nil
 	// records none. The file stores no File or Line.
-	Functions map[string][]metrics.FunctionInfo
+	Functions map[string][]inventory.FunctionInfo
 	// Named are each package's details keyed like Packages; nil when no
 	// package records any.
 	Named map[string]Named
@@ -243,13 +244,13 @@ func zeroV0(m *metrics.RawMetrics) bool {
 
 // decodeFunctions converts the file's function records, parsing each
 // fingerprint; nil stays nil.
-func decodeFunctions(in map[string][]fileFunction) (map[string][]metrics.FunctionInfo, error) {
+func decodeFunctions(in map[string][]fileFunction) (map[string][]inventory.FunctionInfo, error) {
 	if in == nil {
 		return nil, nil
 	}
-	out := make(map[string][]metrics.FunctionInfo, len(in))
+	out := make(map[string][]inventory.FunctionInfo, len(in))
 	for pkg, ffs := range in {
-		fns := make([]metrics.FunctionInfo, len(ffs))
+		fns := make([]inventory.FunctionInfo, len(ffs))
 		for i, ff := range ffs {
 			fp, err := parseHex16(ff.Fingerprint)
 			if err != nil {
@@ -261,7 +262,7 @@ func decodeFunctions(in map[string][]fileFunction) (map[string][]metrics.Functio
 					return nil, fmt.Errorf("function %s of %s: signature %q: %w", ff.Name, pkg, ff.Signature, err)
 				}
 			}
-			fns[i] = metrics.FunctionInfo{Receiver: ff.Receiver, Name: ff.Name, Fingerprint: fp, Signature: sig,
+			fns[i] = inventory.FunctionInfo{Receiver: ff.Receiver, Name: ff.Name, Fingerprint: fp, Signature: sig,
 				Cognitive: ff.Cognitive, Cyclomatic: ff.Cyclomatic}
 		}
 		out[pkg] = fns
@@ -270,7 +271,7 @@ func decodeFunctions(in map[string][]fileFunction) (map[string][]metrics.Functio
 }
 
 // encodeFunctions converts functions to their file records; nil stays nil.
-func encodeFunctions(in map[string][]metrics.FunctionInfo) map[string][]fileFunction {
+func encodeFunctions(in map[string][]inventory.FunctionInfo) map[string][]fileFunction {
 	if in == nil {
 		return nil
 	}
@@ -331,9 +332,9 @@ func decodeNamed(rows map[string]fileRow) (map[string]Named, error) {
 			n.UntestedExports = *r.UntestedExports
 		}
 		if r.Exports != nil && len(*r.Exports) > 0 {
-			n.Exports = make([]metrics.Symbol, len(*r.Exports))
+			n.Exports = make([]inventory.Symbol, len(*r.Exports))
 			for i, e := range *r.Exports {
-				n.Exports[i] = metrics.Symbol{Kind: e.Kind, Receiver: e.Receiver, Name: e.Name}
+				n.Exports[i] = inventory.Symbol{Kind: e.Kind, Receiver: e.Receiver, Name: e.Name}
 			}
 		}
 		if out == nil {

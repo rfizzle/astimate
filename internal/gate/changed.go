@@ -1,6 +1,6 @@
 package gate
 
-import "github.com/rfizzle/astimate/internal/metrics"
+import "github.com/rfizzle/astimate/internal/metrics/inventory"
 
 // ChangedFuncMetric is the metric whose rule judges each changed function
 // against its own baseline complexity when Evaluate is given the changed
@@ -15,7 +15,7 @@ type Option func(*options)
 type options struct {
 	// changed are the row's changed functions; hasChanged is set when the
 	// caller gave them, an empty list included.
-	changed    []metrics.ChangedFunction
+	changed    []inventory.ChangedFunction
 	hasChanged bool
 	// baselineUnavailable is set by WithBaselineUnavailable.
 	baselineUnavailable bool
@@ -25,13 +25,13 @@ type options struct {
 
 // WithChangedFunctions gives Evaluate the row's functions added or
 // modified since the baseline, each with the complexity of the baseline
-// function it was matched to (metrics.ChangedFunctionsWithBase), so the max
+// function it was matched to (inventory.ChangedFunctionsWithBase), so the max
 // of changed_func_cognitive_max judges each function against its own
 // baseline value (changedFunctionsOverMax) rather than the row's one
 // value. fns may leave out functions at or below a floor under the rule's
 // max, as replay rows do, since such a function is never judged. Without
 // this option the rule judges the row's value as any density max does.
-func WithChangedFunctions(fns []metrics.ChangedFunction) Option {
+func WithChangedFunctions(fns []inventory.ChangedFunction) Option {
 	return func(o *options) {
 		o.changed, o.hasChanged = fns, true
 	}
@@ -55,7 +55,7 @@ func (e *evaluator) changedFunctionsOverMax(r Threshold) {
 	if r.OverMaxDelta != nil {
 		allowed = *r.OverMaxDelta
 	}
-	var worst *metrics.ChangedFunction
+	var worst *inventory.ChangedFunction
 	for i := range e.opts.changed {
 		f := &e.opts.changed[i]
 		h, b := float64(f.Cognitive), float64(f.BaseCognitive)

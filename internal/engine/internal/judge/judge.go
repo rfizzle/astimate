@@ -20,6 +20,7 @@ import (
 	"github.com/rfizzle/astimate/internal/gate"
 	"github.com/rfizzle/astimate/internal/gate/exempt"
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 	"github.com/rfizzle/astimate/internal/report"
 	"github.com/rfizzle/astimate/internal/report/details"
 	"github.com/rfizzle/astimate/internal/score"
@@ -214,7 +215,7 @@ func (c *Checker) Module(ctx context.Context, mm metrics.ModuleMetrics, fromFile
 	}
 	baseBlocks, known := o.Base.CrossBlocks()
 	// The baseline names packages by directory; head by identifier.
-	baseBlocks = metrics.MapPackages(baseBlocks, func(dir string) string { return ImportPath(o.Mod.ModulePath, dir) })
+	baseBlocks = inventory.MapPackages(baseBlocks, func(dir string) string { return ImportPath(o.Mod.ModulePath, dir) })
 	names := suggestion.Names{CrossBlocks: det.CrossBlocks}
 	if known {
 		var added int
@@ -279,25 +280,25 @@ func (c *Checker) row(path string, m, gm metrics.RawMetrics, bm, gb *metrics.Raw
 
 // details returns d as the report's details block, with package
 // identifiers made module-relative.
-func (c *Checker) details(d *metrics.Details) *details.Details {
+func (c *Checker) details(d *inventory.Details) *details.Details {
 	return details.NewDetails(d, func(pkg string) string { return Rel(c.o.Mod.ModulePath, pkg) })
 }
 
 // changedFunctions diffs pkg's functions at head against those of row, its
 // baseline row, and returns the changed ones, each with its baseline
-// complexity (metrics.ChangedFunctionsWithBase), with listed set. inBase
+// complexity (inventory.ChangedFunctionsWithBase), with listed set. inBase
 // reports whether the baseline has a row for pkg; a package new at head
 // diffs against no functions, so all of its functions are changed. listed
 // is false when there is nothing to diff: the extractor does not
 // implement metrics.FunctionLister, or the row recorded no functions,
 // which unrecorded reports so the caller can say why the metric is null.
 func (c *Checker) changedFunctions(ctx context.Context, pkg string, row baseline.Row, inBase bool,
-) (changed []metrics.ChangedFunction, listed, unrecorded bool, err error) {
+) (changed []inventory.ChangedFunction, listed, unrecorded bool, err error) {
 	fl, ok := c.o.Ext.(metrics.FunctionLister)
 	if !ok {
 		return nil, false, false, nil
 	}
-	var before []metrics.FunctionInfo
+	var before []inventory.FunctionInfo
 	if inBase {
 		if !row.HasFunctions {
 			return nil, false, true, nil
@@ -308,21 +309,21 @@ func (c *Checker) changedFunctions(ctx context.Context, pkg string, row baseline
 	if err != nil {
 		return nil, false, false, err
 	}
-	return metrics.ChangedFunctionsWithBase(before, head), true, false, nil
+	return inventory.ChangedFunctionsWithBase(before, head), true, false, nil
 }
 
 // Details returns the details of pkg when ext implements metrics.Detailer,
-// and the zero metrics.Details otherwise, with the names in them that
+// and the zero inventory.Details otherwise, with the names in them that
 // suggestions quote; zero names yield suggestions with counts only. Call
 // it after Extract for pkg on mod.
-func Details(ctx context.Context, ext metrics.Extractor, mod *metrics.ModuleContext, pkg string) (metrics.Details, suggestion.Names, error) {
+func Details(ctx context.Context, ext metrics.Extractor, mod *metrics.ModuleContext, pkg string) (inventory.Details, suggestion.Names, error) {
 	d, ok := ext.(metrics.Detailer)
 	if !ok {
-		return metrics.Details{}, suggestion.Names{}, nil
+		return inventory.Details{}, suggestion.Names{}, nil
 	}
 	det, err := d.Details(ctx, mod, pkg)
 	if err != nil {
-		return metrics.Details{}, suggestion.Names{}, fmt.Errorf("naming suggestions for %s: %w", pkg, err)
+		return inventory.Details{}, suggestion.Names{}, fmt.Errorf("naming suggestions for %s: %w", pkg, err)
 	}
 	names := suggestion.Names{UntestedExports: det.UntestedExports, DupLocations: det.DupLocations,
 		DupCodeLocations: codeLocations(det.DupBlocks), CrossBlocks: det.CrossBlocks, Globals: det.GlobalNames}
@@ -331,15 +332,15 @@ func Details(ctx context.Context, ext metrics.Extractor, mod *metrics.ModuleCont
 
 // moduleDetails returns the details behind the module row's counts, for
 // suggestions and the report's details block, when ext implements
-// metrics.ModuleDetailer, and the zero metrics.Details otherwise.
-func moduleDetails(ctx context.Context, ext metrics.Extractor, mod *metrics.ModuleContext) (metrics.Details, error) {
+// metrics.ModuleDetailer, and the zero inventory.Details otherwise.
+func moduleDetails(ctx context.Context, ext metrics.Extractor, mod *metrics.ModuleContext) (inventory.Details, error) {
 	d, ok := ext.(metrics.ModuleDetailer)
 	if !ok {
-		return metrics.Details{}, nil
+		return inventory.Details{}, nil
 	}
 	det, err := d.ModuleDetails(ctx, mod)
 	if err != nil {
-		return metrics.Details{}, fmt.Errorf("naming suggestions for %s: %w", metrics.ModuleRowID, err)
+		return inventory.Details{}, fmt.Errorf("naming suggestions for %s: %w", metrics.ModuleRowID, err)
 	}
 	return det, nil
 }

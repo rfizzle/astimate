@@ -12,7 +12,7 @@ import (
 	"github.com/rfizzle/astimate/internal/lang/duptok"
 	"github.com/rfizzle/astimate/internal/lang/golang/internal/inspect"
 	"github.com/rfizzle/astimate/internal/lang/golang/internal/load"
-	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -245,12 +245,12 @@ var errNotYet = errors.New("not yet")
 
 // TestCrossBlocksOf checks that BlocksOf filters by package and copies.
 func TestCrossBlocksOf(t *testing.T) {
-	occ := func(pkg string) metrics.Occurrence {
-		return metrics.Occurrence{Package: pkg, File: pkg + ".go", StartLine: 1, EndLine: 2}
+	occ := func(pkg string) inventory.Occurrence {
+		return inventory.Occurrence{Package: pkg, File: pkg + ".go", StartLine: 1, EndLine: 2}
 	}
-	c := Cross{Blocks: []metrics.CrossBlock{
-		{Occurrences: []metrics.Occurrence{occ("a"), occ("b")}},
-		{Occurrences: []metrics.Occurrence{occ("b"), occ("c")}},
+	c := Cross{Blocks: []inventory.CrossBlock{
+		{Occurrences: []inventory.Occurrence{occ("a"), occ("b")}},
+		{Occurrences: []inventory.Occurrence{occ("b"), occ("c")}},
 	}}
 	if got := c.BlocksOf("a"); len(got) != 1 || got[0].Occurrences[1].Package != "b" {
 		t.Errorf("BlocksOf(a) = %+v, want the a-b block", got)

@@ -10,6 +10,7 @@ import (
 	"github.com/rfizzle/astimate/internal/lang/golang/internal/inspect"
 	"github.com/rfizzle/astimate/internal/lang/golang/internal/load"
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 )
 
 // Details returns the names behind untested_exports, the duplicate block
@@ -19,30 +20,30 @@ import (
 // declarations and its source files, from the details its most recent
 // Extract on mod recorded and the memoized cross-package pass. When nothing
 // is recorded it runs Extract first, so it fails exactly when Extract would.
-func (e *Extractor) Details(ctx context.Context, mod *metrics.ModuleContext, pkg string) (metrics.Details, error) {
+func (e *Extractor) Details(ctx context.Context, mod *metrics.ModuleContext, pkg string) (inventory.Details, error) {
 	d, l, dir, err := e.recorded(ctx, mod, pkg)
 	if err != nil {
-		return metrics.Details{}, err
+		return inventory.Details{}, err
 	}
-	var cross []metrics.CrossBlock
+	var cross []inventory.CrossBlock
 	if dup.Applies(l.Module) {
 		// Extract has run the cross-package pass for e.dup, so this is the
 		// memoized result and reads no file.
 		c, err := l.cross.Cross(l.Module, load.OSFiles{}, e.dup)
 		if err != nil {
-			return metrics.Details{}, fmt.Errorf("details of %s: %w", pkg, err)
+			return inventory.Details{}, fmt.Errorf("details of %s: %w", pkg, err)
 		}
 		cross = c.BlocksOf(pkg)
 	}
 	files := relFiles(dir, d.files)
 	slices.Sort(files)
 	locs, blocks := duptok.Details(d.dupBlocks, func(f string) string { return load.RelFile(dir, f) })
-	return metrics.Details{
+	return inventory.Details{
 		UntestedExports:  slices.Clone(d.untested.Names),
 		UntestedExcluded: slices.Clone(d.untested.Excluded),
 		UntestedCovered:  slices.Clone(d.covered),
 
-		UntestedRules: metrics.UntestedRules{
+		UntestedRules: inventory.UntestedRules{
 			OptionFuncs:      d.untested.OptionFuncs,
 			InterfaceMethods: d.untested.InterfaceMethods,
 			TestSupport:      d.untested.TestSupport,
@@ -67,7 +68,7 @@ func (e *Extractor) Details(ctx context.Context, mod *metrics.ModuleContext, pkg
 // recorded (metrics.FunctionLister). File is relative to the package
 // directory. When nothing is recorded it runs Extract first, so it fails
 // exactly when Extract would.
-func (e *Extractor) Functions(ctx context.Context, mod *metrics.ModuleContext, pkg string) ([]metrics.FunctionInfo, error) {
+func (e *Extractor) Functions(ctx context.Context, mod *metrics.ModuleContext, pkg string) ([]inventory.FunctionInfo, error) {
 	d, l, dir, err := e.recorded(ctx, mod, pkg)
 	if err != nil {
 		return nil, err

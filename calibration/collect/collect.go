@@ -19,6 +19,7 @@ import (
 	"github.com/rfizzle/astimate/internal/engine"
 	"github.com/rfizzle/astimate/internal/lang/golang"
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 	"github.com/rfizzle/astimate/internal/report/rows"
 )
 
@@ -52,7 +53,7 @@ type Row struct {
 // newRow estimates m under cfg and returns its pooled row, rounded the way
 // rows.NewRow rounds the rank output, with fns counted into
 // FuncCognitive.
-func newRow(module, commit, pkg string, m *metrics.RawMetrics, fns []metrics.FunctionInfo, cfg *config.Config) Row {
+func newRow(module, commit, pkg string, m *metrics.RawMetrics, fns []inventory.FunctionInfo, cfg *config.Config) Row {
 	r := rows.NewRow(pkg, m, cfg.Rebuild)
 	return Row{
 		Module:        module,
@@ -67,7 +68,7 @@ func newRow(module, commit, pkg string, m *metrics.RawMetrics, fns []metrics.Fun
 
 // cognitiveCounts counts fns by cognitive complexity; nil for no
 // functions.
-func cognitiveCounts(fns []metrics.FunctionInfo) map[int]int {
+func cognitiveCounts(fns []inventory.FunctionInfo) map[int]int {
 	if len(fns) == 0 {
 		return nil
 	}
@@ -159,7 +160,7 @@ func packageRows(ctx context.Context, t *engine.Target, pkgs []string, commit st
 			continue
 		}
 		fillChurn(pkg, &m)
-		var fns []metrics.FunctionInfo
+		var fns []inventory.FunctionInfo
 		if lister != nil {
 			// Functions reads what the Extract above recorded.
 			if fns, err = lister.Functions(ctx, t.Mod, pkg); err != nil {

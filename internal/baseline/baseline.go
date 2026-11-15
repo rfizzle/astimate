@@ -10,6 +10,7 @@ import (
 
 	"github.com/rfizzle/astimate/internal/baseline/internal/fileformat"
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 )
 
 // Baseline serves the metrics a change is compared against. Rows are
@@ -38,7 +39,7 @@ type Baseline interface {
 	// is a file, which stores only the module row's count. A check of
 	// named packages matches them against the blocks at head to tell which
 	// blocks are new.
-	CrossBlocks() ([]metrics.CrossBlock, bool)
+	CrossBlocks() ([]inventory.CrossBlock, bool)
 	// Importers returns the module-relative directories of the packages
 	// that imported the package in dir in the baseline, sorted, as
 	// metrics.ImporterLister listed them there (nil when dir was not a
@@ -68,7 +69,7 @@ type Row struct {
 	// them, for the function-level diff behind changed_func_cognitive_max;
 	// meaningful only when HasFunctions. A file baseline's functions carry
 	// no File or Line.
-	Functions []metrics.FunctionInfo
+	Functions []inventory.FunctionInfo
 	// HasFunctions is false when the baseline recorded no functions for
 	// the package: the extractor does not implement
 	// metrics.FunctionLister, or the baseline file predates function
@@ -89,14 +90,14 @@ type Row struct {
 	HasNamed bool
 }
 
-// Named is the part of a package's metrics.Details a baseline records:
+// Named is the part of a package's inventory.Details a baseline records:
 // its duplicate blocks' anchors, its untested exports and its exports
 // (sortSymbols), each sorted. It is defined beside the baseline file's
 // layout, which records it.
 type Named = fileformat.Named
 
 // namedOf returns the part of d a baseline records.
-func namedOf(d *metrics.Details) Named {
+func namedOf(d *inventory.Details) Named {
 	n := Named{UntestedExports: slices.Clone(d.UntestedExports)}
 	for _, b := range d.DupBlocks {
 		n.DupBlocks = append(n.DupBlocks, b.Anchors[:]...)
@@ -105,7 +106,7 @@ func namedOf(d *metrics.Details) Named {
 	n.DupBlocks = slices.Compact(n.DupBlocks)
 	slices.Sort(n.UntestedExports)
 	for _, s := range d.Exports {
-		s.Position = metrics.Position{}
+		s.Position = inventory.Position{}
 		n.Exports = append(n.Exports, s)
 	}
 	sortSymbols(n.Exports)
@@ -113,8 +114,8 @@ func namedOf(d *metrics.Details) Named {
 }
 
 // sortSymbols sorts ss by receiver, then name, then kind.
-func sortSymbols(ss []metrics.Symbol) {
-	slices.SortFunc(ss, func(a, b metrics.Symbol) int {
+func sortSymbols(ss []inventory.Symbol) {
+	slices.SortFunc(ss, func(a, b inventory.Symbol) int {
 		return cmp.Or(cmp.Compare(a.Receiver, b.Receiver), cmp.Compare(a.Name, b.Name), cmp.Compare(a.Kind, b.Kind))
 	})
 }
@@ -128,7 +129,7 @@ type snapshot struct {
 	rows map[string]Row
 	// cross holds the module's cross-package blocks, packages named by
 	// directory; crossKnown says whether they were recorded at all.
-	cross      []metrics.CrossBlock
+	cross      []inventory.CrossBlock
 	crossKnown bool
 	// importers holds each package's importers, keyed and listed by
 	// directory; importersKnown says whether the import graph was recorded
@@ -151,7 +152,7 @@ type snapshot struct {
 // for Go).
 type collected struct {
 	pkgs  map[string]metrics.RawMetrics
-	funcs map[string][]metrics.FunctionInfo
+	funcs map[string][]inventory.FunctionInfo
 	// named holds each package's recorded details; nil when none were
 	// recorded.
 	named map[string]Named
@@ -190,7 +191,7 @@ func PackageDir(modulePath, id string) string {
 }
 
 // CrossBlocks implements Baseline.
-func (s *snapshot) CrossBlocks() ([]metrics.CrossBlock, bool) {
+func (s *snapshot) CrossBlocks() ([]inventory.CrossBlock, bool) {
 	return s.cross, s.crossKnown
 }
 
@@ -256,15 +257,15 @@ func Collect(ctx context.Context, ext metrics.Extractor, mod *metrics.ModuleCont
 // stops at the first listing error or when ctx is done.
 func CollectFunctions(ctx context.Context, ext metrics.Extractor, mod *metrics.ModuleContext,
 	pkgs map[string]metrics.RawMetrics,
-) (map[string][]metrics.FunctionInfo, error) {
+) (map[string][]inventory.FunctionInfo, error) {
 	fl, ok := ext.(metrics.FunctionLister)
 	if !ok {
 		return nil, nil
 	}
-	return collectEach(ctx, pkgs, "listing functions of", func(name string) ([]metrics.FunctionInfo, error) {
+	return collectEach(ctx, pkgs, "listing functions of", func(name string) ([]inventory.FunctionInfo, error) {
 		fns, err := fl.Functions(ctx, mod, name)
 		if fns == nil {
-			fns = []metrics.FunctionInfo{}
+			fns = []inventory.FunctionInfo{}
 		}
 		return fns, err
 	})
@@ -338,7 +339,7 @@ func collectEach[T any](ctx context.Context, pkgs map[string]metrics.RawMetrics,
 // cross-package duplicate block of the module at mod, and false, with no
 // error, when ext does not implement it. Call it after Collect on the same
 // mod, so ext answers from the extraction it just did.
-func CollectCrossBlocks(ctx context.Context, ext metrics.Extractor, mod *metrics.ModuleContext) ([]metrics.CrossBlock, bool, error) {
+func CollectCrossBlocks(ctx context.Context, ext metrics.Extractor, mod *metrics.ModuleContext) ([]inventory.CrossBlock, bool, error) {
 	d, ok := ext.(metrics.ModuleDetailer)
 	if !ok {
 		return nil, false, nil

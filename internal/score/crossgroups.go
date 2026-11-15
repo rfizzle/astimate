@@ -5,7 +5,7 @@ import (
 	"math"
 	"slices"
 
-	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 )
 
 // CrossGroup is the cross-package blocks of one set of packages, as
@@ -19,7 +19,7 @@ type CrossGroup struct {
 	Base []int
 	// Head are the head's blocks on the set that are neither exempt nor
 	// moved, in head order.
-	Head []metrics.CrossBlock
+	Head []inventory.CrossBlock
 }
 
 // AddedAt returns how many of g's head blocks AddedCrossBlocks judges
@@ -47,7 +47,7 @@ func (g *CrossGroup) AddedAt(floor int) int {
 // AddedAt over them equals the length of AddedCrossBlocks at any floor.
 // A set on which no floor adds a block is left out; nil when there is
 // none. Packages keep head's and base's names; head is not modified.
-func CrossGroups(head, base []metrics.CrossBlock, from map[string][]string, roles map[string]string) []CrossGroup {
+func CrossGroups(head, base []inventory.CrossBlock, from map[string][]string, roles map[string]string) []CrossGroup {
 	group := renameGroups(from)
 	idx := map[string]int{}
 	var out []CrossGroup

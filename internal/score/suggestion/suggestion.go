@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 	"github.com/rfizzle/astimate/internal/score"
 )
 
@@ -52,7 +53,7 @@ type Names struct {
 	// CrossBlocks lists the cross-package duplicate blocks behind
 	// dup_blocks_cross_pkg, the one to cite first, with files relative to
 	// the module root.
-	CrossBlocks []metrics.CrossBlock
+	CrossBlocks []inventory.CrossBlock
 	// CrossAdded reports that the change added the first of CrossBlocks
 	// (score.RankCrossBlocks), so the suggestion says so.
 	CrossAdded bool
@@ -238,7 +239,7 @@ func citeBlock(subject string, locations []string, added bool) string {
 // occurrence and its first occurrence in another package, so the sentence
 // names both sides of the copy, and says the change added the block when
 // added.
-func crossSentence(n int, blocks []metrics.CrossBlock, added bool) string {
+func crossSentence(n int, blocks []inventory.CrossBlock, added bool) string {
 	s := count(n, "duplicate block is", "duplicate blocks are") + " shared with other packages; "
 	where := crossPair(blocks)
 	if where != "" && added {
@@ -262,7 +263,7 @@ func crossSentence(n int, blocks []metrics.CrossBlock, added bool) string {
 // first occurrence in another package as "a/a.go:12-40 and b/b.go:8-36",
 // followed by "(and N more)" for further occurrences, or "" when blocks
 // names no pair.
-func crossPair(blocks []metrics.CrossBlock) string {
+func crossPair(blocks []inventory.CrossBlock) string {
 	if len(blocks) == 0 || len(blocks[0].Occurrences) < 2 {
 		return ""
 	}
@@ -282,7 +283,7 @@ func crossPair(blocks []metrics.CrossBlock) string {
 }
 
 // occurrenceText renders o as "file:start-end".
-func occurrenceText(o metrics.Occurrence) string {
+func occurrenceText(o inventory.Occurrence) string {
 	return o.File + ":" + strconv.Itoa(o.StartLine) + "-" + strconv.Itoa(o.EndLine)
 }
 
@@ -344,7 +345,7 @@ func formatPct(v float64) string {
 // added, says they are at least floor tokens long when floor is positive,
 // and cites the first one's first occurrence and its first occurrence in
 // another package. Empty when added is.
-func AddedCross(added []metrics.CrossBlock, floor int) string {
+func AddedCross(added []inventory.CrossBlock, floor int) string {
 	if len(added) == 0 {
 		return ""
 	}

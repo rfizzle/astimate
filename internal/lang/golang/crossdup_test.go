@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 )
 
 func TestModuleRow(t *testing.T) {
@@ -46,8 +47,8 @@ func TestModuleRow(t *testing.T) {
 
 // fixtureCrossBlock is the fixture's one cross-package block, of kind code:
 // a.Checksum and its copy b.Digest.
-func fixtureCrossBlock() []metrics.CrossBlock {
-	return []metrics.CrossBlock{{Kind: "code", Tokens: 90, Occurrences: []metrics.Occurrence{
+func fixtureCrossBlock() []inventory.CrossBlock {
+	return []inventory.CrossBlock{{Kind: "code", Tokens: 90, Occurrences: []inventory.Occurrence{
 		{Package: "example.com/fixture/a", File: "a/a.go", StartLine: 7, EndLine: 23},
 		{Package: "example.com/fixture/b", File: "b/b.go", StartLine: 13, EndLine: 29},
 	}}}
@@ -94,7 +95,7 @@ func TestDetailsCrossBlocks(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Details(%s): %v", pkg, err)
 		}
-		var want []metrics.CrossBlock
+		var want []inventory.CrossBlock
 		if pkg == "example.com/fixture/a" || pkg == "example.com/fixture/b" {
 			want = fixtureCrossBlock()
 		}

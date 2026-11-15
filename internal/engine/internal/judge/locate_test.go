@@ -4,52 +4,52 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 	"github.com/rfizzle/astimate/internal/report"
 )
 
 func TestFindingPosition(t *testing.T) {
 	t.Parallel()
 
-	d := &metrics.Details{
+	d := &inventory.Details{
 		DupLocations:      []string{"a.go:3-9", "b.go:12-18", "bad"},
-		UntestedPositions: []metrics.Position{{File: "a.go", Line: 4}, {File: "b.go", Line: 20}},
-		GlobalPositions:   []metrics.Position{{File: "a.go", Line: 1}},
+		UntestedPositions: []inventory.Position{{File: "a.go", Line: 4}, {File: "b.go", Line: 20}},
+		GlobalPositions:   []inventory.Position{{File: "a.go", Line: 1}},
 		LargestFile:       "a.go",
 		SourceFiles:       []string{"a.go", "b.go", "doc.go"},
 	}
 	worst := &changedFunction{file: "b.go", line: 11, files: map[string]bool{"b.go": true}}
-	kinds := &metrics.Details{DupBlocks: []metrics.DupBlock{
+	kinds := &inventory.Details{DupBlocks: []inventory.DupBlock{
 		{Kind: "declarative", Locations: []string{"a.go:3-9", "b.go:12-18"}},
 		{Kind: "code", Locations: []string{"c.go:30-41", "b.go:40-51"}},
 	}}
 	tests := []struct {
 		name   string
 		metric string
-		d      *metrics.Details
+		d      *inventory.Details
 		worst  *changedFunction
 		lead   leads
-		want   metrics.Position
+		want   inventory.Position
 	}{
-		{name: "duplicate in a changed file", metric: "dup_blocks", d: d, worst: worst, want: metrics.Position{File: "b.go", Line: 12}},
-		{name: "first duplicate without changes", metric: "duplication_pct", d: d, want: metrics.Position{File: "a.go", Line: 3}},
-		{name: "duplicated lines in a changed file", metric: "duplicated_lines", d: d, worst: worst, want: metrics.Position{File: "b.go", Line: 12}},
-		{name: "untested export in a changed file", metric: "untested_exports", d: d, worst: worst, want: metrics.Position{File: "b.go", Line: 20}},
+		{name: "duplicate in a changed file", metric: "dup_blocks", d: d, worst: worst, want: inventory.Position{File: "b.go", Line: 12}},
+		{name: "first duplicate without changes", metric: "duplication_pct", d: d, want: inventory.Position{File: "a.go", Line: 3}},
+		{name: "duplicated lines in a changed file", metric: "duplicated_lines", d: d, worst: worst, want: inventory.Position{File: "b.go", Line: 12}},
+		{name: "untested export in a changed file", metric: "untested_exports", d: d, worst: worst, want: inventory.Position{File: "b.go", Line: 20}},
 		{name: "added duplicate over a changed file", metric: "dup_blocks", d: d, worst: worst, lead: leads{dup: true},
-			want: metrics.Position{File: "a.go", Line: 3}},
+			want: inventory.Position{File: "a.go", Line: 3}},
 		{name: "added untested export over a changed file", metric: "untested_exports", d: d, worst: worst,
-			lead: leads{untested: true}, want: metrics.Position{File: "a.go", Line: 4}},
-		{name: "global in no changed file", metric: "globals", d: d, worst: worst, want: metrics.Position{File: "a.go", Line: 1}},
-		{name: "largest file", metric: "tokens_est", d: d, want: metrics.Position{File: "a.go", Line: 1}},
-		{name: "changed function", metric: "changed_func_cognitive_max", d: d, worst: worst, want: metrics.Position{File: "b.go", Line: 11}},
-		{name: "other metric on doc.go", metric: "fan_in", d: d, want: metrics.Position{File: "doc.go", Line: 1}},
-		{name: "first file without doc.go", metric: "fan_in", d: &metrics.Details{SourceFiles: []string{"x.go", "y.go"}},
-			want: metrics.Position{File: "x.go", Line: 1}},
-		{name: "nothing recorded", metric: "globals", d: &metrics.Details{}},
-		{name: "code duplicate skips a declarative block", metric: "dup_blocks_code", d: kinds, want: metrics.Position{File: "c.go", Line: 30}},
-		{name: "code duplicate in a changed file", metric: "dup_blocks_code", d: kinds, worst: worst, want: metrics.Position{File: "b.go", Line: 40}},
+			lead: leads{untested: true}, want: inventory.Position{File: "a.go", Line: 4}},
+		{name: "global in no changed file", metric: "globals", d: d, worst: worst, want: inventory.Position{File: "a.go", Line: 1}},
+		{name: "largest file", metric: "tokens_est", d: d, want: inventory.Position{File: "a.go", Line: 1}},
+		{name: "changed function", metric: "changed_func_cognitive_max", d: d, worst: worst, want: inventory.Position{File: "b.go", Line: 11}},
+		{name: "other metric on doc.go", metric: "fan_in", d: d, want: inventory.Position{File: "doc.go", Line: 1}},
+		{name: "first file without doc.go", metric: "fan_in", d: &inventory.Details{SourceFiles: []string{"x.go", "y.go"}},
+			want: inventory.Position{File: "x.go", Line: 1}},
+		{name: "nothing recorded", metric: "globals", d: &inventory.Details{}},
+		{name: "code duplicate skips a declarative block", metric: "dup_blocks_code", d: kinds, want: inventory.Position{File: "c.go", Line: 30}},
+		{name: "code duplicate in a changed file", metric: "dup_blocks_code", d: kinds, worst: worst, want: inventory.Position{File: "b.go", Line: 40}},
 		{name: "added code duplicate over a changed file", metric: "dup_blocks_code", d: kinds, worst: worst, lead: leads{code: true},
-			want: metrics.Position{File: "c.go", Line: 30}},
+			want: inventory.Position{File: "c.go", Line: 30}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -70,7 +70,7 @@ func TestLocateFindingsJoinsPackagePath(t *testing.T) {
 		Violations:  []report.Finding{{Metric: "globals"}},
 		Warnings:    []report.Finding{{Metric: "tokens_est"}},
 	}
-	d := &metrics.Details{GlobalPositions: []metrics.Position{{File: "state.go", Line: 7}}}
+	d := &inventory.Details{GlobalPositions: []inventory.Position{{File: "state.go", Line: 7}}}
 	locateFindings(&r, d, nil, leads{})
 	if l := r.Violations[0].Location; l == nil || *l != (report.Location{File: "internal/billing/state.go", Line: 7}) {
 		t.Errorf("globals located at %+v, want internal/billing/state.go:7", l)
@@ -90,7 +90,7 @@ func TestLocateCross(t *testing.T) {
 	if l := r.Violations[0].Location; l != nil {
 		t.Errorf("located at %+v with no blocks, want no location", l)
 	}
-	blocks := []metrics.CrossBlock{{Occurrences: []metrics.Occurrence{
+	blocks := []inventory.CrossBlock{{Occurrences: []inventory.Occurrence{
 		{Package: "m/a", File: "a/a.go", StartLine: 5, EndLine: 9},
 		{Package: "m/b", File: "b/b.go", StartLine: 7, EndLine: 11},
 	}}}
@@ -106,16 +106,16 @@ func TestLocateCross(t *testing.T) {
 func TestWorstChanged(t *testing.T) {
 	t.Parallel()
 
-	before := []metrics.FunctionInfo{{Name: "Keep", Fingerprint: 1, Cognitive: 30, File: "a.go", Line: 3}}
+	before := []inventory.FunctionInfo{{Name: "Keep", Fingerprint: 1, Cognitive: 30, File: "a.go", Line: 3}}
 	tests := []struct {
 		name string
-		head []metrics.FunctionInfo
+		head []inventory.FunctionInfo
 		want *changedFunction
 	}{
 		{name: "nothing changed", head: before, want: &changedFunction{}},
 		{
 			name: "most complex changed function",
-			head: []metrics.FunctionInfo{
+			head: []inventory.FunctionInfo{
 				before[0],
 				{Receiver: "*T", Name: "Grow", Fingerprint: 2, Cognitive: 12, File: "b.go", Line: 8},
 				{Name: "Small", Fingerprint: 3, Cognitive: 2, File: "c.go", Line: 1},
@@ -125,14 +125,14 @@ func TestWorstChanged(t *testing.T) {
 		},
 		{
 			name: "no file known",
-			head: []metrics.FunctionInfo{{Name: "New", Fingerprint: 4, Cognitive: 5}},
+			head: []inventory.FunctionInfo{{Name: "New", Fingerprint: 4, Cognitive: 5}},
 			want: &changedFunction{cognitive: 5, name: "New"},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if got := worstChanged(metrics.ChangedFunctionsWithBase(before, tt.head)); !reflect.DeepEqual(got, tt.want) {
+			if got := worstChanged(inventory.ChangedFunctionsWithBase(before, tt.head)); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("worstChanged = %+v, want %+v", got, tt.want)
 			}
 		})

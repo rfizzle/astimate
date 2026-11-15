@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 )
 
 // defaultWarnAt is the capacity warn band used when a rule arrives with
@@ -48,7 +49,7 @@ type Violation struct {
 	// (WithChangedFunctions); Base and Head are then its values. Nil on
 	// every other finding. Renderers do not show it; a caller names and
 	// locates the finding by it.
-	Function *metrics.FunctionInfo
+	Function *inventory.FunctionInfo
 }
 
 // Warning is a non-failing finding with the same shape as a Violation: a

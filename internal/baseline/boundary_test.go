@@ -9,8 +9,8 @@ import (
 
 // TestImportBoundary checks that the packages under baseline's internal
 // directory import only what AGENTS.md allows them from this module: the
-// file layout (fileformat) reads and writes bytes and imports metrics
-// alone, never git, an extractor or baseline itself.
+// file layout (fileformat) reads and writes bytes and imports metrics and
+// its leaf inventory alone, never git, an extractor or baseline itself.
 func TestImportBoundary(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs go list")
@@ -18,7 +18,7 @@ func TestImportBoundary(t *testing.T) {
 	t.Parallel()
 
 	for pkg, allowed := range map[string][]string{
-		"./internal/fileformat": {"internal/metrics"},
+		"./internal/fileformat": {"internal/metrics", "internal/metrics/inventory"},
 	} {
 		out, err := exec.CommandContext(t.Context(), "go", "list", "-f", `{{join .Imports "\n"}}`, pkg).Output()
 		if err != nil {

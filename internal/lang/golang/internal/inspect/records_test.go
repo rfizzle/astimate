@@ -7,7 +7,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 )
 
 // recordsFile parses a two-declaration file at dir/a.go and returns its
@@ -31,12 +31,12 @@ func TestPositions(t *testing.T) {
 		name string
 		fset *token.FileSet
 		ps   []token.Pos
-		want []metrics.Position
+		want []inventory.Position
 	}{
 		{name: "none", fset: fset, want: nil},
-		{name: "relative file and line", fset: fset, ps: ps, want: []metrics.Position{{File: "a.go", Line: 3}, {File: "a.go", Line: 5}}},
-		{name: "invalid position", fset: fset, ps: []token.Pos{token.NoPos, ps[1]}, want: []metrics.Position{{}, {File: "a.go", Line: 5}}},
-		{name: "nil file set", ps: ps, want: []metrics.Position{{}, {}}},
+		{name: "relative file and line", fset: fset, ps: ps, want: []inventory.Position{{File: "a.go", Line: 3}, {File: "a.go", Line: 5}}},
+		{name: "invalid position", fset: fset, ps: []token.Pos{token.NoPos, ps[1]}, want: []inventory.Position{{}, {File: "a.go", Line: 5}}},
+		{name: "nil file set", ps: ps, want: []inventory.Position{{}, {}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -61,9 +61,9 @@ func TestSymbols(t *testing.T) {
 		{Kind: "func", Receiver: "T", Name: "M", Pos: ps[1]},
 		{Kind: "var", Name: "v"},
 	}
-	want := []metrics.Symbol{
-		{Kind: "type", Name: "T", Position: metrics.Position{File: "a.go", Line: 3}},
-		{Kind: "func", Receiver: "T", Name: "M", Position: metrics.Position{File: "a.go", Line: 5}},
+	want := []inventory.Symbol{
+		{Kind: "type", Name: "T", Position: inventory.Position{File: "a.go", Line: 3}},
+		{Kind: "func", Receiver: "T", Name: "M", Position: inventory.Position{File: "a.go", Line: 5}},
 		{Kind: "var", Name: "v"},
 	}
 	if got := Symbols(fset, dir, in); !slices.Equal(got, want) {

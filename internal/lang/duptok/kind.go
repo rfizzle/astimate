@@ -57,7 +57,7 @@ const (
 	KindSelfOverlap
 )
 
-// String returns the kind as metrics.DupBlock and metrics.CrossBlock name
+// String returns the kind as inventory.DupBlock and inventory.CrossBlock name
 // it: "code", "declarative", "idiom" or "self-overlap".
 func (k Kind) String() string {
 	switch k {

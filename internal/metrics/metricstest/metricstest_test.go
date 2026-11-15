@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 	"github.com/rfizzle/astimate/internal/metrics/metricstest"
 )
 
@@ -36,6 +37,7 @@ const (
 	fakeRoot         = "/fake/module"
 	thisPackage      = "github.com/rfizzle/astimate/internal/metrics"
 	metricstestPkgID = thisPackage + "/metricstest"
+	inventoryPkgID   = thisPackage + "/inventory"
 )
 
 // syntheticPackages returns a three-package module: alpha imports beta and
@@ -259,8 +261,8 @@ func TestFakeWithModuleServesBothRoots(t *testing.T) {
 
 // syntheticDetails names as many untested exports per package as
 // syntheticPackages counts.
-func syntheticDetails() map[string]metrics.Details {
-	return map[string]metrics.Details{
+func syntheticDetails() map[string]inventory.Details {
+	return map[string]inventory.Details{
 		"alpha": {UntestedExports: []string{"Parse"}},
 		"beta":  {UntestedExports: []string{"Close", "Open"}, DupLocations: []string{"beta.go:3-9", "beta.go:12-18"}},
 	}
@@ -344,8 +346,8 @@ func TestSuitePassesOnFakeWithModuleRow(t *testing.T) {
 
 // sharedBlock is the one cross-package block alpha and beta share in
 // syntheticPackages.
-func sharedBlock() metrics.CrossBlock {
-	return metrics.CrossBlock{Occurrences: []metrics.Occurrence{
+func sharedBlock() inventory.CrossBlock {
+	return inventory.CrossBlock{Occurrences: []inventory.Occurrence{
 		{Package: "alpha", File: "alpha/a.go", StartLine: 3, EndLine: 9},
 		{Package: "beta", File: "beta/b.go", StartLine: 12, EndLine: 18},
 	}}
@@ -354,19 +356,19 @@ func sharedBlock() metrics.CrossBlock {
 // crossDetails extends syntheticDetails with positions and the shared
 // cross-package block, consistent with syntheticPackages and
 // syntheticModuleRow.
-func crossDetails() map[string]metrics.Details {
+func crossDetails() map[string]inventory.Details {
 	details := syntheticDetails()
 	alpha := details["alpha"]
-	alpha.UntestedPositions = []metrics.Position{{File: "a.go", Line: 4}}
-	alpha.CrossBlocks = []metrics.CrossBlock{sharedBlock()}
+	alpha.UntestedPositions = []inventory.Position{{File: "a.go", Line: 4}}
+	alpha.CrossBlocks = []inventory.CrossBlock{sharedBlock()}
 	details["alpha"] = alpha
 	beta := details["beta"]
-	beta.UntestedPositions = []metrics.Position{{File: "b.go", Line: 2}, {File: "b.go", Line: 7}}
-	beta.GlobalPositions = []metrics.Position{{File: "b.go", Line: 1}}
+	beta.UntestedPositions = []inventory.Position{{File: "b.go", Line: 2}, {File: "b.go", Line: 7}}
+	beta.GlobalPositions = []inventory.Position{{File: "b.go", Line: 1}}
 	beta.GlobalNames = []string{"state"}
-	beta.CrossBlocks = []metrics.CrossBlock{sharedBlock()}
+	beta.CrossBlocks = []inventory.CrossBlock{sharedBlock()}
 	details["beta"] = beta
-	details["gamma"] = metrics.Details{GlobalPositions: []metrics.Position{}}
+	details["gamma"] = inventory.Details{GlobalPositions: []inventory.Position{}}
 	return details
 }
 
@@ -375,7 +377,7 @@ func TestSuitePassesOnFakeWithCrossDetails(t *testing.T) {
 	ext := metricstest.NewFake("fake", fakeRoot, syntheticPackages(),
 		metricstest.WithDetails(crossDetails()),
 		metricstest.WithModuleRow(syntheticModuleRow()),
-		metricstest.WithModuleDetails(metrics.Details{CrossBlocks: []metrics.CrossBlock{sharedBlock()}}))
+		metricstest.WithModuleDetails(inventory.Details{CrossBlocks: []inventory.CrossBlock{sharedBlock()}}))
 	if _, ok := ext.(metrics.ModuleDetailer); !ok {
 		t.Fatal("NewFake with WithModuleRow and WithModuleDetails does not implement metrics.ModuleDetailer")
 	}
@@ -383,7 +385,7 @@ func TestSuitePassesOnFakeWithCrossDetails(t *testing.T) {
 }
 
 func TestFakeModuleDetailerNeedsModuleRow(t *testing.T) {
-	blocks := metrics.Details{CrossBlocks: []metrics.CrossBlock{sharedBlock()}}
+	blocks := inventory.Details{CrossBlocks: []inventory.CrossBlock{sharedBlock()}}
 	for name, tc := range map[string]struct {
 		opts []metricstest.FakeOption
 		want bool
@@ -471,7 +473,7 @@ func TestSuiteSubprocess(t *testing.T) {
 		pkgs["beta"] = beta
 	case caseDetails:
 		details := syntheticDetails()
-		details["beta"] = metrics.Details{UntestedExports: []string{"Open"}}
+		details["beta"] = inventory.Details{UntestedExports: []string{"Open"}}
 		dir := writeGoldens(t, goldens)
 		ext := metricstest.NewFake("fake", fakeRoot, pkgs, metricstest.WithDetails(details))
 		metricstest.TestExtractor(t, ext, syntheticFixture(dir))
@@ -480,7 +482,7 @@ func TestSuiteSubprocess(t *testing.T) {
 		// beta counts one cross-package block but names two.
 		details := crossDetails()
 		beta := details["beta"]
-		other := metrics.CrossBlock{Occurrences: []metrics.Occurrence{
+		other := inventory.CrossBlock{Occurrences: []inventory.Occurrence{
 			{Package: "beta", File: "beta/b.go", StartLine: 20, EndLine: 30},
 			{Package: "gamma", File: "gamma/g.go", StartLine: 1, EndLine: 11},
 		}}
@@ -492,14 +494,14 @@ func TestSuiteSubprocess(t *testing.T) {
 		// absolute file and an inverted line range; beta's lies in one
 		// package that is not beta, in a backslash path at line 0.
 		details := crossDetails()
-		details["alpha"] = metrics.Details{UntestedExports: []string{"Parse"}, CrossBlocks: []metrics.CrossBlock{{
-			Occurrences: []metrics.Occurrence{
+		details["alpha"] = inventory.Details{UntestedExports: []string{"Parse"}, CrossBlocks: []inventory.CrossBlock{{
+			Occurrences: []inventory.Occurrence{
 				{Package: "alpha", File: "alpha/a.go", StartLine: 3, EndLine: 9},
 				{Package: "delta", File: "/abs/d.go", StartLine: 9, EndLine: 3},
 			},
 		}}}
 		beta := details["beta"]
-		beta.CrossBlocks = []metrics.CrossBlock{{Occurrences: []metrics.Occurrence{
+		beta.CrossBlocks = []inventory.CrossBlock{{Occurrences: []inventory.Occurrence{
 			{Package: "alpha", File: "alpha/a.go", StartLine: 3, EndLine: 9},
 			{Package: "alpha", File: `alpha\c.go`, StartLine: 0, EndLine: 5},
 		}}}
@@ -510,10 +512,10 @@ func TestSuiteSubprocess(t *testing.T) {
 		// two global positions for one global.
 		details := crossDetails()
 		alpha := details["alpha"]
-		alpha.UntestedPositions = append(alpha.UntestedPositions, metrics.Position{File: "a.go", Line: 8})
+		alpha.UntestedPositions = append(alpha.UntestedPositions, inventory.Position{File: "a.go", Line: 8})
 		details["alpha"] = alpha
 		beta := details["beta"]
-		beta.GlobalPositions = append(beta.GlobalPositions, metrics.Position{File: "b.go", Line: 2})
+		beta.GlobalPositions = append(beta.GlobalPositions, inventory.Position{File: "b.go", Line: 2})
 		details["beta"] = beta
 		opts = append(opts, metricstest.WithDetails(details))
 	case caseGlobalNames:
@@ -555,14 +557,14 @@ func TestSuiteSubprocess(t *testing.T) {
 		beta := details["beta"]
 		beta.CrossBlocks = nil
 		details["beta"] = beta
-		extra := metrics.CrossBlock{Occurrences: []metrics.Occurrence{
+		extra := inventory.CrossBlock{Occurrences: []inventory.Occurrence{
 			{Package: "alpha", File: "alpha/a.go", StartLine: 30, EndLine: 40},
 			{Package: "gamma", File: "gamma/g.go", StartLine: 1, EndLine: 11},
 		}}
 		opts = append(opts,
 			metricstest.WithDetails(details),
 			metricstest.WithModuleRow(syntheticModuleRow()),
-			metricstest.WithModuleDetails(metrics.Details{CrossBlocks: []metrics.CrossBlock{sharedBlock(), extra}}))
+			metricstest.WithModuleDetails(inventory.Details{CrossBlocks: []inventory.CrossBlock{sharedBlock(), extra}}))
 		goldens = syntheticGoldensWithModule()
 	case caseModuleShape:
 		// The row reports a v0 field, a v1 field that is not module-wide,
@@ -858,7 +860,8 @@ func TestFakeRejectsOtherRoots(t *testing.T) {
 }
 
 // TestImportBoundary keeps metricstest importable by every extractor: it may
-// depend only on the standard library and internal/metrics.
+// depend only on the standard library, internal/metrics and its leaf
+// internal/metrics/inventory.
 func TestImportBoundary(t *testing.T) {
 	goTool, err := exec.LookPath("go")
 	if err != nil {
@@ -871,8 +874,8 @@ func TestImportBoundary(t *testing.T) {
 		t.Fatalf("go list -deps %s: %v", metricstestPkgID, err)
 	}
 	for _, dep := range strings.Fields(string(out)) {
-		if dep != thisPackage && dep != metricstestPkgID {
-			t.Errorf("%s imports %s; only the standard library and %s are allowed", metricstestPkgID, dep, thisPackage)
+		if dep != thisPackage && dep != inventoryPkgID && dep != metricstestPkgID {
+			t.Errorf("%s imports %s; only the standard library, %s and %s are allowed", metricstestPkgID, dep, thisPackage, inventoryPkgID)
 		}
 	}
 }

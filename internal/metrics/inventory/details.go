@@ -1,13 +1,15 @@
-package metrics
+// Package inventory holds the per-package records an extractor hands over
+// beside its metrics: the identifiers and positions behind some counts
+// (Details), the functions with their complexity and fingerprints
+// (FunctionInfo) and the function-level diff over them. It imports the
+// standard library only, so the metrics contract can return its types.
+package inventory
 
-import (
-	"context"
-	"slices"
-)
+import "slices"
 
-// Details carries the identifiers behind some RawMetrics counts, for
-// suggestions that name what to fix and for the report's details block.
-// It is a side channel: it never enters RawMetrics.
+// Details carries the identifiers behind some metrics.RawMetrics counts,
+// for suggestions that name what to fix and for the report's details
+// block. It is a side channel: it never enters metrics.RawMetrics.
 type Details struct {
 	// UntestedExports names the exported functions and methods counted by
 	// untested_exports, sorted. Its length equals untested_exports.
@@ -16,8 +18,8 @@ type Details struct {
 	// implementation left out of untested_exports on request, sorted.
 	UntestedExcluded []string
 	// UntestedCovered names the exports of UntestedExports whose body a
-	// coverage run (CoverageMeasurer) executed, sorted; nil without one
-	// or when it executed none of them.
+	// coverage run (metrics.CoverageMeasurer) executed, sorted; nil
+	// without one or when it executed none of them.
 	UntestedCovered []string
 	// UntestedRules lists what the refinement rules of untested_exports
 	// (SPEC.md 6.4) took out of the count or counted as tested.
@@ -33,12 +35,13 @@ type Details struct {
 	DupBlocks []DupBlock
 	// CrossBlocks lists the cross-package duplicate blocks behind
 	// dup_blocks_cross_pkg, each with all its occurrences, in whichever
-	// package they lie. For a package (Detailer) it holds the blocks that
-	// touch the package, so its length equals the package's
-	// dup_blocks_cross_pkg; for the module row (ModuleDetailer) it holds
-	// every cross-package block of the module, so its length equals the
-	// row's dup_blocks_cross_pkg. Blocks are in order of first occurrence.
-	// Nil when there are none or the implementation does not compute them.
+	// package they lie. For a package (metrics.Detailer) it holds the
+	// blocks that touch the package, so its length equals the package's
+	// dup_blocks_cross_pkg; for the module row (metrics.ModuleDetailer) it
+	// holds every cross-package block of the module, so its length equals
+	// the row's dup_blocks_cross_pkg. Blocks are in order of first
+	// occurrence. Nil when there are none or the implementation does not
+	// compute them.
 	CrossBlocks []CrossBlock
 	// UntestedPositions are the declarations of UntestedExports, index for
 	// index. Nil when the implementation does not record them.
@@ -72,10 +75,11 @@ type Details struct {
 	// package directory in slash form, sorted. Nil when unknown.
 	SourceFiles []string
 	// Roles maps the identifier of each package an occurrence of
-	// CrossBlocks lies in to its role (RawMetrics.Role), for the module
-	// row (ModuleDetailer), whose rule leaves out the declarative blocks
-	// shared only by composition roots (SPEC.md 8.1). Nil for a package's
-	// details and when the implementation records no roles.
+	// CrossBlocks lies in to its role (metrics.RawMetrics.Role), for the
+	// module row (metrics.ModuleDetailer), whose rule leaves out the
+	// declarative blocks shared only by composition roots (SPEC.md 8.1).
+	// Nil for a package's details and when the implementation records no
+	// roles.
 	Roles map[string]string
 }
 
@@ -176,7 +180,7 @@ func MapPackages(blocks []CrossBlock, rename func(string) string) []CrossBlock {
 // Occurrence is one occurrence of a duplicate block.
 type Occurrence struct {
 	// Package is the native identifier of the package holding the
-	// occurrence, as Extractor.Packages lists it.
+	// occurrence, as metrics.Extractor.Packages lists it.
 	Package string
 	// File is the file holding the occurrence, relative to the module root
 	// in slash form.
@@ -184,26 +188,4 @@ type Occurrence struct {
 	// StartLine and EndLine are the first and last 1-based lines holding
 	// the occurrence's tokens.
 	StartLine, EndLine int
-}
-
-// Detailer is an optional interface an Extractor implements when it can name
-// what some of its counts refer to. Callers type-assert an Extractor to it
-// and fall back to counts alone when the assertion fails.
-type Detailer interface {
-	// Details returns the details of pkg. They are valid only after Extract
-	// for pkg on the same mod; an implementation may call Extract itself
-	// when nothing is recorded for pkg yet. It fails for a package Extract
-	// would reject.
-	Details(ctx context.Context, mod *ModuleContext, pkg string) (Details, error)
-}
-
-// ModuleDetailer is an optional interface an Extractor that implements
-// ModuleMetrics implements when it can name what the module row's counts
-// refer to. Callers type-assert an Extractor to it and fall back to counts
-// alone when the assertion fails.
-type ModuleDetailer interface {
-	// ModuleDetails returns the details of the module row of the module
-	// described by mod: today only CrossBlocks, every cross-package block
-	// behind the row's dup_blocks_cross_pkg. It fails when ModuleRow would.
-	ModuleDetails(ctx context.Context, mod *ModuleContext) (Details, error)
 }

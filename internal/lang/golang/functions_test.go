@@ -10,6 +10,7 @@ import (
 
 	"github.com/rfizzle/astimate/internal/lang/golang/internal/inspect"
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -79,11 +80,11 @@ func (T) Stop() {}
 
 func helperRenamed(a, b bool) bool { return a && b }
 `
-	infos := func(src string) []metrics.FunctionInfo {
+	infos := func(src string) []inventory.FunctionInfo {
 		return inspect.FunctionInfos(nil, "", inspect.Complexity(nil, parseForComplexity(t, src)).PerFunc)
 	}
 	var got []string
-	for _, f := range metrics.ChangedFunctions(infos(before), infos(after)) {
+	for _, f := range inventory.ChangedFunctions(infos(before), infos(after)) {
 		got = append(got, f.QualifiedName())
 	}
 	// Stop moved from *T to T: the receiver's base type is the key, so it

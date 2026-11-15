@@ -3,7 +3,7 @@ package score
 import (
 	"slices"
 
-	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 )
 
 // RankDupBlocks returns blocks, a package's duplicate blocks at head, with
@@ -13,7 +13,7 @@ import (
 // lengthened or shortened at the other, is not added. Each part keeps the
 // order of blocks, which is by length in tokens, longest first. added is
 // how many blocks lead. blocks is not modified.
-func RankDupBlocks(blocks []metrics.DupBlock, base []uint64) (ranked []metrics.DupBlock, added int) {
+func RankDupBlocks(blocks []inventory.DupBlock, base []uint64) (ranked []inventory.DupBlock, added int) {
 	isNew := make([]bool, len(blocks))
 	for i := range blocks {
 		a := blocks[i].Anchors
@@ -27,7 +27,7 @@ func RankDupBlocks(blocks []metrics.DupBlock, base []uint64) (ranked []metrics.D
 // untested exports at the baseline. pos, the declarations of names index
 // for index, or nil when unknown, is reordered alike. Each part keeps the
 // order of names. added is how many names lead. Neither input is modified.
-func RankUntested(names []string, pos []metrics.Position, base []string) (ranked []string, rankedPos []metrics.Position, added int) {
+func RankUntested(names []string, pos []inventory.Position, base []string) (ranked []string, rankedPos []inventory.Position, added int) {
 	isNew := make([]bool, len(names))
 	for i, n := range names {
 		isNew[i] = !slices.Contains(base, n)
@@ -45,7 +45,7 @@ func RankUntested(names []string, pos []metrics.Position, base []string) (ranked
 // with the blocks the change added first (NewCrossBlocks against base, the
 // blocks at the baseline), each part in the order of head. added is how
 // many blocks lead. head is not modified.
-func RankCrossBlocks(head, base []metrics.CrossBlock) (ranked []metrics.CrossBlock, added int) {
+func RankCrossBlocks(head, base []inventory.CrossBlock) (ranked []inventory.CrossBlock, added int) {
 	return newFirst(head, NewCrossBlocks(head, base))
 }
 
@@ -55,7 +55,7 @@ func RankCrossBlocks(head, base []metrics.CrossBlock) (ranked []metrics.CrossBlo
 // block is new when more head blocks than blocks of base, the baseline's,
 // touch its set, the excess being the later ones in head's order. The
 // packages of both must be named alike.
-func NewCrossBlocks(head, base []metrics.CrossBlock) []bool {
+func NewCrossBlocks(head, base []inventory.CrossBlock) []bool {
 	old := make(map[string]int, len(base))
 	for i := range base {
 		old[packageSet(&base[i])]++
@@ -73,7 +73,7 @@ func NewCrossBlocks(head, base []metrics.CrossBlock) []bool {
 }
 
 // packageSet identifies b by the sorted set of packages it touches.
-func packageSet(b *metrics.CrossBlock) string {
+func packageSet(b *inventory.CrossBlock) string {
 	return groupSet(b, nil)
 }
 

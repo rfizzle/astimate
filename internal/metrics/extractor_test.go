@@ -106,13 +106,16 @@ func TestNewRegistryRejectsDuplicateLanguage(t *testing.T) {
 }
 
 // TestImportBoundary enforces that this package depends on the standard
-// library only, and in particular on no language-specific extractor.
+// library and its leaf inventory only, and in particular on no
+// language-specific extractor. Listing every dependency also keeps
+// inventory itself on the standard library.
 func TestImportBoundary(t *testing.T) {
 	goBin, err := exec.LookPath("go")
 	if err != nil {
 		t.Fatalf("locating go tool: %v", err)
 	}
 	const self = "github.com/rfizzle/astimate/internal/metrics"
+	const inventory = self + "/inventory"
 	cmd := exec.CommandContext(t.Context(), goBin, "list", "-deps",
 		"-f", "{{if not .Standard}}{{.ImportPath}}{{end}}", ".")
 	out, err := cmd.Output()
@@ -120,7 +123,7 @@ func TestImportBoundary(t *testing.T) {
 		t.Fatalf("go list -deps: %v", err)
 	}
 	for _, path := range strings.Fields(string(out)) {
-		if path == self {
+		if path == self || path == inventory {
 			continue
 		}
 		if strings.HasPrefix(path, "github.com/rfizzle/astimate/internal/lang") {

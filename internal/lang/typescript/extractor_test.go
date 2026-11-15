@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 )
 
 // writeTree writes files, keyed by slash path relative to root, under root.
@@ -244,7 +245,7 @@ func TestDetailsGlobals(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantPos := []metrics.Position{
+	wantPos := []inventory.Position{
 		{File: "hidden.ts", Line: 5}, {File: "hidden.ts", Line: 6},
 		{File: "hidden.ts", Line: 6}, {File: "hidden.ts", Line: 7},
 	}
@@ -259,7 +260,7 @@ func TestDetailsGlobals(t *testing.T) {
 func TestDetails(t *testing.T) {
 	e := New()
 	mod := &metrics.ModuleContext{Root: fixtureRoot(t)}
-	type pos = metrics.Position
+	type pos = inventory.Position
 	cases := []struct {
 		pkg                string
 		untested, excluded []string

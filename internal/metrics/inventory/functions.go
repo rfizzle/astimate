@@ -1,6 +1,4 @@
-package metrics
-
-import "context"
+package inventory
 
 // FunctionInfo describes one function or method of a package for the
 // function-level baseline diff behind changed_func_cognitive_max (SPEC.md
@@ -40,18 +38,6 @@ func (f *FunctionInfo) QualifiedName() string {
 		return f.Name
 	}
 	return f.Receiver + "." + f.Name
-}
-
-// FunctionLister is an optional interface an Extractor implements when it
-// can list the functions of a package with fingerprints. Without it,
-// changed_func_cognitive_max stays null and its rule is skipped. Callers
-// type-assert an Extractor to it.
-type FunctionLister interface {
-	// Functions returns the functions and methods of pkg's non-test files,
-	// in declaration order. Like Detailer.Details, the result reflects the
-	// most recent Extract of pkg on the same mod, and an implementation may
-	// call Extract itself when nothing is recorded yet.
-	Functions(ctx context.Context, mod *ModuleContext, pkg string) ([]FunctionInfo, error)
 }
 
 // ChangedFunctions returns the functions of head, in head order, that were

@@ -5,6 +5,7 @@ import (
 
 	"github.com/rfizzle/astimate/internal/baseline"
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 	"github.com/rfizzle/astimate/internal/score/suggestion"
 )
 
@@ -13,7 +14,7 @@ import (
 // untested_exports_covered and the baseline, which never runs tests, does
 // not. Then it is a copy of bm whose untested_exports_covered is the
 // baseline's untested exports less those head's coverage run executed
-// (covered, metrics.Details.UntestedCovered), on the reading that an
+// (covered, inventory.Details.UntestedCovered), on the reading that an
 // export the change kept runs at the baseline as it does at head, so the
 // rule judges what the change added rather than what the opt-in settled.
 // Without the baseline's names (baseline.Row.HasNamed false, as in a
@@ -41,7 +42,7 @@ func coveredBase(m metrics.RawMetrics, bm *metrics.RawMetrics, row *baseline.Row
 // no test ran. l.untested then holds only when the first export left is
 // one the change added: the package is new at head (inBase false) or base,
 // the baseline's untested exports, lacks it. Without a run d is unchanged.
-func coveredLast(d *metrics.Details, names *suggestion.Names, l *leads, base []string, inBase bool) {
+func coveredLast(d *inventory.Details, names *suggestion.Names, l *leads, base []string, inBase bool) {
 	if len(d.UntestedCovered) == 0 {
 		return
 	}

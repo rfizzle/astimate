@@ -9,6 +9,7 @@ import (
 	"github.com/rfizzle/astimate/internal/lang/golang/internal/inspect"
 	"github.com/rfizzle/astimate/internal/lang/golang/internal/load"
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 )
 
 // ExtractStdlib computes the v0 metrics of the standard-library package at
@@ -71,12 +72,12 @@ func ExtractStdlibAll(ctx context.Context, opts ...Option) (map[string]metrics.R
 // changed_func_cognitive_max; the metrics and failures are exactly
 // ExtractStdlibAll's.
 func ExtractStdlibAllFunctions(ctx context.Context, opts ...Option,
-) (map[string]metrics.RawMetrics, map[string][]metrics.FunctionInfo, map[string]error, error) {
+) (map[string]metrics.RawMetrics, map[string][]inventory.FunctionInfo, map[string]error, error) {
 	got, failed, l, err := extractStdlibAll(ctx, opts...)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	fns := make(map[string][]metrics.FunctionInfo, len(got))
+	fns := make(map[string][]inventory.FunctionInfo, len(got))
 	for path := range got {
 		// assemble recorded the details of every package it measured.
 		d, _ := l.detailsOf(path)

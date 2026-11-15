@@ -12,6 +12,7 @@ import (
 	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/gate"
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 	"github.com/rfizzle/astimate/internal/metrics/metricstest"
 	"github.com/rfizzle/astimate/internal/score/suggestion"
 )
@@ -19,15 +20,15 @@ import (
 // legacyThenNew returns the details of a package whose legacy duplicate
 // block, the longer one, comes before a block the change added, and whose
 // legacy untested export sorts before the added one.
-func legacyThenNew() metrics.Details {
-	return metrics.Details{
+func legacyThenNew() inventory.Details {
+	return inventory.Details{
 		DupLocations: []string{"a.go:1-30", "a.go:40-69", "z.go:5-12", "z.go:20-27"},
-		DupBlocks: []metrics.DupBlock{
+		DupBlocks: []inventory.DupBlock{
 			{Anchors: [2]uint64{1, 2}, Locations: []string{"a.go:1-30", "a.go:40-69"}},
 			{Anchors: [2]uint64{3, 4}, Locations: []string{"z.go:5-12", "z.go:20-27"}},
 		},
 		UntestedExports:   []string{"Legacy", "Zeta"},
-		UntestedPositions: []metrics.Position{{File: "a.go", Line: 1}, {File: "z.go", Line: 5}},
+		UntestedPositions: []inventory.Position{{File: "a.go", Line: 1}, {File: "z.go", Line: 5}},
 	}
 }
 
@@ -43,27 +44,27 @@ func legacyRow() baseline.Row {
 func TestRankNewCodeBlocks(t *testing.T) {
 	t.Parallel()
 
-	legacy := metrics.DupBlock{Anchors: [2]uint64{1, 2}, Kind: "code", Locations: []string{"a.go:1-30", "a.go:40-69"}}
-	overlap := metrics.DupBlock{Anchors: [2]uint64{3, 4}, Kind: "self-overlap", Locations: []string{"s.go:1-9", "s.go:5-13"}}
-	pasted := metrics.DupBlock{Anchors: [2]uint64{5, 6}, Kind: "code", Locations: []string{"p.go:2-20", "q.go:8-26"}}
+	legacy := inventory.DupBlock{Anchors: [2]uint64{1, 2}, Kind: "code", Locations: []string{"a.go:1-30", "a.go:40-69"}}
+	overlap := inventory.DupBlock{Anchors: [2]uint64{3, 4}, Kind: "self-overlap", Locations: []string{"s.go:1-9", "s.go:5-13"}}
+	pasted := inventory.DupBlock{Anchors: [2]uint64{5, 6}, Kind: "code", Locations: []string{"p.go:2-20", "q.go:8-26"}}
 	row := baseline.Row{HasNamed: true, Named: baseline.Named{DupBlocks: []uint64{1, 2}}}
 	tests := []struct {
 		name     string
-		blocks   []metrics.DupBlock
+		blocks   []inventory.DupBlock
 		wantCode []string
 		want     leads
 	}{
-		{name: "an added code block leads", blocks: []metrics.DupBlock{legacy, overlap, pasted},
+		{name: "an added code block leads", blocks: []inventory.DupBlock{legacy, overlap, pasted},
 			wantCode: []string{"p.go:2-20", "q.go:8-26", "a.go:1-30", "a.go:40-69"}, want: leads{dup: true, code: true}},
-		{name: "an added self-overlap block is no added code block", blocks: []metrics.DupBlock{legacy, overlap},
+		{name: "an added self-overlap block is no added code block", blocks: []inventory.DupBlock{legacy, overlap},
 			wantCode: []string{"a.go:1-30", "a.go:40-69"}, want: leads{dup: true}},
-		{name: "no code block", blocks: []metrics.DupBlock{overlap}, want: leads{dup: true}},
+		{name: "no code block", blocks: []inventory.DupBlock{overlap}, want: leads{dup: true}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			d := metrics.Details{DupBlocks: tt.blocks}
+			d := inventory.Details{DupBlocks: tt.blocks}
 			var names suggestion.Names
 			if got := rankNew(&d, &names, &row, true); got != tt.want {
 				t.Errorf("leads = %+v, want %+v", got, tt.want)
@@ -146,7 +147,7 @@ func TestCheckerPackageCitesAdded(t *testing.T) {
 	const root, modPath = "/mod", "example.com/m"
 	head := metrics.RawMetrics{DupBlocks: 2, DuplicationPct: 30, UntestedExports: 2}
 	ext := metricstest.NewFake("go", root, map[string]metrics.RawMetrics{modPath + "/a": head},
-		metricstest.WithDetails(map[string]metrics.Details{modPath + "/a": legacyThenNew()}))
+		metricstest.WithDetails(map[string]inventory.Details{modPath + "/a": legacyThenNew()}))
 	zero := 0.0
 	jc := New(Options{
 		Ext: ext,
@@ -197,10 +198,10 @@ func TestCheckerPackageCitesAdded(t *testing.T) {
 // blocks.
 type crossBaseline struct {
 	fakeBaseline
-	cross []metrics.CrossBlock
+	cross []inventory.CrossBlock
 }
 
-func (b crossBaseline) CrossBlocks() ([]metrics.CrossBlock, bool) { return b.cross, true }
+func (b crossBaseline) CrossBlocks() ([]inventory.CrossBlock, bool) { return b.cross, true }
 
 // TestCheckerModuleCitesAdded judges a module row whose legacy
 // cross-package block comes before the one the change added: the
@@ -209,22 +210,22 @@ func TestCheckerModuleCitesAdded(t *testing.T) {
 	t.Parallel()
 
 	const root, modPath = "/mod", "example.com/m"
-	occ := func(pkg string, line int) metrics.Occurrence {
-		return metrics.Occurrence{Package: modPath + "/" + pkg, File: pkg + "/x.go", StartLine: line, EndLine: line + 9}
+	occ := func(pkg string, line int) inventory.Occurrence {
+		return inventory.Occurrence{Package: modPath + "/" + pkg, File: pkg + "/x.go", StartLine: line, EndLine: line + 9}
 	}
-	legacy := metrics.CrossBlock{Occurrences: []metrics.Occurrence{occ("a", 1), occ("b", 1)}}
-	added := metrics.CrossBlock{Occurrences: []metrics.Occurrence{occ("c", 20), occ("d", 20)}}
+	legacy := inventory.CrossBlock{Occurrences: []inventory.Occurrence{occ("a", 1), occ("b", 1)}}
+	added := inventory.CrossBlock{Occurrences: []inventory.Occurrence{occ("c", 20), occ("d", 20)}}
 	two, one := 2, 1
 	ext := metricstest.NewFake("go", root, map[string]metrics.RawMetrics{modPath + "/a": {}},
 		metricstest.WithModuleRow(metrics.RawMetrics{DupBlocksCrossPkg: &two}),
-		metricstest.WithModuleDetails(metrics.Details{CrossBlocks: []metrics.CrossBlock{legacy, added}}))
+		metricstest.WithModuleDetails(inventory.Details{CrossBlocks: []inventory.CrossBlock{legacy, added}}))
 	zero := 0.0
 	jc := New(Options{
 		Ext: ext,
 		Mod: &metrics.ModuleContext{Root: root, ModulePath: modPath},
 		Base: crossBaseline{
 			fakeBaseline: fakeBaseline{metrics.ModuleRowID: {DupBlocksCrossPkg: &one}},
-			cross: []metrics.CrossBlock{{Occurrences: []metrics.Occurrence{
+			cross: []inventory.CrossBlock{{Occurrences: []inventory.Occurrence{
 				{Package: "a", File: "a/x.go", StartLine: 3, EndLine: 12}, {Package: "b", File: "b/x.go", StartLine: 3, EndLine: 12},
 			}}},
 		},

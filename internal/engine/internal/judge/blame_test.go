@@ -6,15 +6,16 @@ import (
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 	"github.com/rfizzle/astimate/internal/score"
 )
 
 // block returns a cross-package block with one occurrence in each of pkgs,
 // packages of example.com/m, in the given order.
-func block(pkgs ...string) metrics.CrossBlock {
-	b := metrics.CrossBlock{Occurrences: make([]metrics.Occurrence, 0, len(pkgs))}
+func block(pkgs ...string) inventory.CrossBlock {
+	b := inventory.CrossBlock{Occurrences: make([]inventory.Occurrence, 0, len(pkgs))}
 	for i, p := range pkgs {
-		b.Occurrences = append(b.Occurrences, metrics.Occurrence{
+		b.Occurrences = append(b.Occurrences, inventory.Occurrence{
 			Package: "example.com/m/" + p, File: p + "/" + p + ".go", StartLine: 10 * (i + 1), EndLine: 10*(i+1) + 5,
 		})
 	}
@@ -22,7 +23,7 @@ func block(pkgs ...string) metrics.CrossBlock {
 }
 
 // sized returns block(pkgs...) with a length of tokens normalized tokens.
-func sized(tokens int, pkgs ...string) metrics.CrossBlock {
+func sized(tokens int, pkgs ...string) inventory.CrossBlock {
 	b := block(pkgs...)
 	b.Tokens = tokens
 	return b
@@ -30,7 +31,7 @@ func sized(tokens int, pkgs ...string) metrics.CrossBlock {
 
 // judgment returns the crossJudgment of head against base under floor and
 // the renames from, as Checker.judgeCross builds it.
-func judgment(head, base []metrics.CrossBlock, known bool, floor int, from map[string][]string) crossJudgment {
+func judgment(head, base []inventory.CrossBlock, known bool, floor int, from map[string][]string) crossJudgment {
 	j := crossJudgment{known: known, floor: floor}
 	if known {
 		j.added = score.AddedCrossBlocks(head, base, floor, from, nil)
@@ -39,7 +40,7 @@ func judgment(head, base []metrics.CrossBlock, known bool, floor int, from map[s
 }
 
 // blockNames renders blocks as their package sets, "a-b", for comparison.
-func blockNames(blocks []metrics.CrossBlock) []string {
+func blockNames(blocks []inventory.CrossBlock) []string {
 	out := make([]string, 0, len(blocks))
 	for i := range blocks {
 		pkgs := blockPackages(&blocks[i])
@@ -56,7 +57,7 @@ func TestBlameCross(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		head, base []metrics.CrossBlock
+		head, base []inventory.CrossBlock
 		known      bool
 		floor      int
 		from       map[string][]string
@@ -66,66 +67,66 @@ func TestBlameCross(t *testing.T) {
 	}{
 		{
 			name:  "copy between two other packages",
-			head:  []metrics.CrossBlock{block("a", "b"), block("hidden", "hub")},
-			base:  []metrics.CrossBlock{block("a", "b")},
+			head:  []inventory.CrossBlock{block("a", "b"), block("hidden", "hub")},
+			base:  []inventory.CrossBlock{block("a", "b")},
 			known: true, named: "trivial", wantGated: 1,
 		},
 		{
 			name:  "new copy touching the named package",
-			head:  []metrics.CrossBlock{block("a", "b"), block("hidden", "hub")},
-			base:  []metrics.CrossBlock{block("a", "b")},
+			head:  []inventory.CrossBlock{block("a", "b"), block("hidden", "hub")},
+			base:  []inventory.CrossBlock{block("a", "b")},
 			known: true, named: "hub", want: []string{"hidden-hub"}, wantGated: 2,
 		},
 		{
 			name:  "old copy touching the named package, new one elsewhere",
-			head:  []metrics.CrossBlock{block("a", "hub"), block("b", "c")},
-			base:  []metrics.CrossBlock{block("a", "hub")},
+			head:  []inventory.CrossBlock{block("a", "hub"), block("b", "c")},
+			base:  []inventory.CrossBlock{block("a", "hub")},
 			known: true, named: "hub", wantGated: 1,
 		},
 		{
 			name:  "second copy between the same packages is new",
-			head:  []metrics.CrossBlock{block("a", "hub"), block("a", "hub")},
-			base:  []metrics.CrossBlock{block("a", "hub")},
+			head:  []inventory.CrossBlock{block("a", "hub"), block("a", "hub")},
+			base:  []inventory.CrossBlock{block("a", "hub")},
 			known: true, named: "hub", want: []string{"a-hub"}, wantGated: 2,
 		},
 		{
 			name:  "copy removed elsewhere does not hide a new one",
-			head:  []metrics.CrossBlock{block("a", "hub")},
-			base:  []metrics.CrossBlock{block("b", "c"), block("c", "d")},
+			head:  []inventory.CrossBlock{block("a", "hub")},
+			base:  []inventory.CrossBlock{block("b", "c"), block("c", "d")},
 			known: true, named: "hub", want: []string{"a-hub"}, wantGated: 3,
 		},
 		{
 			name:  "new copy under the floor",
-			head:  []metrics.CrossBlock{block("a", "b"), sized(45, "a", "hub")},
-			base:  []metrics.CrossBlock{block("a", "b")},
+			head:  []inventory.CrossBlock{block("a", "b"), sized(45, "a", "hub")},
+			base:  []inventory.CrossBlock{block("a", "b")},
 			known: true, floor: 80, named: "hub", wantGated: 1,
 		},
 		{
 			name:  "new copy at the floor",
-			head:  []metrics.CrossBlock{block("a", "b"), sized(80, "a", "hub")},
-			base:  []metrics.CrossBlock{block("a", "b")},
+			head:  []inventory.CrossBlock{block("a", "b"), sized(80, "a", "hub")},
+			base:  []inventory.CrossBlock{block("a", "b")},
 			known: true, floor: 80, named: "hub", want: []string{"a-hub"}, wantGated: 2,
 		},
 		{
 			name:  "block between a split's halves is moved",
-			head:  []metrics.CrossBlock{sized(200, "hub", "hub2")},
+			head:  []inventory.CrossBlock{sized(200, "hub", "hub2")},
 			from:  map[string][]string{"example.com/m/hub2": {"example.com/m/hub"}},
 			known: true, floor: 80, named: "hub2", wantGated: 0,
 		},
 		{
 			name:  "copy from a split half into another package is added",
-			head:  []metrics.CrossBlock{sized(200, "a", "hub2")},
+			head:  []inventory.CrossBlock{sized(200, "a", "hub2")},
 			from:  map[string][]string{"example.com/m/hub2": {"example.com/m/hub"}},
 			known: true, floor: 80, named: "hub2", want: []string{"a-hub2"}, wantGated: 1,
 		},
 		{
 			name:  "no block identities, no block touches the named package",
-			head:  []metrics.CrossBlock{block("a", "b"), block("hidden", "hub")},
+			head:  []inventory.CrossBlock{block("a", "b"), block("hidden", "hub")},
 			named: "trivial", wantGated: 1,
 		},
 		{
 			name:  "no block identities, an old block touches the named package",
-			head:  []metrics.CrossBlock{block("a", "hub"), block("b", "c")},
+			head:  []inventory.CrossBlock{block("a", "hub"), block("b", "c")},
 			named: "hub", want: []string{"a-hub"}, wantGated: 2,
 		},
 	}
@@ -155,8 +156,8 @@ func TestBlameCross(t *testing.T) {
 func TestBlameNamed(t *testing.T) {
 	t.Parallel()
 
-	head := []metrics.CrossBlock{block("a", "b"), block("hidden", "hub")}
-	base := []metrics.CrossBlock{block("a", "b")}
+	head := []inventory.CrossBlock{block("a", "b"), block("hidden", "hub")}
+	base := []inventory.CrossBlock{block("a", "b")}
 	cross, baseCross := 2, 1
 	m := metrics.RawMetrics{DupBlocksCrossPkg: &cross}
 	bm := &metrics.RawMetrics{DupBlocksCrossPkg: &baseCross}
@@ -190,7 +191,7 @@ func TestBlameNamed(t *testing.T) {
 func TestCrossBlameSuggestion(t *testing.T) {
 	t.Parallel()
 
-	b := crossBlame{blocks: []metrics.CrossBlock{block("hidden", "hub"), block("a", "b", "hub")}, known: true}
+	b := crossBlame{blocks: []inventory.CrossBlock{block("hidden", "hub"), block("a", "b", "hub")}, known: true}
 	got := b.suggestion(metrics.RawMetrics{}, "example.com/m")
 	const want = "2 duplicate blocks are shared with other packages; extract each into one package, " +
 		"starting with the block in hidden/hidden.go:10-15 and hub/hub.go:20-25. " +
@@ -198,7 +199,7 @@ func TestCrossBlameSuggestion(t *testing.T) {
 	if got != want {
 		t.Errorf("suggestion =\n%q\nwant\n%q", got, want)
 	}
-	unknown := crossBlame{blocks: []metrics.CrossBlock{block("a", "hub")}}
+	unknown := crossBlame{blocks: []inventory.CrossBlock{block("a", "hub")}}
 	const wantUnknown = " Blocks touching the checked package are shared by a and hub."
 	if s := unknown.suggestion(metrics.RawMetrics{}, "example.com/m"); !strings.HasSuffix(s, wantUnknown) {
 		t.Errorf("suggestion without block identities = %q, want it to end %q", s, wantUnknown)

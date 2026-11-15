@@ -61,7 +61,7 @@ type Report struct {
 	// Passed is the gate verdict; nil when no gate ran.
 	Passed *bool `json:"passed,omitempty"`
 	// Details names and locates what some of the metrics count, from the
-	// extractor's metrics.Details (see NewDetails); nil (omitted) when the
+	// extractor's inventory.Details (see NewDetails); nil (omitted) when the
 	// extractor records none or the row has nothing to show.
 	Details *details.Details `json:"details,omitempty"`
 	// AstimateVersion is the version of the binary that produced the report.

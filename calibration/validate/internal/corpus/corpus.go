@@ -17,6 +17,7 @@ import (
 
 	"github.com/rfizzle/astimate/calibration/replay/labels"
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 	"github.com/rfizzle/astimate/internal/score"
 )
 
@@ -122,7 +123,7 @@ type Row struct {
 	// complexity 20, with their parent complexity, which the gate judges
 	// changed_func_cognitive_max on per function (SPEC.md 8.1); nil when
 	// the row records none (HasChanged).
-	Changed []metrics.ChangedFunction
+	Changed []inventory.ChangedFunction
 	// Cross are, on a module row, the sets of packages on which the commit
 	// added a cross-package block at some floor, with the parent's block
 	// lengths on each (score.CrossGroups), from which dup_blocks_cross_pkg
@@ -435,7 +436,7 @@ func (pr *packageRow) cross() []score.CrossGroup {
 	for _, g := range pr.CrossAdded {
 		cg := score.CrossGroup{Base: g.Base}
 		for _, b := range g.Blocks {
-			cg.Head = append(cg.Head, metrics.CrossBlock{Tokens: b.Tokens})
+			cg.Head = append(cg.Head, inventory.CrossBlock{Tokens: b.Tokens})
 		}
 		out = append(out, cg)
 	}
@@ -454,13 +455,13 @@ type rowFunction struct {
 // changed returns pr's changed functions for the gate, and nil when the
 // row records none: a row without a function diff, or one replayed before
 // the field existed.
-func (pr *packageRow) changed() []metrics.ChangedFunction {
+func (pr *packageRow) changed() []inventory.ChangedFunction {
 	if pr.ChangedFunctions == nil {
 		return nil
 	}
-	out := make([]metrics.ChangedFunction, len(pr.ChangedFunctions))
+	out := make([]inventory.ChangedFunction, len(pr.ChangedFunctions))
 	for i, f := range pr.ChangedFunctions {
-		out[i].FunctionInfo = metrics.FunctionInfo{Receiver: f.Receiver, Name: f.Name, Cognitive: f.Cognitive}
+		out[i].FunctionInfo = inventory.FunctionInfo{Receiver: f.Receiver, Name: f.Name, Cognitive: f.Cognitive}
 		if f.Base != nil {
 			out[i].BaseCognitive, out[i].HasBase = *f.Base, true
 		}

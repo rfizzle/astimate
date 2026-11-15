@@ -6,15 +6,16 @@ import (
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 )
 
 func TestDetailsDupes(t *testing.T) {
 	const pkg = "example.com/fixture/dupes"
-	want := metrics.Details{
+	want := inventory.Details{
 		UntestedExports:  []string{"CountVisits", "SumOrders", "TallyScores"},
 		UntestedExcluded: nil,
 		DupLocations:     []string{"dupes.go:9-26", "dupes.go:31-48", "dupes.go:53-70"},
-		UntestedPositions: []metrics.Position{
+		UntestedPositions: []inventory.Position{
 			{File: "dupes.go", Line: 53}, {File: "dupes.go", Line: 9}, {File: "dupes.go", Line: 31},
 		},
 		LargestFile: "dupes.go",
@@ -78,7 +79,7 @@ func TestDetailsPositions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Details(%s): %v", pkg, err)
 	}
-	wantGlobals := []metrics.Position{
+	wantGlobals := []inventory.Position{
 		{File: "hidden.go", Line: 7}, {File: "hidden.go", Line: 10},
 		{File: "hidden.go", Line: 11}, {File: "hidden.go", Line: 12},
 	}
@@ -88,7 +89,7 @@ func TestDetailsPositions(t *testing.T) {
 	if want := []string{"limit", "events", "done", "counter"}; !slices.Equal(got.GlobalNames, want) {
 		t.Errorf("GlobalNames = %q, want %q, index for index with GlobalPositions", got.GlobalNames, want)
 	}
-	if want := []metrics.Position{{File: "hidden.go", Line: 20}}; !slices.Equal(got.UntestedPositions, want) {
+	if want := []inventory.Position{{File: "hidden.go", Line: 20}}; !slices.Equal(got.UntestedPositions, want) {
 		t.Errorf("UntestedPositions = %v, want %v (Drain)", got.UntestedPositions, want)
 	}
 	if got.LargestFile != "hidden.go" {

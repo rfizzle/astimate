@@ -1,7 +1,7 @@
 package golang
 
 import (
-	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 	"github.com/rfizzle/astimate/internal/metrics/role"
 	"golang.org/x/tools/go/packages"
 )
@@ -24,7 +24,7 @@ func roleOf(l *loaded, p *packages.Package) string {
 
 // blockRoles returns the role of every package an occurrence of blocks
 // lies in, by import path; nil when blocks is empty.
-func blockRoles(l *loaded, blocks []metrics.CrossBlock) map[string]string {
+func blockRoles(l *loaded, blocks []inventory.CrossBlock) map[string]string {
 	if len(blocks) == 0 {
 		return nil
 	}

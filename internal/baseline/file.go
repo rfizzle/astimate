@@ -8,6 +8,7 @@ import (
 
 	"github.com/rfizzle/astimate/internal/baseline/internal/fileformat"
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 )
 
 // DefaultPath is where `astimate baseline write` puts the baseline file,
@@ -35,7 +36,7 @@ type Contents struct {
 	// Functions are each package's functions keyed by import path, as
 	// CollectFunctions returns them; nil records none, so a check against
 	// the file leaves changed_func_cognitive_max null.
-	Functions map[string][]metrics.FunctionInfo
+	Functions map[string][]inventory.FunctionInfo
 	// Named are each package's duplicate blocks, untested exports and
 	// exports keyed by import path, as CollectNamed returns them; nil
 	// records none, so a check against the file cannot tell which of them a

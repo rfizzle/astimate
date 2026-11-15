@@ -12,6 +12,7 @@ import (
 	"github.com/rfizzle/astimate/internal/lang/typescript/internal/inspect"
 	"github.com/rfizzle/astimate/internal/lang/typescript/internal/resolve"
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 )
 
 // module is the parse of one module root: every source and test file's
@@ -70,8 +71,8 @@ type pkg struct {
 type details struct {
 	untested, excluded []string
 	dupGroups          []duptok.Group
-	untestedPos        []metrics.Position
-	globalPos          []metrics.Position
+	untestedPos        []inventory.Position
+	globalPos          []inventory.Position
 	globalNames        []string
 	largestFile        string
 	sourceFiles        []string

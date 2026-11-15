@@ -84,7 +84,7 @@ import (
 	"slices"
 	"strconv"
 
-	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 )
 
 // SeparatorBase is the code of the separator after the first file; the
@@ -216,11 +216,11 @@ func (r Result) Groups() []Group {
 
 // Details returns the occurrences of groups in order, each rendered
 // "file:start-end" with file passed through name (kept as it is when name
-// is nil), and the groups as metrics.DupBlock with the same renderings, as
-// metrics.Details lists them. Both are nil when groups is empty.
-func Details(groups []Group, name func(string) string) ([]string, []metrics.DupBlock) {
+// is nil), and the groups as inventory.DupBlock with the same renderings, as
+// inventory.Details lists them. Both are nil when groups is empty.
+func Details(groups []Group, name func(string) string) ([]string, []inventory.DupBlock) {
 	var locs []string
-	var blocks []metrics.DupBlock
+	var blocks []inventory.DupBlock
 	for _, g := range groups {
 		start := len(locs)
 		for _, l := range g.Locations {
@@ -230,7 +230,7 @@ func Details(groups []Group, name func(string) string) ([]string, []metrics.DupB
 			}
 			locs = append(locs, file+":"+strconv.Itoa(l.StartLine)+"-"+strconv.Itoa(l.EndLine))
 		}
-		blocks = append(blocks, metrics.DupBlock{Anchors: g.Anchors, Kind: g.Kind.String(), Locations: slices.Clone(locs[start:])})
+		blocks = append(blocks, inventory.DupBlock{Anchors: g.Anchors, Kind: g.Kind.String(), Locations: slices.Clone(locs[start:])})
 	}
 	return locs, blocks
 }

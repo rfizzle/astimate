@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 )
 
 func TestFileRoundTrip(t *testing.T) {
@@ -221,7 +222,7 @@ func TestFileFunctions(t *testing.T) {
 
 	dir := t.TempDir()
 	pkgs := map[string]metrics.RawMetrics{"example.com/m/a": {}, "example.com/m/b": {}}
-	funcs := map[string][]metrics.FunctionInfo{
+	funcs := map[string][]inventory.FunctionInfo{
 		"example.com/m/a": {
 			{Name: "Parse", Fingerprint: 0xff, Signature: 0xabc, Cognitive: 4, File: "a.go", Line: 3},
 			{Receiver: "T", Name: "Run", Fingerprint: 0xfedcba9876543210, Cognitive: 12},
@@ -238,7 +239,7 @@ func TestFileFunctions(t *testing.T) {
 		t.Fatalf("FromFile: %v", err)
 	}
 	// File and line are not stored: a baseline function is only matched.
-	want := []metrics.FunctionInfo{
+	want := []inventory.FunctionInfo{
 		{Name: "Parse", Fingerprint: 0xff, Signature: 0xabc, Cognitive: 4},
 		{Receiver: "T", Name: "Run", Fingerprint: 0xfedcba9876543210, Cognitive: 12},
 	}

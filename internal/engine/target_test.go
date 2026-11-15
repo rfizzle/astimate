@@ -14,6 +14,7 @@ import (
 	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/lang/golang"
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 	"github.com/rfizzle/astimate/internal/metrics/metricstest"
 	"github.com/rfizzle/astimate/internal/score/suggestion"
 )
@@ -128,11 +129,11 @@ func TestSuggestionNames(t *testing.T) {
 
 	const root = "/fake/module"
 	pkgs := map[string]metrics.RawMetrics{"p": {UntestedExports: 1, DupBlocks: 1}}
-	cross := []metrics.CrossBlock{{Occurrences: []metrics.Occurrence{
+	cross := []inventory.CrossBlock{{Occurrences: []inventory.Occurrence{
 		{Package: "p", File: "p/p.go", StartLine: 3, EndLine: 9},
 		{Package: "q", File: "q/q.go", StartLine: 1, EndLine: 7},
 	}}}
-	details := map[string]metrics.Details{"p": {
+	details := map[string]inventory.Details{"p": {
 		UntestedExports:  []string{"Parse"},
 		UntestedExcluded: []string{"Legacy"},
 		DupLocations:     []string{"p.go:3-9", "q.go:1-7"},

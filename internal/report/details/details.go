@@ -4,14 +4,14 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 )
 
 // Details is the details block of a report: what some of the metrics
 // count, named and located, so a consumer of the JSON can see where a
 // duplicate block lies or which export has no test. Every field is omitted
 // when empty. Files are relative to the package directory in slash form,
-// as metrics.Details gives them, except the occurrences of CrossBlocks,
+// as inventory.Details gives them, except the occurrences of CrossBlocks,
 // which are relative to the module root.
 type Details struct {
 	// Duplicates are the occurrences of the blocks counted by dup_blocks,
@@ -107,11 +107,11 @@ type CrossOccurrence struct {
 }
 
 // NewDetails converts d to a report details block, with pkgPath mapping a
-// native package identifier, as metrics.Occurrence.Package holds it, to
+// native package identifier, as inventory.Occurrence.Package holds it, to
 // the package path the report uses. A duplicate location that is not
 // "file:start-end" is skipped. It returns nil when d has nothing to show,
 // so the report omits the block.
-func NewDetails(d *metrics.Details, pkgPath func(string) string) *Details {
+func NewDetails(d *inventory.Details, pkgPath func(string) string) *Details {
 	out := Details{
 		ExcludedUntested: d.UntestedExcluded,
 		LargestFile:      d.LargestFile,
@@ -166,7 +166,7 @@ func NewDetails(d *metrics.Details, pkgPath func(string) string) *Details {
 
 // newFunctions converts the function records of a package's details to
 // the report's, in the same order; nil for none.
-func newFunctions(fns []metrics.FunctionInfo) []Function {
+func newFunctions(fns []inventory.FunctionInfo) []Function {
 	if len(fns) == 0 {
 		return nil
 	}
@@ -178,7 +178,7 @@ func newFunctions(fns []metrics.FunctionInfo) []Function {
 	return out
 }
 
-// parseSpan parses a metrics.Details.DupLocations entry, "file:start-end".
+// parseSpan parses a inventory.Details.DupLocations entry, "file:start-end".
 func parseSpan(loc string) (Span, bool) {
 	i := strings.LastIndexByte(loc, ':')
 	if i <= 0 {

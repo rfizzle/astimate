@@ -10,6 +10,7 @@ import (
 	"github.com/rfizzle/astimate/internal/lang/duptok"
 	"github.com/rfizzle/astimate/internal/lang/typescript/internal/inspect"
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 	"github.com/rfizzle/astimate/internal/metrics/role"
 )
 
@@ -30,7 +31,7 @@ func assemble(m *module, p *pkg, opts assembleOptions) (metrics.RawMetrics, erro
 	var types, interfaces int
 	var srcBytes, srcTokens, allBytes, allTokens, genBytes, genTokens, generated int
 	var candidates []candidate
-	var globalPos []metrics.Position
+	var globalPos []inventory.Position
 	var globalNames []string
 	files := make([]string, 0, len(p.src))
 	largest := ""
@@ -58,7 +59,7 @@ func assemble(m *module, p *pkg, opts assembleOptions) (metrics.RawMetrics, erro
 		interfaces += f.ExportedInterfaces
 		r.Globals += len(f.Globals)
 		for _, line := range f.Globals {
-			globalPos = append(globalPos, metrics.Position{File: rel, Line: line})
+			globalPos = append(globalPos, inventory.Position{File: rel, Line: line})
 		}
 		globalNames = append(globalNames, f.GlobalNames...)
 		if f.HasInit {
@@ -107,13 +108,13 @@ func assemble(m *module, p *pkg, opts assembleOptions) (metrics.RawMetrics, erro
 	}
 	slices.SortStableFunc(missed, func(a, b candidate) int { return strings.Compare(a.Display, b.Display) })
 	var untested []string
-	var untestedPos []metrics.Position
+	var untestedPos []inventory.Position
 	if len(missed) > 0 {
 		untested = make([]string, len(missed))
-		untestedPos = make([]metrics.Position, len(missed))
+		untestedPos = make([]inventory.Position, len(missed))
 		for i, c := range missed {
 			untested[i] = c.Display
-			untestedPos[i] = metrics.Position{File: c.file, Line: c.Line}
+			untestedPos[i] = inventory.Position{File: c.file, Line: c.Line}
 		}
 	}
 	slices.Sort(excluded)

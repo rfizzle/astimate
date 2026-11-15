@@ -10,6 +10,7 @@ import (
 	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/gate"
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 	"github.com/rfizzle/astimate/internal/metrics/metricstest"
 )
 
@@ -41,14 +42,14 @@ func TestCheckerModuleJudgesAddedBlocks(t *testing.T) {
 	copied := sized(90, "c", "d")
 	tests := []struct {
 		name     string
-		head     []metrics.CrossBlock
+		head     []inventory.CrossBlock
 		named    []string
 		wantFail bool
 	}{
-		{name: "legacy, short and moved blocks", head: []metrics.CrossBlock{legacy, short, moved}},
-		{name: "a copy over the floor", head: []metrics.CrossBlock{legacy, short, moved, copied}, wantFail: true},
-		{name: "named: short and moved blocks", head: []metrics.CrossBlock{legacy, short, moved}, named: []string{"a", "p2"}},
-		{name: "named: a copy over the floor", head: []metrics.CrossBlock{legacy, short, copied}, named: []string{"c"}, wantFail: true},
+		{name: "legacy, short and moved blocks", head: []inventory.CrossBlock{legacy, short, moved}},
+		{name: "a copy over the floor", head: []inventory.CrossBlock{legacy, short, moved, copied}, wantFail: true},
+		{name: "named: short and moved blocks", head: []inventory.CrossBlock{legacy, short, moved}, named: []string{"a", "p2"}},
+		{name: "named: a copy over the floor", head: []inventory.CrossBlock{legacy, short, copied}, named: []string{"c"}, wantFail: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -57,14 +58,14 @@ func TestCheckerModuleJudgesAddedBlocks(t *testing.T) {
 			full, baseCount := len(tt.head), 860
 			ext := metricstest.NewFake("go", root, map[string]metrics.RawMetrics{modPath + "/a": {}},
 				metricstest.WithModuleRow(metrics.RawMetrics{DupBlocksCrossPkg: &full}),
-				metricstest.WithModuleDetails(metrics.Details{CrossBlocks: tt.head}))
+				metricstest.WithModuleDetails(inventory.Details{CrossBlocks: tt.head}))
 			zero, ceiling := 0.0, 450.0
 			jc := New(Options{
 				Ext: ext,
 				Mod: &metrics.ModuleContext{Root: root, ModulePath: modPath},
 				Base: seededCrossBaseline{crossBaseline{
 					fakeBaseline: fakeBaseline{metrics.ModuleRowID: {DupBlocksCrossPkg: &baseCount}},
-					cross:        metrics.MapPackages([]metrics.CrossBlock{legacy}, func(p string) string { return Rel(modPath, p) }),
+					cross:        inventory.MapPackages([]inventory.CrossBlock{legacy}, func(p string) string { return Rel(modPath, p) }),
 				}},
 				Config: config.Effective{Version: "v", MinTokensCross: 80, Thresholds: []gate.Threshold{
 					{Metric: "dup_blocks_cross_pkg", Kind: gate.Density, MaxDelta: &zero, Max: &ceiling},

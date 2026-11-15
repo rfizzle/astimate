@@ -6,6 +6,7 @@ import (
 
 	"github.com/rfizzle/astimate/internal/engine"
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 	"github.com/rfizzle/astimate/internal/report"
 	"github.com/rfizzle/astimate/internal/score"
 )
@@ -150,7 +151,7 @@ type changedFunc struct {
 
 // changedFuncs returns the functions of fns over changedFuncFloor as row
 // entries, an empty list when none is; nil when listed is false.
-func changedFuncs(fns []metrics.ChangedFunction, listed bool) []changedFunc {
+func changedFuncs(fns []inventory.ChangedFunction, listed bool) []changedFunc {
 	if !listed {
 		return nil
 	}

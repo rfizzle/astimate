@@ -8,6 +8,7 @@ import (
 	"slices"
 
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 )
 
 // NewFake returns an in-memory metrics.Extractor for language lang that
@@ -74,11 +75,11 @@ func WithModule(root string, pkgs map[string]metrics.RawMetrics) FakeOption {
 // for each package. Details returns the zero value for a package of the fake
 // missing from details, an error for an unknown package, and ctx.Err() when
 // the context is done. The map is copied.
-func WithDetails(details map[string]metrics.Details) FakeOption {
+func WithDetails(details map[string]inventory.Details) FakeOption {
 	return func(f *fake) {
 		f.details = maps.Clone(details)
 		if f.details == nil {
-			f.details = map[string]metrics.Details{}
+			f.details = map[string]inventory.Details{}
 		}
 	}
 }
@@ -95,7 +96,7 @@ func WithModuleRow(row metrics.RawMetrics) FakeOption {
 // when the context is done. Nothing ties details to the row or to the
 // packages' details, so a test can build a consistent fake or a
 // deliberately inconsistent one.
-func WithModuleDetails(details metrics.Details) FakeOption {
+func WithModuleDetails(details inventory.Details) FakeOption {
 	return func(f *fake) { f.moduleDetails = &details }
 }
 
@@ -103,9 +104,9 @@ type fake struct {
 	lang          string
 	root          string
 	pkgs          map[string]metrics.RawMetrics
-	details       map[string]metrics.Details
+	details       map[string]inventory.Details
 	row           *metrics.RawMetrics
-	moduleDetails *metrics.Details
+	moduleDetails *inventory.Details
 	// others holds the modules WithModule added, by cleaned root.
 	others map[string]map[string]metrics.RawMetrics
 }
@@ -115,7 +116,7 @@ type detailFake struct {
 	*fake
 }
 
-func (f *detailFake) Details(ctx context.Context, mod *metrics.ModuleContext, pkg string) (metrics.Details, error) {
+func (f *detailFake) Details(ctx context.Context, mod *metrics.ModuleContext, pkg string) (inventory.Details, error) {
 	return f.detailsOf(ctx, mod, pkg)
 }
 
@@ -134,7 +135,7 @@ type detailModuleFake struct {
 	*fake
 }
 
-func (f *detailModuleFake) Details(ctx context.Context, mod *metrics.ModuleContext, pkg string) (metrics.Details, error) {
+func (f *detailModuleFake) Details(ctx context.Context, mod *metrics.ModuleContext, pkg string) (inventory.Details, error) {
 	return f.detailsOf(ctx, mod, pkg)
 }
 
@@ -152,7 +153,7 @@ func (f *moduleDetailFake) ModuleRow(ctx context.Context, mod *metrics.ModuleCon
 	return f.moduleRow(ctx, mod)
 }
 
-func (f *moduleDetailFake) ModuleDetails(ctx context.Context, mod *metrics.ModuleContext) (metrics.Details, error) {
+func (f *moduleDetailFake) ModuleDetails(ctx context.Context, mod *metrics.ModuleContext) (inventory.Details, error) {
 	return f.moduleDetailsOf(ctx, mod)
 }
 
@@ -162,7 +163,7 @@ type detailModuleDetailFake struct {
 	*fake
 }
 
-func (f *detailModuleDetailFake) Details(ctx context.Context, mod *metrics.ModuleContext, pkg string) (metrics.Details, error) {
+func (f *detailModuleDetailFake) Details(ctx context.Context, mod *metrics.ModuleContext, pkg string) (inventory.Details, error) {
 	return f.detailsOf(ctx, mod, pkg)
 }
 
@@ -170,13 +171,13 @@ func (f *detailModuleDetailFake) ModuleRow(ctx context.Context, mod *metrics.Mod
 	return f.moduleRow(ctx, mod)
 }
 
-func (f *detailModuleDetailFake) ModuleDetails(ctx context.Context, mod *metrics.ModuleContext) (metrics.Details, error) {
+func (f *detailModuleDetailFake) ModuleDetails(ctx context.Context, mod *metrics.ModuleContext) (inventory.Details, error) {
 	return f.moduleDetailsOf(ctx, mod)
 }
 
-func (f *fake) moduleDetailsOf(ctx context.Context, _ *metrics.ModuleContext) (metrics.Details, error) {
+func (f *fake) moduleDetailsOf(ctx context.Context, _ *metrics.ModuleContext) (inventory.Details, error) {
 	if err := ctx.Err(); err != nil {
-		return metrics.Details{}, fmt.Errorf("fake %s extractor: details of %s: %w", f.lang, metrics.ModuleRowID, err)
+		return inventory.Details{}, fmt.Errorf("fake %s extractor: details of %s: %w", f.lang, metrics.ModuleRowID, err)
 	}
 	return cloneDetails(*f.moduleDetails), nil
 }
@@ -188,19 +189,19 @@ func (f *fake) moduleRow(ctx context.Context, _ *metrics.ModuleContext) (metrics
 	return *f.row, nil
 }
 
-func (f *fake) detailsOf(ctx context.Context, _ *metrics.ModuleContext, pkg string) (metrics.Details, error) {
+func (f *fake) detailsOf(ctx context.Context, _ *metrics.ModuleContext, pkg string) (inventory.Details, error) {
 	if err := ctx.Err(); err != nil {
-		return metrics.Details{}, fmt.Errorf("fake %s extractor: details of %s: %w", f.lang, pkg, err)
+		return inventory.Details{}, fmt.Errorf("fake %s extractor: details of %s: %w", f.lang, pkg, err)
 	}
 	if _, ok := f.pkgs[pkg]; !ok {
-		return metrics.Details{}, fmt.Errorf("fake %s extractor: unknown package %q", f.lang, pkg)
+		return inventory.Details{}, fmt.Errorf("fake %s extractor: unknown package %q", f.lang, pkg)
 	}
 	return cloneDetails(f.details[pkg]), nil
 }
 
 // cloneDetails returns a deep copy of d.
-func cloneDetails(d metrics.Details) metrics.Details {
-	return metrics.Details{
+func cloneDetails(d inventory.Details) inventory.Details {
+	return inventory.Details{
 		UntestedExports:  slices.Clone(d.UntestedExports),
 		UntestedExcluded: slices.Clone(d.UntestedExcluded),
 
@@ -219,17 +220,17 @@ func cloneDetails(d metrics.Details) metrics.Details {
 }
 
 // cloneDupBlocks returns a deep copy of bs, nil when bs is.
-func cloneDupBlocks(bs []metrics.DupBlock) []metrics.DupBlock {
-	return cloneEach(bs, func(b metrics.DupBlock) metrics.DupBlock {
+func cloneDupBlocks(bs []inventory.DupBlock) []inventory.DupBlock {
+	return cloneEach(bs, func(b inventory.DupBlock) inventory.DupBlock {
 		b.Locations = slices.Clone(b.Locations)
 		return b
 	})
 }
 
 // cloneCrossBlocks returns a deep copy of bs, nil when bs is.
-func cloneCrossBlocks(bs []metrics.CrossBlock) []metrics.CrossBlock {
-	return cloneEach(bs, func(b metrics.CrossBlock) metrics.CrossBlock {
-		return metrics.CrossBlock{Kind: b.Kind, Tokens: b.Tokens, Occurrences: slices.Clone(b.Occurrences)}
+func cloneCrossBlocks(bs []inventory.CrossBlock) []inventory.CrossBlock {
+	return cloneEach(bs, func(b inventory.CrossBlock) inventory.CrossBlock {
+		return inventory.CrossBlock{Kind: b.Kind, Tokens: b.Tokens, Occurrences: slices.Clone(b.Occurrences)}
 	})
 }
 

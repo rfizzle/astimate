@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 	"github.com/rfizzle/astimate/internal/score"
 )
 
@@ -486,17 +487,17 @@ func TestMetricSuggestionV1Templates(t *testing.T) {
 func TestMetricSuggestionCrossBlocks(t *testing.T) {
 	t.Parallel()
 
-	occ := func(pkg, file string, start, end int) metrics.Occurrence {
-		return metrics.Occurrence{Package: pkg, File: file, StartLine: start, EndLine: end}
+	occ := func(pkg, file string, start, end int) inventory.Occurrence {
+		return inventory.Occurrence{Package: pkg, File: file, StartLine: start, EndLine: end}
 	}
-	pair := []metrics.CrossBlock{
-		{Occurrences: []metrics.Occurrence{occ("m/a", "a/a.go", 12, 40), occ("m/b", "b/b.go", 8, 36)}},
-		{Occurrences: []metrics.Occurrence{occ("m/c", "c/c.go", 1, 9), occ("m/d", "d/d.go", 2, 10)}},
+	pair := []inventory.CrossBlock{
+		{Occurrences: []inventory.Occurrence{occ("m/a", "a/a.go", 12, 40), occ("m/b", "b/b.go", 8, 36)}},
+		{Occurrences: []inventory.Occurrence{occ("m/c", "c/c.go", 1, 9), occ("m/d", "d/d.go", 2, 10)}},
 	}
 	tests := []struct {
 		name   string
 		head   float64
-		blocks []metrics.CrossBlock
+		blocks []inventory.CrossBlock
 		added  bool
 		want   string
 	}{
@@ -508,7 +509,7 @@ func TestMetricSuggestionCrossBlocks(t *testing.T) {
 			"1 duplicate block is shared with other packages; extract the shared block in a/a.go:12-40 and b/b.go:8-36, added in this change, into one package."},
 		{"several blocks cite the added one", 2, pair, true,
 			"2 duplicate blocks are shared with other packages; extract each into one package, starting with the block in a/a.go:12-40 and b/b.go:8-36, added in this change."},
-		{"second copy in the same package is skipped", 1, []metrics.CrossBlock{{Occurrences: []metrics.Occurrence{
+		{"second copy in the same package is skipped", 1, []inventory.CrossBlock{{Occurrences: []inventory.Occurrence{
 			occ("m/a", "a/a.go", 12, 40), occ("m/a", "a/z.go", 3, 31), occ("m/b", "b/b.go", 8, 36),
 		}}}, false,
 			"1 duplicate block is shared with other packages; extract the shared block in a/a.go:12-40 and b/b.go:8-36 (and 1 more) into one package."},
@@ -559,10 +560,10 @@ func rebuildOf(volume, spec, contract, unspecified, hidden float64) score.Rebuil
 
 // crossOf returns a block of tokens normalized tokens with one occurrence
 // in each of pkgs, in order.
-func crossOf(tokens int, pkgs ...string) metrics.CrossBlock {
-	b := metrics.CrossBlock{Tokens: tokens}
+func crossOf(tokens int, pkgs ...string) inventory.CrossBlock {
+	b := inventory.CrossBlock{Tokens: tokens}
 	for i, p := range pkgs {
-		b.Occurrences = append(b.Occurrences, metrics.Occurrence{Package: p, File: p + "/x.go", StartLine: 10*i + 1, EndLine: 10*i + 9})
+		b.Occurrences = append(b.Occurrences, inventory.Occurrence{Package: p, File: p + "/x.go", StartLine: 10*i + 1, EndLine: 10*i + 9})
 	}
 	return b
 }
@@ -570,10 +571,10 @@ func crossOf(tokens int, pkgs ...string) metrics.CrossBlock {
 func TestAddedCrossSuggestion(t *testing.T) {
 	t.Parallel()
 
-	one := []metrics.CrossBlock{crossOf(100, "a", "b")}
+	one := []inventory.CrossBlock{crossOf(100, "a", "b")}
 	tests := []struct {
 		name  string
-		added []metrics.CrossBlock
+		added []inventory.CrossBlock
 		floor int
 		want  string
 	}{

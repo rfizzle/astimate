@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 )
 
 // TestRoundTrip encodes every field a file records and decodes it back.
@@ -24,12 +25,12 @@ func TestRoundTrip(t *testing.T) {
 			"example.com/m/b":   {Files: 1},
 			metrics.ModuleRowID: {DupBlocksCrossPkg: &cross},
 		},
-		Functions: map[string][]metrics.FunctionInfo{
+		Functions: map[string][]inventory.FunctionInfo{
 			"example.com/m/a": {{Receiver: "T", Name: "Run", Fingerprint: 0xff, Signature: 0xabc, Cognitive: 4, Cyclomatic: 3}},
 		},
 		Named: map[string]Named{
 			"example.com/m/a": {DupBlocks: []uint64{0x1, 0xfedcba9876543210}, UntestedExports: []string{"T.Run"},
-				Exports: []metrics.Symbol{{Kind: "type", Name: "T"}, {Kind: "func", Receiver: "T", Name: "Run"}}},
+				Exports: []inventory.Symbol{{Kind: "type", Name: "T"}, {Kind: "func", Receiver: "T", Name: "Run"}}},
 		},
 		Dirs: map[string]string{"example.com/m/a": "a", "example.com/m/b": "b"},
 	}

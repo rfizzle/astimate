@@ -15,6 +15,7 @@ import (
 	"github.com/rfizzle/astimate/internal/lang/typescript/internal/inspect"
 	"github.com/rfizzle/astimate/internal/lang/typescript/internal/resolve"
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 )
 
 // Token counting methods. They match the values of the --tokenizer flag.
@@ -180,22 +181,22 @@ func (e *Extractor) checkTokenizer() error {
 // files of package pkg, from the details its most recent Extract on mod
 // recorded. When nothing is recorded it runs Extract first, so it fails
 // exactly when Extract would.
-func (e *Extractor) Details(ctx context.Context, mod *metrics.ModuleContext, pkg string) (metrics.Details, error) {
+func (e *Extractor) Details(ctx context.Context, mod *metrics.ModuleContext, pkg string) (inventory.Details, error) {
 	if err := ctx.Err(); err != nil {
-		return metrics.Details{}, fmt.Errorf("details of %s: %w", pkg, err)
+		return inventory.Details{}, fmt.Errorf("details of %s: %w", pkg, err)
 	}
 	m, err := e.cached(ctx, mod)
 	if err != nil {
-		return metrics.Details{}, err
+		return inventory.Details{}, err
 	}
 	d, ok := m.detailsOf(pkg)
 	if !ok {
 		if _, err := e.Extract(ctx, mod, pkg); err != nil {
-			return metrics.Details{}, err
+			return inventory.Details{}, err
 		}
 		d, _ = m.detailsOf(pkg)
 	}
-	det := metrics.Details{
+	det := inventory.Details{
 		UntestedExports:   slices.Clone(d.untested),
 		UntestedExcluded:  slices.Clone(d.excluded),
 		UntestedPositions: slices.Clone(d.untestedPos),
@@ -220,7 +221,7 @@ func (e *Extractor) Details(ctx context.Context, mod *metrics.ModuleContext, pkg
 // directory. The records come from the module's parse, the one Extract
 // reads, so they reflect the most recent Extract on mod; an identifier
 // Packages does not list yields an error wrapping metrics.ErrUnknownPackage.
-func (e *Extractor) Functions(ctx context.Context, mod *metrics.ModuleContext, pkg string) ([]metrics.FunctionInfo, error) {
+func (e *Extractor) Functions(ctx context.Context, mod *metrics.ModuleContext, pkg string) ([]inventory.FunctionInfo, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, fmt.Errorf("functions of %s: %w", pkg, err)
 	}
@@ -237,14 +238,14 @@ func (e *Extractor) Functions(ctx context.Context, mod *metrics.ModuleContext, p
 
 // functionsOf returns the function records of p's non-test files, in file
 // and declaration order, File relative to p's directory.
-func functionsOf(p *pkg) []metrics.FunctionInfo {
+func functionsOf(p *pkg) []inventory.FunctionInfo {
 	n := 0
 	for _, f := range p.src {
 		if !f.Generated {
 			n += len(f.Funcs)
 		}
 	}
-	fns := make([]metrics.FunctionInfo, 0, n)
+	fns := make([]inventory.FunctionInfo, 0, n)
 	for _, f := range p.src {
 		if f.Generated {
 			continue
@@ -255,7 +256,7 @@ func functionsOf(p *pkg) []metrics.FunctionInfo {
 		}
 		file = filepath.ToSlash(file)
 		for _, fn := range f.Funcs {
-			fns = append(fns, metrics.FunctionInfo{
+			fns = append(fns, inventory.FunctionInfo{
 				Receiver:    fn.Receiver,
 				Name:        fn.Ident,
 				Fingerprint: fn.Fingerprint,

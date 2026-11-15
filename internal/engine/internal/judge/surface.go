@@ -4,7 +4,7 @@ import (
 	"path"
 
 	"github.com/rfizzle/astimate/internal/gate"
-	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 	"github.com/rfizzle/astimate/internal/report"
 )
 
@@ -12,7 +12,7 @@ import (
 // on at, the declaration of the first symbol it names, relative to r's
 // package directory; with at unknown it keeps the location
 // locateFindings gave it.
-func locateReshaped(r *report.Report, at metrics.Position) {
+func locateReshaped(r *report.Report, at inventory.Position) {
 	if at.File == "" {
 		return
 	}

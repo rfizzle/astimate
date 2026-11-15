@@ -23,6 +23,7 @@ import (
 	"github.com/rfizzle/astimate/internal/engine"
 	"github.com/rfizzle/astimate/internal/lang/golang"
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 	"github.com/rfizzle/astimate/internal/report"
 	"github.com/rfizzle/astimate/internal/report/details"
 )
@@ -84,7 +85,7 @@ func writeFixtureBaseline(t *testing.T, withFunctions bool) string {
 	if err != nil {
 		t.Fatalf("collecting the fixture baseline: %v", err)
 	}
-	var funcs map[string][]metrics.FunctionInfo
+	var funcs map[string][]inventory.FunctionInfo
 	if withFunctions {
 		funcs, err = baseline.CollectFunctions(context.Background(), tg.Ext, tg.Mod, pkgs)
 		if err != nil {

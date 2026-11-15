@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 )
 
 // checkDetailsConsistency checks the parts of det, the details of pkg, that
@@ -16,7 +17,7 @@ import (
 // declaration per exported symbol, and the cross-package blocks behind
 // dup_blocks_cross_pkg. Nil positions, names, declarations or blocks mean
 // the implementation does not record them and are not checked.
-func checkDetailsConsistency(t *testing.T, pkg string, det metrics.Details, m metrics.RawMetrics, pkgs []string) {
+func checkDetailsConsistency(t *testing.T, pkg string, det inventory.Details, m metrics.RawMetrics, pkgs []string) {
 	t.Helper()
 	if det.UntestedPositions != nil && len(det.UntestedPositions) != len(det.UntestedExports) {
 		t.Errorf("%s: Details has %d untested positions for %d untested exports %q, want one per export",
@@ -48,7 +49,7 @@ func checkDetailsConsistency(t *testing.T, pkg string, det metrics.Details, m me
 // among pkgs, one of them self unless self is empty; every file is a clean
 // slash-separated path relative to the module root; and every line range
 // is positive with start <= end.
-func checkCrossBlocks(t *testing.T, id string, blocks []metrics.CrossBlock, pkgs []string, self string) {
+func checkCrossBlocks(t *testing.T, id string, blocks []inventory.CrossBlock, pkgs []string, self string) {
 	t.Helper()
 	for i, b := range blocks {
 		touched := make(map[string]bool, len(b.Occurrences))
@@ -109,7 +110,7 @@ func checkModuleDetails(t *testing.T, ext metrics.Extractor, md metrics.ModuleDe
 	if !ok {
 		return
 	}
-	perPkg := make(map[string][]metrics.CrossBlock, len(pkgs))
+	perPkg := make(map[string][]inventory.CrossBlock, len(pkgs))
 	for i, b := range det.CrossBlocks {
 		checked := make(map[string]bool, len(b.Occurrences))
 		for _, o := range b.Occurrences {
@@ -126,7 +127,7 @@ func checkModuleDetails(t *testing.T, ext metrics.Extractor, md metrics.ModuleDe
 				blocks = pd.CrossBlocks
 				perPkg[o.Package] = blocks
 			}
-			if !slices.ContainsFunc(blocks, func(c metrics.CrossBlock) bool {
+			if !slices.ContainsFunc(blocks, func(c inventory.CrossBlock) bool {
 				return slices.Equal(c.Occurrences, b.Occurrences)
 			}) {
 				t.Errorf("%s: cross-package block %d touches %s, but Details(%s) does not list it",

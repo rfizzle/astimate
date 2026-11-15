@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 	"github.com/rfizzle/astimate/internal/score/suggestion"
 )
 
@@ -15,7 +16,7 @@ type crossBlame struct {
 	// order: the added ones (crossJudgment.added) touching a named package
 	// when the baseline recorded its blocks, every one touching a named
 	// package otherwise.
-	blocks []metrics.CrossBlock
+	blocks []inventory.CrossBlock
 	// known says the baseline recorded its blocks, so blocks holds only new
 	// ones.
 	known bool
@@ -29,7 +30,7 @@ type crossBlame struct {
 // and bm is its module row, nil when it has none. m.DupBlocksCrossPkg must
 // be non-nil.
 func blameNamed(m metrics.RawMetrics, bm *metrics.RawMetrics, cj crossJudgment,
-	head []metrics.CrossBlock, named []string,
+	head []inventory.CrossBlock, named []string,
 ) (metrics.RawMetrics, *crossBlame) {
 	set := make(map[string]bool, len(named))
 	for _, p := range named {
@@ -52,7 +53,7 @@ func blameNamed(m metrics.RawMetrics, bm *metrics.RawMetrics, cj crossJudgment,
 // tokens long and not moved by a rename, as a check of every package
 // judges them. Otherwise every head block is a candidate. A candidate is
 // blamed when one of its occurrences lies in a named package.
-func blameCross(head []metrics.CrossBlock, cj crossJudgment, named map[string]bool) crossBlame {
+func blameCross(head []inventory.CrossBlock, cj crossJudgment, named map[string]bool) crossBlame {
 	cand := head
 	if cj.known {
 		cand = cj.added
@@ -123,7 +124,7 @@ func (b crossBlame) suggestion(m metrics.RawMetrics, modulePath string) string {
 
 // blockPackages returns the distinct packages holding b's occurrences, in
 // occurrence order, which is package order.
-func blockPackages(b *metrics.CrossBlock) []string {
+func blockPackages(b *inventory.CrossBlock) []string {
 	pkgs := make([]string, 0, len(b.Occurrences))
 	for _, o := range b.Occurrences {
 		if !slices.Contains(pkgs, o.Package) {
@@ -134,7 +135,7 @@ func blockPackages(b *metrics.CrossBlock) []string {
 }
 
 // touchesAny reports whether an occurrence of b lies in a package in named.
-func touchesAny(b *metrics.CrossBlock, named map[string]bool) bool {
+func touchesAny(b *inventory.CrossBlock, named map[string]bool) bool {
 	for _, o := range b.Occurrences {
 		if named[o.Package] {
 			return true

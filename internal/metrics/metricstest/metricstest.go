@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 )
 
 // unknownPackage is a package identifier no extractor should accept.
@@ -471,7 +472,7 @@ func checkDetails(t *testing.T, d metrics.Detailer, mod *metrics.ModuleContext, 
 // two occurrences, and, when code is not nil, that as many of them are of
 // kind "code" as code says, every other kind being "declarative", "idiom"
 // or "self-overlap".
-func checkDupBlocks(t *testing.T, pkg string, det *metrics.Details, code *int) {
+func checkDupBlocks(t *testing.T, pkg string, det *inventory.Details, code *int) {
 	t.Helper()
 	if det.DupBlocks == nil {
 		return

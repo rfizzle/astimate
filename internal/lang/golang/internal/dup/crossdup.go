@@ -52,7 +52,7 @@ import (
 
 	"github.com/rfizzle/astimate/internal/lang/duptok"
 	"github.com/rfizzle/astimate/internal/lang/golang/internal/load"
-	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 )
 
 // Cross is the cross-package duplication of one module load.
@@ -62,7 +62,7 @@ type Cross struct {
 	// by package import path and file relative to the module root. Its
 	// length is the module row's dup_blocks_cross_pkg. Shared read-only;
 	// callers clone before handing it out.
-	Blocks []metrics.CrossBlock
+	Blocks []inventory.CrossBlock
 	// PerPkg maps a package's import path to the number of those blocks
 	// with an occurrence in it; a package with none is absent.
 	PerPkg map[string]int
@@ -168,7 +168,7 @@ type streamPkg struct {
 // package pkgs[filePkg[i]], by package import path and file relative to
 // the module root. Occurrences are sorted by package, file and line, and
 // blocks by first occurrence.
-func crossBlocks(modulePath string, pkgs []streamPkg, found []duptok.Block, filePkg []int32) []metrics.CrossBlock {
+func crossBlocks(modulePath string, pkgs []streamPkg, found []duptok.Block, filePkg []int32) []inventory.CrossBlock {
 	if len(found) == 0 {
 		return nil
 	}
@@ -178,13 +178,13 @@ func crossBlocks(modulePath string, pkgs []streamPkg, found []duptok.Block, file
 	for k, p := range pkgs {
 		dirs[k] = strings.TrimPrefix(strings.TrimPrefix(p.path, modulePath), "/")
 	}
-	out := make([]metrics.CrossBlock, 0, len(found))
+	out := make([]inventory.CrossBlock, 0, len(found))
 	for _, b := range found {
-		occ := make([]metrics.Occurrence, len(b.Files))
+		occ := make([]inventory.Occurrence, len(b.Files))
 		for i, f := range b.Files {
 			k := filePkg[f]
 			loc := b.Locations[i]
-			occ[i] = metrics.Occurrence{
+			occ[i] = inventory.Occurrence{
 				Package:   pkgs[k].path,
 				File:      path.Join(dirs[k], load.RelFile(pkgs[k].dir, loc.File)),
 				StartLine: loc.StartLine,
@@ -192,9 +192,9 @@ func crossBlocks(modulePath string, pkgs []streamPkg, found []duptok.Block, file
 			}
 		}
 		slices.SortFunc(occ, compareOccurrence)
-		out = append(out, metrics.CrossBlock{Kind: b.Kind.String(), Tokens: b.Tokens, Occurrences: occ})
+		out = append(out, inventory.CrossBlock{Kind: b.Kind.String(), Tokens: b.Tokens, Occurrences: occ})
 	}
-	slices.SortFunc(out, func(a, b metrics.CrossBlock) int {
+	slices.SortFunc(out, func(a, b inventory.CrossBlock) int {
 		return cmp.Or(compareOccurrence(a.Occurrences[0], b.Occurrences[0]),
 			cmp.Compare(len(a.Occurrences), len(b.Occurrences)))
 	})
@@ -203,7 +203,7 @@ func crossBlocks(modulePath string, pkgs []streamPkg, found []duptok.Block, file
 
 // compareOccurrence orders occurrences by package, file, first line and
 // last line.
-func compareOccurrence(a, b metrics.Occurrence) int {
+func compareOccurrence(a, b inventory.Occurrence) int {
 	return cmp.Or(cmp.Compare(a.Package, b.Package), cmp.Compare(a.File, b.File),
 		cmp.Compare(a.StartLine, b.StartLine), cmp.Compare(a.EndLine, b.EndLine))
 }
@@ -250,13 +250,13 @@ func crossPackage(s *duptok.Stream, filePkg []int32, npkg int, opts Options) (cr
 // BlocksOf returns deep copies of the blocks of c with an occurrence in the
 // package with import path pkg, or every block when pkg is empty; nil when
 // there are none.
-func (c Cross) BlocksOf(pkg string) []metrics.CrossBlock {
-	var out []metrics.CrossBlock
+func (c Cross) BlocksOf(pkg string) []inventory.CrossBlock {
+	var out []inventory.CrossBlock
 	for _, b := range c.Blocks {
-		if pkg != "" && !slices.ContainsFunc(b.Occurrences, func(o metrics.Occurrence) bool { return o.Package == pkg }) {
+		if pkg != "" && !slices.ContainsFunc(b.Occurrences, func(o inventory.Occurrence) bool { return o.Package == pkg }) {
 			continue
 		}
-		out = append(out, metrics.CrossBlock{Kind: b.Kind, Tokens: b.Tokens, Occurrences: slices.Clone(b.Occurrences)})
+		out = append(out, inventory.CrossBlock{Kind: b.Kind, Tokens: b.Tokens, Occurrences: slices.Clone(b.Occurrences)})
 	}
 	return out
 }

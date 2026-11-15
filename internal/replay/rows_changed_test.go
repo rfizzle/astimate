@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 	"github.com/rfizzle/astimate/internal/report"
 )
 
@@ -17,11 +18,11 @@ func TestPackageRowChangedFunctions(t *testing.T) {
 	t.Parallel()
 
 	worst := 369
-	fns := []metrics.ChangedFunction{
-		{FunctionInfo: metrics.FunctionInfo{Receiver: "UI", Name: "Update", File: "ui.go", Line: 20, Cognitive: 369},
+	fns := []inventory.ChangedFunction{
+		{FunctionInfo: inventory.FunctionInfo{Receiver: "UI", Name: "Update", File: "ui.go", Line: 20, Cognitive: 369},
 			BaseCognitive: 369, HasBase: true},
-		{FunctionInfo: metrics.FunctionInfo{Name: "small", File: "s.go", Line: 3, Cognitive: 20}},
-		{FunctionInfo: metrics.FunctionInfo{Name: "grade", File: "g.go", Line: 8, Cognitive: 51}},
+		{FunctionInfo: inventory.FunctionInfo{Name: "small", File: "s.go", Line: 3, Cognitive: 20}},
+		{FunctionInfo: inventory.FunctionInfo{Name: "grade", File: "g.go", Line: 8, Cognitive: 51}},
 	}
 	p := &report.CheckedPackage{
 		Report: report.Report{

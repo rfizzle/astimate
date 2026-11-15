@@ -4,14 +4,14 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 )
 
 func TestRankDupBlocks(t *testing.T) {
 	t.Parallel()
 
 	// In size order: four blocks, each with the anchors 10i+1 and 10i+2.
-	blocks := []metrics.DupBlock{
+	blocks := []inventory.DupBlock{
 		{Anchors: [2]uint64{11, 12}, Locations: []string{"a.go:1-30", "b.go:1-30"}},
 		{Anchors: [2]uint64{21, 22}, Locations: []string{"c.go:5-20", "c.go:40-55"}},
 		{Anchors: [2]uint64{31, 32}, Locations: []string{"a.go:50-60", "d.go:1-11"}},
@@ -54,12 +54,12 @@ func TestRankUntested(t *testing.T) {
 	t.Parallel()
 
 	names := []string{"Alpha", "JoinAgain", "Omega", "Zeta"}
-	pos := []metrics.Position{{File: "a.go", Line: 1}, {File: "j.go", Line: 2}, {File: "o.go", Line: 3}, {File: "z.go", Line: 4}}
+	pos := []inventory.Position{{File: "a.go", Line: 1}, {File: "j.go", Line: 2}, {File: "o.go", Line: 3}, {File: "z.go", Line: 4}}
 	got, gotPos, added := RankUntested(names, pos, []string{"Alpha", "Omega", "Gone"})
 	if want := []string{"JoinAgain", "Zeta", "Alpha", "Omega"}; !slices.Equal(got, want) || added != 2 {
 		t.Errorf("RankUntested = %q, %d; want %q, 2", got, added, want)
 	}
-	if want := []metrics.Position{pos[1], pos[3], pos[0], pos[2]}; !slices.Equal(gotPos, want) {
+	if want := []inventory.Position{pos[1], pos[3], pos[0], pos[2]}; !slices.Equal(gotPos, want) {
 		t.Errorf("positions = %+v, want %+v", gotPos, want)
 	}
 	if names[0] != "Alpha" || pos[0].File != "a.go" {
@@ -74,10 +74,10 @@ func TestRankUntested(t *testing.T) {
 
 // crossBlock returns a cross-package block with one occurrence in each of
 // pkgs.
-func crossBlock(pkgs ...string) metrics.CrossBlock {
-	b := metrics.CrossBlock{}
+func crossBlock(pkgs ...string) inventory.CrossBlock {
+	b := inventory.CrossBlock{}
 	for _, p := range pkgs {
-		b.Occurrences = append(b.Occurrences, metrics.Occurrence{Package: p, File: p + "/x.go", StartLine: 1, EndLine: 9})
+		b.Occurrences = append(b.Occurrences, inventory.Occurrence{Package: p, File: p + "/x.go", StartLine: 1, EndLine: 9})
 	}
 	return b
 }
@@ -85,8 +85,8 @@ func crossBlock(pkgs ...string) metrics.CrossBlock {
 func TestRankCrossBlocks(t *testing.T) {
 	t.Parallel()
 
-	head := []metrics.CrossBlock{crossBlock("a", "b"), crossBlock("b", "a"), crossBlock("c", "d"), crossBlock("a", "a", "e")}
-	base := []metrics.CrossBlock{crossBlock("a", "b"), crossBlock("e", "a")}
+	head := []inventory.CrossBlock{crossBlock("a", "b"), crossBlock("b", "a"), crossBlock("c", "d"), crossBlock("a", "a", "e")}
+	base := []inventory.CrossBlock{crossBlock("a", "b"), crossBlock("e", "a")}
 	if got, want := NewCrossBlocks(head, base), []bool{false, true, true, false}; !slices.Equal(got, want) {
 		t.Errorf("NewCrossBlocks = %v, want %v", got, want)
 	}

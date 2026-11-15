@@ -4,7 +4,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 	"github.com/rfizzle/astimate/internal/metrics/role"
 )
 
@@ -17,7 +17,7 @@ import (
 // occurrence lies in a package whose role in roles is main: the flag
 // tables and registration calls composition roots repeat are counted but
 // not gated. roles maps a package, named like head's, to its role
-// (metrics.Details.Roles); nil exempts nothing. A block is moved when every package it touches lies
+// (inventory.Details.Roles); nil exempts nothing. A block is moved when every package it touches lies
 // in one group of packages a rename joined: a package seeded by a rename
 // and the packages it was seeded from, groups sharing a package being one
 // group, so splitting a package in two moves the code the halves share
@@ -33,7 +33,7 @@ import (
 // sides are matched, so a short legacy block cannot hide a long copy
 // between the same packages, nor a long legacy block be blamed for a short
 // repeat added beside it.
-func AddedCrossBlocks(head, base []metrics.CrossBlock, floor int, from map[string][]string, roles map[string]string) []metrics.CrossBlock {
+func AddedCrossBlocks(head, base []inventory.CrossBlock, floor int, from map[string][]string, roles map[string]string) []inventory.CrossBlock {
 	group := renameGroups(from)
 	old := make(map[string]int, len(base))
 	for i := range base {
@@ -41,7 +41,7 @@ func AddedCrossBlocks(head, base []metrics.CrossBlock, floor int, from map[strin
 			old[groupSet(&base[i], group)]++
 		}
 	}
-	var out []metrics.CrossBlock
+	var out []inventory.CrossBlock
 	for i := range head {
 		b := &head[i]
 		if underFloor(b, floor) || mainOnly(b, roles) || moved(b, group) {
@@ -57,13 +57,13 @@ func AddedCrossBlocks(head, base []metrics.CrossBlock, floor int, from map[strin
 }
 
 // underFloor reports whether b is known to be shorter than floor tokens.
-func underFloor(b *metrics.CrossBlock, floor int) bool {
+func underFloor(b *inventory.CrossBlock, floor int) bool {
 	return b.Tokens > 0 && b.Tokens < floor
 }
 
 // mainOnly reports whether b is a declarative block every occurrence of
 // which lies in a package roles calls main.
-func mainOnly(b *metrics.CrossBlock, roles map[string]string) bool {
+func mainOnly(b *inventory.CrossBlock, roles map[string]string) bool {
 	if b.Kind != "declarative" || len(b.Occurrences) == 0 {
 		return false
 	}
@@ -110,7 +110,7 @@ func renameGroups(from map[string][]string) map[string]string {
 
 // groupSet returns the set of packages b touches, as packageSet does, with
 // each package that group holds replaced by its group's representative.
-func groupSet(b *metrics.CrossBlock, group map[string]string) string {
+func groupSet(b *inventory.CrossBlock, group map[string]string) string {
 	pkgs := make([]string, 0, len(b.Occurrences))
 	for _, o := range b.Occurrences {
 		p := o.Package
@@ -124,7 +124,7 @@ func groupSet(b *metrics.CrossBlock, group map[string]string) string {
 }
 
 // moved reports whether every package b touches lies in one rename group.
-func moved(b *metrics.CrossBlock, group map[string]string) bool {
+func moved(b *inventory.CrossBlock, group map[string]string) bool {
 	if len(group) == 0 || len(b.Occurrences) == 0 {
 		return false
 	}

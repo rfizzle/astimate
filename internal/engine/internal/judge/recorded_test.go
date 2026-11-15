@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 	"github.com/rfizzle/astimate/internal/score"
 )
 
@@ -17,9 +18,9 @@ func TestCrossJudgmentRecorded(t *testing.T) {
 	n := 3
 	m := metrics.RawMetrics{DupBlocksCrossPkg: &n}
 	bm := &metrics.RawMetrics{DupBlocksCrossPkg: &n}
-	block := metrics.CrossBlock{Tokens: 90, Occurrences: []metrics.Occurrence{{Package: "ex.com/m/a"}, {Package: "ex.com/m/b"}}}
+	block := inventory.CrossBlock{Tokens: 90, Occurrences: []inventory.Occurrence{{Package: "ex.com/m/a"}, {Package: "ex.com/m/b"}}}
 	rel := func(pkg string) string { return strings.TrimPrefix(pkg, "ex.com/m/") }
-	groups := []score.CrossGroup{{Base: []int{70}, Head: []metrics.CrossBlock{block}}}
+	groups := []score.CrossGroup{{Base: []int{70}, Head: []inventory.CrossBlock{block}}}
 
 	got := crossJudgment{known: true, groups: groups}.recorded(m, bm, rel)
 	if len(got) != 1 || got[0].Head[0].Occurrences[1].Package != "b" || got[0].Base[0] != 70 {

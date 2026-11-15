@@ -2,7 +2,7 @@ package judge
 
 import (
 	"github.com/rfizzle/astimate/internal/baseline"
-	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 	"github.com/rfizzle/astimate/internal/score"
 	"github.com/rfizzle/astimate/internal/score/suggestion"
 )
@@ -22,7 +22,7 @@ type leads struct {
 // package new at head added all of them. When the row recorded no details
 // (baseline.Row.HasNamed false) nothing can be told new, and d and names
 // keep their order.
-func rankNew(d *metrics.Details, names *suggestion.Names, row *baseline.Row, inBase bool) leads {
+func rankNew(d *inventory.Details, names *suggestion.Names, row *baseline.Row, inBase bool) leads {
 	var l leads
 	if inBase && !row.HasNamed {
 		return l
@@ -50,7 +50,7 @@ func rankNew(d *metrics.Details, names *suggestion.Names, row *baseline.Row, inB
 
 // firstCode returns the index in blocks of the first block of kind code
 // (SPEC.md 6.3), the one dup_blocks_code's finding cites, or -1.
-func firstCode(blocks []metrics.DupBlock) int {
+func firstCode(blocks []inventory.DupBlock) int {
 	for i := range blocks {
 		if blocks[i].Kind == codeKind {
 			return i
@@ -62,7 +62,7 @@ func firstCode(blocks []metrics.DupBlock) int {
 // codeLocations returns the occurrences of the blocks of kind code among
 // blocks, in their order, the ones dup_blocks_code counts; nil when none
 // is code.
-func codeLocations(blocks []metrics.DupBlock) []string {
+func codeLocations(blocks []inventory.DupBlock) []string {
 	var out []string
 	for i := range blocks {
 		if blocks[i].Kind == codeKind {
@@ -72,6 +72,6 @@ func codeLocations(blocks []metrics.DupBlock) []string {
 	return out
 }
 
-// codeKind is the metrics.DupBlock kind of a block of code, neither
+// codeKind is the inventory.DupBlock kind of a block of code, neither
 // declarative, idiom nor self-overlap (SPEC.md 6.3).
 const codeKind = "code"

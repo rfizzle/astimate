@@ -12,6 +12,7 @@ import (
 	"github.com/rfizzle/astimate/internal/gate"
 	"github.com/rfizzle/astimate/internal/gate/exempt"
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 	"github.com/rfizzle/astimate/internal/metrics/metricstest"
 )
 
@@ -24,11 +25,11 @@ func (b fakeBaseline) Row(dir string) (baseline.Row, bool) {
 	m, ok := b[dir]
 	return baseline.Row{Metrics: m}, ok
 }
-func (fakeBaseline) Ref() string                               { return "base" }
-func (fakeBaseline) Tokenizer() string                         { return "est" }
-func (fakeBaseline) CrossBlocks() ([]metrics.CrossBlock, bool) { return nil, false }
-func (fakeBaseline) Importers(string) ([]string, bool)         { return nil, false }
-func (fakeBaseline) Unavailable(string) (string, bool)         { return "", false }
+func (fakeBaseline) Ref() string                                 { return "base" }
+func (fakeBaseline) Tokenizer() string                           { return "est" }
+func (fakeBaseline) CrossBlocks() ([]inventory.CrossBlock, bool) { return nil, false }
+func (fakeBaseline) Importers(string) ([]string, bool)           { return nil, false }
+func (fakeBaseline) Unavailable(string) (string, bool)           { return "", false }
 
 // checker returns a Checker over a fake module of one package a, whose
 // globals rose from base, gated by a zero-tolerance globals rule and a
@@ -37,8 +38,8 @@ func checker(t *testing.T, row *int, exemptions []exempt.Entry) *Checker {
 	t.Helper()
 	const root, modPath = "/mod", "example.com/m"
 	pkgs := map[string]metrics.RawMetrics{modPath + "/a": {Globals: 2}}
-	details := map[string]metrics.Details{modPath + "/a": {
-		GlobalPositions: []metrics.Position{{File: "a.go", Line: 3}, {File: "a.go", Line: 4}},
+	details := map[string]inventory.Details{modPath + "/a": {
+		GlobalPositions: []inventory.Position{{File: "a.go", Line: 3}, {File: "a.go", Line: 4}},
 		GlobalNames:     []string{"x", "y"},
 	}}
 	opts := []metricstest.FakeOption{metricstest.WithDetails(details)}

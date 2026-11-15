@@ -150,7 +150,7 @@ func literalsHit(d *ast.GenDecl, hit func(ast.Node) bool) []string {
 }
 
 // funcName returns fd's name, prefixed with its receiver's base type name
-// and a dot for a method, as metrics.FunctionInfo.QualifiedName does.
+// and a dot for a method, as inventory.FunctionInfo.QualifiedName does.
 func funcName(fd *ast.FuncDecl) string {
 	if fd.Recv == nil || len(fd.Recv.List) == 0 {
 		return fd.Name.Name

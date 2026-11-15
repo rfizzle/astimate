@@ -10,6 +10,7 @@ import (
 
 	"github.com/rfizzle/astimate/internal/lang/golang"
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 )
 
 // moverSource is a Go file of package name long enough that a rename that
@@ -139,12 +140,12 @@ func rowsBaseline(rows map[string]Row) *snapshot {
 func TestSeeded(t *testing.T) {
 	t.Parallel()
 
-	fa := metrics.FunctionInfo{Name: "A", Fingerprint: 1}
-	fb := metrics.FunctionInfo{Name: "B", Fingerprint: 2}
+	fa := inventory.FunctionInfo{Name: "A", Fingerprint: 1}
+	fb := inventory.FunctionInfo{Name: "B", Fingerprint: 2}
 	cross := 4
 	base := rowsBaseline(map[string]Row{
-		"a":                 {Metrics: metrics.RawMetrics{SLOC: 300, DupBlocks: 3, HasTests: true, InternalImports: 2, FanIn: 5}, Functions: []metrics.FunctionInfo{fa}, HasFunctions: true},
-		"b":                 {Metrics: metrics.RawMetrics{SLOC: 50}, Functions: []metrics.FunctionInfo{fb}, HasFunctions: true},
+		"a":                 {Metrics: metrics.RawMetrics{SLOC: 300, DupBlocks: 3, HasTests: true, InternalImports: 2, FanIn: 5}, Functions: []inventory.FunctionInfo{fa}, HasFunctions: true},
+		"b":                 {Metrics: metrics.RawMetrics{SLOC: 50}, Functions: []inventory.FunctionInfo{fb}, HasFunctions: true},
 		"kept":              {Metrics: metrics.RawMetrics{SLOC: 10}},
 		metrics.ModuleRowID: {Metrics: metrics.RawMetrics{DupBlocksCrossPkg: &cross}},
 	})
@@ -167,7 +168,7 @@ func TestSeeded(t *testing.T) {
 	if !reflect.DeepEqual(sub.Metrics, wantMetrics) {
 		t.Errorf("Row(a/sub).Metrics = %+v, want %+v", sub.Metrics, wantMetrics)
 	}
-	if !sub.HasFunctions || !slices.Equal(sub.Functions, []metrics.FunctionInfo{fa, fb}) {
+	if !sub.HasFunctions || !slices.Equal(sub.Functions, []inventory.FunctionInfo{fa, fb}) {
 		t.Errorf("Row(a/sub) functions = %+v, %v, want A and B", sub.Functions, sub.HasFunctions)
 	}
 	if !slices.Equal(sub.From, []string{"a", "b"}) {

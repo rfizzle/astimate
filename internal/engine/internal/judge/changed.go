@@ -5,6 +5,7 @@ import (
 
 	"github.com/rfizzle/astimate/internal/gate"
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 	"github.com/rfizzle/astimate/internal/report"
 	"github.com/rfizzle/astimate/internal/score/suggestion"
 )
@@ -38,7 +39,7 @@ func nameJudged(r *report.Report, res *gate.Result, worst *changedFunction, m me
 // judgedFunction returns the Function of res's changed_func_cognitive_max
 // finding, among its violations, warnings and exempted findings, and nil
 // when it has none.
-func judgedFunction(res *gate.Result) *metrics.FunctionInfo {
+func judgedFunction(res *gate.Result) *inventory.FunctionInfo {
 	vs := slices.Concat(res.Violations, res.Warnings)
 	for _, e := range res.Exempted {
 		vs = append(vs, e.Violation)

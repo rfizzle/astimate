@@ -218,7 +218,7 @@ first parent: every function or method declaration of a non-test `.go`
 file whose line span, doc comment excluded, holds a removed line (in the
 parent's version of the file, parsed with `go/parser`) or an added line (in
 the commit's version), keyed by file path and `Receiver.Name` as
-`metrics.FunctionInfo.QualifiedName` names it, and every package-level
+`inventory.FunctionInfo.QualifiedName` names it, and every package-level
 variable whose value holds a function literal overlapping such a line
 (a cobra command's `RunE`), as `var <name>`. The Go extractor's
 `FunctionLister` would need the module loaded at every commit; the

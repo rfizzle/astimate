@@ -13,6 +13,7 @@ import (
 	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/gate"
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 	"github.com/rfizzle/astimate/internal/metrics/metricstest"
 )
 
@@ -20,10 +21,10 @@ import (
 // metrics.FunctionLister from a fixed map of functions per package.
 type listingExtractor struct {
 	metrics.Extractor
-	funcs map[string][]metrics.FunctionInfo
+	funcs map[string][]inventory.FunctionInfo
 }
 
-func (l *listingExtractor) Functions(_ context.Context, _ *metrics.ModuleContext, pkg string) ([]metrics.FunctionInfo, error) {
+func (l *listingExtractor) Functions(_ context.Context, _ *metrics.ModuleContext, pkg string) ([]inventory.FunctionInfo, error) {
 	return l.funcs[pkg], nil
 }
 
@@ -32,22 +33,22 @@ func TestCheckChangedFunctions(t *testing.T) {
 
 	const root, modPath = "/mod", "example.com/m"
 	pkgs := map[string]metrics.RawMetrics{modPath + "/old": {}, modPath + "/new": {}}
-	parse := metrics.FunctionInfo{Name: "Parse", Fingerprint: 1, Cognitive: 5, File: "p.go", Line: 3}
-	grade := metrics.FunctionInfo{Receiver: "T", Name: "grade", Fingerprint: 2, Cognitive: 40, File: "g.go", Line: 7}
-	small := metrics.FunctionInfo{Name: "small", Fingerprint: 3, Cognitive: 12, File: "s.go", Line: 1}
+	parse := inventory.FunctionInfo{Name: "Parse", Fingerprint: 1, Cognitive: 5, File: "p.go", Line: 3}
+	grade := inventory.FunctionInfo{Receiver: "T", Name: "grade", Fingerprint: 2, Cognitive: 40, File: "g.go", Line: 7}
+	small := inventory.FunctionInfo{Name: "small", Fingerprint: 3, Cognitive: 12, File: "s.go", Line: 1}
 	edited := parse
 	edited.Fingerprint = 9
 	edited.Cognitive = 31
-	legacy := metrics.FunctionInfo{Receiver: "UI", Name: "Update", Fingerprint: 4, Cognitive: 369, File: "ui.go", Line: 20}
+	legacy := inventory.FunctionInfo{Receiver: "UI", Name: "Update", Fingerprint: 4, Cognitive: 369, File: "ui.go", Line: 20}
 	legacyEdited := legacy
 	legacyEdited.Fingerprint = 5
-	fresh := metrics.FunctionInfo{Name: "fresh", Fingerprint: 6, Cognitive: 60, File: "f.go", Line: 4}
+	fresh := inventory.FunctionInfo{Name: "fresh", Fingerprint: 6, Cognitive: 60, File: "f.go", Line: 4}
 
-	baseFuncs := map[string][]metrics.FunctionInfo{modPath + "/old": {parse}}
+	baseFuncs := map[string][]inventory.FunctionInfo{modPath + "/old": {parse}}
 	tests := []struct {
 		name      string
-		head      map[string][]metrics.FunctionInfo // nil: the extractor lists no functions
-		baseFuncs map[string][]metrics.FunctionInfo // nil: the file records none
+		head      map[string][]inventory.FunctionInfo // nil: the extractor lists no functions
+		baseFuncs map[string][]inventory.FunctionInfo // nil: the file records none
 		pkg       string
 		want      *int
 		violation string // the suggestion's text, when the rule should fail
@@ -56,18 +57,18 @@ func TestCheckChangedFunctions(t *testing.T) {
 	}{
 		{
 			name: "added complex function fails and is named", baseFuncs: baseFuncs, pkg: modPath + "/old",
-			head:      map[string][]metrics.FunctionInfo{modPath + "/old": {parse, grade}},
+			head:      map[string][]inventory.FunctionInfo{modPath + "/old": {parse, grade}},
 			want:      ptr(40),
 			violation: "Changed function T.grade (g.go:7) has cognitive complexity 40",
 		},
 		{
 			name: "unchanged functions report 0", baseFuncs: baseFuncs, pkg: modPath + "/old",
-			head: map[string][]metrics.FunctionInfo{modPath + "/old": {parse}},
+			head: map[string][]inventory.FunctionInfo{modPath + "/old": {parse}},
 			want: ptr(0),
 		},
 		{
 			name: "modified function counts", baseFuncs: baseFuncs, pkg: modPath + "/old",
-			head:      map[string][]metrics.FunctionInfo{modPath + "/old": {edited, small}},
+			head:      map[string][]inventory.FunctionInfo{modPath + "/old": {edited, small}},
 			want:      ptr(31),
 			violation: "Changed function Parse (p.go:3) has cognitive complexity 31",
 		},
@@ -75,26 +76,26 @@ func TestCheckChangedFunctions(t *testing.T) {
 			// The legacy function stays over the max at its own baseline
 			// value and passes; the new one fails and is the one named.
 			name: "legacy function over max does not hide a new one", pkg: modPath + "/old",
-			baseFuncs: map[string][]metrics.FunctionInfo{modPath + "/old": {legacy}},
-			head:      map[string][]metrics.FunctionInfo{modPath + "/old": {legacyEdited, fresh}},
+			baseFuncs: map[string][]inventory.FunctionInfo{modPath + "/old": {legacy}},
+			head:      map[string][]inventory.FunctionInfo{modPath + "/old": {legacyEdited, fresh}},
 			want:      ptr(369),
 			violation: "Changed function fresh (f.go:4) has cognitive complexity 60",
 			location:  "old/f.go:4",
 		},
 		{
 			name: "legacy function holding over max passes", pkg: modPath + "/old",
-			baseFuncs: map[string][]metrics.FunctionInfo{modPath + "/old": {legacy}},
-			head:      map[string][]metrics.FunctionInfo{modPath + "/old": {legacyEdited}},
+			baseFuncs: map[string][]inventory.FunctionInfo{modPath + "/old": {legacy}},
+			head:      map[string][]inventory.FunctionInfo{modPath + "/old": {legacyEdited}},
 			want:      ptr(369),
 		},
 		{
 			name: "every function of a new package is changed", baseFuncs: baseFuncs, pkg: modPath + "/new",
-			head: map[string][]metrics.FunctionInfo{modPath + "/new": {small}},
+			head: map[string][]inventory.FunctionInfo{modPath + "/new": {small}},
 			want: ptr(12),
 		},
 		{
 			name: "baseline file without functions leaves it null", pkg: modPath + "/old",
-			head:    map[string][]metrics.FunctionInfo{modPath + "/old": {parse, grade}},
+			head:    map[string][]inventory.FunctionInfo{modPath + "/old": {parse, grade}},
 			skipLog: true,
 		},
 		{

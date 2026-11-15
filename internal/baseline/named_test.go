@@ -12,6 +12,7 @@ import (
 
 	"github.com/rfizzle/astimate/internal/lang/golang"
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 )
 
 func TestFileNamed(t *testing.T) {
@@ -20,7 +21,7 @@ func TestFileNamed(t *testing.T) {
 	pkgs := map[string]metrics.RawMetrics{"example.com/m/a": {}, "example.com/m/b": {}, metrics.ModuleRowID: {}}
 	named := map[string]Named{
 		"example.com/m/a": {DupBlocks: []uint64{0xff, 0xfedcba9876543210}, UntestedExports: []string{"Join", "T.Run"},
-			Exports: []metrics.Symbol{{Kind: "func", Name: "Join"}, {Kind: "type", Name: "T"}, {Kind: "func", Receiver: "T", Name: "Run"}}},
+			Exports: []inventory.Symbol{{Kind: "func", Name: "Join"}, {Kind: "type", Name: "T"}, {Kind: "func", Receiver: "T", Name: "Run"}}},
 		"example.com/m/b": {},
 	}
 	path := filepath.Join(t.TempDir(), "baseline.json")
@@ -157,7 +158,7 @@ func TestFromGitRecordsNamed(t *testing.T) {
 		!slices.Equal(row.Named.UntestedExports, []string{"Fold1", "Fold2"}) {
 		t.Errorf("Row(a) named = %+v, %v, want the two anchors of one block and Fold1, Fold2 untested", row.Named, row.HasNamed)
 	}
-	wantExports := []metrics.Symbol{{Kind: "func", Name: "Fold1"}, {Kind: "func", Name: "Fold2"}}
+	wantExports := []inventory.Symbol{{Kind: "func", Name: "Fold1"}, {Kind: "func", Name: "Fold2"}}
 	if !reflect.DeepEqual(row.Named.Exports, wantExports) {
 		t.Errorf("Row(a) exports = %+v, want %+v without positions", row.Named.Exports, wantExports)
 	}
@@ -172,14 +173,14 @@ func TestSeededNamed(t *testing.T) {
 	t.Parallel()
 
 	base := rowsBaseline(map[string]Row{
-		"a": {Named: Named{DupBlocks: []uint64{9, 3}, UntestedExports: []string{"Z"}, Exports: []metrics.Symbol{{Kind: "func", Name: "Z"}}}, HasNamed: true},
-		"b": {Named: Named{DupBlocks: []uint64{5, 9}, UntestedExports: []string{"A"}, Exports: []metrics.Symbol{{Kind: "func", Name: "A"}}}, HasNamed: true},
+		"a": {Named: Named{DupBlocks: []uint64{9, 3}, UntestedExports: []string{"Z"}, Exports: []inventory.Symbol{{Kind: "func", Name: "Z"}}}, HasNamed: true},
+		"b": {Named: Named{DupBlocks: []uint64{5, 9}, UntestedExports: []string{"A"}, Exports: []inventory.Symbol{{Kind: "func", Name: "A"}}}, HasNamed: true},
 		"c": {},
 	})
 	s := Seeded(base, Renames{"sub": {{Dir: "a", Files: 1}, {Dir: "b", Files: 1}}, "new": {{Dir: "c", Files: 1}}}, nil)
 	sub, _ := s.Row("sub")
 	want := Named{DupBlocks: []uint64{3, 5, 9}, UntestedExports: []string{"A", "Z"},
-		Exports: []metrics.Symbol{{Kind: "func", Name: "A"}, {Kind: "func", Name: "Z"}}}
+		Exports: []inventory.Symbol{{Kind: "func", Name: "A"}, {Kind: "func", Name: "Z"}}}
 	if !sub.HasNamed || !reflect.DeepEqual(sub.Named, want) {
 		t.Errorf("Row(sub) named = %+v, %v, want every source's, sorted and distinct: %+v", sub.Named, sub.HasNamed, want)
 	}

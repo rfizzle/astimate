@@ -127,11 +127,11 @@ type ExportCounts struct {
 	Documented int
 	// Exported are the declarations Symbols counts, in declaration order,
 	// and Unexported the other top-level funcs, methods, types, vars and
-	// consts, _ and init left out (metrics.Details.Exports).
+	// consts, _ and init left out (inventory.Details.Exports).
 	Exported, Unexported []Symbol
 }
 
-// Symbol is one top-level declaration (metrics.Symbol): Kind is "func", a
+// Symbol is one top-level declaration (inventory.Symbol): Kind is "func", a
 // method too, "type", "var" or "const", Receiver a method's receiver base
 // type name, and Pos the position of its name in the load's file set.
 type Symbol struct {

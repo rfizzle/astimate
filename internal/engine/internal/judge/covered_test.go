@@ -6,6 +6,7 @@ import (
 
 	"github.com/rfizzle/astimate/internal/baseline"
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 	"github.com/rfizzle/astimate/internal/score/suggestion"
 )
 
@@ -71,10 +72,10 @@ func TestCoveredBase(t *testing.T) {
 func TestCoveredLast(t *testing.T) {
 	t.Parallel()
 
-	pos := func(lines ...int) []metrics.Position {
-		out := make([]metrics.Position, len(lines))
+	pos := func(lines ...int) []inventory.Position {
+		out := make([]inventory.Position, len(lines))
 		for i, l := range lines {
-			out[i] = metrics.Position{File: "a.go", Line: l}
+			out[i] = inventory.Position{File: "a.go", Line: l}
 		}
 		return out
 	}
@@ -124,7 +125,7 @@ func TestCoveredLast(t *testing.T) {
 			for i := range lines {
 				lines[i] = i + 1
 			}
-			d := metrics.Details{UntestedExports: slices.Clone(tt.exports), UntestedPositions: pos(lines...), UntestedCovered: tt.covered}
+			d := inventory.Details{UntestedExports: slices.Clone(tt.exports), UntestedPositions: pos(lines...), UntestedCovered: tt.covered}
 			names := suggestion.Names{UntestedExports: d.UntestedExports}
 			l := leads{untested: tt.lead}
 			coveredLast(&d, &names, &l, tt.base, tt.inBase)

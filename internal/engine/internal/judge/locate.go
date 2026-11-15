@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 	"github.com/rfizzle/astimate/internal/report"
 )
 
@@ -30,14 +30,14 @@ type changedFunction struct {
 }
 
 // worstChanged returns the most complex of a package's changed functions
-// (metrics.ChangedFunctionsWithBase), or a zero changedFunction when none
+// (inventory.ChangedFunctionsWithBase), or a zero changedFunction when none
 // changed.
-func worstChanged(changed []metrics.ChangedFunction) *changedFunction {
-	fns := make([]metrics.FunctionInfo, len(changed))
+func worstChanged(changed []inventory.ChangedFunction) *changedFunction {
+	fns := make([]inventory.FunctionInfo, len(changed))
 	for i := range changed {
 		fns[i] = changed[i].FunctionInfo
 	}
-	i := metrics.MostComplex(fns)
+	i := inventory.MostComplex(fns)
 	if i < 0 {
 		return &changedFunction{}
 	}
@@ -55,7 +55,7 @@ func worstChanged(changed []metrics.ChangedFunction) *changedFunction {
 
 // describeChanged returns f as a changedFunction, its name qualified and
 // followed by "(file:line)" when its location is known, with no files.
-func describeChanged(f *metrics.FunctionInfo) *changedFunction {
+func describeChanged(f *inventory.FunctionInfo) *changedFunction {
 	name := f.QualifiedName()
 	if f.File != "" {
 		name += " (" + f.File + ":" + strconv.Itoa(f.Line) + ")"
@@ -86,7 +86,7 @@ func describeChanged(f *metrics.FunctionInfo) *changedFunction {
 // are made module-relative by joining r's package path. A finding with no
 // candidate keeps no location, and renderers fall back to the package
 // directory.
-func locateFindings(r *report.Report, d *metrics.Details, worst *changedFunction, lead leads) {
+func locateFindings(r *report.Report, d *inventory.Details, worst *changedFunction, lead leads) {
 	for _, f := range r.AllFindings() {
 		if pos := findingPosition(f.Metric, d, worst, lead); pos.File != "" {
 			f.Location = &report.Location{File: path.Join(r.PackagePath, pos.File), Line: pos.Line}
@@ -97,7 +97,7 @@ func locateFindings(r *report.Report, d *metrics.Details, worst *changedFunction
 // locateCross locates r's dup_blocks_cross_pkg findings, exempted ones
 // included, on the first occurrence of the first of blocks, the one their
 // suggestion names first, so a renderer can annotate that file and line.
-func locateCross(r *report.Report, blocks []metrics.CrossBlock) {
+func locateCross(r *report.Report, blocks []inventory.CrossBlock) {
 	if len(blocks) == 0 || len(blocks[0].Occurrences) == 0 {
 		return
 	}
@@ -111,12 +111,12 @@ func locateCross(r *report.Report, blocks []metrics.CrossBlock) {
 
 // findingPosition returns the package-relative position locateFindings
 // puts a finding on metric at; its File is empty when there is none.
-func findingPosition(metric string, d *metrics.Details, worst *changedFunction, lead leads) metrics.Position {
+func findingPosition(metric string, d *inventory.Details, worst *changedFunction, lead leads) inventory.Position {
 	var changed map[string]bool
 	if worst != nil {
 		changed = worst.files
 	}
-	var pos metrics.Position
+	var pos inventory.Position
 	switch metric {
 	case "dup_blocks", "duplication_pct", "duplicated_lines":
 		pos = pickPosition(dupPositions(d.DupLocations), preferred(changed, lead.dup))
@@ -127,22 +127,22 @@ func findingPosition(metric string, d *metrics.Details, worst *changedFunction, 
 	case "globals":
 		pos = pickPosition(d.GlobalPositions, changed)
 	case "sloc", "largest_file_sloc", "tokens_est", "tokens_est_with_tests":
-		pos = metrics.Position{File: d.LargestFile, Line: 1}
+		pos = inventory.Position{File: d.LargestFile, Line: 1}
 	case "changed_func_cognitive_max":
 		if worst != nil {
-			pos = metrics.Position{File: worst.file, Line: worst.line}
+			pos = inventory.Position{File: worst.file, Line: worst.line}
 		}
 	}
 	if pos.File != "" {
 		return pos
 	}
 	if slices.Contains(d.SourceFiles, "doc.go") {
-		return metrics.Position{File: "doc.go", Line: 1}
+		return inventory.Position{File: "doc.go", Line: 1}
 	}
 	if len(d.SourceFiles) > 0 {
-		return metrics.Position{File: d.SourceFiles[0], Line: 1}
+		return inventory.Position{File: d.SourceFiles[0], Line: 1}
 	}
-	return metrics.Position{}
+	return inventory.Position{}
 }
 
 // preferred returns changed, the files pickPosition prefers, or nil when
@@ -156,8 +156,8 @@ func preferred(changed map[string]bool, added bool) map[string]bool {
 
 // pickPosition returns the first of ps in a file of changed, else the first
 // with a file, else the zero Position.
-func pickPosition(ps []metrics.Position, changed map[string]bool) metrics.Position {
-	first := metrics.Position{}
+func pickPosition(ps []inventory.Position, changed map[string]bool) inventory.Position {
+	first := inventory.Position{}
 	for _, p := range ps {
 		if p.File == "" {
 			continue
@@ -172,11 +172,11 @@ func pickPosition(ps []metrics.Position, changed map[string]bool) metrics.Positi
 	return first
 }
 
-// dupPositions parses metrics.Details.DupLocations, each "file:start-end",
+// dupPositions parses inventory.Details.DupLocations, each "file:start-end",
 // into the position of each occurrence's first line, skipping any that
 // does not parse.
-func dupPositions(locs []string) []metrics.Position {
-	ps := make([]metrics.Position, 0, len(locs))
+func dupPositions(locs []string) []inventory.Position {
+	ps := make([]inventory.Position, 0, len(locs))
 	for _, loc := range locs {
 		i := strings.LastIndexByte(loc, ':')
 		if i <= 0 {
@@ -187,7 +187,7 @@ func dupPositions(locs []string) []metrics.Position {
 		if err != nil {
 			continue
 		}
-		ps = append(ps, metrics.Position{File: loc[:i], Line: line})
+		ps = append(ps, inventory.Position{File: loc[:i], Line: line})
 	}
 	return ps
 }

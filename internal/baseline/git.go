@@ -14,6 +14,7 @@ import (
 
 	"github.com/rfizzle/astimate/internal/baseline/internal/diff"
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 )
 
 // ErrNoDefaultRef is returned by DefaultRef when none of the default
@@ -104,7 +105,7 @@ func FromGit(ctx context.Context, root, ref string, ext metrics.Extractor, modul
 		q.Repeat(modRoot)
 	}
 	pkgs, err := Collect(ctx, ext, mod)
-	var funcs map[string][]metrics.FunctionInfo
+	var funcs map[string][]inventory.FunctionInfo
 	if err == nil {
 		funcs, err = CollectFunctions(ctx, ext, mod, pkgs)
 	}
@@ -112,7 +113,7 @@ func FromGit(ctx context.Context, root, ref string, ext metrics.Extractor, modul
 	if err == nil {
 		named, err = CollectNamed(ctx, ext, mod, pkgs)
 	}
-	var cross []metrics.CrossBlock
+	var cross []inventory.CrossBlock
 	crossKnown := false
 	if _, isModule := ext.(metrics.ModuleMetrics); err == nil && isModule {
 		cross, crossKnown, err = CollectCrossBlocks(ctx, ext, mod)
@@ -143,7 +144,7 @@ func FromGit(ctx context.Context, root, ref string, ext metrics.Extractor, modul
 		}
 	}
 	return &snapshot{
-		ref: sha, tokenizer: tokenizer, rows: c.rows(), cross: metrics.MapPackages(cross, dir), crossKnown: crossKnown,
+		ref: sha, tokenizer: tokenizer, rows: c.rows(), cross: inventory.MapPackages(cross, dir), crossKnown: crossKnown,
 		importers: byDir, importersKnown: importersKnown, unavailable: unavailable,
 	}, nil
 }

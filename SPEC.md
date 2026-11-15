@@ -89,6 +89,7 @@ astimate/
 │   ├── metrics/                 # RawMetrics struct and Extractor interface (language-agnostic)
 │   │   ├── explain/             # Per-metric definitions and evidence texts for explain_metric
 │   │   ├── role/                # The package role names (6.5), standard library only
+│   │   ├── inventory/           # Records beside the metrics: details, functions, symbols, duplicate blocks
 │   │   └── metricstest/         # Conformance suite every extractor runs, plus a fake extractor
 │   ├── config/                  # Embedded default config and the unified loader
 │   ├── engine/                  # Operations: resolve a target, assess, rank, check, baseline write

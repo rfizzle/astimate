@@ -16,6 +16,7 @@ import (
 	"github.com/rfizzle/astimate/internal/lang/golang/internal/inspect"
 	"github.com/rfizzle/astimate/internal/lang/golang/internal/load"
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -214,17 +215,17 @@ func (e *Extractor) ModuleRow(ctx context.Context, mod *metrics.ModuleContext) (
 // the role of every package they lie in (roleOf). It
 // shares the memoized cross-package pass with ModuleRow and Extract, so it
 // reads no file once either has run, and fails when ModuleRow would.
-func (e *Extractor) ModuleDetails(ctx context.Context, mod *metrics.ModuleContext) (metrics.Details, error) {
+func (e *Extractor) ModuleDetails(ctx context.Context, mod *metrics.ModuleContext) (inventory.Details, error) {
 	cross, err := e.moduleCross(ctx, mod)
 	if err != nil {
-		return metrics.Details{}, err
+		return inventory.Details{}, err
 	}
 	l, err := e.cached(ctx, mod)
 	if err != nil {
-		return metrics.Details{}, err
+		return inventory.Details{}, err
 	}
 	blocks := cross.BlocksOf("")
-	return metrics.Details{CrossBlocks: blocks, Roles: blockRoles(l, blocks)}, nil
+	return inventory.Details{CrossBlocks: blocks, Roles: blockRoles(l, blocks)}, nil
 }
 
 // moduleCross returns the memoized cross-package duplication of the module

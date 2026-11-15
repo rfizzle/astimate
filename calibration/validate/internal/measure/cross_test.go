@@ -5,6 +5,7 @@ import (
 
 	"github.com/rfizzle/astimate/calibration/validate/internal/corpus"
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 	"github.com/rfizzle/astimate/internal/score"
 )
 
@@ -21,7 +22,7 @@ func moduleRow(head, base int, groups [][2][]int) corpus.Row {
 	for _, g := range groups {
 		cg := score.CrossGroup{Base: g[1]}
 		for _, t := range g[0] {
-			cg.Head = append(cg.Head, metrics.CrossBlock{Tokens: t})
+			cg.Head = append(cg.Head, inventory.CrossBlock{Tokens: t})
 		}
 		r.Cross = append(r.Cross, cg)
 	}

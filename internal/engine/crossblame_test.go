@@ -6,14 +6,15 @@ import (
 	"testing"
 
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 )
 
 // block returns a cross-package block with one occurrence in each of pkgs,
 // packages of example.com/m, in the given order.
-func block(pkgs ...string) metrics.CrossBlock {
-	b := metrics.CrossBlock{Occurrences: make([]metrics.Occurrence, 0, len(pkgs))}
+func block(pkgs ...string) inventory.CrossBlock {
+	b := inventory.CrossBlock{Occurrences: make([]inventory.Occurrence, 0, len(pkgs))}
 	for i, p := range pkgs {
-		b.Occurrences = append(b.Occurrences, metrics.Occurrence{
+		b.Occurrences = append(b.Occurrences, inventory.Occurrence{
 			Package: "example.com/m/" + p, File: p + "/" + p + ".go", StartLine: 10 * (i + 1), EndLine: 10*(i+1) + 5,
 		})
 	}
@@ -24,11 +25,11 @@ func block(pkgs ...string) metrics.CrossBlock {
 // cross-package blocks (metrics.ModuleDetailer).
 type detailedModuleExtractor struct {
 	*moduleExtractor
-	blocks []metrics.CrossBlock
+	blocks []inventory.CrossBlock
 }
 
-func (e *detailedModuleExtractor) ModuleDetails(context.Context, *metrics.ModuleContext) (metrics.Details, error) {
-	return metrics.Details{CrossBlocks: e.blocks}, nil
+func (e *detailedModuleExtractor) ModuleDetails(context.Context, *metrics.ModuleContext) (inventory.Details, error) {
+	return inventory.Details{CrossBlocks: e.blocks}, nil
 }
 
 // TestCheckModuleRowNamedPackageFilter checks a named-package check against
@@ -41,16 +42,16 @@ func TestCheckModuleRowNamedPackageFilter(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		blocks     []metrics.CrossBlock
+		blocks     []inventory.CrossBlock
 		packages   []string
 		wantPassed bool
 		wantShared string
 	}{
-		{name: "copy between other packages", blocks: []metrics.CrossBlock{block("b", "c")},
+		{name: "copy between other packages", blocks: []inventory.CrossBlock{block("b", "c")},
 			packages: []string{"example.com/m/a"}, wantPassed: true},
-		{name: "copy touching the checked package", blocks: []metrics.CrossBlock{block("a", "c")},
+		{name: "copy touching the checked package", blocks: []inventory.CrossBlock{block("a", "c")},
 			packages: []string{"example.com/m/a"}, wantShared: "shared by a and c."},
-		{name: "every package", blocks: []metrics.CrossBlock{block("b", "c")}},
+		{name: "every package", blocks: []inventory.CrossBlock{block("b", "c")}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

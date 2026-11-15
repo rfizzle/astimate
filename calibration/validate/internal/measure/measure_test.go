@@ -10,6 +10,7 @@ import (
 	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/gate"
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 )
 
 // defaultRules returns the embedded default's rules.
@@ -432,11 +433,11 @@ func TestSweepChangedFunctions(t *testing.T) {
 	if ps := Params(s.List[i].Threshold); len(ps) != 2 || ps[0] != Max || ps[1] != OverMaxDelta {
 		t.Fatalf("Params = %v, want max and over_max_delta", ps)
 	}
-	fn := func(name string, head, base int) metrics.ChangedFunction {
-		return metrics.ChangedFunction{FunctionInfo: metrics.FunctionInfo{Name: name, Cognitive: head},
+	fn := func(name string, head, base int) inventory.ChangedFunction {
+		return inventory.ChangedFunction{FunctionInfo: inventory.FunctionInfo{Name: name, Cognitive: head},
 			BaseCognitive: base, HasBase: true}
 	}
-	cfRow := func(head int, changed []metrics.ChangedFunction, violated bool) corpus.Row {
+	cfRow := func(head int, changed []inventory.ChangedFunction, violated bool) corpus.Row {
 		h := head
 		r := corpus.Row{Package: "p", Language: "go", Head: metrics.RawMetrics{ChangedFuncCognitiveMax: &h, HasTests: true},
 			Base: &metrics.RawMetrics{HasTests: true}, Changed: changed}
@@ -446,9 +447,9 @@ func TestSweepChangedFunctions(t *testing.T) {
 		return r
 	}
 	c := &corpus.Corpus{Commits: []corpus.Commit{
-		commit("a", true, cfRow(385, []metrics.ChangedFunction{fn("Update", 385, 369)}, true)), // +16 over max
-		commit("b", false, cfRow(57, []metrics.ChangedFunction{fn("Parse", 57, 57)}, false)),   // held over max
-		commit("c", false, cfRow(57, nil, true)),                                               // no functions recorded
+		commit("a", true, cfRow(385, []inventory.ChangedFunction{fn("Update", 385, 369)}, true)), // +16 over max
+		commit("b", false, cfRow(57, []inventory.ChangedFunction{fn("Parse", 57, 57)}, false)),   // held over max
+		commit("c", false, cfRow(57, nil, true)),                                                 // no functions recorded
 	}}
 	sc, err := Score(c, s)
 	if err != nil {

@@ -7,10 +7,11 @@ import (
 	"testing"
 )
 
-// TestImportBoundary checks that score depends on metrics and its leaf
-// role only, and that its sub-package suggestion, which words the fix
-// suggestions, adds score itself and nothing else from this module, so
-// the score tree stays below the extractors, the gate and the reports.
+// TestImportBoundary checks that score depends on metrics and its leaves
+// role and inventory only, and that its sub-package suggestion, which
+// words the fix suggestions, adds score itself and nothing else from this
+// module, so the score tree stays below the extractors, the gate and the
+// reports.
 func TestImportBoundary(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs go list")
@@ -18,8 +19,8 @@ func TestImportBoundary(t *testing.T) {
 	t.Parallel()
 
 	for pkg, allowed := range map[string][]string{
-		".":            {"internal/metrics", "internal/metrics/role"},
-		"./suggestion": {"internal/metrics", "internal/score"},
+		".":            {"internal/metrics", "internal/metrics/role", "internal/metrics/inventory"},
+		"./suggestion": {"internal/metrics", "internal/metrics/inventory", "internal/score"},
 	} {
 		out, err := exec.CommandContext(t.Context(), "go", "list", "-f", `{{join .Imports "\n"}}`, pkg).Output()
 		if err != nil {

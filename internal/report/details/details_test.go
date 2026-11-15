@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 )
 
 // relPkg maps a fixture import path to its module-relative directory.
@@ -17,27 +17,27 @@ func TestNewDetails(t *testing.T) {
 
 	tests := []struct {
 		name string
-		in   metrics.Details
+		in   inventory.Details
 		want *Details
 	}{
-		{name: "empty", in: metrics.Details{}, want: nil},
+		{name: "empty", in: inventory.Details{}, want: nil},
 		{
 			name: "source files only",
-			in:   metrics.Details{SourceFiles: []string{"a.go"}},
+			in:   inventory.Details{SourceFiles: []string{"a.go"}},
 			want: nil,
 		},
 		{
 			name: "every field",
-			in: metrics.Details{
+			in: inventory.Details{
 				UntestedExports:   []string{"Parse", "T.Run"},
 				UntestedExcluded:  []string{"Debug"},
-				UntestedPositions: []metrics.Position{{File: "p.go", Line: 3}, {File: "t.go", Line: 9}},
+				UntestedPositions: []inventory.Position{{File: "p.go", Line: 3}, {File: "t.go", Line: 9}},
 				DupLocations:      []string{"a.go:4-20", "sub/b.go:30-46", "bad", "c.go:x-1"},
-				GlobalPositions:   []metrics.Position{{File: "state.go", Line: 7}},
+				GlobalPositions:   []inventory.Position{{File: "state.go", Line: 7}},
 				GlobalNames:       []string{"cache"},
 				LargestFile:       "a.go",
 				SourceFiles:       []string{"a.go", "p.go"},
-				CrossBlocks: []metrics.CrossBlock{{Occurrences: []metrics.Occurrence{
+				CrossBlocks: []inventory.CrossBlock{{Occurrences: []inventory.Occurrence{
 					{Package: "example.com/app/x", File: "x/x.go", StartLine: 1, EndLine: 9},
 					{Package: "example.com/app/y", File: "y/y.go", StartLine: 5, EndLine: 13},
 				}}},
@@ -56,17 +56,17 @@ func TestNewDetails(t *testing.T) {
 		},
 		{
 			name: "names without positions",
-			in:   metrics.Details{UntestedExports: []string{"Parse"}},
+			in:   inventory.Details{UntestedExports: []string{"Parse"}},
 			want: &Details{UntestedExports: []Declaration{{Name: "Parse"}}},
 		},
 		{
 			name: "global positions without names",
-			in:   metrics.Details{GlobalPositions: []metrics.Position{{File: "state.go", Line: 7}}},
+			in:   inventory.Details{GlobalPositions: []inventory.Position{{File: "state.go", Line: 7}}},
 			want: &Details{Globals: []Global{{File: "state.go", Line: 7}}},
 		},
 		{
 			name: "functions",
-			in: metrics.Details{Functions: []metrics.FunctionInfo{
+			in: inventory.Details{Functions: []inventory.FunctionInfo{
 				{Name: "Parse", File: "p.go", Line: 3, Cognitive: 4, Cyclomatic: 3, Fingerprint: 9},
 				{Receiver: "T", Name: "Run", Cognitive: 0, Cyclomatic: 1},
 			}},
@@ -77,7 +77,7 @@ func TestNewDetails(t *testing.T) {
 		},
 		{
 			name: "global names without positions",
-			in:   metrics.Details{GlobalNames: []string{"cache", "hits"}},
+			in:   inventory.Details{GlobalNames: []string{"cache", "hits"}},
 			want: &Details{Globals: []Global{{Name: "cache"}, {Name: "hits"}}},
 		},
 	}

@@ -15,6 +15,7 @@ import (
 	"github.com/rfizzle/astimate/calibration/collect/internal/modpass"
 	"github.com/rfizzle/astimate/internal/config"
 	"github.com/rfizzle/astimate/internal/metrics"
+	"github.com/rfizzle/astimate/internal/metrics/inventory"
 )
 
 // defaultConfig parses the embedded default configuration.
@@ -236,11 +237,11 @@ func checkFuncCognitive(t *testing.T, r *Row) {
 func TestCognitiveCounts(t *testing.T) {
 	tests := []struct {
 		name string
-		fns  []metrics.FunctionInfo
+		fns  []inventory.FunctionInfo
 		want map[int]int
 	}{
 		{"none", nil, nil},
-		{"counts by value", []metrics.FunctionInfo{{Cognitive: 0}, {Cognitive: 3}, {Cognitive: 0}, {Cognitive: 12}},
+		{"counts by value", []inventory.FunctionInfo{{Cognitive: 0}, {Cognitive: 3}, {Cognitive: 0}, {Cognitive: 12}},
 			map[int]int{0: 2, 3: 1, 12: 1}},
 	}
 	for _, tt := range tests {
