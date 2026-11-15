@@ -24,7 +24,7 @@ func TestStdInterfacesClosedList(t *testing.T) {
 			t.Errorf("method %s is not on the closed list", name)
 		}
 	}
-	for _, name := range []string{"Format", "ReadFrom", "WriteTo", "ServeHTTP", "Value", "LogValue", "Push"} {
+	for _, name := range []string{"Format", "ReadFrom", "WriteTo", "ServeHTTP", "Value", "LogValue", "Push", "Visit"} {
 		if len(s.named[name]) == 0 {
 			t.Errorf("method %s is not on the closed list", name)
 		}
@@ -89,7 +89,8 @@ func (W) Error() int { return 0 }
 	}
 }
 
-// TestCoversHTTP checks http.Flusher, http.Hijacker and http.Pusher: an
+// TestCoversHTTP checks http.Flusher, http.Hijacker, http.Pusher and
+// ast.Visitor: an
 // unexported writer wrapping an http.ResponseWriter is covered by each
 // method, and the same names with another signature are not.
 func TestCoversHTTP(t *testing.T) {
@@ -97,11 +98,20 @@ func TestCoversHTTP(t *testing.T) {
 
 import (
 	"bufio"
+	"go/ast"
 	"net"
 	"net/http"
 )
 
 type w struct{ http.ResponseWriter }
+
+type walker struct{}
+
+func (walker) Visit(ast.Node) ast.Visitor { return nil }
+
+type other struct{}
+
+func (other) Visit(ast.Node) bool { return false }
 
 func (w) Flush()                                         {}
 func (w) Hijack() (net.Conn, *bufio.ReadWriter, error)   { return nil, nil, nil }
@@ -129,6 +139,8 @@ func (o) Push(string) error                   { return nil }
 	}{
 		{"w", "Flush", true}, {"w", "Hijack", true}, {"w", "Push", true},
 		{"o", "Flush", false}, {"o", "Hijack", false}, {"o", "Push", false},
+		// ast.Walk calls Visit through ast.Visitor.
+		{"walker", "Visit", true}, {"other", "Visit", false},
 	} {
 		named := pkg.Scope().Lookup(tc.typ).Type()
 		obj, _, _ := types.LookupFieldOrMethod(named, true, pkg, tc.method)

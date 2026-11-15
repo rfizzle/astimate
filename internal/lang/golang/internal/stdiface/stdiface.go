@@ -90,6 +90,7 @@ func namedStdInterfaces() []namedStdInterface {
 		{"net/http", "Pusher", "Push"},
 		{"database/sql/driver", "Valuer", "Value"},
 		{"log/slog", "LogValuer", "LogValue"},
+		{"go/ast", "Visitor", "Visit"},
 	}
 }
 
