@@ -72,14 +72,15 @@ func judges(l narrate.Limit, r string) bool {
 	return len(l.Roles) == 0 || slices.Contains(l.Roles, r)
 }
 
-// ceilings returns m's value against each limit, role r deciding which
-// rules judge it, and the metrics it is over.
+// ceilings returns m's value against one limit per metric, the first
+// that judges role r, as the gate picks a row's rule, or the metric's
+// first limit, not judged, when none does; and the metrics it is over.
 func ceilings(m *metrics.RawMetrics, r string, limits []narrate.Limit) (cs []narrate.Ceiling, over []string) {
 	cs = make([]narrate.Ceiling, 0, len(limits))
 	over = []string{}
-	for _, l := range limits {
+	for i, l := range limits {
 		v, ok := ceilingValue(m, l.Metric)
-		if !ok {
+		if !ok || !picked(limits, i, r) {
 			continue
 		}
 		c := narrate.Ceiling{Metric: l.Metric, Label: metricLabel(l.Metric), Value: v, Max: l.Max, Judged: judges(l, r)}
@@ -98,6 +99,28 @@ func ceilings(m *metrics.RawMetrics, r string, limits []narrate.Limit) (cs []nar
 		cs = append(cs, c)
 	}
 	return cs, over
+}
+
+// picked reports whether limits[i] is the limit a package of role r is
+// shown against for its metric: the first on the metric that judges r,
+// or the first on the metric when none does.
+func picked(limits []narrate.Limit, i int, r string) bool {
+	first, judging := -1, -1
+	for j, l := range limits {
+		if l.Metric != limits[i].Metric {
+			continue
+		}
+		if first < 0 {
+			first = j
+		}
+		if judging < 0 && judges(l, r) {
+			judging = j
+		}
+	}
+	if judging >= 0 {
+		return i == judging
+	}
+	return i == first
 }
 
 // band returns the band of a package with tier, over its ceilings over

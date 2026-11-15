@@ -133,15 +133,14 @@ func (t *Target) composeInput(base string, n int) compose.Input {
 	}
 }
 
-// ceilings returns the ceilings of eff's rules on the five size metrics,
-// the first rule with a max on each, in the order of SPEC.md 10.3.
+// ceilings returns eff's rules with a ceiling (gate.Threshold.Ceiling)
+// on the five size metrics, by metric in the order of SPEC.md 10.3.
 func ceilings(eff *config.Effective) []narrate.Limit {
 	out := make([]narrate.Limit, 0, 5)
 	for _, metric := range []string{"sloc", "tokens_est", "largest_file_sloc", "exported_symbols", "internal_imports"} {
 		for _, th := range eff.Thresholds {
-			if th.Metric == metric && th.Max != nil {
-				out = append(out, narrate.Limit{Metric: metric, Max: *th.Max, Roles: th.Roles})
-				break
+			if limit, ok := th.Ceiling(); ok && th.Metric == metric {
+				out = append(out, narrate.Limit{Metric: metric, Max: limit, Roles: th.Roles})
 			}
 		}
 	}

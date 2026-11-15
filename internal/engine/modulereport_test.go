@@ -53,8 +53,17 @@ func TestCeilings(t *testing.T) {
 		{Metric: "dup_blocks", Kind: gate.Density, MaxDelta: maxOf(0)},
 		{Metric: "sloc", Kind: gate.Capacity, Max: maxOf(1000)},
 		{Metric: "sloc", Kind: gate.Capacity, Max: maxOf(2000)},
+		// A density rule's max is no ceiling, nor is a capacity rule's
+		// zero max: gate.Ceilings leaves both out, so the report does.
+		{Metric: "tokens_est", Kind: gate.Density, Max: maxOf(16000), MaxDelta: maxOf(0)},
+		{Metric: "largest_file_sloc", Kind: gate.Capacity, Max: maxOf(0)},
+		{Metric: "internal_imports", Kind: gate.Capacity, Max: maxOf(25), Roles: []string{"main"}},
 	}
-	want := []narrate.Limit{{Metric: "sloc", Max: 1000}, {Metric: "internal_imports", Max: 10, Roles: []string{"library"}}}
+	want := []narrate.Limit{
+		{Metric: "sloc", Max: 1000}, {Metric: "sloc", Max: 2000},
+		{Metric: "internal_imports", Max: 10, Roles: []string{"library"}},
+		{Metric: "internal_imports", Max: 25, Roles: []string{"main"}},
+	}
 	got := ceilings(&config.Effective{Thresholds: ts})
 	if len(got) != len(want) {
 		t.Fatalf("ceilings = %+v, want %+v", got, want)

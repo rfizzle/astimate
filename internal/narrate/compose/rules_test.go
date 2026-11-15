@@ -281,3 +281,47 @@ func TestModuleName(t *testing.T) {
 		}
 	}
 }
+
+// TestCeilingsByRole pins the limit a package is shown against when a
+// metric has one rule per set of roles: the first that judges its role,
+// as the gate picks it, and the metric's first, not judged, when none does.
+func TestCeilingsByRole(t *testing.T) {
+	t.Parallel()
+
+	limits := []narrate.Limit{
+		{Metric: "internal_imports", Max: 10, Roles: []string{"library"}},
+		{Metric: "internal_imports", Max: 25, Roles: []string{"main"}},
+		{Metric: "sloc", Max: 1000},
+		{Metric: "sloc", Max: 2000},
+	}
+	m := &metrics.RawMetrics{InternalImports: 12, SLOC: 500}
+	tests := []struct {
+		name, role string
+		wantMax    float64
+		wantJudged bool
+		wantOver   []string
+	}{
+		{name: "library takes its own rule", role: "library", wantMax: 10, wantJudged: true, wantOver: []string{"internal_imports"}},
+		{name: "empty role is a library", role: "", wantMax: 10, wantJudged: true, wantOver: []string{"internal_imports"}},
+		{name: "main takes the second rule", role: "main", wantMax: 25, wantJudged: true, wantOver: []string{}},
+		{name: "no rule judges it", role: "test-support", wantMax: 10, wantJudged: false, wantOver: []string{}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			cs, over := ceilings(m, tt.role, limits)
+			if len(cs) != 2 {
+				t.Fatalf("ceilings = %+v, want one per metric", cs)
+			}
+			if c := cs[0]; c.Metric != "internal_imports" || c.Max != tt.wantMax || c.Judged != tt.wantJudged {
+				t.Errorf("internal_imports ceiling = %+v, want max %v judged %v", c, tt.wantMax, tt.wantJudged)
+			}
+			if c := cs[1]; c.Metric != "sloc" || c.Max != 1000 {
+				t.Errorf("sloc ceiling = %+v, want the first rule's 1000", c)
+			}
+			if !slices.Equal(over, tt.wantOver) {
+				t.Errorf("over = %v, want %v", over, tt.wantOver)
+			}
+		})
+	}
+}

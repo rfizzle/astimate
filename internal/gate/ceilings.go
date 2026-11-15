@@ -14,6 +14,17 @@ type Ceiling struct {
 	Max float64
 }
 
+// Ceiling returns the ceiling of t and whether t has one: a capacity
+// rule with a positive Max. A density rule's Max is a limit on what a
+// change may introduce, not a ceiling. It is the one definition rank's
+// headroom (Ceilings) and the module report's limits share.
+func (t Threshold) Ceiling() (float64, bool) {
+	if t.Kind != Capacity || t.Max == nil || *t.Max <= 0 {
+		return 0, false
+	}
+	return *t.Max, true
+}
+
 // Ceilings returns the ceilings of the capacity rules among rules that
 // would judge head in Evaluate, in rule order: a rule whose roles leave out
 // head's role (Threshold.Judges), whose metric head does not compute, or
@@ -25,14 +36,15 @@ func Ceilings(head metrics.RawMetrics, rules []Threshold) []Ceiling {
 	e := evaluator{head: head}
 	var out []Ceiling
 	for _, r := range rules {
-		if r.Kind != Capacity || r.Max == nil || *r.Max <= 0 || !r.Judges(head.Role) {
+		limit, ok := r.Ceiling()
+		if !ok || !r.Judges(head.Role) {
 			continue
 		}
 		v, ok := head.Value(e.source(r))
 		if !ok {
 			continue
 		}
-		out = append(out, Ceiling{Metric: r.Metric, Value: v, Max: *r.Max})
+		out = append(out, Ceiling{Metric: r.Metric, Value: v, Max: limit})
 	}
 	return out
 }

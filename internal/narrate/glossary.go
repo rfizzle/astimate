@@ -1,6 +1,7 @@
 package narrate
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 
@@ -84,10 +85,14 @@ func termKey(s string) string {
 	return strings.Join(strings.FieldsFunc(strings.ToLower(s), sep), "_")
 }
 
-// limitsText lists the limits as the glossary says them.
+// limitsText lists the limits as the glossary says them, a metric with
+// several rules, one per set of roles, by its first.
 func limitsText(limits []Limit) string {
 	parts := make([]string, 0, len(limits))
-	for _, l := range limits {
+	for i, l := range limits {
+		if slices.ContainsFunc(limits[:i], func(p Limit) bool { return p.Metric == l.Metric }) {
+			continue
+		}
 		v := Num(l.Max)
 		switch l.Metric {
 		case "sloc":

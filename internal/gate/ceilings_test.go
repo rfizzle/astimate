@@ -76,3 +76,29 @@ func TestCeilings(t *testing.T) {
 		})
 	}
 }
+
+func TestThresholdCeiling(t *testing.T) {
+	t.Parallel()
+
+	maxOf := func(v float64) *float64 { return &v }
+	tests := []struct {
+		name string
+		rule gate.Threshold
+		want float64
+		ok   bool
+	}{
+		{name: "capacity rule", rule: gate.Threshold{Metric: "sloc", Kind: gate.Capacity, Max: maxOf(1000)}, want: 1000, ok: true},
+		{name: "warn rule still has one", rule: gate.Threshold{Metric: "sloc", Kind: gate.Capacity, Max: maxOf(1000), Severity: gate.SeverityWarn}, want: 1000, ok: true},
+		{name: "density max is no ceiling", rule: gate.Threshold{Metric: "sloc", Kind: gate.Density, Max: maxOf(1000)}},
+		{name: "no max", rule: gate.Threshold{Metric: "sloc", Kind: gate.Capacity}},
+		{name: "zero max", rule: gate.Threshold{Metric: "sloc", Kind: gate.Capacity, Max: maxOf(0)}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got, ok := tt.rule.Ceiling(); got != tt.want || ok != tt.ok {
+				t.Errorf("Ceiling() = (%v, %v), want (%v, %v)", got, ok, tt.want, tt.ok)
+			}
+		})
+	}
+}
